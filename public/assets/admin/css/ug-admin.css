@@ -1,0 +1,219 @@
+/* =============================================================
+   Urban Goodz — Admin Panel Brand Override
+   Light warm dashboard. Seasoning Orange accents. No black backgrounds.
+   ============================================================ */
+
+/* ---- Brand Colors ---- */
+:root {
+  --ug-orange: #ED9914;
+  --ug-orange-dark: #d4880f;
+  --ug-canvas: #E2D3BF;
+  --ug-dijon: #E5E276;
+  --ug-black: #161616;
+  --ug-white: #FFFFFF;
+  --ug-orange-rgb: 237, 153, 20;
+}
+
+/* ---- Sidebar ---- */
+.navbar-vertical {
+  background: var(--ug-white) !important;
+  border-right: 1px solid rgba(0,0,0,.06) !important;
+}
+.navbar-vertical-content {
+  background: var(--ug-white) !important;
+}
+.navbar-brand-wrapper {
+  background: var(--ug-white) !important;
+  border-bottom: 1px solid rgba(0,0,0,.06) !important;
+}
+.navbar-vertical .nav-link {
+  color: var(--ug-black) !important;
+}
+.navbar-vertical .nav-link:hover {
+  color: var(--ug-orange) !important;
+}
+.navbar-vertical .nav .active > .nav-link,
+.navbar-vertical .nav .nav-link.active {
+  color: var(--ug-orange) !important;
+  background: rgba(var(--ug-orange-rgb), .06) !important;
+  border-left: 3px solid var(--ug-orange) !important;
+}
+.nav-subtitle {
+  color: rgba(0,0,0,.4) !important;
+}
+
+/* ---- Top Header ---- */
+#header {
+  background: var(--ug-white) !important;
+  border-bottom: 1px solid rgba(0,0,0,.06) !important;
+}
+.navbar-nav-wrap {
+  background: var(--ug-white) !important;
+}
+.__nav-link {
+  color: var(--ug-black) !important;
+}
+.__nav-link.active {
+  color: var(--ug-orange) !important;
+}
+.__nav-module {
+  background: var(--ug-white) !important;
+}
+
+/* ---- Primary Button / Badge Colors ---- */
+.btn--primary,
+.btn-primary {
+  background: var(--ug-orange) !important;
+  border-color: var(--ug-orange) !important;
+  color: var(--ug-white) !important;
+}
+.btn--primary:hover,
+.btn-primary:hover {
+  background: var(--ug-orange-dark) !important;
+  border-color: var(--ug-orange-dark) !important;
+}
+.badge-soft-primary {
+  color: var(--ug-orange) !important;
+  background: rgba(var(--ug-orange-rgb), .1) !important;
+}
+.text-primary {
+  color: var(--ug-orange) !important;
+}
+.text--039D55 {
+  color: var(--ug-orange) !important;
+}
+.bg--005555 {
+  background: var(--ug-white) !important;
+}
+.bg-primary {
+  background: var(--ug-orange) !important;
+}
+
+/* ---- Active Nav Indicators ---- */
+.navbar-vertical .nav .active > .nav-link .nav-indicator-icon,
+.navbar-vertical .nav .nav-link.active .nav-indicator-icon {
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Cards ---- */
+.card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,.06) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04) !important;
+}
+.__dashboard-card-2 {
+  background: var(--ug-white) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,.06) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04) !important;
+}
+.order--card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,.06) !important;
+  background: var(--ug-white) !important;
+}
+
+/* ---- Login Page ---- */
+.auth-wrapper {
+  background: var(--ug-canvas) !important;
+}
+.auth-wrapper-left {
+  background: var(--ug-black) !important;
+}
+.auth-left-cont .title {
+  color: var(--ug-white) !important;
+}
+.auth-left-cont .title strong {
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Footer ---- */
+.footer {
+  background: var(--ug-white) !important;
+  border-top: 1px solid rgba(0,0,0,.06) !important;
+}
+
+/* ---- Module Selector ---- */
+.__nav-module-item.active {
+  border-color: var(--ug-orange) !important;
+  background: rgba(var(--ug-orange-rgb), .06) !important;
+}
+.__nav-module-item.active div {
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Search / Global ---- */
+.search--form-group button {
+  color: var(--ug-orange) !important;
+}
+.form--control:focus {
+  border-color: var(--ug-orange) !important;
+  box-shadow: 0 0 0 2px rgba(var(--ug-orange-rgb), .15) !important;
+}
+
+/* ---- Stat Cards ---- */
+.statistics-btn-grp label span {
+  border-color: rgba(0,0,0,.1) !important;
+  color: rgba(0,0,0,.5) !important;
+}
+.statistics-btn-grp label input:checked + span {
+  background: var(--ug-orange) !important;
+  border-color: var(--ug-orange) !important;
+  color: var(--ug-white) !important;
+}
+
+/* ---- DataTables ---- */
+table.dataTable tbody tr:hover {
+  background: rgba(var(--ug-orange-rgb), .03) !important;
+}
+.page-item.active .page-link {
+  background: var(--ug-orange) !important;
+  border-color: var(--ug-orange) !important;
+}
+
+/* ---- Swal Buttons ---- */
+.swal-button--confirm,
+.swal-button--danger {
+  background: var(--ug-orange) !important;
+}
+
+/* ---- Tabs ---- */
+.nav-tabs .nav-link.active {
+  color: var(--ug-orange) !important;
+  border-bottom-color: var(--ug-orange) !important;
+}
+.nav-tabs .nav-link:hover {
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Status Badges ---- */
+.badge-soft-success {
+  background: rgba(var(--ug-orange-rgb), .1) !important;
+  color: var(--ug-orange) !important;
+}
+.badge-soft-info {
+  background: rgba(var(--ug-orange-rgb), .08) !important;
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Dropdowns ---- */
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background: rgba(var(--ug-orange-rgb), .06) !important;
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Switch Toggle ---- */
+.toggle-switch-input:checked + .toggle-switch-label .toggle-switch-indicator {
+  background: var(--ug-orange) !important;
+}
+
+/* ---- Progress Bars ---- */
+.progress-bar {
+  background: var(--ug-orange) !important;
+}
+
+/* ---- Page Header ---- */
+.page-header-title {
+  color: var(--ug-black) !important;
+}

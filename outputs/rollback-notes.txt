@@ -1,0 +1,48 @@
+URBAN GOODZ LANDING COPY + HERO IMAGE — ROLLBACK NOTES
+==========================================================
+Date: 2026-06-15
+
+HOW TO ROLLBACK
+---------------
+1. RESTORE FILES:
+   Revert each file to its previous version from your backup or git:
+
+   - resources/views/home.blade.php         → restore previous version
+   - public/assets/landing/css/ug-landing.css → restore previous version
+   - public/assets/landing/css/landing.css   → restore previous version
+   - public/assets/landing/img/urban-goodz-marketplace-hero-approved.png
+     → delete this file (it is new, not a replacement)
+   - resources/lang/en/messages.php          → restore previous version
+
+2. HERO ILLUSTRATION ROLLBACK:
+   In ug-landing.css, either:
+   a) Remove or comment out the background-image and display:none rules
+   b) OR delete the image file and restore the SVG via CSS by removing
+      `.hero-illustration svg { display: none !important; }`
+
+3. DATABASE ROLLBACK:
+   If the live DB update SQL was run, restore the previous data_settings
+   values by reverting to your pre-update backup.
+   There is NO automated undo SQL in this package.
+
+4. ADMIN PANEL:
+   Revert any admin panel field changes made via the checklist.
+
+PRE-REQUISITES FOR ROLLBACK
+----------------------------
+- A full file backup taken before applying this package
+- A database backup taken before running the live DB update SQL
+
+WHAT WAS CHANGED
+----------------
+- Landing page copy (hero, category grid, earn section, etc.)
+- Hero illustration: SVG hidden, PNG background-image added
+- CSS brand overrides for Urban Goodz
+- Data_settings SQL values for landing page text fields
+- English translations in messages.php
+
+NO CHANGES TO:
+- Auth, payment, database schema, routes, controllers, config
+- Flutter tester app
+- Vendor files
+- .env or secrets

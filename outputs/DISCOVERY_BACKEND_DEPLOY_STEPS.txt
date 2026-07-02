@@ -1,0 +1,26 @@
+Urban Goodz Discovery Backend Route Deploy Steps
+
+Upload/extract the ZIP into the live backend root for:
+admin.urbangoodzdelivery.com
+
+The live backend root should contain folders like:
+app/
+routes/
+public/
+vendor/
+
+After upload/extract, run if terminal access is available:
+php artisan route:clear
+php artisan config:clear
+php artisan optimize:clear
+
+If php artisan cache:clear fails because DB cache/MySQL is unavailable, do not panic. Route/config clear are the priority.
+
+Then verify:
+php artisan route:list | grep search-capture
+
+Or test in browser:
+https://admin.urbangoodzdelivery.com/api/v1/urban-goodz/discovery/search-capture
+
+Because it is a POST route, browser GET may show Method Not Allowed. That is good.
+Route not found is bad.

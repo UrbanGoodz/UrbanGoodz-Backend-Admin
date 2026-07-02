@@ -1,0 +1,54 @@
+URBAN GOODZ LANDING COPY + HERO IMAGE — DEPLOYMENT NOTES
+===========================================================
+Date: 2026-06-15
+Project: AdminPanel_Update_V39
+
+WHAT THIS PACKAGE CONTAINS
+--------------------------
+1. Approved landing copy (home.blade.php)
+2. Brand override CSS (ug-landing.css)
+3. Approved hero marketplace image (urban-goodz-marketplace-hero-approved.png)
+4. Data settings SQL patch (data_settings.sql partial + live update SQL)
+5. English translations (messages.php)
+6. Base landing CSS (landing.css) — restored light foundation
+7. Admin update checklist (ADMIN-UPDATE-CHECKLIST.md)
+8. Live DB update SQL (update-live-landing-copy-data-settings.sql)
+
+CHANGES INCLUDED
+----------------
+- Landing page copy sync (7 approved changes + 2 new lines)
+- Hero illustration: old faded SVG template replaced with approved Urban Goodz marketplace visual
+  via CSS background-image on .hero-illustration
+- earning_sub_title field hardcoded in Blade (91 chars exceeds admin 80-char maxlength)
+
+FILES TO UPLOAD (via SFTP/SSH or admin file manager)
+------------------------------------------------------
+public/assets/landing/img/urban-goodz-marketplace-hero-approved.png
+public/assets/landing/css/ug-landing.css
+public/assets/landing/css/landing.css
+resources/views/home.blade.php
+resources/lang/en/messages.php
+
+DATABASE
+--------
+Run: outputs/update-live-landing-copy-data-settings.sql
+on the production database to update landing page copy fields.
+
+ADMIN SETTINGS TO UPDATE
+------------------------
+See: outputs/ADMIN-UPDATE-CHECKLIST.md
+Live DB update handles most data_settings values.
+Verify earning_sub_title in admin panel after deploy.
+
+ROLLBACK
+--------
+See rollback-notes.txt
+
+SECURITY
+--------
+- No secrets, .env, or credentials included
+- No auth/payment/database schema changes
+- No routes modified
+- No Flutter tester files touched
+
+NO PRODUCTION DEPLOY YET — verify on staging/preview first

@@ -1,0 +1,41 @@
+Urban Goodz Discovery Update-Safe Backend Deploy Steps
+
+Upload ZIP to live backend root:
+/home/urbakkej/admin.urbangoodzdelivery.com
+
+Extract it there. The live backend root should contain folders like:
+app/
+routes/
+public/
+vendor/
+
+Before clicking the Software Update button, confirm this file contains the Urban Goodz route registration:
+app/Providers/RouteServiceProvider.txt
+
+It should include:
+Route::prefix('api/v1')
+    ->middleware('api')
+    ->namespace($this->namespace)
+    ->group(base_path('routes/api/v1/urban_goodz.php'));
+
+Then it is safer to click the Software Update button. The update process copies:
+app/Providers/RouteServiceProvider.txt
+into:
+app/Providers/RouteServiceProvider.php
+
+After update, verify RouteServiceProvider.php still contains the Urban Goodz route registration above.
+
+Run route/config clears if terminal access is available:
+php artisan route:clear
+php artisan config:clear
+php artisan optimize:clear
+
+If php artisan cache:clear fails because DB cache/MySQL is unavailable, do not panic. Route/config clear are the priority.
+
+Test:
+https://admin.urbangoodzdelivery.com/api/v1/urban-goodz/discovery/search-capture
+
+Expected browser GET result:
+Method Not Allowed
+
+Route not found or the Software Update page is bad.

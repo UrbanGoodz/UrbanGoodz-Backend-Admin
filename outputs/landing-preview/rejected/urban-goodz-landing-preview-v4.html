@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Urban Goodz — V4 Brand Preview</title>
+<!-- ============================================================
+     BRAND TYPOGRAPHY — Thyga Semirounded (headlines),
+     Arial Nova Bold (subheaders), Arial Nova Regular (body)
+     ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'ThygaSemirounded';
+  src: url('v4-assets/fonts/thyga-semirounded.woff2') format('woff2'),
+       url('v4-assets/fonts/thyga-semirounded.woff') format('woff'),
+       url('v4-assets/fonts/thyga-semirounded.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('v4-assets/fonts/Arial Nova Bold.woff2') format('woff2'),
+       url('v4-assets/fonts/Arial Nova Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('v4-assets/fonts/Arial Nova Regular.woff2') format('woff2'),
+       url('v4-assets/fonts/Arial Nova Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* ============================================================
+   BRAND COLORS — Per Official Urban Goodz Brand Guidelines PDF
+   Seasoning #ED9914 · Canvas #E2D3BF · Dijon #E5E276
+   UG Black #161616 · White #FFFFFF
+   ============================================================ */
+:root {
+  --seasoning: #ED9914;
+  --canvas: #E2D3BF;
+  --dijon: #E5E276;
+  --ug-black: #161616;
+  --white: #FFFFFF;
+  --seasoning-rgb: 237, 153, 20;
+  --canvas-rgb: 226, 211, 191;
+  --dijon-rgb: 229, 226, 118;
+  --font-heading: 'ThygaSemirounded', 'Syne', sans-serif;
+  --font-sub: 'Arial Nova', 'Arial', sans-serif;
+  --font-body: 'Arial Nova', 'Arial', sans-serif;
+}
+
+/* ---- Reset & Base ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--ug-black);
+  background: var(--white);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { text-decoration: none; color: inherit; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+/* ---- Typography System ---- */
+h1, h2, h3, h4, .h-lg {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  text-transform: uppercase;
+  line-height: 1.15;
+  color: var(--ug-black);
+}
+h1 { font-size: 2.6rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1rem; }
+.sub-eyebrow {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--seasoning);
+}
+.body-copy {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.92rem;
+  color: rgba(22,22,22,0.6);
+  line-height: 1.7;
+}
+
+/* ---- Section Base ---- */
+.section { padding: 70px 0; }
+.section--canvas { background: var(--canvas); }
+.section--white { background: var(--white); }
+.section--dijon { background: var(--dijon); }
+.section--seasoning { background: var(--seasoning); color: var(--white); }
+.section--seasoning h2,
+.section--seasoning .body-copy { color: var(--white); }
+.section--seasoning .body-copy { color: rgba(255,255,255,0.85); }
+
+.sec-header { text-align: center; margin-bottom: 44px; }
+.sec-header h2 { margin-bottom: 10px; }
+.sec-header .body-copy { max-width: 560px; margin: 0 auto; }
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 30px;
+  border-radius: 100px;
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 2px solid;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.btn--primary {
+  background: var(--seasoning);
+  color: var(--white);
+  border-color: var(--seasoning);
+}
+.btn--primary:hover {
+  background: #d4880f;
+  border-color: #d4880f;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(var(--seasoning-rgb), 0.3);
+}
+.btn--outline {
+  background: transparent;
+  color: var(--ug-black);
+  border-color: rgba(22,22,22,0.15);
+}
+.btn--outline:hover {
+  border-color: var(--seasoning);
+  color: var(--seasoning);
+}
+.btn--white {
+  background: var(--white);
+  color: var(--seasoning);
+  border-color: var(--white);
+}
+.btn--white:hover {
+  background: transparent;
+  color: var(--white);
+}
+
+/* ============================================================
+   HEADER / NAV
+   Uses actual Seasoning Wordmark Stacked logo
+   White background, UG Black text, Seasoning accents
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255,255,255,0.97);
+  border-bottom: 1px solid rgba(22,22,22,0.06);
+  backdrop-filter: blur(8px);
+}
+.nav .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+.nav-logo img {
+  height: 44px;
+  width: auto;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.nav-links a {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ug-black);
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--seasoning); }
+.nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-cta .btn { padding: 8px 20px; font-size: 0.72rem; }
+
+/* ============================================================
+   HERO — Light, White background with warm radial gradient
+   ============================================================ */
+.hero {
+  padding: 120px 0 60px;
+  background: var(--white);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  right: -8%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(var(--seasoning-rgb), 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero .container { position: relative; z-index: 2; }
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  background: rgba(var(--seasoning-rgb), 0.08);
+  border: 1px solid rgba(var(--seasoning-rgb), 0.15);
+  border-radius: 100px;
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--seasoning);
+  margin-bottom: 20px;
+}
+.hero h1 { margin-bottom: 14px; }
+.hero h1 .hl { color: var(--seasoning); }
+.hero .body-copy {
+  max-width: 560px;
+  margin: 0 auto 28px;
+  font-size: 1rem;
+}
+.hero-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 28px; }
+.hero-launch-line {
+  padding-top: 18px;
+  border-top: 1px solid rgba(22,22,22,0.08);
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(22,22,22,0.35);
+}
+.hero-launch-line strong { color: var(--seasoning); }
+.hero-illustration {
+  margin: 40px auto 0;
+  max-width: 800px;
+  opacity: 0.08;
+  color: var(--seasoning);
+}
+.hero-illustration svg { width: 100%; height: auto; }
+
+/* ============================================================
+   LAUNCH NOTICE — Dijon accent strip
+   ============================================================ */
+.launch-notice {
+  padding: 12px 0;
+  text-align: center;
+  background: var(--dijon);
+  border-top: 1px solid rgba(22,22,22,0.06);
+  border-bottom: 1px solid rgba(22,22,22,0.06);
+}
+.launch-notice p {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: rgba(22,22,22,0.5);
+  margin: 0;
+}
+.launch-notice strong { color: var(--ug-black); font-weight: 700; }
+
+/* ============================================================
+   MARKETPLACE CARDS — Everything Local. One Marketplace.
+   White cards on Canvas background
+   ============================================================ */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.card {
+  background: var(--white);
+  border-radius: 14px;
+  padding: 24px 14px;
+  text-align: center;
+  border: 1.5px solid rgba(22,22,22,0.06);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(22,22,22,0.02);
+}
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--seasoning);
+  box-shadow: 0 0 0 1px var(--seasoning), 0 12px 32px rgba(var(--seasoning-rgb), 0.1);
+}
+.card-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: var(--ug-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  overflow: hidden;
+}
+.card-icon img {
+  width: 24px; height: 24px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+.card h4 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: var(--ug-black);
+  margin-bottom: 4px;
+}
+.card p {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.7rem;
+  color: rgba(22,22,22,0.45);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ============================================================
+   ASK URBAN GOODZ — White section, prompt chips
+   ============================================================ */
+.ask-grid { max-width: 680px; margin: 0 auto; }
+.ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.chip {
+  padding: 8px 18px;
+  border-radius: 100px;
+  border: 1.5px solid rgba(22,22,22,0.12);
+  background: var(--white);
+  color: rgba(22,22,22,0.65);
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.chip:hover {
+  border-color: var(--seasoning);
+  color: var(--seasoning);
+  background: rgba(var(--seasoning-rgb), 0.06);
+}
+.ask-search { text-align: center; }
+.search-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+  padding: 14px 20px;
+  border-radius: 60px;
+  background: var(--white);
+  border: 1.5px solid rgba(22,22,22,0.1);
+  box-shadow: 0 2px 12px rgba(22,22,22,0.04);
+}
+.search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ug-black);
+}
+.search-bar input::placeholder { color: rgba(22,22,22,0.25); }
+.search-hint {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(22,22,22,0.25);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   SINGLE SECTION LAYOUT — Order Anywhere, Rentals, etc.
+   ============================================================ */
+.single-section { text-align: center; max-width: 680px; margin: 0 auto; }
+.single-section h2 { margin-bottom: 12px; }
+.single-section .body-copy { margin-bottom: 20px; }
+.single-icon { margin-bottom: 16px; }
+.single-icon img { display: inline-block; }
+
+/* ============================================================
+   TWO-COLUMN MINI CARDS
+   ============================================================ */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+.mini-card {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 20px 18px;
+  text-align: left;
+  border: 1px solid rgba(22,22,22,0.06);
+}
+.mini-card h4 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--ug-black);
+  margin-bottom: 6px;
+}
+.mini-card p {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: rgba(22,22,22,0.5);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   EARN GRID
+   ============================================================ */
+.earn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  max-width: 860px;
+  margin: 0 auto 28px;
+}
+.earn-card {
+  background: var(--white);
+  border: 1px solid rgba(22,22,22,0.08);
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.earn-card:hover {
+  border-color: var(--seasoning);
+  background: rgba(var(--seasoning-rgb), 0.04);
+  transform: translateY(-2px);
+}
+.earn-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--seasoning);
+  color: var(--white);
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+}
+.earn-card h4 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: var(--ug-black);
+  margin-bottom: 4px;
+}
+.earn-card p {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: rgba(22,22,22,0.5);
+  line-height: 1.4;
+  margin: 0;
+}
+.earn-cta { text-align: center; }
+
+/* ============================================================
+   3-COLUMN CTA CARDS — Join The Community
+   ============================================================ */
+.cta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.cta-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 36px 28px;
+  text-align: center;
+  border: 1px solid rgba(22,22,22,0.06);
+  transition: all 0.3s ease;
+}
+.cta-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(22,22,22,0.08);
+}
+.cta-icon { margin-bottom: 14px; }
+.cta-icon img { display: inline-block; }
+.cta-card h3 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: var(--ug-black);
+  margin-bottom: 8px;
+}
+.cta-card p {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: rgba(22,22,22,0.5);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+/* ============================================================
+   HOUSTON SECTION — Canvas background
+   ============================================================ */
+.houston-section { text-align: center; max-width: 640px; margin: 0 auto; }
+.houston-section h2 { margin-bottom: 12px; }
+.houston-section .body-copy { margin-bottom: 16px; }
+.houston-line {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--seasoning);
+  margin-bottom: 10px;
+}
+.houston-tagline {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(22,22,22,0.35);
+}
+
+/* ============================================================
+   MARKET NETWORK
+   ============================================================ */
+.mkt-network { text-align: center; max-width: 640px; margin: 0 auto; }
+.mkt-network h2 { margin-bottom: 14px; }
+.mkt-network .body-copy { margin-bottom: 12px; }
+.mkt-hubs {
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+  margin: 20px auto 24px;
+  text-align: left;
+}
+.mkt-hub {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--white);
+  border: 1px solid rgba(22,22,22,0.08);
+}
+.mkt-label {
+  display: block;
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--seasoning);
+  margin-bottom: 3px;
+}
+.mkt-value {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: rgba(22,22,22,0.7);
+  line-height: 1.5;
+}
+
+/* ============================================================
+   DB-DRIVEN SECTIONS STYLES (Services, Features, Special, etc.)
+   Preserved from original 6amMart structure, light-themed
+   ============================================================ */
+.services-section { padding: 70px 0; background: var(--white); }
+.features { padding: 70px 0; background: var(--canvas); }
+.zones { padding: 70px 0; background: var(--white); }
+.referral { padding: 70px 0; background: var(--dijon); }
+.earn { padding: 70px 0; background: var(--canvas); }
+.special { padding: 70px 0; background: var(--white); }
+.stats { padding: 70px 0; background: var(--canvas); }
+.cta-manage { padding: 70px 0; background: var(--seasoning); }
+.testimonials { padding: 70px 0; background: var(--white); }
+
+/* Slider navigation */
+.slider-wrap { position: relative; }
+.slider-nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.slider-arrow {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(22,22,22,0.12);
+  background: var(--white);
+  color: var(--ug-black);
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.slider-arrow:hover {
+  border-color: var(--seasoning);
+  color: var(--seasoning);
+}
+
+/* Feature cards */
+.feat-grid { display: flex; gap: 20px; overflow-x: auto; padding: 10px 0; }
+.feat-card {
+  min-width: 200px;
+  background: var(--white);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  border: 1px solid rgba(22,22,22,0.06);
+  flex-shrink: 0;
+}
+.feat-ico img { width: 44px; height: 44px; margin: 0 auto 12px; object-fit: contain; }
+.feat-card h4 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.feat-card p {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: rgba(22,22,22,0.5);
+}
+
+/* Earn cards (DB-driven) */
+.earn-grid-db { display: flex; gap: 20px; overflow-x: auto; padding: 10px 0; }
+.earn-card-db {
+  min-width: 280px;
+  background: var(--white);
+  border-radius: 14px;
+  padding: 28px 24px;
+  border: 1px solid rgba(22,22,22,0.06);
+  flex-shrink: 0;
+}
+.earn-card-icon { margin-bottom: 12px; }
+.earn-card-icon img { width: 44px; height: 44px; object-fit: contain; }
+.earn-card-db h3 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.earn-card-db p {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: rgba(22,22,22,0.5);
+  margin-bottom: 14px;
+}
+.earn-app-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.app-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--ug-black);
+  border-radius: 8px;
+  color: var(--white);
+}
+.app-btn img { width: 20px; height: 20px; }
+.ab-text { display: flex; flex-direction: column; text-align: left; }
+.ab-sm { font-size: 0.6rem; opacity: 0.7; }
+.ab-lg { font-size: 0.75rem; font-weight: 700; }
+
+/* Service tabs */
+.svc-icons { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; }
+.svc-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(22,22,22,0.08);
+  background: var(--white);
+  cursor: pointer;
+  min-width: 90px;
+  transition: all 0.2s;
+}
+.svc-icon-btn.active { border-color: var(--seasoning); background: rgba(var(--seasoning-rgb), 0.06); }
+.svc-icon-btn .ico img { width: 36px; height: 36px; object-fit: contain; }
+.svc-icon-btn .lbl {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+.svc-panels { margin-top: 24px; }
+.svc-panel { display: none; gap: 30px; align-items: center; }
+.svc-panel.active { display: flex; }
+.svc-text { flex: 1; }
+.svc-img { flex: 1; }
+.svc-img .img-card { border-radius: 14px; overflow: hidden; }
+.svc-nav { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+.svc-arrow {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(22,22,22,0.12);
+  background: var(--white);
+  cursor: pointer;
+}
+
+/* Zone banner */
+.zone-banner { display: flex; gap: 40px; align-items: center; }
+.zone-img-side { flex: 1; }
+.zone-img-side img { width: 100%; border-radius: 14px; }
+.zone-text-side { flex: 1; }
+.zone-text-side h2 { margin-bottom: 10px; }
+.zone-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.zone-tag {
+  padding: 6px 14px;
+  border-radius: 100px;
+  background: var(--white);
+  border: 1px solid rgba(22,22,22,0.08);
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+.zone-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--seasoning); margin-right: 6px; }
+
+/* Special cards */
+.sp-track { display: flex; gap: 20px; overflow-x: auto; padding: 10px 0; }
+.sp-card {
+  min-width: 200px;
+  background: var(--white);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  border: 1px solid rgba(22,22,22,0.06);
+  flex-shrink: 0;
+}
+.sp-ico img { width: 60px; height: 60px; margin: 0 auto 12px; object-fit: contain; }
+.sp-card h4 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.sp-card p { font-family: var(--font-body); font-size: 0.78rem; color: rgba(22,22,22,0.5); }
+.sp-dots { display: flex; justify-content: center; gap: 6px; margin-top: 16px; }
+.sp-dot { width: 8px; height: 8px; border-radius: 50%; border: none; background: rgba(22,22,22,0.12); cursor: pointer; padding: 0; }
+.sp-dot.active { background: var(--seasoning); }
+
+/* Stats */
+.stats-grid { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+.stat-card {
+  text-align: center;
+  padding: 24px 28px;
+  background: var(--white);
+  border-radius: 14px;
+  border: 1px solid rgba(22,22,22,0.06);
+  min-width: 140px;
+}
+.stat-icon { margin-bottom: 8px; color: var(--seasoning); }
+.stat-num {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 1.8rem;
+  color: var(--ug-black);
+}
+.stat-num .plus { color: var(--seasoning); }
+.stat-label {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(22,22,22,0.45);
+  margin-top: 4px;
+}
+.stats-note {
+  text-align: center;
+  margin-top: 16px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: rgba(22,22,22,0.35);
+}
+
+/* Testimonials */
+.test-grid { display: flex; gap: 20px; overflow-x: auto; padding: 10px 0; }
+.test-card {
+  min-width: 280px;
+  background: var(--white);
+  border-radius: 14px;
+  padding: 28px 24px;
+  border: 1px solid rgba(22,22,22,0.06);
+  flex-shrink: 0;
+}
+.qm { font-size: 2rem; color: var(--seasoning); font-family: serif; line-height: 1; margin-bottom: 8px; }
+.test-stars { color: var(--seasoning); font-size: 0.9rem; margin-bottom: 8px; }
+.test-text { font-family: var(--font-body); font-size: 0.82rem; color: rgba(22,22,22,0.6); line-height: 1.6; margin-bottom: 16px; }
+.test-author { display: flex; align-items: center; gap: 12px; }
+.test-av img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.test-name { font-family: var(--font-sub); font-weight: 700; font-size: 0.82rem; color: var(--ug-black); }
+.test-role { font-family: var(--font-body); font-size: 0.72rem; color: rgba(22,22,22,0.4); }
+
+/* CTA Manage (Download App) */
+.cta-box {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  background: var(--white);
+  border-radius: 20px;
+  padding: 40px;
+}
+.cta-info { flex: 1; }
+.cta-info h2 { margin-bottom: 16px; }
+.cta-info h2 .hl { color: var(--seasoning); }
+.cta-app-row { display: flex; gap: 12px; margin-top: 16px; }
+.cta-app-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--ug-black);
+  border-radius: 10px;
+  color: var(--white);
+}
+.cta-app-link img { width: 22px; height: 22px; filter: brightness(10); }
+.cal-text { display: flex; flex-direction: column; text-align: left; }
+.cal-sm { font-size: 0.6rem; opacity: 0.7; }
+.cal-lg { font-size: 0.78rem; font-weight: 700; }
+.cta-visual { flex: 1; text-align: center; }
+.cta-visual img { max-height: 400px; }
+
+/* ============================================================
+   FOOTER — Dark (by design, per original 6amMart layout)
+   ============================================================ */
+.footer {
+  background: var(--ug-black);
+  color: rgba(255,255,255,0.55);
+  padding: 60px 0 30px;
+}
+.footer .container { max-width: 1100px; }
+.newsletter-area { text-align: center; margin-bottom: 40px; }
+.newsletter-area h2 {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.newsletter-area p { font-family: var(--font-body); font-size: 0.84rem; margin-bottom: 16px; }
+.nl-form { display: flex; max-width: 440px; margin: 0 auto; gap: 0; }
+.nl-form input {
+  flex: 1;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 100px 0 0 100px;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  outline: none;
+}
+.nl-form button {
+  padding: 12px 24px;
+  background: var(--seasoning);
+  color: var(--white);
+  border: none;
+  border-radius: 0 100px 100px 0;
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; margin-bottom: 30px; }
+.f-brand img { height: 40px; margin-bottom: 12px; }
+.f-brand p { font-size: 0.84rem; margin-bottom: 12px; }
+.f-social { display: flex; gap: 10px; margin-bottom: 16px; }
+.f-social a img { width: 24px; height: 24px; opacity: 0.5; transition: opacity 0.2s; }
+.f-social a:hover img { opacity: 1; }
+.f-app-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.f-app-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: var(--white);
+  font-size: 0.78rem;
+}
+.fal-text { display: flex; flex-direction: column; }
+.fal-sm { font-size: 0.55rem; opacity: 0.6; }
+.fal-lg { font-size: 0.7rem; font-weight: 700; }
+.footer h5 {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  color: var(--white);
+  margin-bottom: 14px;
+}
+.f-links, .f-contact { display: flex; flex-direction: column; gap: 8px; }
+.f-links a, .f-contact a { font-size: 0.82rem; color: rgba(255,255,255,0.5); transition: color 0.2s; }
+.f-links a:hover, .f-contact a:hover { color: var(--seasoning); }
+.footer-bottom-bar {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.3);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 992px) {
+  .cards-grid { grid-template-columns: repeat(3, 1fr); }
+  .cta-grid { grid-template-columns: 1fr; max-width: 440px; }
+  .two-col { grid-template-columns: 1fr; max-width: 440px; }
+  .earn-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero h1 { font-size: 2rem; }
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.4rem; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .zone-banner { flex-direction: column; }
+  .cta-box { flex-direction: column; padding: 30px; }
+  .nav-links { display: none; }
+}
+@media (max-width: 768px) {
+  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .cards-grid .card:nth-child(n+7) { display: none; }
+}
+@media (max-width: 576px) {
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.2rem; }
+  .hero { padding: 100px 0 40px; }
+  .section { padding: 40px 0; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .card { padding: 18px 10px; }
+  .card-icon { width: 36px; height: 36px; }
+  .card h4 { font-size: 0.7rem; }
+  .earn-grid { grid-template-columns: 1fr 1fr; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .nl-form { flex-direction: column; gap: 8px; }
+  .nl-form input { border-radius: 100px; }
+  .nl-form button { border-radius: 100px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER — Actual Urban Goodz Seasoning Wordmark Stacked logo
+     ============================================================ -->
+<nav class="nav">
+  <div class="container">
+    <a href="#" class="nav-logo">
+      <img src="v4-assets/logos/Seasoning Wordmark Stacked.png" alt="Urban Goodz" />
+    </a>
+    <div class="nav-links">
+      <a href="#">Home</a>
+      <a href="#">About</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="#">Contact</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#" class="btn btn--primary">Browse Web</a>
+      <a href="#" class="btn btn--outline">Join Us</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================
+     HERO — Light white background, Seasoning accents
+     Preserved hero illustration SVG at low opacity
+     "Your Connection To Local Everything"
+     ============================================================ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">Relaunching Soon</div>
+    <h1>Your Connection To <span class="hl">Local Everything</span></h1>
+    <p class="body-copy">Urban Goodz connects you to local products, services, rentals, events, creators, drivers, vendors, and business discovery through one powerful marketplace.</p>
+    <div class="hero-btns">
+      <a href="#" class="btn btn--primary">Explore Urban Goodz</a>
+      <a href="#" class="btn btn--outline">Become a Vendor</a>
+      <a href="#" class="btn btn--outline">Earn With Urban Goodz</a>
+    </div>
+    <div class="hero-launch-line">
+      <strong>Houston Starts It.</strong> Built For Everywhere.
+    </div>
+  </div>
+  <div class="hero-illustration">
+    <svg width="1240" height="393" viewBox="0 0 1240 393" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g opacity="1" clip-path="url(#clip0_417_3621)">
+        <rect width="1240" height="393" fill="currentColor" opacity="0.08"/>
+      </g>
+      <defs>
+        <clipPath id="clip0_417_3621"><rect width="1240" height="393" fill="white"/></clipPath>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<!-- ============================================================
+     LAUNCH NOTICE — Dijon background strip
+     ============================================================ -->
+<section class="launch-notice">
+  <div class="container">
+    <p>Urban Goodz is relaunching in phases. Some features are in <strong>preview</strong> or <strong>test mode</strong> while the upgraded platform activates across our market network.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     MARKETPLACE CARDS — Everything Local. One Marketplace.
+     Canvas background section. Real-image cards.
+     Seasoning icon containers (small accent).
+     ============================================================ -->
+<section class="section section--canvas">
+  <div class="container">
+    <div class="sec-header">
+      <h2>Everything Local. One Marketplace.</h2>
+      <p class="body-copy">One platform, endless local possibilities</p>
+    </div>
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/feature/shopping.svg" alt="Retail" /></div>
+        <h4>Retail &amp; Shopping</h4>
+        <p>Shop local stores, browse products, order for pickup or delivery</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/category/main-category-1.png" alt="Beauty" /></div>
+        <h4>Beauty Supply / Hair Providerz</h4>
+        <p>Book appointments, shop products, find local stylists</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/category/grocery.svg" alt="Food" /></div>
+        <h4>Food &amp; Grocery</h4>
+        <p>Order meals and groceries from nearby restaurants and markets</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/venture/venture1.png" alt="Rentals" /></div>
+        <h4>Rentals</h4>
+        <p>Rent tools, equipment, event items, and more from neighbors</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/feature/location.svg" alt="Services" /></div>
+        <h4>Services</h4>
+        <p>Find local pros for repairs, cleaning, tutoring, and more</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/feature/trusted.svg" alt="Events" /></div>
+        <h4>Events &amp; Creators</h4>
+        <p>Discover local events, support creators, book talent</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/feature/delivery.svg" alt="Courier" /></div>
+        <h4>Courier &amp; Delivery</h4>
+        <p>Send packages across town with fast, tracked delivery</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/category/main-category-2.png" alt="Fashion" /></div>
+        <h4>Fashion / Tailoring</h4>
+        <p>Manual measurements, alterations, seamstress &amp; tailor services</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/feature/payment.svg" alt="Order Anywhere" /></div>
+        <h4>Order Anywhere</h4>
+        <p>Request items from local businesses not yet onboarded</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><img src="../../public/assets/landing/img/earn-money/earn-money-1.png" alt="Earn" /></div>
+        <h4>Earn Money</h4>
+        <p>Deliver, rent items, offer services &mdash; earn on your terms</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ASK URBAN GOODZ — White background, prompt chips
+     No emoji search icon, replaced with SVG
+     ============================================================ -->
+<section class="section section--white">
+  <div class="container">
+    <div class="sec-header">
+      <span class="sub-eyebrow">AI-guided discovery preview</span>
+      <h2>Ask Urban Goodz</h2>
+      <p class="body-copy">Tell Urban Goodz what you need. Search for products, services, rentals, events, businesses, opportunities, and local providers in one place.</p>
+    </div>
+    <div class="ask-grid">
+      <div class="ask-chips">
+        <button class="chip" type="button">Need braiding hair</button>
+        <button class="chip" type="button">Rent a pickup truck</button>
+        <button class="chip" type="button">Find a barber</button>
+        <button class="chip" type="button">Book a photographer</button>
+        <button class="chip" type="button">Need a courier</button>
+        <button class="chip" type="button">Find local events</button>
+        <button class="chip" type="button">Order from a store nearby</button>
+        <button class="chip" type="button">Find Black-owned businesses</button>
+      </div>
+      <div class="ask-search">
+        <div class="search-bar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Ask Urban Goodz anything..." readonly />
+          <span class="search-hint">AI-guided discovery preview</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ORDER ANYWHERE — Canvas background
+     ============================================================ -->
+<section class="section section--canvas">
+  <div class="container">
+    <div class="single-section">
+      <div class="single-icon"><img src="../../public/assets/landing/img/feature/payment.svg" alt="Order Anywhere" style="width:44px;height:44px;object-fit:contain" /></div>
+      <h2>Order Anywhere</h2>
+      <p class="body-copy">Need something from a local business that is not fully onboarded yet? Submit a request and Urban Goodz helps turn local demand into fulfillment.</p>
+      <a href="#" class="btn btn--primary">Preview Order Anywhere</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     RENTALS — White background
+     ============================================================ -->
+<section class="section section--white">
+  <div class="container">
+    <div class="single-section">
+      <div class="single-icon"><img src="../../public/assets/landing/img/venture/venture1.png" alt="Rentals" style="width:48px;height:auto;object-fit:contain" /></div>
+      <h2>Rent What You Need</h2>
+      <p class="body-copy">From vehicles to equipment and local rental needs, Urban Goodz brings rentals into the same marketplace where people already shop, book, and discover.</p>
+      <a href="#" class="btn btn--primary">Explore Rentals</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SERVICES / FASHION — Dijon background (accent)
+     No emoji — using real images instead
+     ============================================================ -->
+<section class="section section--dijon">
+  <div class="container">
+    <div class="single-section">
+      <div class="single-icon"><img src="../../public/assets/landing/img/feature/location.svg" alt="Services" style="width:44px;height:44px;object-fit:contain" /></div>
+      <h2>Book Local Services</h2>
+      <p class="body-copy">Find local service providers for beauty, grooming, professional services, home help, creative work, fashion, tailoring, alterations, and custom fit needs.</p>
+      <div class="two-col">
+        <div class="mini-card">
+          <h4>Fashion / Tailoring</h4>
+          <p>Manual measurements, neck-to-floor measurements, photo-assisted previews, and seamstress/tailor verification are part of the Urban Goodz fashion direction.</p>
+        </div>
+        <div class="mini-card">
+          <h4>Creative &amp; Professional</h4>
+          <p>Photographers, musicians, tutors, repair techs, cleaners, personal trainers &mdash; book local pros who serve your area.</p>
+        </div>
+      </div>
+      <a href="#" class="btn btn--primary">Find Local Services</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     EARN MONEY — Canvas background
+     Numbered cards, no emoji
+     ============================================================ -->
+<section class="section section--canvas">
+  <div class="container">
+    <div class="sec-header">
+      <h2>Earn With Urban Goodz</h2>
+      <p class="body-copy">Urban Goodz creates earning paths for delivery drivers, couriers, rental partners, service providers, creators, vendors, and future logistics opportunities.</p>
+    </div>
+    <div class="earn-grid">
+      <div class="earn-card">
+        <div class="earn-num">1</div>
+        <h4>Delivery</h4>
+        <p>Deliver orders from local businesses on your schedule.</p>
+      </div>
+      <div class="earn-card">
+        <div class="earn-num">2</div>
+        <h4>Courier</h4>
+        <p>Send and earn by transporting packages across town.</p>
+      </div>
+      <div class="earn-card">
+        <div class="earn-num">3</div>
+        <h4>Order Anywhere Pickups</h4>
+        <p>Fulfill requests from customers who need items picked up.</p>
+      </div>
+      <div class="earn-card">
+        <div class="earn-num">4</div>
+        <h4>Rental Support</h4>
+        <p>Facilitate rental transactions and earn from each booking.</p>
+      </div>
+      <div class="earn-card">
+        <div class="earn-num">5</div>
+        <h4>Creator Campaigns</h4>
+        <p>Promote local businesses and earn through referral campaigns.</p>
+      </div>
+      <div class="earn-card">
+        <div class="earn-num">6</div>
+        <h4>Vendor Referrals</h4>
+        <p>Refer merchants and earn when they join Urban Goodz.</p>
+      </div>
+      <div class="earn-card">
+        <div class="earn-num">7</div>
+        <h4>Load Board</h4>
+        <p>Future logistics and bulk transport earning opportunities.</p>
+      </div>
+    </div>
+    <div class="earn-cta">
+      <a href="#" class="btn btn--primary">Start Earning</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     BUSINESS DISCOVERY — White background
+     ============================================================ -->
+<section class="section section--white">
+  <div class="container">
+    <div class="single-section">
+      <div class="single-icon"><img src="../../public/assets/landing/img/feature/location.svg" alt="Business Discovery" style="width:44px;height:44px;object-fit:contain" /></div>
+      <h2>Business Discovery Engine</h2>
+      <p class="body-copy">Urban Goodz turns searches, requests, and unmet demand into business discovery, merchant leads, and new local opportunities.</p>
+      <p class="body-copy" style="font-size:0.84rem;color:rgba(22,22,22,0.42)">When customers search and cannot find what they need, Urban Goodz can capture that demand and help bring businesses into the marketplace.</p>
+      <a href="#" class="btn btn--primary">List Your Business</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     HOUSTON LAUNCH — Canvas background
+     "Houston Starts It. Built For Everywhere."
+     ============================================================ -->
+<section class="section section--canvas">
+  <div class="container">
+    <div class="houston-section">
+      <div class="single-icon"><img src="v4-assets/logos/Seasoning Wordmark Stacked.png" alt="Urban Goodz" style="width:48px;height:auto" /></div>
+      <h2>Houston Starts It. Built For Everywhere.</h2>
+      <p class="body-copy">Urban Goodz is relaunching with an expanded platform built to connect communities to more than delivery. Houston is the current live relaunch hub.</p>
+      <div class="houston-line">Built in Houston. Designed for everywhere.</div>
+      <div class="houston-tagline">One Platform. Unlimited Possibilities.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ROLE-BASED CTA — Join The Urban Goodz Community
+     Canvas background, white cards
+     ============================================================ -->
+<section class="section section--canvas">
+  <div class="container">
+    <div class="sec-header">
+      <h2>Join The Urban Goodz Community</h2>
+      <p class="body-copy">Whether you shop, sell, or serve &mdash; there's a place for you</p>
+    </div>
+    <div class="cta-grid">
+      <div class="cta-card">
+        <div class="cta-icon"><img src="../../public/assets/landing/img/feature/shopping.svg" alt="Customers" style="width:36px;height:36px;object-fit:contain" /></div>
+        <h3>For Customers</h3>
+        <p>Find it. Book it. Rent it. Get it. Everything local in one marketplace.</p>
+        <a href="#" class="btn btn--primary">Explore the Marketplace</a>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon"><img src="../../public/assets/landing/img/feature/payment.svg" alt="Vendors" style="width:36px;height:36px;object-fit:contain" /></div>
+        <h3>For Vendors</h3>
+        <p>Get discovered, receive demand, and grow your business. List your store or service today.</p>
+        <a href="#" class="btn btn--primary">Join as Vendor</a>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon"><img src="../../public/assets/landing/img/feature/delivery.svg" alt="Drivers" style="width:36px;height:36px;object-fit:contain" /></div>
+        <h3>For Drivers / Partners</h3>
+        <p>Earn through deliveries, pickups, courier work, rentals, and future logistics opportunities.</p>
+        <a href="#" class="btn btn--outline">Join as Delivery Partner</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MARKET NETWORK — White background
+     ============================================================ -->
+<section class="section section--white">
+  <div class="container">
+    <div class="mkt-network">
+      <div class="single-icon"><img src="v4-assets/logos/Seasoning Lettermark.png" alt="UG" style="width:48px;height:auto" /></div>
+      <h2>Relaunching Across Our Market Network</h2>
+      <p class="body-copy">Urban Goodz is relaunching with an expanded platform built to connect communities to more than delivery.</p>
+      <p class="body-copy">Our footprint already reaches multiple markets, and Houston is the current live relaunch hub for the expanded Urban Goodz marketplace.</p>
+      <p class="body-copy">As we activate the upgraded platform city by city, Urban Goodz will continue connecting customers, vendors, drivers, service providers, creators, and local businesses through one ecosystem.</p>
+      <div class="mkt-hubs">
+        <div class="mkt-hub">
+          <span class="mkt-label">Current Live Relaunch Hub:</span>
+          <span class="mkt-value">Houston, Texas</span>
+        </div>
+        <div class="mkt-hub">
+          <span class="mkt-label">Urban Goodz Positioned Markets:</span>
+          <span class="mkt-value">Texas, Alabama, Georgia, Florida, California, Nevada, Tennessee, North Carolina, Maryland, Washington D.C., Oklahoma, and more.</span>
+        </div>
+      </div>
+      <a href="#" class="btn btn--primary">Request Full Activation In Your City</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     DB-DRIVEN SECTIONS (preserved structure, sample content)
+     Services / Features / Zones / Referral / Earn / Special
+     Stats / CTA Download / Testimonials
+     ============================================================ -->
+
+<!-- Services -->
+<section class="services-section">
+  <div class="container">
+    <div class="sec-header">
+      <h2>Explore Our Services</h2>
+      <p class="body-copy">Urban Goodz connects you to every service your community offers</p>
+    </div>
+    <div class="slider-wrap">
+      <div class="svc-icons">
+        <button class="svc-icon-btn active" data-svc="svc-0">
+          <span class="ico"><img src="../../public/assets/landing/img/feature/shopping.svg" alt="Shopping" /></span>
+          <span class="lbl">Shopping</span>
+        </button>
+        <button class="svc-icon-btn" data-svc="svc-1">
+          <span class="ico"><img src="../../public/assets/landing/img/category/grocery.svg" alt="Grocery" /></span>
+          <span class="lbl">Grocery</span>
+        </button>
+        <button class="svc-icon-btn" data-svc="svc-2">
+          <span class="ico"><img src="../../public/assets/landing/img/feature/delivery.svg" alt="Parcel" /></span>
+          <span class="lbl">Parcel</span>
+        </button>
+        <button class="svc-icon-btn" data-svc="svc-3">
+          <span class="ico"><img src="../../public/assets/landing/img/venture/venture1.png" alt="Rentals" /></span>
+          <span class="lbl">Rentals</span>
+        </button>
+      </div>
+    </div>
+    <div class="svc-panels">
+      <div class="svc-panel active" data-panel="svc-0">
+        <div class="svc-text">
+          <h3>Local Shopping</h3>
+          <p class="body-copy">Browse and order from local stores near you. From retail to specialty shops, Urban Goodz brings local commerce online.</p>
+        </div>
+        <div class="svc-img">
+          <div class="img-card"><img src="../../public/assets/landing/img/category/main-category-1.png" alt="Shopping" style="width:100%;border-radius:14px" /></div>
+        </div>
+      </div>
+      <div class="svc-panel" data-panel="svc-1">
+        <div class="svc-text">
+          <h3>Food &amp; Grocery</h3>
+          <p class="body-copy">Order meals and groceries from nearby restaurants and markets. Fresh, fast, and local.</p>
+        </div>
+        <div class="svc-img">
+          <div class="img-card"><img src="../../public/assets/landing/img/category/grocery.svg" alt="Grocery" style="width:100%;max-height:200px;object-fit:contain;border-radius:14px" /></div>
+        </div>
+      </div>
+      <div class="svc-panel" data-panel="svc-2">
+        <div class="svc-text">
+          <h3>Courier &amp; Delivery</h3>
+          <p class="body-copy">Send packages across town with fast, tracked delivery. Earn as a courier on your schedule.</p>
+        </div>
+        <div class="svc-img">
+          <div class="img-card"><img src="../../public/assets/landing/img/feature/delivery.svg" alt="Delivery" style="width:100%;max-height:200px;object-fit:contain;border-radius:14px" /></div>
+        </div>
+      </div>
+      <div class="svc-panel" data-panel="svc-3">
+        <div class="svc-text">
+          <h3>Rentals</h3>
+          <p class="body-copy">Rent tools, equipment, event items, vehicles, and more from neighbors and local businesses.</p>
+        </div>
+        <div class="svc-img">
+          <div class="img-card"><img src="../../public/assets/landing/img/venture/venture1.png" alt="Rentals" style="width:100%;border-radius:14px" /></div>
+        </div>
+      </div>
+    </div>
+    <div class="svc-nav">
+      <button class="svc-arrow" id="svcPrev">&#8592;</button>
+      <button class="svc-arrow" id="svcNext">&#8594;</button>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="container">
+    <div class="sec-header">
+      <h2>Why Urban Goodz</h2>
+      <p class="body-copy">Built differently to serve local communities better</p>
+    </div>
+    <div class="slider-wrap">
+      <div class="feat-grid">
+        <div class="feat-card">
+          <span class="feat-ico"><img src="../../public/assets/landing/img/feature/shopping.svg" alt="" /></span>
+          <h4>One Marketplace</h4>
+          <p>Everything local in a single platform</p>
+        </div>
+        <div class="feat-card">
+          <span class="feat-ico"><img src="../../public/assets/landing/img/feature/delivery.svg" alt="" /></span>
+          <h4>Fast Delivery</h4>
+          <p>Quick, tracked delivery from local businesses</p>
+        </div>
+        <div class="feat-card">
+          <span class="feat-ico"><img src="../../public/assets/landing/img/feature/payment.svg" alt="" /></span>
+          <h4>Secure Payments</h4>
+          <p>Multiple payment options with security</p>
+        </div>
+        <div class="feat-card">
+          <span class="feat-ico"><img src="../../public/assets/landing/img/feature/trusted.svg" alt="" /></span>
+          <h4>Trusted Community</h4>
+          <p>Verified vendors and real reviews</p>
+        </div>
+        <div class="feat-card">
+          <span class="feat-ico"><img src="../../public/assets/landing/img/feature/location.svg" alt="" /></span>
+          <h4>Local Discovery</h4>
+          <p>Find businesses and services near you</p>
+        </div>
+      </div>
+      <div class="slider-nav">
+        <button class="slider-arrow slider-prev" data-target=".feat-grid">&#8592;</button>
+        <button class="slider-arrow slider-next" data-target=".feat-grid">&#8594;</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Special -->
+<section class="special">
+  <div class="container">
+    <div class="sec-header">
+      <h2>Why Choose Urban Goodz</h2>
+    </div>
+    <div class="sp-track">
+      <div class="sp-card">
+        <span class="sp-ico"><img src="../../public/assets/landing/img/special/1.svg" alt="" /></span>
+        <h4>Local First</h4>
+        <p>Supporting local businesses and communities</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="../../public/assets/landing/img/special/2.svg" alt="" /></span>
+        <h4>Multi-Service</h4>
+        <p>Shop, order, rent, book &mdash; all in one place</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="../../public/assets/landing/img/special/3.svg" alt="" /></span>
+        <h4>Earn Multiple Ways</h4>
+        <p>Deliver, rent, refer &mdash; earn on your terms</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="../../public/assets/landing/img/special/4.svg" alt="" /></span>
+        <h4>Business Discovery</h4>
+        <p>Demand-driven merchant opportunities</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="../../public/assets/landing/img/special/5.svg" alt="" /></span>
+        <h4>Community Powered</h4>
+        <p>Built by and for local communities</p>
+      </div>
+    </div>
+    <div class="sp-dots"><button class="sp-dot active"></button><button class="sp-dot"></button><button class="sp-dot"></button><button class="sp-dot"></button><button class="sp-dot"></button></div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="stats">
+  <div class="container">
+    <div class="slider-wrap">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+          <div class="stat-num">10K<span class="plus">+</span></div>
+          <div class="stat-label">Downloads</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <div class="stat-num">500<span class="plus">+</span></div>
+          <div class="stat-label">Sellers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+          <div class="stat-num">1K<span class="plus">+</span></div>
+          <div class="stat-label">Delivery Partners</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <div class="stat-num">50K<span class="plus">+</span></div>
+          <div class="stat-label">Customers</div>
+        </div>
+      </div>
+      <div class="slider-nav">
+        <button class="slider-arrow slider-prev" data-target=".stats-grid">&#8592;</button>
+        <button class="slider-arrow slider-next" data-target=".stats-grid">&#8594;</button>
+      </div>
+    </div>
+    <div class="stats-note">Still increasing</div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section class="testimonials">
+  <div class="container">
+    <div class="sec-header">
+      <h2>What Our Community Says</h2>
+    </div>
+    <div class="slider-wrap">
+      <div class="test-grid">
+        <div class="test-card">
+          <div class="qm">&ldquo;</div>
+          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p class="test-text">Urban Goodz has transformed how I shop local. Everything I need is in one place.</p>
+          <div class="test-author">
+            <div class="test-av"><img src="../../public/assets/landing/img/welcome.svg" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--canvas)" /></div>
+            <div>
+              <div class="test-name">Sarah M.</div>
+              <div class="test-role">Houston, TX</div>
+            </div>
+          </div>
+        </div>
+        <div class="test-card">
+          <div class="qm">&ldquo;</div>
+          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p class="test-text">As a small business owner, Urban Goodz helped me reach customers I never could before.</p>
+          <div class="test-author">
+            <div class="test-av"><img src="../../public/assets/landing/img/welcome.svg" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--dijon)" /></div>
+            <div>
+              <div class="test-name">James R.</div>
+              <div class="test-role">Vendor, Atlanta</div>
+            </div>
+          </div>
+        </div>
+        <div class="test-card">
+          <div class="qm">&ldquo;</div>
+          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p class="test-text">Delivering with Urban Goodz gives me flexibility and great earnings. I control my schedule.</p>
+          <div class="test-author">
+            <div class="test-av"><img src="../../public/assets/landing/img/welcome.svg" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--seasoning)" /></div>
+            <div>
+              <div class="test-name">Marcus D.</div>
+              <div class="test-role">Delivery Partner</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slider-nav">
+        <button class="slider-arrow slider-prev" data-target=".test-grid">&#8592;</button>
+        <button class="slider-arrow slider-next" data-target=".test-grid">&#8594;</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER — Dark (by design, original 6amMart pattern)
+     ============================================================ -->
+<footer class="footer">
+  <div class="container">
+    <div class="newsletter-area">
+      <h2>Stay Connected</h2>
+      <p>Receive latest news, updates, and more every week</p>
+      <form class="nl-form" onsubmit="return false">
+        <input type="email" placeholder="Enter your email address" required />
+        <button type="submit">Subscribe</button>
+      </form>
+    </div>
+    <div class="footer-grid">
+      <div class="f-brand">
+        <img src="v4-assets/logos/White Wordmark Stacked.png" alt="Urban Goodz" />
+        <p>Your Connection To Local Everything. One platform connecting communities to products, services, rentals, and opportunities.</p>
+        <div class="f-social">
+          <a href="#"><img src="../../public/assets/landing/img/footer/facebook.svg" alt="Facebook" /></a>
+          <a href="#"><img src="../../public/assets/landing/img/footer/instagram.svg" alt="Instagram" /></a>
+          <a href="#"><img src="../../public/assets/landing/img/footer/twitter.svg" alt="Twitter" /></a>
+          <a href="#"><img src="../../public/assets/landing/img/footer/linkedin.svg" alt="LinkedIn" /></a>
+        </div>
+      </div>
+      <div>
+        <h5>Support</h5>
+        <div class="f-links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms &amp; Conditions</a>
+          <a href="#">Refund Policy</a>
+          <a href="#">Shipping Policy</a>
+        </div>
+      </div>
+      <div>
+        <h5>Contact Us</h5>
+        <div class="f-contact">
+          <a href="#">Houston, Texas</a>
+          <a href="mailto:support@urbangoodzdelivery.com">support@urbangoodzdelivery.com</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom-bar">
+      &copy; 2026 Urban Goodz. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+"use strict";
+// Service tabs navigation
+const svcBtns = document.querySelectorAll('.svc-icon-btn');
+const svcPanels = document.querySelectorAll('.svc-panel');
+let svcIdx = 0;
+function showSvc(i) {
+  svcIdx = i;
+  svcBtns.forEach(b => b.classList.remove('active'));
+  svcPanels.forEach(p => p.classList.remove('active'));
+  if (svcBtns[i]) svcBtns[i].classList.add('active');
+  if (svcPanels[i]) svcPanels[i].classList.add('active');
+}
+svcBtns.forEach((b, i) => b.addEventListener('click', () => showSvc(i)));
+const prevBtn = document.getElementById('svcPrev');
+const nextBtn = document.getElementById('svcNext');
+if (prevBtn) prevBtn.addEventListener('click', () => showSvc((svcIdx - 1 + svcBtns.length) % svcBtns.length));
+if (nextBtn) nextBtn.addEventListener('click', () => showSvc((svcIdx + 1) % svcBtns.length));
+
+// Slider arrows
+document.querySelectorAll('.slider-prev').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const target = document.querySelector(this.dataset.target);
+    if (target) target.scrollBy({ left: -300, behavior: 'smooth' });
+  });
+});
+document.querySelectorAll('.slider-next').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const target = document.querySelector(this.dataset.target);
+    if (target) target.scrollBy({ left: 300, behavior: 'smooth' });
+  });
+});
+
+// Special track dots
+const spTrack = document.querySelector('.sp-track');
+const spDots = document.querySelector('.sp-dots');
+if (spTrack && spDots) {
+  const dots = spDots.querySelectorAll('.sp-dot');
+  dots.forEach((dot, i) => {
+    dot.addEventListener('click', () => {
+      const cards = spTrack.querySelectorAll('.sp-card');
+      if (cards[i]) cards[i].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+  });
+  spTrack.addEventListener('scroll', () => {
+    const cards = spTrack.querySelectorAll('.sp-card');
+    const trackRect = spTrack.getBoundingClientRect();
+    const center = trackRect.left + trackRect.width / 2;
+    let closest = 0, minDist = Infinity;
+    cards.forEach((card, i) => {
+      const rect = card.getBoundingClientRect();
+      const dist = Math.abs(rect.left + rect.width / 2 - center);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    dots.forEach((d, i) => d.classList.toggle('active', i === closest));
+  });
+}
+</script>
+</body>
+</html>

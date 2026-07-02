@@ -1,0 +1,27 @@
+Urban Goodz Opportunity / Logistics / Medical Backend Deployment Steps
+
+1. Upload Zip File:
+   Upload the packaged ZIP file:
+   outputs/opportunity-logistics-medical-backend-route-deploy.zip
+   to the live server root:
+   /home/urbakkej/admin.urbangoodzdelivery.com
+
+2. Extract Zip File:
+   Extract the archive directly inside the root directory. This will copy/overwrite:
+   - routes/api/v1/urban_goodz.php
+   - app/Http/Controllers/Api/V1/UrbanGoodzOpportunityController.php
+   without altering any other files.
+
+3. Clear/Optimize Laravel Route Caches:
+   If SSH/terminal access is available, run these commands inside the root directory:
+   php artisan route:clear
+   php artisan config:clear
+   php artisan optimize:clear
+
+4. Test GET Endpoints:
+   Verify that GET API endpoints load successfully and return JSON format:
+   - https://admin.urbangoodzdelivery.com/api/v1/urban-goodz/earn-money/opportunities
+   - https://admin.urbangoodzdelivery.com/api/v1/urban-goodz/events
+
+5. Verify POST Endpoints:
+   Confirm that POST endpoints accept calls and do not show route-not-found (404) errors.

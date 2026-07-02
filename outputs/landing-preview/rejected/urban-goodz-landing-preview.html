@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Urban Goodz — Landing Preview</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap 5 (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Landing CSS (original theme base — unmodified) -->
+  <link rel="stylesheet" href="assets/css/landing.css" />
+
+  <!-- Urban Goodz brand overrides -->
+  <link rel="stylesheet" href="assets/css/ug-landing.css" />
+
+  <style>
+    /* ---- Root brand overrides (replaces DB-driven inline style) ---- */
+    :root {
+      --primary: #ED9914;
+      --primary-dark: #ED9914;
+      --primary-rgb: 237, 153, 20;
+      --max-w: 1200px;
+    }
+    /* Force the existing landing.css hero-illustration opacity so it's barely visible */
+    .hero-illustration svg,
+    .hero-illustration img {
+      opacity: 0.06 !important;
+    }
+    /* Quick link color override for any remnants */
+    a:not(.ug-cta-btn):not(.hero-btn):not(.btn-browse-web):not(.btn-join) {
+      color: var(--ug-orange);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       HEADER / NAV (from app.blade.php)
+       ============================================================ -->
+  <nav class="main-nav">
+    <div class="container">
+      <a href="#" class="nav-logo">
+        <img src="https://placehold.co/160x40/161616/ED9914?text=Urban+Goodz&font=syne" alt="Urban Goodz" style="height:36px;" />
+      </a>
+      <div class="nav-links">
+        <a href="#" class="active-link">Home</a>
+        <a href="#">About Us</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms &amp; Conditions</a>
+        <a href="#">Contact Us</a>
+      </div>
+      <div class="nav-right">
+        <div class="lang-sw" id="langSw">
+          <div class="lang-current" onclick="document.getElementById('langSw').classList.toggle('open')">
+            &#x1F310; <span>EN</span>
+            <svg viewBox="0 0 10 10" fill="none"><path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="lang-dd">
+            <a href="#" class="active">EN</a>
+          </div>
+        </div>
+        <a href="#" class="btn-browse-web">Browse Web</a>
+        <div class="join-wrap">
+          <button class="btn-join">Join Us <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <div class="join-dd">
+            <a href="#"><span class="ji" style="background:rgba(237,153,20,.1);color:#ED9914;">&#x1F3EA;</span> Vendor Registration</a>
+            <a href="#"><span class="ji" style="background:rgba(0,190,101,.1);color:#00BE65;">&#x1F6F5;</span> Deliveryman Registration</a>
+          </div>
+        </div>
+        <button class="mob-btn" id="mobBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="close-mob" id="closeMob">&times;</button>
+    <a href="#">Home</a>
+    <a href="#">About Us</a>
+    <a href="#">Privacy Policy</a>
+    <a href="#">Terms &amp; Conditions</a>
+    <a href="#">Contact Us</a>
+    <a href="#">Vendor Registration</a>
+    <a href="#">Deliveryman Registration</a>
+    <a href="#" class="mob-browse-web">Browse Web</a>
+  </div>
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge"><span>&#9733;</span> Relaunching Soon</div>
+      <h1>Your Connection To <span class="hl">Local Everything</span></h1>
+      <p>Urban Goodz connects you to local products, services, rentals, events, creators, drivers, vendors, and business discovery through one powerful marketplace.</p>
+      <div class="hero-btns">
+        <a href="#" class="hero-btn hero-btn--primary">Explore Urban Goodz</a>
+        <a href="#" class="hero-btn hero-btn--outline">Become a Vendor</a>
+        <a href="#" class="hero-btn hero-btn--outline">Earn With Urban Goodz</a>
+      </div>
+      <div class="hero-launch-line">
+        <strong>Houston Starts It.</strong> Built For Everywhere.
+      </div>
+    </div>
+    <div class="hero-illustration">
+      <!-- Hero illustration SVG suppressed via CSS opacity -->
+    </div>
+  </section>
+
+  <!-- ============================================================
+       LAUNCH NOTICE
+       ============================================================ -->
+  <section class="launch-notice">
+    <div class="container">
+      <p>Urban Goodz is relaunching in phases. Some features are in <strong>preview</strong> or <strong>test mode</strong> while the upgraded platform activates across our market network.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MARKETPLACE CATEGORY GRID — 10 cards
+       ============================================================ -->
+  <section class="ug-section ug-section--light">
+    <div class="container">
+      <div class="sec-header">
+        <h2>Everything Local. One Marketplace.</h2>
+        <p>One platform, endless local possibilities</p>
+      </div>
+      <div class="ug-cards-grid ug-cards-grid--10">
+        <div class="ug-card">
+          <div class="card-icon">&#x1F6CD;</div>
+          <h4>Retail &amp; Shopping</h4>
+          <p>Shop local stores, browse products, order for pickup or delivery</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F487;</div>
+          <h4>Beauty Supply / Hair Providerz</h4>
+          <p>Book appointments, shop products, find local stylists</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F372;</div>
+          <h4>Food &amp; Grocery</h4>
+          <p>Order meals and groceries from nearby restaurants and markets</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F3E0;</div>
+          <h4>Rentals</h4>
+          <p>Rent tools, equipment, event items, and more from neighbors</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F4CB;</div>
+          <h4>Services</h4>
+          <p>Find local pros for repairs, cleaning, tutoring, and more</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F3A8;</div>
+          <h4>Events &amp; Creators</h4>
+          <p>Discover local events, support creators, book talent</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F69A;</div>
+          <h4>Courier &amp; Delivery</h4>
+          <p>Send packages across town with fast, tracked delivery</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F455;</div>
+          <h4>Fashion / Tailoring</h4>
+          <p>Manual measurements, alterations, seamstress &amp; tailor services</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F4E6;</div>
+          <h4>Order Anywhere</h4>
+          <p>Request items from local businesses not yet onboarded</p>
+        </div>
+        <div class="ug-card">
+          <div class="card-icon">&#x1F4B0;</div>
+          <h4>Earn Money</h4>
+          <p>Deliver, rent items, offer services — earn on your terms</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ASK URBAN GOODZ
+       ============================================================ -->
+  <section class="ug-section ug-section--dark">
+    <div class="container">
+      <div class="sec-header">
+        <span class="sec-preview-badge">AI-guided discovery preview</span>
+        <h2>Ask Urban Goodz</h2>
+        <p>Tell Urban Goodz what you need. Search for products, services, rentals, events, businesses, opportunities, and local providers in one place.</p>
+      </div>
+      <div class="ug-ask-grid">
+        <div class="ug-ask-chips">
+          <button class="ug-chip" type="button">Need braiding hair</button>
+          <button class="ug-chip" type="button">Rent a pickup truck</button>
+          <button class="ug-chip" type="button">Find a barber</button>
+          <button class="ug-chip" type="button">Book a photographer</button>
+          <button class="ug-chip" type="button">Need a courier</button>
+          <button class="ug-chip" type="button">Find local events</button>
+          <button class="ug-chip" type="button">Order from a store nearby</button>
+          <button class="ug-chip" type="button">Find Black-owned businesses</button>
+        </div>
+        <div class="ug-ask-search">
+          <div class="ug-search-bar">
+            <span class="ug-search-icon">&#x1F50D;</span>
+            <input type="text" placeholder="Ask Urban Goodz anything..." readonly />
+            <span class="ug-search-hint">AI-guided discovery preview</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ORDER ANYWHERE
+       ============================================================ -->
+  <section class="ug-section ug-section--canvas">
+    <div class="container">
+      <div class="ug-single-section">
+        <div class="ug-single-icon">&#x1F4E6;</div>
+        <h2>Order Anywhere</h2>
+        <p class="ug-single-copy">Need something from a local business that is not fully onboarded yet? Submit a request and Urban Goodz helps turn local demand into fulfillment.</p>
+        <div class="ug-status-box">
+          <span class="status-badge status-badge--preview">Preview</span>
+          <p>Order Anywhere is entering test mode. Live payment, dispatch, and reconciliation are being completed before production launch.</p>
+        </div>
+        <a href="#" class="ug-cta-btn">Preview Order Anywhere &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       RENTALS
+       ============================================================ -->
+  <section class="ug-section ug-section--dark">
+    <div class="container">
+      <div class="ug-single-section">
+        <div class="ug-single-icon">&#x1F3E0;</div>
+        <h2>Rent What You Need</h2>
+        <p class="ug-single-copy">From vehicles to equipment and local rental needs, Urban Goodz brings rentals into the same marketplace where people already shop, book, and discover.</p>
+        <div class="ug-status-box">
+          <span class="status-badge status-badge--live">Available (Tester)</span>
+          <p>Rentals is our most complete new vertical — available now in the tester app.</p>
+        </div>
+        <a href="#" class="ug-cta-btn">Explore Rentals &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SERVICES / FASHION / TAILORING
+       ============================================================ -->
+  <section class="ug-section ug-section--dijon">
+    <div class="container">
+      <div class="ug-single-section">
+        <div class="ug-single-icon">&#x1F4CB;</div>
+        <h2>Book Local Services</h2>
+        <p class="ug-single-copy">Find local service providers for beauty, grooming, professional services, home help, creative work, fashion, tailoring, alterations, and custom fit needs.</p>
+        <div class="ug-two-col">
+          <div class="ug-mini-card">
+            <h4>&#x1F455; Fashion / Tailoring</h4>
+            <p>Manual measurements, neck-to-floor measurements, photo-assisted previews, and seamstress/tailor verification are part of the Urban Goodz fashion direction.</p>
+            <span class="status-badge status-badge--preview">Fashion tools in development</span>
+          </div>
+          <div class="ug-mini-card">
+            <h4>&#x1F3A8; Creative &amp; Professional</h4>
+            <p>Photographers, musicians, tutors, repair techs, cleaners, personal trainers — book local pros who serve your area.</p>
+            <span class="status-badge status-badge--preview">Coming Soon</span>
+          </div>
+        </div>
+        <a href="#" class="ug-cta-btn">Find Local Services &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       EARN MONEY — 7 earning paths
+       ============================================================ -->
+  <section class="ug-section ug-section--dark">
+    <div class="container">
+      <div class="sec-header">
+        <h2>Earn With Urban Goodz</h2>
+        <p>Urban Goodz creates earning paths for delivery drivers, couriers, rental partners, service providers, creators, vendors, and future logistics opportunities.</p>
+      </div>
+      <div class="ug-earn-grid">
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">1</div>
+          <h4>&#x1F69A; Delivery</h4>
+          <p>Deliver orders from local businesses on your schedule.</p>
+        </div>
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">2</div>
+          <h4>&#x1F4E6; Courier</h4>
+          <p>Send and earn by transporting packages across town.</p>
+        </div>
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">3</div>
+          <h4>&#x1F4ED; Order Anywhere Pickups</h4>
+          <p>Fulfill requests from customers who need items picked up.</p>
+        </div>
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">4</div>
+          <h4>&#x1F3E0; Rental Support</h4>
+          <p>Facilitate rental transactions and earn from each booking.</p>
+        </div>
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">5</div>
+          <h4>&#x1F3A8; Creator Campaigns</h4>
+          <p>Promote local businesses and earn through referral campaigns.</p>
+        </div>
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">6</div>
+          <h4>&#x1F3ED; Vendor Referrals</h4>
+          <p>Refer merchants and earn when they join Urban Goodz.</p>
+        </div>
+        <div class="ug-earn-card">
+          <div class="ug-earn-num">7</div>
+          <h4>&#x1F9F0; Load Board <span class="lbl-sm">(Future)</span></h4>
+          <p>Future logistics and bulk transport earning opportunities.</p>
+        </div>
+      </div>
+      <div class="ug-earn-cta">
+        <a href="#" class="ug-cta-btn">Start Earning &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       BUSINESS DISCOVERY
+       ============================================================ -->
+  <section class="ug-section ug-section--light">
+    <div class="container">
+      <div class="ug-single-section">
+        <div class="ug-single-icon">&#x1F50E;</div>
+        <h2>Business Discovery Engine</h2>
+        <p class="ug-single-copy">Urban Goodz turns searches, requests, and unmet demand into business discovery, merchant leads, and new local opportunities.</p>
+        <p class="ug-single-sub">When customers search and cannot find what they need, Urban Goodz can capture that demand and help bring businesses into the marketplace.</p>
+        <a href="#" class="ug-cta-btn">List Your Business &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       HOUSTON LAUNCH
+       ============================================================ -->
+  <section class="ug-section ug-section--dark">
+    <div class="container">
+      <div class="ug-houston-section">
+        <div class="ug-houston-icon">&#x1F30D;</div>
+        <h2>Houston Starts It. Built For Everywhere.</h2>
+        <p>Urban Goodz is relaunching with an expanded platform built to connect communities to more than delivery. Houston is the current live relaunch hub.</p>
+        <div class="ug-houston-line"><strong>Built in Houston. Designed for everywhere.</strong></div>
+        <div class="ug-houston-tagline">One Platform. Unlimited Possibilities.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ROLE-BASED CTA
+       ============================================================ -->
+  <section class="ug-section ug-section--canvas">
+    <div class="container">
+      <div class="sec-header">
+        <h2>Join The Urban Goodz Community</h2>
+        <p>Whether you shop, sell, or serve — there's a place for you</p>
+      </div>
+      <div class="ug-cta-grid">
+        <div class="ug-cta-card">
+          <div class="cta-emoji">&#x1F465;</div>
+          <h3>For Customers</h3>
+          <p>Find it. Book it. Rent it. Get it. Everything local in one marketplace.</p>
+          <a href="#" class="ug-cta-btn">Explore the Marketplace &#8594;</a>
+        </div>
+        <div class="ug-cta-card">
+          <div class="cta-emoji">&#x1F3ED;</div>
+          <h3>For Vendors</h3>
+          <p>Get discovered, receive demand, and grow your business. List your store or service today.</p>
+          <a href="#" class="ug-cta-btn">Join as Vendor &#8594;</a>
+        </div>
+        <div class="ug-cta-card">
+          <div class="cta-emoji">&#x1F69A;</div>
+          <h3>For Drivers / Partners</h3>
+          <p>Earn through deliveries, pickups, courier work, rentals, and future logistics opportunities.</p>
+          <a href="#" class="ug-cta-btn ug-cta-btn--outline">Join as Delivery Partner &#8594;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       EXISTING DB-DRIVEN SECTIONS (static placeholder content)
+       These mirror what the Laravel site renders from the database.
+       ============================================================ -->
+
+  <!-- Services / Modules -->
+  <section class="services-section">
+    <div class="container">
+      <div class="sec-header">
+        <h2>Our Services</h2>
+        <p>Explore what Urban Goodz has to offer</p>
+      </div>
+      <div class="slider-wrap svc-slider-wrap">
+        <div class="svc-icons">
+          <button class="svc-icon-btn active" data-svc="svc-0">
+            <span class="ico"><img src="https://placehold.co/60x60/ED9914/161616?text=R" alt="Retail" /></span>
+            <span class="lbl">Retail</span>
+          </button>
+          <button class="svc-icon-btn" data-svc="svc-1">
+            <span class="ico"><img src="https://placehold.co/60x60/161616/ED9914?text=F" alt="Food" /></span>
+            <span class="lbl">Food &amp; Grocery</span>
+          </button>
+          <button class="svc-icon-btn" data-svc="svc-2">
+            <span class="ico"><img src="https://placehold.co/60x60/ED9914/161616?text=Rn" alt="Rentals" /></span>
+            <span class="lbl">Rentals</span>
+          </button>
+        </div>
+        <div class="slider-nav">
+          <button class="slider-arrow slider-prev visible" data-target=".svc-icons">&#8592;</button>
+          <button class="slider-arrow slider-next visible" data-target=".svc-icons">&#8594;</button>
+        </div>
+      </div>
+      <div class="svc-panels">
+        <div class="svc-panel active" data-panel="svc-0">
+          <div class="svc-text">
+            <div class="venture-content-box">
+              <p>Shop local retailers and discover products from stores near you. Order for pickup or delivery.</p>
+            </div>
+          </div>
+          <div class="svc-img">
+            <div class="img-card">
+              <img src="https://placehold.co/400x300/161616/E2D3BF?text=Retail+Shopping" alt="Retail" />
+            </div>
+          </div>
+        </div>
+        <div class="svc-panel" data-panel="svc-1">
+          <div class="svc-text">
+            <div class="venture-content-box">
+              <p>Order meals, groceries, and essentials from your favorite local restaurants and markets.</p>
+            </div>
+          </div>
+          <div class="svc-img">
+            <div class="img-card">
+              <img src="https://placehold.co/400x300/161616/E5E276?text=Food+%26+Grocery" alt="Food & Grocery" />
+            </div>
+          </div>
+        </div>
+        <div class="svc-panel" data-panel="svc-2">
+          <div class="svc-text">
+            <div class="venture-content-box">
+              <p>Rent tools, equipment, vehicles, and event items from local owners. Peer-to-peer rentals made easy.</p>
+            </div>
+          </div>
+          <div class="svc-img">
+            <div class="img-card">
+              <img src="https://placehold.co/400x300/161616/ED9914?text=Rentals" alt="Rentals" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="svc-nav">
+        <button class="svc-arrow" id="svcPrev">&#8592;</button>
+        <button class="svc-arrow" id="svcNext">&#8594;</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Promotional Marquee -->
+  <section class="marquee">
+    <div class="marquee-track">
+      <span class="mq-item"><span class="dot"></span><span class="find">New</span> Urban Goodz relaunch is here</span>
+      <span class="mq-item"><span class="dot"></span><span class="find">Houston</span> Current live relaunch hub</span>
+      <span class="mq-item"><span class="dot"></span><span class="find">Rentals</span> Available now in tester app</span>
+      <span class="mq-item"><span class="dot"></span><span class="find">New</span> Urban Goodz relaunch is here</span>
+      <span class="mq-item"><span class="dot"></span><span class="find">Houston</span> Current live relaunch hub</span>
+      <span class="mq-item"><span class="dot"></span><span class="find">Rentals</span> Available now in tester app</span>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container">
+      <div class="sec-header">
+        <h2>Why Choose Urban Goodz</h2>
+        <p>Built for local communities and the businesses that power them</p>
+      </div>
+      <div class="slider-wrap">
+        <div class="feat-grid">
+          <div class="feat-card">
+            <span class="feat-ico"><img src="https://placehold.co/40x40/ED9914/161616?text=&#x1F310;" alt="Multi-market" /></span>
+            <h4>Multi-Market Network</h4>
+            <p>Positioned across major US markets with Houston as the live relaunch hub.</p>
+          </div>
+          <div class="feat-card">
+            <span class="feat-ico"><img src="https://placehold.co/40x40/ED9914/161616?text=&#x1F4E6;" alt="All-in-one" /></span>
+            <h4>All-in-One Platform</h4>
+            <p>Shop, order, rent, book, deliver — everything local in one place.</p>
+          </div>
+          <div class="feat-card">
+            <span class="feat-ico"><img src="https://placehold.co/40x40/ED9914/161616?text=&#x1F9E0;" alt="AI" /></span>
+            <h4>AI-Guided Discovery</h4>
+            <p>Smart search that helps you find exactly what you need, when you need it.</p>
+          </div>
+          <div class="feat-card">
+            <span class="feat-ico"><img src="https://placehold.co/40x40/ED9914/161616?text=&#x1F91D;" alt="Community" /></span>
+            <h4>Community First</h4>
+            <p>Built to support local businesses, creators, and service providers.</p>
+          </div>
+        </div>
+        <div class="slider-nav">
+          <button class="slider-arrow slider-prev visible" data-target=".feat-grid">&#8592;</button>
+          <button class="slider-arrow slider-next visible" data-target=".feat-grid">&#8594;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Zones / Coverage -->
+  <section class="zones">
+    <div class="container">
+      <div class="zone-banner">
+        <div class="zone-img-side">
+          <img src="https://placehold.co/400x300/161616/ED9914?text=Market+Map" alt="Coverage Map" />
+        </div>
+        <div class="zone-text-side">
+          <h2>Our Market Network</h2>
+          <p>Urban Goodz is positioned across multiple markets with Houston as the current live relaunch hub.</p>
+          <div class="zone-tags">
+            <div class="zone-tag"><span class="zone-dot"></span> Houston, TX</div>
+            <div class="zone-tag"><span class="zone-dot"></span> Dallas, TX</div>
+            <div class="zone-tag"><span class="zone-dot"></span> Atlanta, GA</div>
+            <div class="zone-tag"><span class="zone-dot"></span> Miami, FL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Referral -->
+  <section class="referral">
+    <div class="container">
+      <div class="refer-card">
+        <div><h2>Refer &amp; Earn — Share Urban Goodz With Your Community</h2></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Earn (Seller/Delivery/Rider cards) -->
+  <section class="earn">
+    <div class="container">
+      <div class="earn-top">
+        <h2>Earn With Urban Goodz</h2>
+        <p>Multiple ways to earn on your own schedule</p>
+      </div>
+      <div class="slider-wrap">
+        <div class="earn-grid">
+          <div class="earn-card">
+            <div class="earn-card-icon">&#x1F3EA;</div>
+            <h3>Become a Vendor</h3>
+            <p>Grow your business with us. Reach thousands of customers and manage orders effortlessly.</p>
+          </div>
+          <div class="earn-card">
+            <div class="earn-card-icon">&#x1F6F5;</div>
+            <h3>Become a Delivery Partner</h3>
+            <p>Deliver on your own schedule. Earn competitive pay with flexible hours.</p>
+          </div>
+        </div>
+        <div class="slider-nav">
+          <button class="slider-arrow slider-prev visible" data-target=".earn-grid">&#8592;</button>
+          <button class="slider-arrow slider-next visible" data-target=".earn-grid">&#8594;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Choose / Special Criteria -->
+  <section class="special">
+    <div class="container">
+      <div class="sec-header"><h2>Why Urban Goodz</h2></div>
+    </div>
+    <div class="sp-track is-overflowing">
+      <div class="sp-card">
+        <span class="sp-ico"><img src="https://placehold.co/60x60/ED9914/161616?text=&#x1F310;" alt="" /></span>
+        <h4>Market Network</h4>
+        <p>Positioned across the US</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="https://placehold.co/60x60/ED9914/161616?text=&#x1F4E6;" alt="" /></span>
+        <h4>All-in-One</h4>
+        <p>Shop, order, rent, book</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="https://placehold.co/60x60/ED9914/161616?text=&#x1F9E0;" alt="" /></span>
+        <h4>AI Discovery</h4>
+        <p>Smart local search</p>
+      </div>
+      <div class="sp-card">
+        <span class="sp-ico"><img src="https://placehold.co/60x60/ED9914/161616?text=&#x1F91D;" alt="" /></span>
+        <h4>Community</h4>
+        <p>Built for local economies</p>
+      </div>
+    </div>
+    <div class="sp-dots">
+      <button class="sp-dot active"></button>
+      <button class="sp-dot"></button>
+      <button class="sp-dot"></button>
+      <button class="sp-dot"></button>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats">
+    <div class="container">
+      <div class="slider-wrap">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="stat-num" data-t="10000">10K+<span class="plus">+</span></div>
+            <div class="stat-label">Download</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div class="stat-num" data-t="500">500+<span class="plus">+</span></div>
+            <div class="stat-label">Seller</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <div class="stat-num" data-t="200">200+<span class="plus">+</span></div>
+            <div class="stat-label">Delivery Partner</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div class="stat-num" data-t="5000">5K+<span class="plus">+</span></div>
+            <div class="stat-label">Customer</div>
+          </div>
+        </div>
+        <div class="slider-nav">
+          <button class="slider-arrow slider-prev visible" data-target=".stats-grid">&#8592;</button>
+          <button class="slider-arrow slider-next visible" data-target=".stats-grid">&#8594;</button>
+        </div>
+      </div>
+      <div class="stats-note">Still increasing</div>
+    </div>
+  </section>
+
+  <!-- CTA / Download App -->
+  <section class="cta-manage">
+    <div class="container">
+      <div class="cta-box">
+        <div class="cta-info">
+          <h2>Manage Your Business <span class="hl">Smartly or Earn</span></h2>
+          <button class="cta-user-btn">User App</button>
+          <div class="cta-app-row">
+            <a href="#" class="cta-app-link">
+              <img src="https://placehold.co/24x24/FFFFFF/FFFFFF?text=GP" alt="Google Play" style="filter:brightness(10);opacity:0.01;" />
+              <span class="cal-text"><span class="cal-sm">Get it on</span><span class="cal-lg">Google Play</span></span>
+            </a>
+            <a href="#" class="cta-app-link">
+              <img src="https://placehold.co/24x24/FFFFFF/FFFFFF?text=AS" alt="App Store" style="filter:brightness(10);opacity:0.01;" />
+              <span class="cal-text"><span class="cal-sm">Download on the</span><span class="cal-lg">App Store</span></span>
+            </a>
+          </div>
+        </div>
+        <div class="cta-visual">
+          <div class="cta-phone">
+            <img src="https://placehold.co/240x480/161616/ED9914?text=Coming+Soon" alt="App Preview" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials">
+    <div class="container">
+      <div class="sec-header"><h2>What People Say</h2></div>
+      <div class="slider-wrap">
+        <div class="test-grid">
+          <div class="test-card">
+            <div class="qm">&ldquo;</div>
+            <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <p class="test-text">Urban Goodz makes it easy to find what I need locally. The rental feature is a game changer.</p>
+            <div class="test-author">
+              <div class="test-av"><img src="https://placehold.co/40x40/E2D3BF/161616?text=T" alt="User" /></div>
+              <div>
+                <div class="test-name">Tasha M.</div>
+                <div class="test-role">Houston, TX</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card">
+            <div class="qm">&ldquo;</div>
+            <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <p class="test-text">As a vendor, the platform has helped me reach more local customers than ever before.</p>
+            <div class="test-author">
+              <div class="test-av"><img src="https://placehold.co/40x40/E2D3BF/161616?text=D" alt="User" /></div>
+              <div>
+                <div class="test-name">David K.</div>
+                <div class="test-role">Atlanta, GA</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slider-nav">
+          <button class="slider-arrow slider-prev visible" data-target=".test-grid">&#8592;</button>
+          <button class="slider-arrow slider-next visible" data-target=".test-grid">&#8594;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MARKET NETWORK — Relaunching Across Our Market Network
+       ============================================================ -->
+  <section class="ug-section ug-section--dark">
+    <div class="container">
+      <div class="ug-mkt-network">
+        <div class="ug-mkt-icon">&#x1F30D;</div>
+        <h2>Relaunching Across Our Market Network</h2>
+        <p>Urban Goodz is relaunching with an expanded platform built to connect communities to more than delivery.</p>
+        <p>Our footprint already reaches multiple markets, and Houston is the current live relaunch hub for the expanded Urban Goodz marketplace.</p>
+        <p>As we activate the upgraded platform city by city, Urban Goodz will continue connecting customers, vendors, drivers, service providers, creators, and local businesses through one ecosystem.</p>
+        <div class="ug-mkt-hubs">
+          <div class="ug-mkt-hub">
+            <span class="ug-mkt-label">Current Live Relaunch Hub:</span>
+            <span class="ug-mkt-value">Houston, Texas</span>
+          </div>
+          <div class="ug-mkt-hub">
+            <span class="ug-mkt-label">Urban Goodz Positioned Markets:</span>
+            <span class="ug-mkt-value">Texas, Alabama, Georgia, Florida, California, Nevada, Tennessee, North Carolina, Maryland, Washington D.C., Oklahoma, and more.</span>
+          </div>
+        </div>
+        <a href="#" class="ug-cta-btn">Request Full Activation In Your City &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER (from app.blade.php)
+       ============================================================ -->
+  <footer class="footer">
+    <div class="container">
+      <!-- Newsletter -->
+      <div class="newsletter-area">
+        <h2>Stay Updated</h2>
+        <p>Receive the latest news about the Urban Goodz relaunch</p>
+        <form class="nl-form" onsubmit="alert('Newsletter signup — preview only'); return false;">
+          <input type="email" name="email" placeholder="Enter your email address" required />
+          <button type="submit">Subscribe</button>
+        </form>
+      </div>
+
+      <!-- Footer Grid -->
+      <div class="footer-grid">
+        <div class="f-brand">
+          <a href="#" class="nav-logo">
+            <img src="https://placehold.co/160x40/161616/ED9914?text=Urban+Goodz&font=syne" alt="Urban Goodz" style="height:36px;" />
+          </a>
+          <p>Urban Goodz is an AI-powered local commerce marketplace and demand fulfillment network.</p>
+          <div class="f-social">
+            <a href="#" target="_blank" aria-label="Facebook"><img src="https://placehold.co/20x20/ED9914/161616?text=f" alt="Facebook" /></a>
+            <a href="#" target="_blank" aria-label="Instagram"><img src="https://placehold.co/20x20/ED9914/161616?text=ig" alt="Instagram" /></a>
+            <a href="#" target="_blank" aria-label="Twitter"><img src="https://placehold.co/20x20/ED9914/161616?text=X" alt="Twitter" /></a>
+          </div>
+          <div class="f-app-row">
+            <a href="#" target="_blank" class="f-app-link">
+              <svg viewBox="0 0 24 24" width="18"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-1.4l2.834 1.638a1 1 0 010 1.726l-2.834 1.638-2.56-2.56 2.56-2.442zM5.864 1.458L16.8 7.79l-2.302 2.302-8.635-8.635z" fill="currentColor"/></svg>
+              <span class="fal-text"><span class="fal-sm">Get it on</span><span class="fal-lg">Google Play</span></span>
+            </a>
+            <a href="#" target="_blank" class="f-app-link">
+              <svg viewBox="0 0 24 24" width="18"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="currentColor"/></svg>
+              <span class="fal-text"><span class="fal-sm">Download on the</span><span class="fal-lg">App Store</span></span>
+            </a>
+          </div>
+        </div>
+        <div>
+          <h5>Support</h5>
+          <div class="f-links">
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms &amp; Conditions</a>
+            <a href="#">Refund Policy</a>
+            <a href="#">Shipping Policy</a>
+          </div>
+        </div>
+        <div>
+          <h5>Contact</h5>
+          <div class="f-contact">
+            <a href="#">&#x1F4CD; Houston, Texas</a>
+            <a href="mailto:support@urbangoodzdelivery.com">&#x2709;&#xFE0F; support@urbangoodzdelivery.com</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom-bar">
+        &copy; Urban Goodz. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       SCRIPTS (minimal — only what's needed for preview)
+       ============================================================ -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    "use strict";
+    // Mobile menu
+    document.getElementById('mobBtn').addEventListener('click', function() {
+      document.getElementById('mobileMenu').classList.add('open');
+    });
+    document.getElementById('closeMob').addEventListener('click', function() {
+      document.getElementById('mobileMenu').classList.remove('open');
+    });
+    function closeMobile() {
+      document.getElementById('mobileMenu').classList.remove('open');
+    }
+
+    // Language dropdown
+    document.addEventListener('click', function(e) {
+      var sw = document.getElementById('langSw');
+      if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+    });
+
+    // Service tabs
+    var svcBtns = document.querySelectorAll('.svc-icon-btn');
+    var svcPanels = document.querySelectorAll('.svc-panel');
+    var svcIdx = 0;
+    function showSvc(i) {
+      svcIdx = i;
+      svcBtns.forEach(function(b) { b.classList.remove('active'); });
+      svcPanels.forEach(function(p) { p.classList.remove('active'); });
+      if (svcBtns[i]) svcBtns[i].classList.add('active');
+      if (svcPanels[i]) svcPanels[i].classList.add('active');
+      if (svcBtns[i]) svcBtns[i].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    svcBtns.forEach(function(b, i) { b.addEventListener('click', function() { showSvc(i); }); });
+    var svcCount = svcBtns.length;
+    var prevBtn = document.getElementById('svcPrev');
+    var nextBtn = document.getElementById('svcNext');
+    if (prevBtn) prevBtn.addEventListener('click', function() { showSvc((svcIdx - 1 + svcCount) % svcCount); });
+    if (nextBtn) nextBtn.addEventListener('click', function() { showSvc((svcIdx + 1) % svcCount); });
+
+    // Drag scroll helper
+    function initDragScroll(el) {
+      if (!el) return;
+      var dn = false, sx, sl;
+      el.addEventListener('mousedown', function(e) { dn = true; el.style.cursor = 'grabbing'; sx = e.pageX - el.offsetLeft; sl = el.scrollLeft; });
+      el.addEventListener('mouseleave', function() { dn = false; el.style.cursor = 'grab'; });
+      el.addEventListener('mouseup', function() { dn = false; el.style.cursor = 'grab'; });
+      el.addEventListener('mousemove', function(e) { if (!dn) return; e.preventDefault(); el.scrollLeft = sl - (e.pageX - el.offsetLeft - sx) * 1.5; });
+      var tx = 0, tl = 0;
+      el.addEventListener('touchstart', function(e) { tx = e.touches[0].pageX; tl = el.scrollLeft; }, { passive: true });
+      el.addEventListener('touchmove', function(e) { el.scrollLeft = tl + (tx - e.touches[0].pageX); }, { passive: true });
+    }
+    initDragScroll(document.querySelector('.svc-icons'));
+    initDragScroll(document.querySelector('.sp-track'));
+    initDragScroll(document.querySelector('.feat-grid'));
+    initDragScroll(document.querySelector('.earn-grid'));
+    initDragScroll(document.querySelector('.stats-grid'));
+    initDragScroll(document.querySelector('.test-grid'));
+
+    // Slider arrows
+    var isRtl = document.documentElement.dir === 'rtl';
+    function getScrollPos(el) { return isRtl ? -el.scrollLeft : el.scrollLeft; }
+    function getMaxScroll(el) { return el.scrollWidth - el.clientWidth; }
+    function updateSliderArrows(track) {
+      if (!track) return;
+      var wrap = track.closest('.slider-wrap');
+      if (!wrap) return;
+      var prev = wrap.querySelector('.slider-prev');
+      var next = wrap.querySelector('.slider-next');
+      var overflows = track.scrollWidth > track.clientWidth + 2;
+      var pos = getScrollPos(track);
+      var max = getMaxScroll(track);
+      if (prev) { if (overflows && pos > 2) prev.classList.add('visible'); else prev.classList.remove('visible'); }
+      if (next) { if (overflows && pos < max - 2) next.classList.add('visible'); else next.classList.remove('visible'); }
+    }
+    document.querySelectorAll('.slider-wrap').forEach(function(wrap) {
+      var prev = wrap.querySelector('.slider-prev');
+      var next = wrap.querySelector('.slider-next');
+      var target = prev ? document.querySelector(prev.dataset.target) : null;
+      if (!target) return;
+      updateSliderArrows(target);
+      target.addEventListener('scroll', function() { updateSliderArrows(target); });
+      window.addEventListener('resize', function() { updateSliderArrows(target); });
+      if (prev) prev.addEventListener('click', function() {
+        var card = target.querySelector(':scope > *');
+        var w = card ? card.offsetWidth + 14 : 300;
+        target.scrollBy({ left: isRtl ? w : -w, behavior: 'smooth' });
+      });
+      if (next) next.addEventListener('click', function() {
+        var card = target.querySelector(':scope > *');
+        var w = card ? card.offsetWidth + 14 : 300;
+        target.scrollBy({ left: isRtl ? -w : w, behavior: 'smooth' });
+      });
+    });
+
+    // sp-track dots
+    (function() {
+      var track = document.querySelector('.sp-track');
+      var dotsWrap = document.querySelector('.sp-dots');
+      if (!track || !dotsWrap) return;
+      function buildDots() {
+        dotsWrap.innerHTML = '';
+        var cards = track.querySelectorAll('.sp-card');
+        cards.forEach(function(_, i) {
+          var dot = document.createElement('button');
+          dot.className = 'sp-dot';
+          dot.setAttribute('type', 'button');
+          dot.addEventListener('click', function() { cards[i].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); });
+          dotsWrap.appendChild(dot);
+        });
+        updateActiveDot();
+      }
+      function updateActiveDot() {
+        var cards = track.querySelectorAll('.sp-card');
+        var dots = dotsWrap.querySelectorAll('.sp-dot');
+        if (!dots.length) return;
+        var trackRect = track.getBoundingClientRect();
+        var center = trackRect.left + trackRect.width / 2;
+        var closest = 0, minDist = Infinity;
+        cards.forEach(function(card, i) {
+          var rect = card.getBoundingClientRect();
+          var dist = Math.abs(rect.left + rect.width / 2 - center);
+          if (dist < minDist) { minDist = dist; closest = i; }
+        });
+        dots.forEach(function(d, i) { d.classList.toggle('active', i === closest); });
+      }
+      track.addEventListener('scroll', updateActiveDot);
+      window.addEventListener('resize', buildDots);
+      buildDots();
+    })();
+  </script>
+
+</body>
+</html>
