@@ -15,6 +15,11 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
 
         Route::get('lang/{locale}', 'LanguageController@lang')->name('lang');
         Route::get('/', 'DashboardController@dashboard')->name('dashboard');
+
+        Route::group(['prefix' => 'urban-goodz/fashion', 'as' => 'urban-goodz.fashion.'], function () {
+            Route::get('measurements', 'UrbanGoodzFashionMeasurementController@index')->name('measurements.index');
+        });
+
         Route::get('/get-store-data', 'DashboardController@store_data')->name('get-store-data');
         Route::post('/store-token', 'DashboardController@updateDeviceToken')->name('store.token');
         Route::post('/verified-badge-popup-seen', 'DashboardController@verifiedBadgePopupSeen')->name('verified-badge-popup-seen');

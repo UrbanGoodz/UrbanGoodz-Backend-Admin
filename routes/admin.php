@@ -63,6 +63,10 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         //dashboard
         Route::get('/', 'DashboardController@dashboard')->name('dashboard');
 
+        Route::group(['prefix' => 'urban-goodz/fashion', 'as' => 'urban-goodz.fashion.'], function () {
+            Route::get('measurements', 'UrbanGoodzFashionMeasurementController@index')->name('measurements.index');
+        });
+
         Route::get('maintenance-mode', 'SystemController@maintenance_mode')->name('maintenance-mode');
         Route::get('landing-page', 'SystemController@landing_page')->name('landing-page');
 
