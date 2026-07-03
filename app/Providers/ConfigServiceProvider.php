@@ -7,6 +7,7 @@ use App\Models\Setting;
 use Carbon\CarbonImmutable;
 use Carbon\Translator;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class ConfigServiceProvider extends ServiceProvider
@@ -34,6 +35,11 @@ class ConfigServiceProvider extends ServiceProvider
                 'first_day_of_week' => CarbonImmutable::MONDAY,
                 'weekend' => [CarbonImmutable::SUNDAY],
             ]);
+
+            if (!Schema::hasTable('business_settings')) {
+                return;
+            }
+
             $data = BusinessSetting::where(['key' => 'mail_config'])->first();
             $emailServices = json_decode($data['value'], true);
             if ($emailServices) {
@@ -62,7 +68,9 @@ class ConfigServiceProvider extends ServiceProvider
                     'paystack',
                 ];
 
-            $data = Setting::whereIn('key_name', $gateway)->pluck('live_values', 'key_name')->toArray();
+            $data = Schema::hasTable('settings')
+                ? Setting::whereIn('key_name', $gateway)->pluck('live_values', 'key_name')->toArray()
+                : [];
             if (isset($data['paystack'])) {
                 $config = [
                     'publicKey' => env('PAYSTACK_PUBLIC_KEY', data_get($data, 'paystack.public_key', null)),

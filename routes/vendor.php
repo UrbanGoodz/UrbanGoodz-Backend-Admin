@@ -20,6 +20,18 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
             Route::get('measurements', 'UrbanGoodzFashionMeasurementController@index')->name('measurements.index');
         });
 
+        Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.'], function () {
+            Route::get('/', 'UrbanGoodzController@index')->name('index');
+            Route::get('payments', 'UrbanGoodzController@payments')->middleware(['module:order'])->name('payments.index');
+            Route::group(['prefix' => 'order-anywhere', 'as' => 'order-anywhere.', 'middleware' => ['module:order']], function () {
+                Route::get('/', 'UrbanGoodzController@orderAnywhere')->name('index');
+                Route::get('{id}', 'UrbanGoodzController@orderAnywhereShow')->name('show');
+                Route::put('{id}', 'UrbanGoodzController@orderAnywhereUpdate')->name('update');
+            });
+            Route::get('fashion-fit', 'UrbanGoodzFashionMeasurementController@index')->name('fashion-fit.index');
+            Route::get('{section}', 'UrbanGoodzController@section')->name('section');
+        });
+
         Route::get('/get-store-data', 'DashboardController@store_data')->name('get-store-data');
         Route::post('/store-token', 'DashboardController@updateDeviceToken')->name('store.token');
         Route::post('/verified-badge-popup-seen', 'DashboardController@verifiedBadgePopupSeen')->name('verified-badge-popup-seen');

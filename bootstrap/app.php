@@ -7,6 +7,7 @@ use App\Http\Middleware\AdminRentalModuleCheckMiddleware;
 use App\Http\Middleware\APIGuestMiddleware;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\CurrentModule;
+use App\Http\Middleware\DeliveryManWebMiddleware;
 use App\Http\Middleware\DmTokenIsValid;
 use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\InstallationMiddleware;
@@ -74,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             'admin' => AdminMiddleware::class,
             'vendor' => VendorMiddleware::class,
+            'deliveryman' => DeliveryManWebMiddleware::class,
             'vendor.api' => VendorTokenIsValid::class,
             'dm.api' => DmTokenIsValid::class,
             'module' => ModulePermissionMiddleware::class,

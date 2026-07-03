@@ -56,6 +56,24 @@
                         </a>
                     </li>
                     <!-- End Dashboards -->
+                    @if (\App\CentralLogics\Helpers::employee_module_permission_check('order'))
+                        <li class="nav-item">
+                            <small class="nav-subtitle" title="Urban Goodz">Urban Goodz</small>
+                            <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                        </li>
+                        <li class="navbar-vertical-aside-has-menu {{ Request::is('vendor-panel/urban-goodz*') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('vendor.urban-goodz.index') }}" title="Urban Goodz">
+                                <i class="tio-dashboard-outlined nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Urban Goodz</span>
+                            </a>
+                        </li>
+                        <li class="navbar-vertical-aside-has-menu {{ Request::is('vendor-panel/urban-goodz/payments*') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('vendor.urban-goodz.payments.index') }}" title="Urban Goodz Earnings">
+                                <i class="tio-money nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">UG Earnings</span>
+                            </a>
+                        </li>
+                    @endif
                     @if (\App\CentralLogics\Helpers::employee_module_permission_check('pos'))
                         <li
                             class="navbar-vertical-aside-has-menu {{ Request::is('vendor-panel/pos') ? 'active' : '' }}">

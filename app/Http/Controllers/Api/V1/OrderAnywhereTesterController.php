@@ -3,47 +3,53 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderAnywhereRequest;
+use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
+use Illuminate\Validation\Rule;
 
 class OrderAnywhereTesterController extends Controller
 {
-    private const STORE_FILE = 'app/urban_goodz_tester/order_anywhere_requests.json';
-
-    public function customerRequests()
+    public function customerRequests(Request $request)
     {
+        $records = OrderAnywhereRequest::query()
+            ->when($request->input('customer_id'), fn ($query, $customerId) => $query->where('customer_id', $customerId))
+            ->latest()
+            ->paginate(25);
+
         return response()->json([
             'success' => true,
-            'data' => array_values($this->records()),
+            'data' => $records,
         ]);
     }
 
-    public function adminRequests()
+    public function adminRequests(Request $request)
     {
-        return $this->customerRequests();
+        return $this->customerRequests($request);
     }
 
     public function store(Request $request)
     {
-        $payload = $request->all();
-        $now = now()->toIso8601String();
-        $id = (string)($payload['id'] ?? 'oa_' . now()->format('YmdHis') . '_' . random_int(1000, 9999));
-
-        $record = array_merge($payload, [
-            'id' => $id,
-            'request_status' => $payload['request_status'] ?? 'submitted',
-            'admin_notes' => $payload['admin_notes'] ?? null,
-            'vendor_notes' => $payload['vendor_notes'] ?? null,
-            'driver_notes' => $payload['driver_notes'] ?? null,
-            'assigned_driver_id' => $payload['assigned_driver_id'] ?? null,
-            'driver_task_status' => $payload['driver_task_status'] ?? null,
-            'created_at' => $payload['created_at'] ?? $now,
-            'updated_at' => $now,
+        $data = $request->validate([
+            'customer_id' => ['nullable', 'integer'],
+            'customer_name' => ['nullable', 'string', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:255'],
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'store_vendor_name' => ['nullable', 'string', 'max:255'],
+            'store_vendor_address_or_website' => ['nullable', 'string'],
+            'request_details' => ['nullable', 'string'],
+            'item_details' => ['nullable', 'string'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+            'budget_estimate' => ['nullable', 'numeric', 'min:0'],
+            'admin_notes' => ['nullable', 'string'],
+            'vendor_id' => ['nullable', 'integer'],
         ]);
 
-        $records = $this->records();
-        $records[$id] = $record;
-        $this->save($records);
+        $record = OrderAnywhereRequest::create(array_merge($data, [
+            'request_number' => OrderAnywhereRequest::nextRequestNumber(),
+            'status' => 'pending_review',
+            'metadata' => $request->all(),
+        ]));
 
         return response()->json([
             'success' => true,
@@ -54,52 +60,135 @@ class OrderAnywhereTesterController extends Controller
 
     public function show($record)
     {
-        $records = $this->records();
-
-        if (!isset($records[$record])) {
-            return response()->json(['success' => false, 'message' => 'Request not found'], 404);
-        }
-
-        return response()->json(['success' => true, 'data' => $records[$record]]);
+        return response()->json([
+            'success' => true,
+            'data' => $this->findRecord($record),
+        ]);
     }
 
     public function updateStatus(Request $request, $record)
     {
-        return $this->updateRecord($record, [
-            'request_status' => $request->input('status', $request->input('request_status', 'admin_reviewing')),
-            'admin_notes' => $request->input('admin_notes'),
-        ], 'Order Anywhere status updated.');
+        $data = $request->validate([
+            'status' => ['nullable', Rule::in(OrderAnywhereRequest::STATUSES)],
+            'request_status' => ['nullable', Rule::in(OrderAnywhereRequest::STATUSES)],
+            'admin_notes' => ['nullable', 'string'],
+        ]);
+
+        $model = $this->findRecord($record);
+        $model->status = $data['status'] ?? $data['request_status'] ?? 'reviewing';
+        $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
+        $model->reviewed_at = now();
+        $model->save();
+
+        return $this->updated($model, 'Order Anywhere status updated.');
+    }
+
+    public function vendorUpdate(Request $request, $record)
+    {
+        $data = $request->validate([
+            'vendor_status' => ['nullable', 'string', 'max:255'],
+            'vendor_notes' => ['nullable', 'string'],
+            'vendor_quote_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $model = $this->findRecord($record);
+        $model->vendor_status = $data['vendor_status'] ?? $model->vendor_status;
+        $model->vendor_notes = $data['vendor_notes'] ?? $model->vendor_notes;
+        $model->vendor_quote_amount = $data['vendor_quote_amount'] ?? $model->vendor_quote_amount;
+
+        if (($data['vendor_status'] ?? null) === 'accepted') {
+            $model->status = 'vendor_accepted';
+        }
+
+        $model->save();
+
+        return $this->updated($model, 'Order Anywhere vendor response updated.');
+    }
+
+    public function authorizePayment(Request $request, $record, UrbanGoodzPaymentService $payments)
+    {
+        $data = $request->validate([
+            'authorized_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'payment_method' => ['nullable', 'string', 'max:255'],
+            'authorization_reference' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $model = $payments->authorizeOrderAnywhere($this->findRecord($record), array_merge($data, [
+            'source' => 'customer_api',
+        ]));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order Anywhere payment authorized.',
+            'data' => $model,
+        ]);
+    }
+
+    public function uploadReceipt(Request $request, $record, UrbanGoodzPaymentService $payments)
+    {
+        $data = $request->validate([
+            'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'receipt_path' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $path = $data['receipt_path'] ?? null;
+
+        if ($request->hasFile('receipt')) {
+            $path = $request->file('receipt')->store('urban-goodz/order-anywhere/receipts', 'public');
+        }
+
+        abort_if(! $path, 422, 'Receipt file or receipt_path is required.');
+
+        $model = $payments->storeReceipt($this->findRecord($record), $path);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order Anywhere receipt uploaded.',
+            'data' => $model,
+        ]);
     }
 
     public function addNotes(Request $request, $record)
     {
-        return $this->updateRecord($record, [
-            'admin_notes' => $request->input('admin_notes'),
-            'vendor_notes' => $request->input('vendor_notes'),
-        ], 'Order Anywhere notes updated.');
+        $data = $request->validate([
+            'admin_notes' => ['nullable', 'string'],
+        ]);
+
+        $model = $this->findRecord($record);
+        $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
+        $model->reviewed_at = now();
+        $model->save();
+
+        return $this->updated($model, 'Order Anywhere notes updated.');
     }
 
     public function assignDriver(Request $request, $record)
     {
-        return $this->updateRecord($record, [
-            'assigned_driver_id' => $request->input('driver_id', 'tester-driver'),
-            'request_status' => 'driver_assigned',
-            'driver_task_status' => 'assigned',
-            'admin_notes' => $request->input('admin_notes'),
-        ], 'Driver assigned to Order Anywhere request.');
+        $data = $request->validate([
+            'driver_id' => ['required', 'integer'],
+            'admin_notes' => ['nullable', 'string'],
+        ]);
+
+        $model = $this->findRecord($record);
+        $model->assigned_delivery_man_id = $data['driver_id'];
+        $model->status = 'approved';
+        $model->driver_task_status = 'assigned';
+        $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
+        $model->reviewed_at = now();
+        $model->save();
+
+        return $this->updated($model, 'Driver assigned to Order Anywhere request.');
     }
 
     public function driverAvailable()
     {
-        $tasks = array_values(array_filter($this->records(), function ($record) {
-            return !empty($record['assigned_driver_id']) || in_array($record['request_status'] ?? '', [
-                'vendor_runner_assigned',
-                'driver_assigned',
-                'in_progress',
-            ], true);
-        }));
+        $records = OrderAnywhereRequest::query()
+            ->whereNotNull('assigned_delivery_man_id')
+            ->whereNotIn('status', ['completed', 'cancelled', 'rejected'])
+            ->latest()
+            ->paginate(25);
 
-        return response()->json(['success' => true, 'data' => $tasks]);
+        return response()->json(['success' => true, 'data' => $records]);
     }
 
     public function driverAccept($record)
@@ -109,61 +198,60 @@ class OrderAnywhereTesterController extends Controller
 
     public function driverStatus(Request $request, $record)
     {
-        $driverStatus = $request->input('driver_task_status', $request->input('status', 'in_progress'));
-        $requestStatus = match ($driverStatus) {
-            'picked_up', 'en_route' => 'in_progress',
+        $data = $request->validate([
+            'driver_task_status' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', 'max:255'],
+            'driver_notes' => ['nullable', 'string'],
+        ]);
+
+        $driverStatus = $data['driver_task_status'] ?? $data['status'] ?? 'in_progress';
+        $status = match ($driverStatus) {
+            'picked_up' => 'picked_up',
+            'en_route' => 'out_for_delivery',
             'delivered' => 'completed',
-            'issue_reported' => 'needs_info',
-            default => 'driver_assigned',
+            'issue_reported' => 'reviewing',
+            default => 'shopping',
         };
 
-        return $this->updateRecord($record, [
-            'driver_task_status' => $driverStatus,
-            'request_status' => $requestStatus,
-            'driver_notes' => $request->input('driver_notes'),
-        ], 'Driver task status updated.');
+        $model = $this->findRecord($record);
+        $model->driver_task_status = $driverStatus;
+        $model->status = $status;
+        $model->driver_notes = $data['driver_notes'] ?? $model->driver_notes;
+        $model->save();
+
+        return $this->updated($model, 'Driver task status updated.');
     }
 
     public function driverIssue(Request $request, $record)
     {
-        return $this->updateRecord($record, [
-            'driver_task_status' => 'issue_reported',
-            'request_status' => 'needs_info',
-            'driver_notes' => $request->input('driver_notes', $request->input('issue')),
-        ], 'Driver issue reported.');
-    }
-
-    private function updateRecord(string $id, array $changes, string $message)
-    {
-        $records = $this->records();
-
-        if (!isset($records[$id])) {
-            return response()->json(['success' => false, 'message' => 'Request not found'], 404);
-        }
-
-        $records[$id] = array_merge($records[$id], array_filter($changes, fn ($value) => $value !== null), [
-            'updated_at' => now()->toIso8601String(),
+        $data = $request->validate([
+            'driver_notes' => ['nullable', 'string'],
+            'issue' => ['nullable', 'string'],
         ]);
-        $this->save($records);
 
-        return response()->json(['success' => true, 'message' => $message, 'data' => $records[$id]]);
+        $model = $this->findRecord($record);
+        $model->driver_task_status = 'issue_reported';
+        $model->status = 'reviewing';
+        $model->driver_notes = $data['driver_notes'] ?? $data['issue'] ?? $model->driver_notes;
+        $model->save();
+
+        return $this->updated($model, 'Driver issue reported.');
     }
 
-    private function records(): array
+    private function findRecord($record): OrderAnywhereRequest
     {
-        $path = storage_path(self::STORE_FILE);
-        if (!File::exists($path)) {
-            return [];
-        }
-
-        $decoded = json_decode(File::get($path), true);
-        return is_array($decoded) ? $decoded : [];
+        return OrderAnywhereRequest::query()
+            ->where('id', $record)
+            ->orWhere('request_number', $record)
+            ->firstOrFail();
     }
 
-    private function save(array $records): void
+    private function updated(OrderAnywhereRequest $record, string $message)
     {
-        $path = storage_path(self::STORE_FILE);
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, json_encode($records, JSON_PRETTY_PRINT));
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $record->fresh(),
+        ]);
     }
 }

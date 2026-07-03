@@ -63,11 +63,14 @@ Route::group(['prefix' => 'urban-goodz/fashion'], function () {
 Route::group(['prefix' => 'order-anywhere'], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereTesterController@store');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereTesterController@show');
+    Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereTesterController@authorizePayment');
+    Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereTesterController@uploadReceipt');
     Route::get('customer/requests', 'Api\V1\OrderAnywhereTesterController@customerRequests');
     Route::get('admin/requests', 'Api\V1\OrderAnywhereTesterController@adminRequests');
     Route::post('admin/requests/{record}/status', 'Api\V1\OrderAnywhereTesterController@updateStatus');
     Route::post('admin/requests/{record}/notes', 'Api\V1\OrderAnywhereTesterController@addNotes');
     Route::post('admin/requests/{record}/assign-driver', 'Api\V1\OrderAnywhereTesterController@assignDriver');
+    Route::post('vendor/requests/{record}/update', 'Api\V1\OrderAnywhereTesterController@vendorUpdate');
     Route::get('driver/available', 'Api\V1\OrderAnywhereTesterController@driverAvailable');
     Route::post('driver/{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
     Route::post('driver/{record}/status', 'Api\V1\OrderAnywhereTesterController@driverStatus');

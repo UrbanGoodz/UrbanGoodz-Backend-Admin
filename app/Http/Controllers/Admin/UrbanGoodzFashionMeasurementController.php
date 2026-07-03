@@ -73,6 +73,6 @@ class UrbanGoodzFashionMeasurementController extends Controller
         $record->corrected_measurements = $request->input('corrected_measurements');
         $record->save();
 
-        return redirect()->route('admin.stylist-request.list')->with('success', 'Stylist request response updated by admin successfully.');
+        return redirect()->route('admin.urban-goodz.fashion-fit.index')->with('success', 'Stylist request response updated by admin successfully.');
     }
 }

@@ -63,6 +63,23 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         //dashboard
         Route::get('/', 'DashboardController@dashboard')->name('dashboard');
 
+        Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.'], function () {
+            Route::get('/', 'UrbanGoodzAdminController@index')->name('index');
+            Route::get('order-anywhere', 'UrbanGoodzAdminController@orderAnywhere')->name('order-anywhere.index');
+            Route::get('order-anywhere/{id}', 'UrbanGoodzAdminController@orderAnywhereShow')->name('order-anywhere.show');
+            Route::put('order-anywhere/{id}/status', 'UrbanGoodzAdminController@orderAnywhereStatus')->name('order-anywhere.status');
+            Route::put('order-anywhere/{id}/notes', 'UrbanGoodzAdminController@orderAnywhereNotes')->name('order-anywhere.notes');
+            Route::put('order-anywhere/{id}/assign', 'UrbanGoodzAdminController@orderAnywhereAssign')->name('order-anywhere.assign');
+            Route::put('order-anywhere/{id}/quote', 'UrbanGoodzAdminController@orderAnywhereQuote')->name('order-anywhere.quote');
+            Route::put('order-anywhere/{id}/capture', 'UrbanGoodzAdminController@orderAnywhereCapture')->name('order-anywhere.capture');
+            Route::put('order-anywhere/{id}/refund', 'UrbanGoodzAdminController@orderAnywhereRefund')->name('order-anywhere.refund');
+            Route::get('payments', 'UrbanGoodzAdminController@payments')->name('payments.index');
+            Route::get('fashion-fit', 'UrbanGoodzFashionMeasurementController@index')->name('fashion-fit.index');
+            Route::get('fashion-fit/{id}', 'UrbanGoodzFashionMeasurementController@view')->name('fashion-fit.show');
+            Route::put('fashion-fit/{id}', 'UrbanGoodzFashionMeasurementController@update')->name('fashion-fit.update');
+            Route::get('{section}', 'UrbanGoodzAdminController@section')->name('section');
+        });
+
         Route::group(['prefix' => 'urban-goodz/fashion', 'as' => 'urban-goodz.fashion.'], function () {
             Route::get('measurements', 'UrbanGoodzFashionMeasurementController@index')->name('measurements.index');
         });

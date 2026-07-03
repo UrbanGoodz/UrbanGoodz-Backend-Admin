@@ -19,7 +19,7 @@ class PaytmController extends Controller
 {
     use Processor;
 
-    private mixed $config_values;
+    private mixed $config_values = null;
 	private  static $iv = "@@@@&&&&####$$$$";
     private PaymentRequest $payment;
     private User $user;
@@ -32,7 +32,7 @@ class PaytmController extends Controller
         } elseif (!is_null($config) && $config->mode == 'test') {
             $this->config_values = json_decode($config->test_values);
         }
-        if (isset($config)) {
+        if ($config && $this->config_values) {
 
             $PAYTM_STATUS_QUERY_NEW_URL = 'https://securestage.paytmpayments.com/theia/api/v1/showPaymentPage';
             $PAYTM_TXN_URL = 'https://securestage.paytmpayments.com/theia/api/v1/initiateTransaction';

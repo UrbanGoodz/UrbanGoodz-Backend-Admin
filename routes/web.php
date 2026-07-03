@@ -220,6 +220,30 @@ Route::group(['prefix' => 'vendor', 'as' => 'restaurant.'], function () {
     Route::get('final-step', 'VendorController@final_step')->name('final_step');
 });
 
+Route::group(['prefix' => 'vendor/urban-goodz', 'namespace' => 'Vendor', 'as' => 'vendor-public.urban-goodz.', 'middleware' => ['vendor', 'actch:admin_panel']], function () {
+    Route::get('/', 'UrbanGoodzController@index')->name('index');
+    Route::get('payments', 'UrbanGoodzController@payments')->middleware(['module:order'])->name('payments.index');
+    Route::group(['prefix' => 'order-anywhere', 'as' => 'order-anywhere.', 'middleware' => ['module:order']], function () {
+        Route::get('/', 'UrbanGoodzController@orderAnywhere')->name('index');
+        Route::get('{id}', 'UrbanGoodzController@orderAnywhereShow')->name('show');
+        Route::put('{id}', 'UrbanGoodzController@orderAnywhereUpdate')->name('update');
+    });
+    Route::get('fashion-fit', 'UrbanGoodzFashionMeasurementController@index')->name('fashion-fit.index');
+    Route::get('{section}', 'UrbanGoodzController@section')->name('section');
+});
+
+Route::group(['prefix' => 'delivery-man/urban-goodz', 'namespace' => 'DeliveryMan', 'as' => 'delivery-man.urban-goodz.', 'middleware' => ['deliveryman']], function () {
+    Route::get('/', 'UrbanGoodzController@index')->name('index');
+    Route::get('jobs', 'UrbanGoodzController@jobs')->name('jobs');
+    Route::get('payments', 'UrbanGoodzController@payments')->name('payments.index');
+    Route::group(['prefix' => 'order-anywhere', 'as' => 'order-anywhere.'], function () {
+        Route::get('/', 'UrbanGoodzController@orderAnywhere')->name('index');
+        Route::get('{id}', 'UrbanGoodzController@orderAnywhereShow')->name('show');
+        Route::put('{id}/status', 'UrbanGoodzController@orderAnywhereStatus')->name('status');
+    });
+    Route::get('{section}', 'UrbanGoodzController@section')->name('section');
+});
+
 //Rider Registration
 Route::group(['prefix' => 'rider', 'as' => 'rider.'], function () {
     Route::get('apply', [RiderRegistrationController::class, 'create'])->name('create');

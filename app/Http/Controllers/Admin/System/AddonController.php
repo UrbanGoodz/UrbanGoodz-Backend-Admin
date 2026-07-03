@@ -29,17 +29,23 @@ class AddonController extends Controller
 
     private function extendWithSmsGatewayTrait()
     {
-        $extendedControllerClass = $this->generateExtendedControllerClass();
+        $extendedControllerClassName = 'AddonControllerExtendedController';
+
+        if (class_exists($extendedControllerClassName, false)) {
+            return;
+        }
+
+        $extendedControllerClass = $this->generateExtendedControllerClass($extendedControllerClassName);
         eval($extendedControllerClass);
     }
 
-    private function generateExtendedControllerClass()
+    private function generateExtendedControllerClass(string $extendedControllerClassName)
     {
         $baseControllerClass = get_class($this);
         $traitClassName = 'Modules\Gateways\Traits\SmsGateway';
 
         $extendedControllerClass = "
-            class ExtendedController extends $baseControllerClass {
+            class $extendedControllerClassName extends $baseControllerClass {
                 use $traitClassName;
             }
         ";

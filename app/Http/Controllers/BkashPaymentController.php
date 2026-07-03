@@ -32,11 +32,11 @@ class BkashPaymentController extends Controller
             $this->config_values = json_decode($config->test_values);
         }
 
-        if ($config) {
-            $this->app_key = $this->config_values->app_key;
-            $this->app_secret = $this->config_values->app_secret;
-            $this->username = $this->config_values->username;
-            $this->password = $this->config_values->password;
+        if ($config && $this->config_values) {
+            $this->app_key = $this->config_values->app_key ?? null;
+            $this->app_secret = $this->config_values->app_secret ?? null;
+            $this->username = $this->config_values->username ?? null;
+            $this->password = $this->config_values->password ?? null;
             $this->base_url = ($config->mode == 'live') ? 'https://tokenized.pay.bka.sh/v1.2.0-beta' : 'https://tokenized.sandbox.bka.sh/v1.2.0-beta';
         }
 
@@ -184,4 +184,3 @@ class BkashPaymentController extends Controller
 
 
 }
-

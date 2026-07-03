@@ -41,6 +41,6 @@ class AdminMiddleware
         if (Auth::guard('admin')->check()) {
             return $next($request);
         }
-        return redirect()->route('home');
+        return redirect()->route('login', [Helpers::get_login_url('admin_login_url') ?? 'admin']);
     }
 }

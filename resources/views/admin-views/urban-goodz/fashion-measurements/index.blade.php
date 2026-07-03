@@ -62,6 +62,7 @@
                         <th>{{ translate('Face blur') }}</th>
                         <th>{{ translate('Status') }}</th>
                         <th>{{ translate('Created') }}</th>
+                        <th>{{ translate('Action') }}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -78,10 +79,13 @@
                             <td>{{ $request->face_blur_status }}</td>
                             <td>{{ $request->measurement_status }} / {{ $request->review_status }}</td>
                             <td>{{ optional($request->created_at)->format('Y-m-d H:i') }}</td>
+                            <td>
+                                <a href="{{ route('admin.urban-goodz.fashion-fit.show', $request->id) }}" class="btn btn-sm btn--primary">{{ translate('View') }}</a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="text-center">{{ translate('No measurement requests found') }}</td>
+                            <td colspan="12" class="text-center">{{ translate('No measurement requests found') }}</td>
                         </tr>
                     @endforelse
                     </tbody>

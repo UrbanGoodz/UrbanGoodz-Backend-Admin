@@ -21,17 +21,23 @@ class PaymentController extends Controller
 
     private function extendWithPaymentGatewayTrait()
     {
-        $extendedControllerClass = $this->generateExtendedControllerClass();
+        $extendedControllerClassName = 'PaymentControllerExtendedController';
+
+        if (class_exists($extendedControllerClassName, false)) {
+            return;
+        }
+
+        $extendedControllerClass = $this->generateExtendedControllerClass($extendedControllerClassName);
         eval($extendedControllerClass);
     }
 
-    private function generateExtendedControllerClass()
+    private function generateExtendedControllerClass(string $extendedControllerClassName)
     {
         $baseControllerClass = get_class($this);
         $traitClassName = 'App\Traits\Payment';
 
         $extendedControllerClass = "
-            class ExtendedController extends $baseControllerClass {
+            class $extendedControllerClassName extends $baseControllerClass {
                 use $traitClassName;
             }
         ";

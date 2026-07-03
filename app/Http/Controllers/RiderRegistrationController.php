@@ -12,20 +12,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
-use Modules\RideShare\Interface\UserManagement\Service\DriverLevelServiceInterface;
-use Modules\RideShare\Entities\UserManagement\RiderDetail;
 
 class RiderRegistrationController extends Controller
 {
-    public function __construct(
-        protected DriverLevelServiceInterface $driverLevelService,
-    )
+    public function __construct()
     {
     }
 
     public function create()
     {
-        if (!addon_published_status('RideShare')) {
+        if (!$this->rideShareAvailable()) {
             abort(404);
         }
 
@@ -45,7 +41,7 @@ class RiderRegistrationController extends Controller
 
     public function store(Request $request)
     {
-        if (!addon_published_status('RideShare')) {
+        if (!$this->rideShareAvailable()) {
             abort(404);
         }
 
@@ -120,7 +116,8 @@ class RiderRegistrationController extends Controller
             $identity_image = json_encode([]);
         }
 
-        $firstLevel = $this->driverLevelService->findOneBy(criteria: ['user_type' => DRIVER, 'sequence' => 1]);
+        $driverLevelService = app($this->driverLevelServiceInterface());
+        $firstLevel = $driverLevelService->findOneBy(criteria: ['user_type' => DRIVER, 'sequence' => 1]);
         if (!$firstLevel) {
             Toastr::error(translate('messages.rider_level_not_found'));
             return back()->withInput();
@@ -148,7 +145,8 @@ class RiderRegistrationController extends Controller
         $dm->ref_code = Helpers::generate_referer_code('deliveryman');
         $dm->save();
 
-        $riderDetails = new RiderDetail();
+        $riderDetailClass = $this->riderDetailClass();
+        $riderDetails = new $riderDetailClass();
         $riderDetails->user_id = $dm->id;
         $riderDetails->is_online = false;
         $riderDetails->availability_status = 'unavailable';
@@ -170,5 +168,22 @@ class RiderRegistrationController extends Controller
 
         Toastr::success(translate('messages.application_placed_successfully'));
         return redirect()->route('home');
+    }
+
+    private function rideShareAvailable(): bool
+    {
+        return addon_published_status('RideShare')
+            && interface_exists($this->driverLevelServiceInterface())
+            && class_exists($this->riderDetailClass());
+    }
+
+    private function driverLevelServiceInterface(): string
+    {
+        return 'Modules\\RideShare\\Interface\\UserManagement\\Service\\DriverLevelServiceInterface';
+    }
+
+    private function riderDetailClass(): string
+    {
+        return 'Modules\\RideShare\\Entities\\UserManagement\\RiderDetail';
     }
 }

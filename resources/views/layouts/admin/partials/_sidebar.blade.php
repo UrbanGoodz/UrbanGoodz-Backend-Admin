@@ -52,10 +52,22 @@
                     </li>
                     <!-- End Dashboards -->
 
-                    <!-- Urban Goodz Fashion Fit -->
+                    <!-- Urban Goodz Control Center -->
                     <li class="nav-item">
-                        <small class="nav-subtitle" title="Fashion Fit">Urban Goodz Fashion Fit</small>
+                        <small class="nav-subtitle" title="Urban Goodz">Urban Goodz</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.index') }}" title="Urban Goodz Control Center">
+                            <i class="tio-dashboard-outlined nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Control Center</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/payments*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.payments.index') }}" title="Urban Goodz Payments">
+                            <i class="tio-money nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Payments</span>
+                        </a>
                     </li>
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/stylist-request*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.stylist-request.list') }}" title="Stylist Requests">
