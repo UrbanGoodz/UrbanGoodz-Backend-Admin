@@ -60,3 +60,26 @@ Route::group(['prefix' => 'urban-goodz/fashion'], function () {
     Route::post('stylist-requests/{id}/status', 'Api\V1\UrbanGoodzFashionMeasurementController@updateStylistRequestStatus');
 });
 
+Route::group(['prefix' => 'order-anywhere'], function () {
+    Route::post('requests', 'Api\V1\OrderAnywhereTesterController@store');
+    Route::get('requests/{record}', 'Api\V1\OrderAnywhereTesterController@show');
+    Route::get('customer/requests', 'Api\V1\OrderAnywhereTesterController@customerRequests');
+    Route::get('admin/requests', 'Api\V1\OrderAnywhereTesterController@adminRequests');
+    Route::post('admin/requests/{record}/status', 'Api\V1\OrderAnywhereTesterController@updateStatus');
+    Route::post('admin/requests/{record}/notes', 'Api\V1\OrderAnywhereTesterController@addNotes');
+    Route::post('admin/requests/{record}/assign-driver', 'Api\V1\OrderAnywhereTesterController@assignDriver');
+    Route::get('driver/available', 'Api\V1\OrderAnywhereTesterController@driverAvailable');
+    Route::post('driver/{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
+    Route::post('driver/{record}/status', 'Api\V1\OrderAnywhereTesterController@driverStatus');
+    Route::post('driver/{record}/issue', 'Api\V1\OrderAnywhereTesterController@driverIssue');
+});
+
+Route::group(['prefix' => 'urban-goodz/creator-commerce'], function () {
+    Route::post('applications', 'Api\V1\CreatorCommerceTesterController@storeApplication');
+    Route::get('customer/applications', 'Api\V1\CreatorCommerceTesterController@customerApplications');
+    Route::get('admin/applications', 'Api\V1\CreatorCommerceTesterController@adminApplications');
+    Route::post('admin/applications/{record}/status', 'Api\V1\CreatorCommerceTesterController@updateApplicationStatus');
+    Route::post('promotions', 'Api\V1\CreatorCommerceTesterController@storePromotion');
+    Route::get('admin/promotions', 'Api\V1\CreatorCommerceTesterController@promotions');
+    Route::post('admin/promotions/{record}/status', 'Api\V1\CreatorCommerceTesterController@updatePromotionStatus');
+});
