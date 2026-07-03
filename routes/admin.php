@@ -216,6 +216,12 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('view/{conversation_id}/{user_id}', 'ConversationController@view')->name('view');
         });
 
+        Route::group(['prefix' => 'stylist-request', 'as' => 'stylist-request.'], function () {
+            Route::get('list', 'UrbanGoodzFashionMeasurementController@index')->name('list');
+            Route::get('view/{id}', 'UrbanGoodzFashionMeasurementController@view')->name('view');
+            Route::post('update/{id}', 'UrbanGoodzFashionMeasurementController@update')->name('update');
+        });
+
 
         Route::group(['prefix' => 'store', 'as' => 'store.'], function () {
             Route::get('get-stores-data/{store}', 'VendorController@get_store_data')->name('get-stores-data');

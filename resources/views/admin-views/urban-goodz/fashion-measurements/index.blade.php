@@ -28,7 +28,7 @@
             <div class="col-md-3">
                 <div class="card">
                     <div class="card-body">
-                        <h6>{{ translate('Ready for tailor review') }}</h6>
+                        <h6>{{ translate('Ready for Stylist Review') }}</h6>
                         <h3>{{ $readyForTailorReview }}</h3>
                     </div>
                 </div>
@@ -53,7 +53,7 @@
                     <tr>
                         <th>{{ translate('ID') }}</th>
                         <th>{{ translate('Customer') }}</th>
-                        <th>{{ translate('Vendor / Tailor') }}</th>
+                        <th>{{ translate('Vendor / Stylist') }}</th>
                         <th>{{ translate('Platform fee') }}</th>
                         <th>{{ translate('Vendor fee') }}</th>
                         <th>{{ translate('Total') }}</th>

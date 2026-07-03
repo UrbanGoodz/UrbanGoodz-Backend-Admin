@@ -54,3 +54,9 @@ Route::group(['prefix' => 'urban-goodz/events'], function () {
     Route::post('{record}/logistics-support', 'Api\V1\UrbanGoodzOpportunityController@eventLogisticsSupport');
 });
 
+Route::group(['prefix' => 'urban-goodz/fashion'], function () {
+    Route::get('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@stylistRequests');
+    Route::post('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@submitStylistRequest');
+    Route::post('stylist-requests/{id}/status', 'Api\V1\UrbanGoodzFashionMeasurementController@updateStylistRequestStatus');
+});
+

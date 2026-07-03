@@ -44,6 +44,13 @@ return new class extends Migration
             $table->string('review_status')->default('pending');
             $table->text('tailor_notes')->nullable();
             $table->text('admin_notes')->nullable();
+            $table->decimal('quote_amount', 10, 2)->nullable();
+            $table->string('mockup_reference')->nullable();
+            $table->text('corrected_measurements')->nullable();
+            $table->string('item_wanted')->nullable();
+            $table->string('request_type')->nullable();
+            $table->decimal('budget', 10, 2)->nullable();
+            $table->boolean('consent_to_share_photos')->default(false);
             $table->timestamps();
         });
     }

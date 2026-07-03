@@ -1,11 +1,11 @@
 @extends('layouts.vendor.app')
 
-@section('title', translate('Tailor Measurement Requests'))
+@section('title', translate('Stylist Requests'))
 
 @section('content')
     <div class="content container-fluid">
         <div class="page-header">
-            <h1 class="page-header-title">{{ translate('Tailor Measurement Requests') }}</h1>
+            <h1 class="page-header-title">{{ translate('Stylist Requests') }}</h1>
         </div>
 
         <div class="card">
@@ -23,7 +23,7 @@
                         <th>{{ translate('Payment') }}</th>
                         <th>{{ translate('Vendor fee') }}</th>
                         <th>{{ translate('Review') }}</th>
-                        <th>{{ translate('Tailor notes') }}</th>
+                        <th>{{ translate('Stylist Notes') }}</th>
                         <th>{{ translate('Created') }}</th>
                     </tr>
                     </thead>

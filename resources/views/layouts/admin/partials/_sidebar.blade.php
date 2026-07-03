@@ -52,6 +52,18 @@
                     </li>
                     <!-- End Dashboards -->
 
+                    <!-- Urban Goodz Fashion Fit -->
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Fashion Fit">Urban Goodz Fashion Fit</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/stylist-request*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.stylist-request.list') }}" title="Stylist Requests">
+                            <i class="tio-account-square nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Stylist Requests</span>
+                        </a>
+                    </li>
+
                     <!-- Marketing section -->
                     <li class="nav-item">
                         <small class="nav-subtitle" title="{{ translate('messages.employee_handle') }}">{{ translate('pos section') }}</small>

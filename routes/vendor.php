@@ -322,5 +322,11 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
                 Route::get('vendor-tax-export', 'VendorTaxReportController@vendorTaxExport')->name('vendorTaxExport');
             });
         });
+
+        Route::group(['prefix' => 'stylist-request', 'as' => 'stylist-request.'], function () {
+            Route::get('list', 'UrbanGoodzFashionMeasurementController@index')->name('list');
+            Route::get('view/{id}', 'UrbanGoodzFashionMeasurementController@view')->name('view');
+            Route::post('update/{id}', 'UrbanGoodzFashionMeasurementController@update')->name('update');
+        });
     });
 });

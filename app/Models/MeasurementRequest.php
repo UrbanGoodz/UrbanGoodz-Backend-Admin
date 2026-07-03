@@ -45,6 +45,13 @@ class MeasurementRequest extends Model
         'review_status',
         'tailor_notes',
         'admin_notes',
+        'quote_amount',
+        'mockup_reference',
+        'corrected_measurements',
+        'item_wanted',
+        'request_type',
+        'budget',
+        'consent_to_share_photos',
     ];
 
     protected $casts = [
@@ -65,6 +72,9 @@ class MeasurementRequest extends Model
         'total_measurement_fee' => 'decimal:2',
         'payment_required' => 'boolean',
         'free_tester_mode' => 'boolean',
+        'quote_amount' => 'decimal:2',
+        'budget' => 'decimal:2',
+        'consent_to_share_photos' => 'boolean',
     ];
 
     public static function testerDefaults(): array
