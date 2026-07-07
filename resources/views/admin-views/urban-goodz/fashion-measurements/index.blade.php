@@ -1,93 +1,78 @@
 @extends('layouts.admin.app')
 
-@section('title', translate('Urban Goodz Fashion Measurements'))
+@section('title', translate('Fashion Fit - Measurements'))
 
 @section('content')
     <div class="content container-fluid">
         <div class="page-header">
-            <h1 class="page-header-title">{{ translate('Urban Goodz') }} - {{ translate('Fashion Measurements') }}</h1>
-        </div>
-
-        <div class="row g-3 mb-3">
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>{{ translate('Total requests') }}</h6>
-                        <h3>{{ $totalRequests }}</h3>
+            <div class="row align-items-center">
+                <div class="col-sm mb-sm-0">
+                    <h1 class="page-header-title">
+                        <span>{{ translate('Fashion Fit - Measurement Requests') }}</span>
+                        <span class="badge badge-soft-dark ml-2">{{ $totalRequests }}</span>
+                    </h1>
+                    <div class="d-flex gap-2 mt-1">
+                        <span class="badge badge-soft-info">{{ translate('Pending Review') }}: {{ $pendingReview }}</span>
+                        <span class="badge badge-soft-warning">{{ translate('Ready for Tailor') }}: {{ $readyForTailorReview }}</span>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>{{ translate('Pending review') }}</h6>
-                        <h3>{{ $pendingReview }}</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>{{ translate('Ready for Stylist Review') }}</h6>
-                        <h3>{{ $readyForTailorReview }}</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>{{ translate('Free tester mode') }}</h6>
-                        <h3>{{ !empty($settings['measurement_free_tester_mode']) ? translate('On') : translate('Off') }}</h3>
-                    </div>
+                <div class="col-sm-auto">
+                    <a href="{{ route('admin.urban-goodz.index') }}" class="btn btn--secondary">{{ translate('Back') }}</a>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">{{ translate('Measurement requests') }}</h5>
-            </div>
-            <div class="table-responsive">
+            <div class="table-responsive datatable-custom">
                 <table class="table table-hover table-borderless table-thead-bordered table-nowrap table-align-middle card-table">
                     <thead class="thead-light">
-                    <tr>
-                        <th>{{ translate('ID') }}</th>
-                        <th>{{ translate('Customer') }}</th>
-                        <th>{{ translate('Vendor / Stylist') }}</th>
-                        <th>{{ translate('Platform fee') }}</th>
-                        <th>{{ translate('Vendor fee') }}</th>
-                        <th>{{ translate('Total') }}</th>
-                        <th>{{ translate('Payment') }}</th>
-                        <th>{{ translate('Privacy') }}</th>
-                        <th>{{ translate('Face blur') }}</th>
-                        <th>{{ translate('Status') }}</th>
-                        <th>{{ translate('Created') }}</th>
-                        <th>{{ translate('Action') }}</th>
-                    </tr>
+                        <tr>
+                            <th>#</th>
+                            <th>{{ translate('Customer') }}</th>
+                            <th>{{ translate('Item Wanted') }}</th>
+                            <th>{{ translate('Measurement Status') }}</th>
+                            <th>{{ translate('Review Status') }}</th>
+                            <th>{{ translate('Payment') }}</th>
+                            <th>{{ translate('Tailor') }}</th>
+                            <th>{{ translate('Date') }}</th>
+                            <th>{{ translate('Action') }}</th>
+                        </tr>
                     </thead>
                     <tbody>
-                    @forelse($requests as $request)
-                        <tr>
-                            <td>{{ $request->id }}</td>
-                            <td>{{ $request->customer_id ?? '-' }}</td>
-                            <td>{{ $request->vendor_id ?? '-' }} / {{ $request->tailor_id ?? '-' }}</td>
-                            <td>{{ $request->currency }} {{ $request->platform_measurement_fee }}</td>
-                            <td>{{ $request->currency }} {{ $request->vendor_review_fee }}</td>
-                            <td>{{ $request->currency }} {{ $request->total_measurement_fee }}</td>
-                            <td>{{ $request->payment_status }}</td>
-                            <td>{{ $request->privacy_review_status }}</td>
-                            <td>{{ $request->face_blur_status }}</td>
-                            <td>{{ $request->measurement_status }} / {{ $request->review_status }}</td>
-                            <td>{{ optional($request->created_at)->format('Y-m-d H:i') }}</td>
-                            <td>
-                                <a href="{{ route('admin.urban-goodz.fashion-fit.show', $request->id) }}" class="btn btn-sm btn--primary">{{ translate('View') }}</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="12" class="text-center">{{ translate('No measurement requests found') }}</td>
-                        </tr>
-                    @endforelse
+                        @foreach($requests as $key => $r)
+                            <tr>
+                                <td>{{ $requests->firstItem() + $key }}</td>
+                                <td>{{ $r->customer_id }}</td>
+                                <td>{{ $r->item_wanted ?? translate('Custom Garment') }}</td>
+                                <td>
+                                    <span class="badge badge-soft-{{ $r->measurement_status === 'approved' ? 'success' : 'info' }}">
+                                        {{ str_replace('_', ' ', $r->measurement_status) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-soft-{{ $r->review_status === 'accepted' ? 'success' : ($r->review_status === 'pending' ? 'warning' : 'info') }}">
+                                        {{ str_replace('_', ' ', $r->review_status) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-soft-{{ $r->payment_status === 'paid' ? 'success' : 'secondary' }}">
+                                        {{ $r->payment_status }}
+                                    </span>
+                                </td>
+                                <td>{{ $r->tailor_id ?? translate('Unassigned') }}</td>
+                                <td>{{ $r->created_at->format('M d, Y') }}</td>
+                                <td>
+                                    <a href="{{ route('admin.urban-goodz.fashion-fit.show', $r->id) }}" class="btn btn-sm btn--primary">
+                                        {{ translate('View') }}
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        @if(count($requests) === 0)
+                            <tr>
+                                <td colspan="9" class="text-center">{{ translate('No measurement requests found') }}</td>
+                            </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>

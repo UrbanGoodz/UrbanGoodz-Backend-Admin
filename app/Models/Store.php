@@ -125,6 +125,7 @@ class Store extends Model
         'order_count',
         'total_order',
         'module_id',
+        'business_type_slug',
         'pickup_zone_id',
         'order_place_to_schedule_interval',
         'featured',
@@ -142,6 +143,32 @@ class Store extends Model
         'tin',
         'tin_expire_date',
         'tin_certificate_image',
+        'business_status',
+        'contract_status',
+        'vendor_admin_status',
+        'banking_status',
+        'subscription_status',
+        'admin_approval_status',
+        'badge_status',
+        'fulfillment_mode',
+        'is_public_sourced',
+        'is_claimed',
+        'is_partner',
+        'can_direct_checkout',
+        'requires_admin_quote',
+        'vendor_admin_account_created',
+        'vendor_has_logged_in',
+        'partner_badge_enabled',
+        'order_anywhere_enabled',
+        'invited_at',
+        'claimed_at',
+        'vendor_panel_activated_at',
+        'banking_submitted_at',
+        'banking_verified_at',
+        'contracted_at',
+        'subscription_activated_at',
+        'admin_approved_at',
+        'partner_badge_enabled_at',
     ];
 
     /**
@@ -185,12 +212,30 @@ class Store extends Model
         'package_id' => 'integer',
         'distance' => 'float',
         'meta_data' => 'array',
+        'is_public_sourced' => 'boolean',
+        'is_claimed' => 'boolean',
+        'is_partner' => 'boolean',
+        'can_direct_checkout' => 'boolean',
+        'requires_admin_quote' => 'boolean',
+        'vendor_admin_account_created' => 'boolean',
+        'vendor_has_logged_in' => 'boolean',
+        'partner_badge_enabled' => 'boolean',
+        'order_anywhere_enabled' => 'boolean',
+        'invited_at' => 'datetime',
+        'claimed_at' => 'datetime',
+        'vendor_panel_activated_at' => 'datetime',
+        'banking_submitted_at' => 'datetime',
+        'banking_verified_at' => 'datetime',
+        'contracted_at' => 'datetime',
+        'subscription_activated_at' => 'datetime',
+        'admin_approved_at' => 'datetime',
+        'partner_badge_enabled_at' => 'datetime',
     ];
 
     /**
      * @var string[]
      */
-    protected $appends = ['gst_status', 'gst_code', 'logo_full_url', 'cover_photo_full_url', 'meta_image_full_url', 'tin_certificate_image_full_url'];
+    protected $appends = ['gst_status', 'gst_code', 'logo_full_url', 'cover_photo_full_url', 'meta_image_full_url', 'tin_certificate_image_full_url', 'badge_status', 'show_partner_badge'];
 
     /**
      * The attributes that should be hidden for arrays.
@@ -199,6 +244,18 @@ class Store extends Model
      */
     protected $hidden = [
         'gst',
+        'banking_status',
+        'contract_status',
+        'vendor_admin_status',
+        'banking_submitted_at',
+        'banking_verified_at',
+        'contracted_at',
+        'subscription_activated_at',
+        'admin_approved_at',
+        'partner_badge_enabled_at',
+        'invited_at',
+        'claimed_at',
+        'vendor_panel_activated_at',
     ];
 
     public function translations(): MorphMany
@@ -400,6 +457,21 @@ class Store extends Model
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
+    }
+
+    public function urbanGoodzBusinessType(): BelongsTo
+    {
+        return $this->belongsTo(UrbanGoodzBusinessType::class, 'business_type_slug', 'slug');
+    }
+
+    public function urbanGoodzCapabilities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            UrbanGoodzCapability::class,
+            'urban_goodz_business_capabilities',
+            'store_id',
+            'capability_id'
+        )->withPivot('is_enabled', 'settings', 'enabled_at', 'disabled_at')->withTimestamps();
     }
 
     public function items(): HasMany
@@ -811,5 +883,87 @@ class Store extends Model
     public function orderTaxes(): MorphMany
     {
         return $this->morphMany(OrderTax::class, 'store');
+    }
+
+    public function isUrbanGoodzPartner(): bool
+    {
+        return ($this->business_status ?? 'active_partner') === 'active_partner'
+            && ($this->contract_status ?? 'contracted') === 'contracted'
+            && ($this->vendor_admin_status ?? 'active') === 'active'
+            && in_array($this->banking_status ?? 'active', ['active', 'verified'])
+            && in_array($this->subscription_status ?? 'active', ['active', 'not_required'])
+            && ($this->admin_approval_status ?? 'approved') === 'approved'
+            && ($this->can_direct_checkout ?? true)
+            && ($this->partner_badge_enabled ?? true);
+    }
+
+    public function shouldRouteToOrderAnywhere(): bool
+    {
+        return !$this->isUrbanGoodzPartner()
+            || ($this->business_status ?? 'active_partner') === 'public_sourced'
+            || ($this->contract_status ?? 'contracted') === 'not_contracted'
+            || !($this->can_direct_checkout ?? true)
+            || $this->fulfillment_mode === 'order_anywhere_backend';
+    }
+
+    public function customerBadgeLabel(): string
+    {
+        if ($this->isUrbanGoodzPartner()) {
+            return 'Urban Goodz Partner';
+        }
+        if (($this->business_status ?? null) === 'claimed' || ($this->is_claimed ?? false)) {
+            return 'Claimed Business';
+        }
+        if (($this->order_anywhere_enabled ?? true) || $this->shouldRouteToOrderAnywhere()) {
+            return 'Order Anywhere Available';
+        }
+        return 'Public Listing';
+    }
+
+    public function canShowUrbanGoodzPartnerBadge(): bool
+    {
+        // Enforce the Partner Badge trigger requirements
+        return ($this->business_status ?? 'active_partner') === 'active_partner'
+            && ($this->contract_status ?? 'contracted') === 'contracted'
+            && ($this->vendor_admin_status ?? 'active') === 'active'
+            && ($this->admin_approval_status ?? 'approved') === 'approved'
+            && ($this->can_direct_checkout ?? true)
+            && ($this->partner_badge_enabled ?? true)
+            && in_array($this->banking_status ?? 'active', ['active', 'verified'])
+            && in_array($this->subscription_status ?? 'active', ['active', 'not_required']);
+    }
+
+    public function getBadgeStatusAttribute(): string
+    {
+        if ($this->canShowUrbanGoodzPartnerBadge()) {
+            return 'urban_goodz_partner';
+        }
+        
+        // Return appropriate fallback badge
+        if (($this->business_status ?? 'active_partner') === 'public_sourced') {
+            return 'public_listing';
+        } elseif (($this->business_status ?? 'active_partner') === 'claimed') {
+            return 'claimed_business';
+        } elseif (($this->business_status ?? 'active_partner') === 'pending_contract') {
+            return 'pending_partner_activation';
+        }
+        
+        return 'none';
+    }
+
+    public function getShowPartnerBadgeAttribute(): bool
+    {
+        return $this->canShowUrbanGoodzPartnerBadge();
+    }
+
+    public function getBadgeLabelAttribute(): string
+    {
+        return match ($this->getBadgeStatusAttribute()) {
+            'urban_goodz_partner' => 'Urban Goodz Partner',
+            'claimed_business' => 'Claimed Business',
+            'public_listing' => 'Public Listing',
+            'pending_partner_activation' => 'Pending Activation',
+            default => 'None',
+        };
     }
 }

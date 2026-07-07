@@ -104,6 +104,101 @@ trait PlaceNewOrder
             $store = $zoneAndStore['store'];
             $zone = $zoneAndStore['zone'];
 
+            // Intercept uncontracted or public-sourced listings and route to Order Anywhere flow
+            $isPublicOrUncontracted = $store->shouldRouteToOrderAnywhere();
+
+            if ($isPublicOrUncontracted) {
+                $carts = [];
+                if (isset($request->is_buy_now) && $request->is_buy_now == 1) {
+                    $carts = is_array($request['cart']) ? $request['cart'] : json_decode($request['cart'], true);
+                } else {
+                    $carts = Cart::where('user_id', $request->user ? $request->user->id : $request['guest_id'])
+                        ->where('module_id', getModuleId($request->header('moduleId')))
+                        ->get()->toArray();
+                }
+
+                $firstCart = !empty($carts) ? $carts[0] : null;
+                $itemName = 'Custom request';
+                $quantity = 1;
+                $estimatedPrice = 0.0;
+                $productId = null;
+                $productImage = null;
+
+                if ($firstCart) {
+                    $quantity = $firstCart['quantity'] ?? 1;
+                    if (isset($firstCart['item_id'])) {
+                        $item = Item::find($firstCart['item_id']);
+                        if ($item) {
+                            $itemName = $item->name;
+                            $estimatedPrice = $item->price;
+                            $productId = $item->id;
+                            $productImage = $item->image;
+                        }
+                    } elseif (isset($firstCart['name'])) {
+                        $itemName = $firstCart['name'];
+                        $estimatedPrice = $firstCart['price'] ?? 0.0;
+                    }
+                }
+
+                $distance = $request->distance ?? 0;
+
+                $orderAnywhereRequest = \App\Models\OrderAnywhereRequest::create([
+                    'request_number' => \App\Models\OrderAnywhereRequest::nextRequestNumber(),
+                    'customer_id' => $request->user ? $request->user->id : $request['guest_id'],
+                    'customer_name' => $request->contact_person_name ?? ($request->user ? $request->user->f_name . ' ' . $request->user->l_name : 'Guest User'),
+                    'customer_phone' => $request->contact_person_number ?? ($request->user ? $request->user->phone : ''),
+                    'customer_email' => $request->contact_person_email ?? ($request->user ? $request->user->email : ''),
+                    
+                    'store_vendor_name' => $store->name,
+                    'store_vendor_address_or_website' => $store->address ?? $store->phone ?? 'Public Listing',
+                    'request_details' => $itemName,
+                    'item_details' => "Automated Order Anywhere request generated from public listing product. Listing ID: {$store->id}. Product ID: " . ($productId ?? 'none'),
+                    'quantity' => $quantity,
+                    'budget_estimate' => $estimatedPrice * $quantity,
+                    'final_amount' => $estimatedPrice * $quantity,
+                    
+                    'status' => 'pending_review',
+                    'payment_status' => 'quote_pending',
+                    'driver_task_status' => 'confirming_availability',
+                    'vendor_id' => $store->id,
+                    'business_id' => $store->id,
+                    'product_id' => $productId,
+                    'cart_items' => $carts,
+                    'source_urls' => collect($carts)->flatMap(function ($cart) {
+                        return $cart['source_urls'] ?? (isset($cart['source_url']) ? [$cart['source_url']] : []);
+                    })->filter()->values()->all(),
+                    'selected_options' => collect($carts)->map(function ($cart) {
+                        return $cart['selected_options'] ?? ($cart['variations'] ?? null);
+                    })->filter()->values()->all(),
+                    'customer_visible_status' => 'confirming_availability',
+                    'fulfillment_mode' => 'order_anywhere_backend',
+                    'metadata' => array_merge($request->all(), [
+                        'auto_routed' => true,
+                        'is_public_sourced' => true,
+                        'product_image' => $productImage,
+                        'distance_miles' => $distance,
+                        'delivery_address' => $request->address,
+                    ]),
+                ]);
+
+                Cart::where('user_id', $request->user ? $request->user->id : $request['guest_id'])
+                    ->where('module_id', getModuleId($request->header('moduleId')))
+                    ->delete();
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Your request for this public listing item has been submitted. Urban Goodz will confirm price and availability before purchase.',
+                    'order_type' => 'order_anywhere',
+                    'requires_admin_quote' => true,
+                    'payment_status' => 'quote_pending',
+                    'customer_visible_status' => 'confirming_availability',
+                    'redirect' => 'order_anywhere_success',
+                    'data' => $orderAnywhereRequest,
+                ], 201);
+            }
+
             $zoneAndStoreValidationCheck = $this->zoneAndStoreValidationCheck($request, $schedule_at, $zone, $store);
             if (data_get($zoneAndStoreValidationCheck, 'status_code') === 403) {
                 DB::rollBack();

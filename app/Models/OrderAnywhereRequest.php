@@ -33,6 +33,11 @@ class OrderAnywhereRequest extends Model
         'item_details',
         'quantity',
         'budget_estimate',
+        'item_subtotal',
+        'service_fee',
+        'delivery_fee',
+        'tax',
+        'tip',
         'quote_amount',
         'authorized_amount',
         'final_amount',
@@ -59,12 +64,24 @@ class OrderAnywhereRequest extends Model
         'driver_task_status',
         'driver_notes',
         'metadata',
+        'business_id',
+        'product_id',
+        'cart_items',
+        'source_urls',
+        'selected_options',
+        'customer_visible_status',
+        'fulfillment_mode',
     ];
 
     protected $casts = [
         'customer_id' => 'integer',
         'quantity' => 'integer',
         'budget_estimate' => 'decimal:2',
+        'item_subtotal' => 'decimal:2',
+        'service_fee' => 'decimal:2',
+        'delivery_fee' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'tip' => 'decimal:2',
         'quote_amount' => 'decimal:2',
         'authorized_amount' => 'decimal:2',
         'final_amount' => 'decimal:2',
@@ -79,6 +96,11 @@ class OrderAnywhereRequest extends Model
         'reviewed_by' => 'integer',
         'reviewed_at' => 'datetime',
         'metadata' => 'array',
+        'business_id' => 'integer',
+        'product_id' => 'integer',
+        'cart_items' => 'array',
+        'source_urls' => 'array',
+        'selected_options' => 'array',
     ];
 
     public static function nextRequestNumber(): string

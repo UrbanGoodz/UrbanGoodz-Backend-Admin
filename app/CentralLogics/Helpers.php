@@ -1036,6 +1036,16 @@ class Helpers
                 $item['current_opening_time'] = self::getNextOpeningTime($item['schedules']) ?? 'closed';
                 $item['show_low_stock_count'] = (int) $item?->storeConfig?->show_low_stock_count;
                 $item['minimum_stock_for_warning'] = (int) $item?->storeConfig?->minimum_stock_for_warning ?? 0;
+                
+                $item['badge_status'] = $item->badge_status;
+                $item['badge_label'] = $item->badge_label;
+                $item['show_partner_badge'] = $item->show_partner_badge;
+                $item['business_status'] = $item->business_status ?? 'active_partner';
+                $item['fulfillment_mode'] = $item->fulfillment_mode ?? 'direct_vendor_order';
+                $item['can_direct_checkout'] = $item->can_direct_checkout ?? true;
+                $item['requires_admin_quote'] = $item->requires_admin_quote ?? false;
+                $item['order_anywhere_enabled'] = $item->order_anywhere_enabled ?? true;
+
                 unset($item['items_count']);
                 unset($item['campaigns_count']);
                 unset($item['storeConfig']);
@@ -1078,6 +1088,16 @@ class Helpers
             $data['min'] = (float) $data->items()->active()->min('price');
             $data['max'] = (float) $data->items()->active()->max('price');
             $data['current_opening_time'] = self::getNextOpeningTime($data['schedules']) ?? 'closed';
+            
+            $data['badge_status'] = $data->badge_status;
+            $data['badge_label'] = $data->badge_label;
+            $data['show_partner_badge'] = $data->show_partner_badge;
+            $data['business_status'] = $data->business_status ?? 'active_partner';
+            $data['fulfillment_mode'] = $data->fulfillment_mode ?? 'direct_vendor_order';
+            $data['can_direct_checkout'] = $data->can_direct_checkout ?? true;
+            $data['requires_admin_quote'] = $data->requires_admin_quote ?? false;
+            $data['order_anywhere_enabled'] = $data->order_anywhere_enabled ?? true;
+
             unset($data['items_count']);
             unset($data['campaigns_count']);
             unset($data['campaigns']);

@@ -1164,6 +1164,137 @@
                                   </div>
                                 @endif
                                 </div>
+                                <div class="pt-5">
+                                    <h4>{{ translate('Urban Goodz Platform') }}</h4>
+                                </div>
+                                <div class="check--item-wrapper">
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_platform_core" class="form-check-input" id="urban_goodz_platform_core" {{in_array('urban_goodz_platform_core',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_platform_core">Platform Core</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_control_center" class="form-check-input" id="urban_goodz_control_center" {{in_array('urban_goodz_control_center',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_control_center">Control Center</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_business_types" class="form-check-input" id="urban_goodz_business_types" {{in_array('urban_goodz_business_types',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_business_types">Business Types</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_capabilities" class="form-check-input" id="urban_goodz_capabilities" {{in_array('urban_goodz_capabilities',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_capabilities">Capabilities</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_file_library" class="form-check-input" id="urban_goodz_file_library" {{in_array('urban_goodz_file_library',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_file_library">File Library</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere" class="form-check-input" id="urban_goodz_order_anywhere" {{in_array('urban_goodz_order_anywhere',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_order_anywhere">Order Anywhere</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_fashion_fit" class="form-check-input" id="urban_goodz_fashion_fit" {{in_array('urban_goodz_fashion_fit',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_fashion_fit">Fashion Fit</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_ai_concierge" class="form-check-input" id="urban_goodz_ai_concierge" {{in_array('urban_goodz_ai_concierge',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_ai_concierge">AI Concierge</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_book_anything" class="form-check-input" id="urban_goodz_book_anything" {{in_array('urban_goodz_book_anything',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_book_anything">Book Anything</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_creator_commerce" class="form-check-input" id="urban_goodz_creator_commerce" {{in_array('urban_goodz_creator_commerce',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_creator_commerce">Creator Commerce</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_community" class="form-check-input" id="urban_goodz_community" {{in_array('urban_goodz_community',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_community">Community</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_earn_money" class="form-check-input" id="urban_goodz_earn_money" {{in_array('urban_goodz_earn_money',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_earn_money">Earn Money</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_logistics" class="form-check-input" id="urban_goodz_logistics" {{in_array('urban_goodz_logistics',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_logistics">Logistics</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_medical_courier" class="form-check-input" id="urban_goodz_medical_courier" {{in_array('urban_goodz_medical_courier',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_medical_courier">Medical Courier</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_events" class="form-check-input" id="urban_goodz_events" {{in_array('urban_goodz_events',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_events">Events</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_rentals" class="form-check-input" id="urban_goodz_rentals" {{in_array('urban_goodz_rentals',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_rentals">Rentals (Car / Vehicle / Equipment)</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_plus" class="form-check-input" id="urban_goodz_plus" {{in_array('urban_goodz_plus',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_plus">Urban Goodz+</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_spotlight" class="form-check-input" id="urban_goodz_spotlight" {{in_array('urban_goodz_spotlight',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_spotlight">Black-Owned Spotlight</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_discovery" class="form-check-input" id="urban_goodz_discovery" {{in_array('urban_goodz_discovery',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_discovery">Discovery</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_stylist_requests" class="form-check-input" id="urban_goodz_stylist_requests" {{in_array('urban_goodz_stylist_requests',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_stylist_requests">Stylist Requests</label>
+                                        </div>
+                                    </div>
+                                    <div class="check-item">
+                                        <div class="form-group form-check form--check">
+                                            <input type="checkbox" name="modules[]" value="urban_goodz_payments" class="form-check-input" id="urban_goodz_payments" {{in_array('urban_goodz_payments',(array)json_decode($role['modules']))?'checked':''}}>
+                                            <label class="form-check-label qcont text-dark" for="urban_goodz_payments">Payments</label>
+                                        </div>
+                                    </div>
+                                </div>
                                 @if (addon_published_status('Rental'))
                                     <div class="pt-5">
                                         <h4>{{translate('Rental Role')}}</h4>

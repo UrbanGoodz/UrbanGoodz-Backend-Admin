@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             MeasurementRequestSeeder::class,
+            UrbanGoodzBusinessTypeSeeder::class,
+            UrbanGoodzAIIntentSeeder::class,
         ]);
     }
 }

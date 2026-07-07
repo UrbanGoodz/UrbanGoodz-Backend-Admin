@@ -2,6 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 
+Route::group(['prefix' => 'urban-goodz'], function () {
+    Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
+});
+
 Route::group(['prefix' => 'urban-goodz/discovery'], function () {
     Route::post('search-capture', 'Api\V1\UrbanGoodzDiscoveryController@searchCapture');
     Route::get('entities', 'Api\V1\UrbanGoodzDiscoveryController@entities');
@@ -75,6 +79,19 @@ Route::group(['prefix' => 'order-anywhere'], function () {
     Route::post('driver/{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
     Route::post('driver/{record}/status', 'Api\V1\OrderAnywhereTesterController@driverStatus');
     Route::post('driver/{record}/issue', 'Api\V1\OrderAnywhereTesterController@driverIssue');
+});
+
+Route::group(['prefix' => 'urban-goodz/fashion-fit'], function () {
+    Route::post('photos/upload', 'Api\V1\UrbanGoodz\FashionFitFileController@uploadPhoto');
+});
+
+Route::group(['prefix' => 'urban-goodz/files'], function () {
+    Route::post('upload/{category}', 'Api\V1\UrbanGoodz\UrbanGoodzFileUploadController@upload');
+});
+
+Route::group(['prefix' => 'urban-goodz/ai-concierge'], function () {
+    Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
+    Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
 });
 
 Route::group(['prefix' => 'urban-goodz/creator-commerce'], function () {

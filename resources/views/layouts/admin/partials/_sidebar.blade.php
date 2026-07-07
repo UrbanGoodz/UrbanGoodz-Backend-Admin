@@ -52,29 +52,267 @@
                     </li>
                     <!-- End Dashboards -->
 
-                    <!-- Urban Goodz Control Center -->
+                    <!-- Urban Goodz Full Ecosystem -->
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_platform_core'))
                     <li class="nav-item">
                         <small class="nav-subtitle" title="Urban Goodz">Urban Goodz</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.index') }}" title="Urban Goodz Control Center">
+
+                    {{-- Core Platform --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Core Platform">Core Platform</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.index') }}" title="Control Center">
                             <i class="tio-dashboard-outlined nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Control Center</span>
                         </a>
                     </li>
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/payments*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.payments.index') }}" title="Urban Goodz Payments">
-                            <i class="tio-money nav-icon" style="color: #ED9914;"></i>
-                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Payments</span>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_business_types'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/business-types*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.business-types.index') }}" title="Business Types">
+                            <i class="tio-category nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Business Types</span>
                         </a>
                     </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_capabilities'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/capabilities*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.capabilities.index') }}" title="Capabilities">
+                            <i class="tio-slider nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Capabilities</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_file_library'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/files*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.files.index') }}" title="File Library">
+                            <i class="tio-folder-open nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">File Library</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_payments'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/payments*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.payments.index') }}" title="Payment Center">
+                            <i class="tio-money nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Payment Center</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- Commerce --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Commerce">Commerce</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/order-anywhere*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.order-anywhere.index') }}" title="Order Anywhere">
+                            <i class="tio-shopping-cart nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Order Anywhere</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- Services --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Services">Services</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_book_anything'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/book-anything*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'book-anything') }}" title="Book Anything">
+                            <i class="tio-calendar nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Book Anything</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_fashion_fit'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/fashion-fit*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.fashion-fit.index') }}" title="Fashion Fit">
+                            <i class="tio-tshirt nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Fashion Fit</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_stylist_requests'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/stylist-request*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.stylist-request.list') }}" title="Stylist Requests">
-                            <i class="tio-account-square nav-icon" style="color: #ED9914;"></i>
+                            <i class="tio-tshirt nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Stylist Requests</span>
                         </a>
                     </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_medical_courier'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/medical-courier*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'medical-courier') }}" title="Medical Courier">
+                            <i class="tio-medical nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Medical Courier</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- Rentals --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Rentals">Rentals</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_rentals'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.dashboard') }}" title="Rentals Dashboard">
+                            <i class="tio-dashboard-outlined nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Rentals Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/assets*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.assets.index') }}" title="All Rental Assets">
+                            <i class="tio-car nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">All Assets</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/assets*') && request('business_type_slug') === 'car_rental' ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.assets.index', ['business_type_slug' => 'car_rental']) }}" title="Car Rental">
+                            <i class="tio-car nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Car Rental</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/assets*') && request('business_type_slug') === 'vehicle_rental' ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.assets.index', ['business_type_slug' => 'vehicle_rental']) }}" title="Vehicle Rental">
+                            <i class="tio-car nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Vehicle Rental</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/assets*') && request('business_type_slug') === 'equipment_rental' ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.assets.index', ['business_type_slug' => 'equipment_rental']) }}" title="Equipment Rental">
+                            <i class="tio-buildings nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Equipment Rental</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/bookings*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.bookings.index') }}" title="Rental Calendar">
+                            <i class="tio-calendar nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Rental Calendar</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/bookings*') && request('deposit_status') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.bookings.index') }}" title="Deposit / Verification">
+                            <i class="tio-shield nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Deposit / Verification</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/bookings*') && (request('status') === 'picked_up' || request('status') === 'returned') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.bookings.index', ['status' => 'picked_up']) }}" title="Pickup / Return">
+                            <i class="tio-arrows-horizontal nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Pickup / Return</span>
+                        </a>
+                    </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals/inspections*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.inspections.index') }}" title="Damage Reports">
+                            <i class="tio-warning nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Damage Reports</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- Social / Creator --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Social / Creator">Social / Creator</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_community'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/community*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'community') }}" title="Community Marketplace">
+                            <i class="tio-users nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Community Marketplace</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_creator_commerce'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/creator-commerce*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'creator-commerce') }}" title="Creator Commerce">
+                            <i class="tio-star nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Creator Commerce</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- Delivery / Driver --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Delivery / Driver">Delivery / Driver</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_logistics'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/logistics*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'logistics') }}" title="Logistics">
+                            <i class="tio-truck nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Logistics</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_earn_money'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/earn-money*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'earn-money') }}" title="Earn Money">
+                            <i class="tio-money nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Earn Money</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- AI Services --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="AI Services">AI Services</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_concierge'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-concierge*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-concierge.intents') }}" title="AI Concierge">
+                            <i class="tio-robot nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">AI Concierge</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/discovery*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'discovery') }}" title="Discovery">
+                            <i class="tio-search nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Discovery</span>
+                        </a>
+                    </li>
+                    @endif
+
+                    {{-- Marketing / Subscription --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="Marketing / Subscription">Marketing / Subscription</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_plus'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/plus*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'plus') }}" title="Urban Goodz+">
+                            <i class="tio-crown nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Urban Goodz+</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_spotlight'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/spotlight*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'spotlight') }}" title="Black-Owned Spotlight">
+                            <i class="tio-star nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Black-Owned Spotlight</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_events'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/events*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'events') }}" title="Events">
+                            <i class="tio-calendar nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Events</span>
+                        </a>
+                    </li>
+                    @endif
+                    @endif
 
                     <!-- Marketing section -->
                     <li class="nav-item">

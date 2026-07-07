@@ -31,6 +31,9 @@ class MeasurementRequest extends Model
         'front_photo_path',
         'side_photo_path',
         'back_photo_path',
+        'front_photo_file_id',
+        'side_photo_file_id',
+        'back_photo_file_id',
         'face_blur_enabled',
         'face_blur_status',
         'privacy_review_status',
@@ -66,6 +69,9 @@ class MeasurementRequest extends Model
         'inseam' => 'decimal:2',
         'sleeve_length' => 'decimal:2',
         'shoulder_width' => 'decimal:2',
+        'front_photo_file_id' => 'integer',
+        'side_photo_file_id' => 'integer',
+        'back_photo_file_id' => 'integer',
         'face_blur_enabled' => 'boolean',
         'platform_measurement_fee' => 'decimal:2',
         'vendor_review_fee' => 'decimal:2',
@@ -94,6 +100,21 @@ class MeasurementRequest extends Model
             'measurement_status' => 'not_started',
             'review_status' => 'pending',
         ];
+    }
+
+    public function frontPhotoFile()
+    {
+        return $this->belongsTo(UrbanGoodzFile::class, 'front_photo_file_id');
+    }
+
+    public function sidePhotoFile()
+    {
+        return $this->belongsTo(UrbanGoodzFile::class, 'side_photo_file_id');
+    }
+
+    public function backPhotoFile()
+    {
+        return $this->belongsTo(UrbanGoodzFile::class, 'back_photo_file_id');
     }
 
     public function scopeForVendor($query, ?int $vendorId)

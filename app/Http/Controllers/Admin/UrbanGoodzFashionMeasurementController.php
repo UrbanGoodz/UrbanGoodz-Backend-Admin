@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MeasurementRequest;
+use App\Models\Vendor;
+use App\Models\UrbanGoodzFile;
 use App\Support\UrbanGoodzMeasurementSettings;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class UrbanGoodzFashionMeasurementController extends Controller
 {
@@ -24,7 +27,32 @@ class UrbanGoodzFashionMeasurementController extends Controller
 
     public function view($id)
     {
-        $request = MeasurementRequest::findOrFail($id);
+        $request = MeasurementRequest::with([
+            'frontPhotoFile',
+            'sidePhotoFile',
+            'backPhotoFile',
+        ])->findOrFail($id);
+
+        $frontPhotoUrl = null;
+        if ($request->frontPhotoFile) {
+            $frontPhotoUrl = $this->fileUrl($request->frontPhotoFile);
+        } elseif ($request->front_photo_path) {
+            $frontPhotoUrl = asset('storage/' . $request->front_photo_path);
+        }
+
+        $sidePhotoUrl = null;
+        if ($request->sidePhotoFile) {
+            $sidePhotoUrl = $this->fileUrl($request->sidePhotoFile);
+        } elseif ($request->side_photo_path) {
+            $sidePhotoUrl = asset('storage/' . $request->side_photo_path);
+        }
+
+        $backPhotoUrl = null;
+        if ($request->backPhotoFile) {
+            $backPhotoUrl = $this->fileUrl($request->backPhotoFile);
+        } elseif ($request->back_photo_path) {
+            $backPhotoUrl = asset('storage/' . $request->back_photo_path);
+        }
 
         $formattedRequest = [
             'id' => $request->id,
@@ -47,18 +75,28 @@ class UrbanGoodzFashionMeasurementController extends Controller
             'ai_hips' => $request->hips,
             'ai_match_confidence' => 96,
             'consent_to_share_photos' => $request->consent_to_share_photos,
-            'front_photo_url' => $request->front_photo_path,
-            'side_photo_url' => $request->side_photo_path,
-            'back_photo_url' => $request->back_photo_path,
+            'front_photo_url' => $frontPhotoUrl,
+            'side_photo_url' => $sidePhotoUrl,
+            'back_photo_url' => $backPhotoUrl,
+            'front_photo_file_id' => $request->front_photo_file_id,
+            'side_photo_file_id' => $request->side_photo_file_id,
+            'back_photo_file_id' => $request->back_photo_file_id,
             'status' => $request->review_status,
             'quote_amount' => $request->quote_amount,
             'mockup_reference' => $request->mockup_reference,
             'stylist_notes' => $request->tailor_notes,
             'corrected_measurements' => $request->corrected_measurements,
+            'tailor_id' => $request->tailor_id,
         ];
+
+        $tailors = [];
+        if (Schema::hasTable('vendors')) {
+            $tailors = Vendor::where('status', 1)->select('id', 'name', 'phone')->get();
+        }
 
         return view('admin-views.urban-goodz.fashion-measurements.view', [
             'request' => $formattedRequest,
+            'tailors' => $tailors,
         ]);
     }
 
@@ -66,13 +104,31 @@ class UrbanGoodzFashionMeasurementController extends Controller
     {
         $record = MeasurementRequest::findOrFail($id);
 
-        $record->review_status = $request->input('status', 'Pending Stylist Review');
-        $record->quote_amount = $request->input('quote_amount');
-        $record->mockup_reference = $request->input('mockup_reference');
-        $record->tailor_notes = $request->input('stylist_notes');
-        $record->corrected_measurements = $request->input('corrected_measurements');
+        $data = $request->validate([
+            'status' => ['nullable', 'string'],
+            'quote_amount' => ['nullable', 'numeric'],
+            'mockup_reference' => ['nullable', 'string'],
+            'stylist_notes' => ['nullable', 'string'],
+            'corrected_measurements' => ['nullable', 'string'],
+            'tailor_id' => ['nullable', 'integer', 'exists:vendors,id'],
+        ]);
+
+        if ($request->has('tailor_id')) {
+            $record->tailor_id = $data['tailor_id'];
+        }
+
+        $record->review_status = $data['status'] ?? $record->review_status;
+        $record->quote_amount = $data['quote_amount'] ?? $record->quote_amount;
+        $record->mockup_reference = $data['mockup_reference'] ?? $record->mockup_reference;
+        $record->tailor_notes = $data['stylist_notes'] ?? $record->tailor_notes;
+        $record->corrected_measurements = $data['corrected_measurements'] ?? $record->corrected_measurements;
         $record->save();
 
-        return redirect()->route('admin.urban-goodz.fashion-fit.index')->with('success', 'Stylist request response updated by admin successfully.');
+        return redirect()->route('admin.urban-goodz.fashion-fit.index')->with('success', 'Fashion Fit request updated by admin successfully.');
+    }
+
+    private function fileUrl(UrbanGoodzFile $file): string
+    {
+        return asset('storage/' . $file->stored_path);
     }
 }

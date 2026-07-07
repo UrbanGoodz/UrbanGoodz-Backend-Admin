@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MeasurementRequest;
 use App\Models\OrderAnywhereRequest;
+use App\Models\UrbanGoodzFile;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Http\Request;
@@ -25,8 +26,21 @@ class UrbanGoodzAdminController extends Controller
     {
         abort_unless(isset($this->sections()[$section]), 404);
 
+        $sectionData = $this->sections()[$section];
+
+        if (in_array($section, ['rentals', 'vehicle-rentals'])) {
+            return view('admin-views.urban-goodz.rentals.index', [
+                'section' => $sectionData,
+                'sectionKey' => $section,
+                'businessTypes' => \App\Models\UrbanGoodzBusinessType::whereIn('slug', [
+                    'car_rental', 'vehicle_rental', 'equipment_rental', 'rental_provider',
+                ])->with('capabilities')->get(),
+            ]);
+        }
+
         return view('admin-views.urban-goodz.section', [
-            'section' => $this->sections()[$section],
+            'section' => $sectionData,
+            'sectionKey' => $section,
         ]);
     }
 
@@ -160,6 +174,34 @@ class UrbanGoodzAdminController extends Controller
         ]);
     }
 
+    public function fileLibrary(Request $request)
+    {
+        $query = UrbanGoodzFile::query();
+
+        if ($request->filled('file_category')) {
+            $query->where('file_category', $request->file_category);
+        }
+
+        if ($request->filled('owner_type')) {
+            $query->where('owner_type', $request->owner_type);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('original_name', 'like', '%' . $request->search . '%')
+                    ->orWhere('stored_path', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        $files = $query->latest()->paginate(50)->appends($request->query());
+
+        return view('admin-views.urban-goodz.files.index', [
+            'files' => $files,
+            'categories' => UrbanGoodzFile::select('file_category')->distinct()->pluck('file_category'),
+            'ownerTypes' => UrbanGoodzFile::select('owner_type')->distinct()->pluck('owner_type'),
+        ]);
+    }
+
     private function counts(): array
     {
         return [
@@ -207,10 +249,19 @@ class UrbanGoodzAdminController extends Controller
                 'title' => 'Rentals',
                 'url' => route('admin.urban-goodz.section', 'rentals'),
                 'status' => 'Existing 6amMart rental module plus Urban Goodz admin gap',
-                'table' => 'Rental module tables; requested urban_goodz_rentals tables not present in this repo.',
+                'table' => 'Rental module tables; car_rental, vehicle_rental, equipment_rental business types mapped',
                 'customer_api' => 'Existing rental module APIs/routes where enabled',
-                'admin_workflow' => 'Use existing module management now; Urban Goodz rental request tables still missing.',
-                'notes' => 'Do not duplicate rental module blindly.',
+                'admin_workflow' => 'Car, vehicle, and equipment rental types with capabilities: inventory, calendar, rates, deposits, verification, pickup/return, damage reports.',
+                'notes' => 'Rental business types: car_rental, vehicle_rental, equipment_rental, rental_provider. Capabilities include vehicle-inventory, rental-inventory, rental-calendar, daily-rate-management, hourly-rate-management, deposit-management, renter-verification, pickup-return-management, damage-report-management.',
+            ],
+            'vehicle-rentals' => [
+                'title' => 'Vehicle Rentals',
+                'url' => route('admin.urban-goodz.section', 'vehicle-rentals'),
+                'status' => 'Urban Goodz business type + capability mapping active',
+                'table' => 'urban_goodz_business_types (car_rental, vehicle_rental), urban_goodz_capabilities, urban_goodz_business_type_default_capabilities',
+                'customer_api' => 'Existing rental module APIs; Urban Goodz /api/v1/urban-goodz/...',
+                'admin_workflow' => 'Vehicle rental-specific (car_rental, vehicle_rental) management via existing 6amMart rental module. Use admin/rental/* routes for trip/provider/vehicle management.',
+                'notes' => 'vehicle_rental adds hourly-rate-management; car_rental does not have hourly rates.',
             ],
             'events' => $this->missingSection('events', 'Events', 'urban_goodz_events and related event opportunity tables', 'GET /api/v1/urban-goodz/events'),
             'creators' => [

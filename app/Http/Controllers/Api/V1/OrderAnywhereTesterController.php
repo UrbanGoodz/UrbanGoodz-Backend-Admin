@@ -14,6 +14,7 @@ class OrderAnywhereTesterController extends Controller
     {
         $records = OrderAnywhereRequest::query()
             ->when($request->input('customer_id'), fn ($query, $customerId) => $query->where('customer_id', $customerId))
+            ->when($request->input('vendor_id'), fn ($query, $vendorId) => $query->where('vendor_id', $vendorId))
             ->latest()
             ->paginate(25);
 
