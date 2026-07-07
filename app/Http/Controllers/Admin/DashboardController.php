@@ -309,6 +309,9 @@ class DashboardController extends Controller
         $label = $data['label'];
         $module_type = Config::get('module.current_module_type');
         if ($module_type == 'settings') {
+            if (auth('admin')->check() && auth('admin')->user()->role_id == 1) {
+                return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type'));
+            }
             return redirect()->route('admin.business-settings.business-setup');
         }
         if ($module_type == 'ride-share' && addon_published_status('RideShare') == 1) {

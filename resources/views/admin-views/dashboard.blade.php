@@ -340,7 +340,7 @@
             <div class="col-lg-4 col-md-6">
                 <!-- Card -->
                 <div class="card h-100" id="top-customer-view">
-                    @include('admin-views.partials._top-customer')
+                    @include('admin-views.partials._top-customer',['top_customers'=>$data['top_customers']])
                 </div>
                 <!-- End Card -->
             </div>

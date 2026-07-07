@@ -54,6 +54,14 @@ class CurrentModule
             Config::set('module.current_module_id', null);
             Config::set('module.current_module_type', 'settings');
         }
+        if ((Request::is('admin') || Request::is('admin/')) && auth('admin')->check() && auth('admin')->user()->role_id == 1) {
+            Config::set('module.current_module_id', null);
+            Config::set('module.current_module_type', 'settings');
+        }
+        if (Request::is('admin/urban-goodz*') && auth('admin')->check()) {
+            Config::set('module.current_module_id', null);
+            Config::set('module.current_module_type', 'settings');
+        }
 
         return $next($request);
     }
