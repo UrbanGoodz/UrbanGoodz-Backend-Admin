@@ -1,0 +1,87 @@
+row,business_name,category,city,state,scope
+370,"Fiesta MLK Pharmacy","Pharmacy / Health",Dallas,TX,candidate
+371,"Uptown Pharmacy","Pharmacy / Health",Dallas,TX,candidate
+390,"Peachez HTX","Liquor / Beverages",Houston,TX,candidate
+391,"Pur Noire Urban Wineries","Liquor / Beverages",Houston,TX,candidate
+392,"Trez Bistro & Wine Bar","Liquor / Beverages",Houston,TX,candidate
+393,"The Address Lounge","Liquor / Beverages",Houston,TX,candidate
+394,"Swanky Patron","Liquor / Beverages",Houston,TX,candidate
+395,"OKRA Charity Saloon","Liquor / Beverages",Houston,TX,candidate
+396,"King's Daiquiri","Liquor / Beverages",Houston,TX,candidate
+397,"Clutch Houston","Liquor / Beverages",Houston,TX,candidate
+398,"V Live Houston","Liquor / Beverages",Houston,TX,candidate
+399,"Anvil Bar & Refuge","Liquor / Beverages",Houston,TX,candidate
+400,"Daiquiri's To Go","Liquor / Beverages",Dallas,TX,candidate
+401,"Blends Daiquiri Express","Liquor / Beverages",Dallas,TX,candidate
+402,"Red Light Lounge","Liquor / Beverages",Dallas,TX,candidate
+403,"Lounge 31","Liquor / Beverages",Dallas,TX,candidate
+404,"The Cigar Warehouse","Liquor / Beverages",Dallas,TX,candidate
+405,"Casa de Montecristo","Liquor / Beverages",Dallas,TX,candidate
+406,"Bar Vegan","Liquor / Beverages",Atlanta,GA,candidate
+407,"Fellaship Lounge","Liquor / Beverages",Atlanta,GA,candidate
+408,"Stanley's Cigar Lounge","Liquor / Beverages",Atlanta,GA,candidate
+409,"Blue Flame Lounge","Liquor / Beverages",Atlanta,GA,candidate
+410,"Vanquish Nightclub","Liquor / Beverages",Atlanta,GA,candidate
+411,"Benny's Package Store","Liquor / Beverages",Atlanta,GA,candidate
+412,"Cigar City Club","Liquor / Beverages",Atlanta,GA,candidate
+413,"D'Bo's Daiquiris Wings & Seafood","Liquor / Beverages",Memphis,TN,candidate
+414,"Wild Bill's Juke Joint","Liquor / Beverages",Memphis,TN,candidate
+415,"Earnestine & Hazel's","Liquor / Beverages",Memphis,TN,excluded_dup
+416,"The Candy Shop Daiquiri's","Liquor / Beverages",Memphis,TN,candidate
+417,"Black Wall Street Liquid Lounge","Liquor / Beverages",Tulsa,OK,candidate
+418,"PV's Liquor","Liquor / Beverages",Tulsa,OK,candidate
+419,"DVL Bar","Liquor / Beverages",Tulsa,OK,candidate
+420,"Texas Original - Houston","THC / Dispensary",Houston,TX,candidate
+421,"Goodblend Texas - Houston","THC / Dispensary",Houston,TX,candidate
+422,"Green Cross Houston","THC / Dispensary",Houston,TX,candidate
+423,"Tree of Life Houston","THC / Dispensary",Houston,TX,candidate
+424,"CBD Plus USA - Houston","THC / Dispensary",Houston,TX,candidate
+425,"Texas Original - Dallas","THC / Dispensary",Dallas,TX,excluded_dup
+426,"Goodblend Texas - Dallas","THC / Dispensary",Dallas,TX,excluded_dup
+427,"Mellow Fellow Dallas","THC / Dispensary",Dallas,TX,candidate
+428,"CBD Plus USA - Dallas","THC / Dispensary",Dallas,TX,excluded_dup
+429,"Texas Original - Austin","THC / Dispensary",Austin,TX,excluded_dup
+430,"Restart CBD Austin","THC / Dispensary",Austin,TX,candidate
+431,"Texas Herb Center","THC / Dispensary",Austin,TX,candidate
+432,"Galveston CBD & Wellness","THC / Dispensary",Galveston,TX,candidate
+433,"CBD American Shaman - Beaumont","THC / Dispensary",Beaumont,TX,candidate
+434,"Huntsville Hemp Company","THC / Dispensary",Huntsville,TX,candidate
+435,"Birmingham CBD & Wellness","THC / Dispensary",Birmingham,AL,candidate
+436,"Botanical Sciences - Atlanta","THC / Dispensary",Atlanta,GA,candidate
+437,"Surterra Wellness - Atlanta","THC / Dispensary",Atlanta,GA,candidate
+438,"Atlanta Hemp Company","THC / Dispensary",Atlanta,GA,candidate
+439,"Memphis Hemp Company","THC / Dispensary",Memphis,TN,candidate
+440,"Your CBD Store - Memphis","THC / Dispensary",Memphis,TN,candidate
+441,"Cookies Melrose","THC / Dispensary","Los Angeles",CA,candidate
+442,"MedMen - West Hollywood","THC / Dispensary","Los Angeles",CA,candidate
+443,"Jungle Boys - LA","THC / Dispensary","Los Angeles",CA,candidate
+444,"Stiiizy - DTLA","THC / Dispensary","Los Angeles",CA,candidate
+445,"The Artist Tree - West Hollywood","THC / Dispensary","Los Angeles",CA,candidate
+446,"Higher Path - Sherman Oaks","THC / Dispensary",Inglewood,CA,candidate
+447,"Planet 13 Las Vegas","THC / Dispensary","Las Vegas",NV,candidate
+448,"The Dispensary NV - Henderson","THC / Dispensary","Las Vegas",NV,candidate
+449,"Reef Dispensaries - Las Vegas","THC / Dispensary","Las Vegas",NV,candidate
+450,"Oasis Cannabis","THC / Dispensary","Las Vegas",NV,candidate
+451,"Cultivate Las Vegas","THC / Dispensary","Las Vegas",NV,candidate
+452,"Trulieve - Miami","THC / Dispensary",Miami,FL,candidate
+453,"Curaleaf - Miami","THC / Dispensary",Miami,FL,candidate
+454,"MUV - Miami","THC / Dispensary",Miami,FL,candidate
+455,"Fluent - Miami","THC / Dispensary",Miami,FL,candidate
+456,"Miami CBD & Wellness","THC / Dispensary",Miami,FL,candidate
+457,"Takoma Wellness Center","THC / Dispensary",Washington,DC,candidate
+458,"Anacostia Organics","THC / Dispensary",Washington,DC,candidate
+459,"Capital City Care","THC / Dispensary",Washington,DC,candidate
+460,"DC Buds","THC / Dispensary",Washington,DC,candidate
+461,"National Holistic - DC","THC / Dispensary",Washington,DC,candidate
+462,"Mango Cannabis - Tulsa","THC / Dispensary",Tulsa,OK,candidate
+463,"Simply Plus Dispensary","THC / Dispensary",Tulsa,OK,candidate
+464,"Buddha's Best Dispensary","THC / Dispensary",Tulsa,OK,candidate
+465,"The Green Gorilla","THC / Dispensary",Tulsa,OK,candidate
+466,"Kush House Dispensary","THC / Dispensary",Tulsa,OK,candidate
+467,"Charlotte CBD & Wellness","THC / Dispensary",Charlotte,NC,candidate
+468,"Your CBD Store - Charlotte","THC / Dispensary",Charlotte,NC,excluded_dup
+469,"Housing Works Cannabis Co.","THC / Dispensary","New York",NY,candidate
+470,"Union Square Travel Agency","THC / Dispensary","New York",NY,candidate
+471,"Gotham Cannabis Dispensary","THC / Dispensary","New York",NY,candidate
+472,"Smacked NYC","THC / Dispensary","New York",NY,candidate
+473,"The Cannabis Place","THC / Dispensary","New York",NY,candidate

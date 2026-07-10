@@ -1,0 +1,19 @@
+business_name,city,state,source_url,duplicate_reason,duplicate_group,match_type,recommended_action,pm_review_required
+"The Breakfast Klub",Houston,TX,,db_store_duplicate_name_city_or_address,store_name_match,db_store,Exclude from first import; manual review vs live store,Yes
+ChopnBlok,Houston,TX,,db_store_duplicate_name_city_or_address,store_name_match,db_store,Exclude from first import; manual review vs live store,Yes
+"Sweet Georgia Brown",Dallas,TX,,db_store_duplicate_name_city_or_address,store_name_match,db_store,Exclude from first import; manual review vs live store,Yes
+"Distant Relatives",Austin,TX,,db_store_duplicate_name_city_or_address,store_name_match,db_store,Exclude from first import; manual review vs live store,Yes
+"Erk and Jerk Caribbean Cuisine",Houston,TX,,csv_duplicate_phone,phone,csv_internal,Exclude (in-set duplicate),No
+"Amazing Street Beans HTX",Houston,TX,,csv_duplicate_name_city_state,name_city_state,csv_internal,Exclude (in-set duplicate),No
+"Sauce Another HTX",Houston,TX,,"csv_duplicate_name_city_state | csv_duplicate_website | csv_duplicate_phone",multi,csv_internal,Exclude (in-set duplicate),No
+"Fresh Houwse Grocery",Houston,TX,,"csv_duplicate_name_city_state | csv_duplicate_website",multi,csv_internal,Exclude (in-set duplicate),No
+"Motherland African Food Market",Houston,TX,,csv_duplicate_name_city_state,name_city_state,csv_internal,Exclude (in-set duplicate),No
+"Da Vegan Guru",Memphis,TN,,csv_duplicate_website,website,csv_internal,Exclude (in-set duplicate),No
+"Doss Couture Designs",Houston,TX,,csv_duplicate_website,website,csv_internal,Exclude (in-set duplicate),No
+"The Black Market HTX",Houston,TX,,csv_duplicate_name_city_state,name_city_state,csv_internal,Exclude (in-set duplicate),No
+"Earnestine & Hazel's",Memphis,TN,,"csv_duplicate_name_city_state | csv_duplicate_phone",multi,csv_internal,Exclude (in-set duplicate),No
+"Texas Original - Dallas",Dallas,TX,,"csv_duplicate_website | csv_duplicate_phone",multi,csv_internal,Exclude (in-set duplicate),No
+"Goodblend Texas - Dallas",Dallas,TX,,"csv_duplicate_website | csv_duplicate_phone",multi,csv_internal,Exclude (in-set duplicate),No
+"CBD Plus USA - Dallas",Dallas,TX,,csv_duplicate_website,website,csv_internal,Exclude (in-set duplicate),No
+"Texas Original - Austin",Austin,TX,,"csv_duplicate_website | csv_duplicate_phone",multi,csv_internal,Exclude (in-set duplicate),No
+"Your CBD Store - Charlotte",Charlotte,NC,,csv_duplicate_website,website,csv_internal,Exclude (in-set duplicate),No

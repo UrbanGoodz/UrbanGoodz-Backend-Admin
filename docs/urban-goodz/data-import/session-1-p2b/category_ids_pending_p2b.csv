@@ -1,0 +1,385 @@
+row,business_name,category,module_name,city,state
+2,Lucille's,Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+5,"Gatlin's Fins & Feathers",Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+6,"Ms. Myrtle's Bakery","Home-Based Businessz","Home-Based Businesses",Houston,TX
+7,"DossCouture Designs","Retail / Shopping",Retail/Shopping,Houston,TX
+8,"River Oaks Galleria Medspa","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+9,"Beauty By Umar Hair Salon","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+10,"Makeda's Homemade Butter Cookies","Grocery / Markets",Grocery/Markets,Memphis,TN
+11,Alcenia's,Restaurants,"Restaurants/Brick and Mortar",Memphis,TN
+12,"Alta Adams",Restaurants,"Restaurants/Brick and Mortar","Los Angeles",CA
+13,"Post & Beam",Restaurants,"Restaurants/Brick and Mortar","Los Angeles",CA
+14,"Red Rooster Overtown",Restaurants,"Restaurants/Brick and Mortar",Miami,FL
+15,"Ben's Chili Bowl",Restaurants,"Restaurants/Brick and Mortar",Washington,DC
+16,"Oohh's & Aahh's",Restaurants,"Restaurants/Brick and Mortar",Washington,DC
+17,"Mert's Heart & Soul",Restaurants,"Restaurants/Brick and Mortar",Charlotte,NC
+18,"Sylvia's Restaurant",Restaurants,"Restaurants/Brick and Mortar","New York",NY
+19,"Amy Ruth's",Restaurants,"Restaurants/Brick and Mortar","New York",NY
+20,"Melba's Restaurant",Restaurants,"Restaurants/Brick and Mortar","New York",NY
+21,"Londel's Supper Club",Restaurants,"Restaurants/Brick and Mortar","New York",NY
+24,"Frenchy's Chicken",Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+25,"Splendid Spoonful HTX","Retail / Shopping",Retail/Shopping,Houston,TX
+26,"Simply Mel Skincare","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+27,"Touch of Essence Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+28,"Erk & Jerk",Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+29,"Amazing Street Beans HTX",Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+30,"Manner + Manner","Retail / Shopping",Retail/Shopping,Houston,TX
+31,"Seven Thirteen Boutique","Retail / Shopping",Retail/Shopping,Houston,TX
+32,"The Reggae Hut",Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+33,"Sauce Another HTX",Restaurants,"Restaurants/Brick and Mortar",Houston,TX
+36,"Holistic Wellness Center HTX","Pharmacy / Health",Pharmacy/Health,Houston,TX
+37,"Kingdom Kutz & Styles","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+38,"Motherland African Food Market","Grocery / Markets",Grocery/Markets,Houston,TX
+40,"Fresh Houwse Grocery","Grocery / Markets",Grocery/Markets,Houston,TX
+41,"Nia's Southern Kitchen","Home-Based Businessz","Home-Based Businesses",Houston,TX
+42,"Swift Deliveries HTX","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+43,"Flavor Fusions HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+44,"The Black Market HTX","Local Events / Creators","Local Events/Creators",Houston,TX
+45,"Luxe Event Planning HTX","Local Events / Creators","Local Events/Creators",Houston,TX
+46,"Island Spice HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+47,"Cococakes HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+48,"Uforia Events HTX","Local Events / Creators","Local Events/Creators",Houston,TX
+51,"Crepe Cafe HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+52,"Taqueria El Vecino","Local Events / Creators","Local Events/Creators",Houston,TX
+53,"Taste of Trinidad HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+54,"The Waffle Bar HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+55,"Boba Bae HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+56,"Smoke & Spice HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+58,"District Market Green Grocer","Grocery / Markets",Grocery/Markets,Houston,TX
+60,"Neal & Nettie's Grocery","Grocery / Markets",Grocery/Markets,Houston,TX
+61,"Atonsu Royal African & Caribbean Market","Grocery / Markets",Grocery/Markets,Houston,TX
+63,"Heritage Bodega","Grocery / Markets",Grocery/Markets,Houston,TX
+64,"Urban Pantry Co.","Grocery / Markets",Grocery/Markets,Houston,TX
+65,"Good Health Market HTX","Grocery / Markets",Grocery/Markets,Houston,TX
+66,"Veggie Vibe HTX","Grocery / Markets",Grocery/Markets,Houston,TX
+68,Kwenu,"Retail / Shopping",Retail/Shopping,Houston,TX
+69,"The Minka Collection","Retail / Shopping",Retail/Shopping,Houston,TX
+70,"First Impression Custom Clothes","Retail / Shopping",Retail/Shopping,Houston,TX
+74,"Retro Rose HTX","Retail / Shopping",Retail/Shopping,Houston,TX
+75,"Groomed HTX","Retail / Shopping",Retail/Shopping,Houston,TX
+76,"Blessed Beauty Supply & Salon","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+77,"Anan Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+78,"Uptown Beauty Supply #15","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+79,"Beauty Sense LLC","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+80,"C&R Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+81,"Royal Hair Weave Boutique","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+82,"Classic Crown Supplies","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Houston,TX
+83,"Zuriel Pharmacy","Pharmacy / Health",Pharmacy/Health,Houston,TX
+84,"Nature Green Leaf Pharmacy","Pharmacy / Health",Pharmacy/Health,Houston,TX
+85,"Healthy Life Pharmacy","Pharmacy / Health",Pharmacy/Health,Houston,TX
+86,"PowerRX Pharmacy","Pharmacy / Health",Pharmacy/Health,Houston,TX
+87,"Wellness Point HTX","Pharmacy / Health",Pharmacy/Health,Houston,TX
+88,"Central Apothecary HTX","Pharmacy / Health",Pharmacy/Health,Houston,TX
+89,"Lady Teez Medical Courier","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+90,"Silver Streak Couriers","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+91,"Journee Courier HTX","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+92,"Meratrans Courier & Dispatch","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+93,"AREA Express","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+94,"Maylee Delivery HTX","Courier / Parcel","Courier/Parcel Delivery",Houston,TX
+95,"By Taylor Brione Events","Local Events / Creators","Local Events/Creators",Houston,TX
+96,"Events By Tab / Soirée Event Venues","Local Events / Creators","Local Events/Creators",Houston,TX
+97,"A to Z Events HTX","Local Events / Creators","Local Events/Creators",Houston,TX
+98,"Doyin Fash Events","Local Events / Creators","Local Events/Creators",Houston,TX
+99,"ABIBI Bridal","Local Events / Creators","Local Events/Creators",Houston,TX
+100,"Vivid Glam Artistry","Local Events / Creators","Local Events/Creators",Houston,TX
+102,"Creative Pop-up Collective HTX","Local Events / Creators","Local Events/Creators",Houston,TX
+103,"Arnita's Kandi Kakes","Home-Based Businessz","Home-Based Businesses",Houston,TX
+104,"Chic Sweets Bakery","Home-Based Businessz","Home-Based Businesses",Houston,TX
+105,"Gateaux d'Ije Bakery","Home-Based Businessz","Home-Based Businesses",Houston,TX
+106,"Catering by FDL","Home-Based Businessz","Home-Based Businesses",Houston,TX
+107,"Lunch Bunch HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+108,"Sweet Art Bakery","Home-Based Businessz","Home-Based Businesses",Houston,TX
+109,"Crafted by Koi","Home-Based Businessz","Home-Based Businesses",Houston,TX
+110,"Rooted Floral HTX","Home-Based Businessz","Home-Based Businesses",Houston,TX
+111,"Mr. Guillory's Master Barber Shop","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+112,"Sarem's Barber & Beauty Ethiopian Salon","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+113,"Brashae's Beauty Salon & Supply","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+114,"Divine Beauty Studio","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+115,"The Nail Lounge HTX","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+116,"Glow Skincare Studio","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+117,"Radiance Med Spa","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+119,"Damian's Cajun Soul Cafe",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+120,"TLC Vegan Kitchen",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+121,"Catfish Floyd's",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+122,"Roots Southern Table",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+123,"Brunch Society DAL","Local Events / Creators","Local Events/Creators",Dallas,TX
+124,"Kitchen + Kocktails",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+125,"Sankofa Kitchen",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+126,"Pangea Restaurant",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+127,"The Breakfast Brothers",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+130,"Vegan Vibrationz","Food Trucks","Food Trucks",Dallas,TX
+131,"Cake Bar Dallas","Grocery / Markets",Grocery/Markets,Dallas,TX
+132,"Tre Stelle Coffee Co.","Grocery / Markets",Grocery/Markets,Dallas,TX
+133,"Flavors Wings N Daiquiris",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+134,"The Daiquiri Shoppe",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+135,"Reggae Jerk Hut",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+136,"Winsome Prime",Restaurants,"Restaurants/Brick and Mortar",Dallas,TX
+137,"Big Moe's Custom Catering","Home-Based Businessz","Home-Based Businesses",Dallas,TX
+138,"Brown Bag Gourmet Coffees","Grocery / Markets",Grocery/Markets,Dallas,TX
+139,"Sacred Heart Co.","Retail / Shopping",Retail/Shopping,Dallas,TX
+140,"Manifest Your Purpose","Retail / Shopping",Retail/Shopping,Dallas,TX
+141,"Gossip Shack",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+142,"Watts-That Soul Food",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+143,"Whip My Soul",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+144,"Hoover's Cooking",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+145,"Big Easy Bar & Grill",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+148,"Les Bobos Crepes","Food Trucks","Food Trucks",Austin,TX
+149,"Clean Juice Round Rock","Grocery / Markets",Grocery/Markets,Austin,TX
+150,"Dia's Market","Grocery / Markets",Grocery/Markets,Austin,TX
+151,"Gigi's Cupcakes Austin","Grocery / Markets",Grocery/Markets,Austin,TX
+154,"Tony's Jamaican Food",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+155,"LUX Boards ATX","Home-Based Businessz","Home-Based Businesses",Austin,TX
+156,"Playhouse Moving","Courier / Parcel","Courier/Parcel Delivery",Austin,TX
+157,"R&B's Steak and Fries",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+158,"Sassy's Vegetarian Soul Food",Restaurants,"Restaurants/Brick and Mortar",Austin,TX
+159,"Cranky Granny's Sweet Rolls","Grocery / Markets",Grocery/Markets,Austin,TX
+160,"3 Small Plates Catering","Home-Based Businessz","Home-Based Businesses",Austin,TX
+161,"Black Butterfly Bath & Body","Retail / Shopping",Retail/Shopping,Austin,TX
+162,"Tava Lifestyle and Wellness","Pharmacy / Health",Pharmacy/Health,Austin,TX
+163,"Jamaican Spyci Flavaz",Restaurants,"Restaurants/Brick and Mortar",Huntsville,TX
+164,"Kings Soul Seasoning","Grocery / Markets",Grocery/Markets,Huntsville,TX
+166,"Huntsville Nutrition Center","Pharmacy / Health",Pharmacy/Health,Huntsville,TX
+167,"Touch of Class Boutique","Retail / Shopping",Retail/Shopping,Huntsville,TX
+168,"KC's Food Truck","Food Trucks","Food Trucks",Huntsville,TX
+169,"Smooth Moves Courier","Courier / Parcel","Courier/Parcel Delivery",Huntsville,TX
+170,"Walker County Event Collective","Local Events / Creators","Local Events/Creators",Huntsville,TX
+171,"Sweet Creations Bakery","Home-Based Businessz","Home-Based Businesses",Huntsville,TX
+172,"Precision Cuts Barbershop","Beauty / Personal Care","Beauty/Personal Care",Huntsville,TX
+173,"1918 Catering","Home-Based Businessz","Home-Based Businesses",Birmingham,AL
+174,"Alamerica Bank","Pharmacy / Health",Pharmacy/Health,Birmingham,AL
+175,"Eagle's Restaurant",Restaurants,"Restaurants/Brick and Mortar",Birmingham,AL
+177,"Bistro 218",Restaurants,"Restaurants/Brick and Mortar",Birmingham,AL
+178,"Mudtown Restaurant",Restaurants,"Restaurants/Brick and Mortar",Birmingham,AL
+180,"The Vegan Lady","Food Trucks","Food Trucks",Birmingham,AL
+181,"Piggly Wiggly Alabama","Grocery / Markets",Grocery/Markets,Birmingham,AL
+182,"Naturally Yours Market","Grocery / Markets",Grocery/Markets,Birmingham,AL
+183,"Feet on the Street Courier","Courier / Parcel","Courier/Parcel Delivery",Birmingham,AL
+184,"BJCC Event Services","Local Events / Creators","Local Events/Creators",Birmingham,AL
+185,"Ava's Custom Cakes","Home-Based Businessz","Home-Based Businesses",Birmingham,AL
+186,"404 Coffee",Restaurants,"Restaurants/Brick and Mortar",Atlanta,GA
+188,"Paschal's Restaurant",Restaurants,"Restaurants/Brick and Mortar",Atlanta,GA
+189,"Busy Bee Cafe",Restaurants,"Restaurants/Brick and Mortar",Atlanta,GA
+190,"Mary Mac's Tea Room",Restaurants,"Restaurants/Brick and Mortar",Atlanta,GA
+191,"Gladys Knight's Chicken & Waffles",Restaurants,"Restaurants/Brick and Mortar",Atlanta,GA
+193,"The Comfort Kitchen ATL","Food Trucks","Food Trucks",Atlanta,GA
+194,"Da Vegan Guru","Food Trucks","Food Trucks",Atlanta,GA
+195,"Sevananda Natural Foods Market","Grocery / Markets",Grocery/Markets,Atlanta,GA
+196,"Your Dekalb Farmers Market","Grocery / Markets",Grocery/Markets,Atlanta,GA
+197,"Harold's Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Atlanta,GA
+198,"Morris Pharmacy","Pharmacy / Health",Pharmacy/Health,Atlanta,GA
+199,"City Express Courier","Courier / Parcel","Courier/Parcel Delivery",Atlanta,GA
+200,"Sweets by Shanika","Home-Based Businessz","Home-Based Businesses",Atlanta,GA
+201,"5 Minds Studios","Beauty / Personal Care","Beauty/Personal Care",Atlanta,GA
+202,"Nourish Beauty Bar","Beauty / Personal Care","Beauty/Personal Care",Atlanta,GA
+203,"Heritage ATL Event Space","Local Events / Creators","Local Events/Creators",Atlanta,GA
+204,"Fast Lane Courier ATL","Courier / Parcel","Courier/Parcel Delivery",Atlanta,GA
+205,"Slim & Husky's Pizza",Restaurants,"Restaurants/Brick and Mortar",Memphis,TN
+207,"Four Way Restaurant",Restaurants,"Restaurants/Brick and Mortar",Memphis,TN
+208,"The Gray Canary",Restaurants,"Restaurants/Brick and Mortar",Memphis,TN
+210,"Earnestine & Hazel's",Restaurants,"Restaurants/Brick and Mortar",Memphis,TN
+211,"Cash Saver Grocery","Grocery / Markets",Grocery/Markets,Memphis,TN
+212,"Crown Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Memphis,TN
+213,"Shelby Pharmacy","Pharmacy / Health",Pharmacy/Health,Memphis,TN
+214,"Bluff City Courier","Courier / Parcel","Courier/Parcel Delivery",Memphis,TN
+215,"Memphis Made Event Space","Local Events / Creators","Local Events/Creators",Memphis,TN
+216,"Sweet La La's Bakery","Home-Based Businessz","Home-Based Businesses",Memphis,TN
+217,"House of Scent","Retail / Shopping",Retail/Shopping,Memphis,TN
+218,"Fresh Barber Co.","Beauty / Personal Care","Beauty/Personal Care",Memphis,TN
+219,"Natasha's Nail Studio","Beauty / Personal Care","Beauty/Personal Care",Memphis,TN
+220,"Rise & Shine Courier","Courier / Parcel","Courier/Parcel Delivery",Memphis,TN
+222,"Shirley's Soul Food Kitchen",Restaurants,"Restaurants/Brick and Mortar","Lake Jackson",TX
+223,"Clute Cafeteria",Restaurants,"Restaurants/Brick and Mortar",Freeport,TX
+225,"Brazoria Fresh Market","Grocery / Markets",Grocery/Markets,Beaumont,TX
+226,"Victoria's Seaside Bistro",Restaurants,"Restaurants/Brick and Mortar",Beaumont,TX
+227,"NIA Cultural Center Events","Local Events / Creators","Local Events/Creators",Galveston,TX
+230,"Wharton County Catering","Home-Based Businessz","Home-Based Businesses","Texas City",TX
+233,"Suga's Deep South Cuisine & Jazz Bar",Restaurants,"Restaurants/Brick and Mortar",Beaumont,TX
+234,"Yorey's Urban Eats",Restaurants,"Restaurants/Brick and Mortar",Wharton,TX
+235,"Bocca Felice Italian Grill",Restaurants,"Restaurants/Brick and Mortar","Bay City",TX
+236,"Rosie's Soul Food",Restaurants,"Restaurants/Brick and Mortar","Lake Jackson",TX
+237,"The Grill At 105",Restaurants,"Restaurants/Brick and Mortar",Brazoria,TX
+239,"Monk House Seafood",Restaurants,"Restaurants/Brick and Mortar",Wharton,TX
+240,"Healthy Foods Market","Grocery / Markets",Grocery/Markets,"Texas City",TX
+241,"Quick Foods Grocery","Grocery / Markets",Grocery/Markets,"Port Arthur",TX
+242,"Divine Cuts and Styles","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers","Port Arthur",TX
+243,"Goodson's Pharmacy","Pharmacy / Health",Pharmacy/Health,"Lake Jackson",TX
+245,"Savvy Stylist Beauty Bar","Beauty / Personal Care","Beauty/Personal Care","Texas City",TX
+246,"Hair by Niya","Beauty / Personal Care","Beauty/Personal Care","Bay City",TX
+247,"Southern Sweetz Bakery","Home-Based Businessz","Home-Based Businesses",Angleton,TX
+248,"Fenomenal Flashes Empire","Food Trucks","Food Trucks","Bay City",TX
+249,"Kountry Boyz Mobile Grill","Food Trucks","Food Trucks",Angleton,TX
+250,"Dulan's Soul Food Kitchen",Restaurants,"Restaurants/Brick and Mortar","Los Angeles",CA
+251,"Simply Wholesome","Grocery / Markets",Grocery/Markets,"Los Angeles",CA
+252,"Sole Folks","Retail / Shopping",Retail/Shopping,"Los Angeles",CA
+253,"Nappily Naturals & Apothecary","Pharmacy / Health",Pharmacy/Health,"Los Angeles",CA
+254,"1987 Juices",Restaurants,"Restaurants/Brick and Mortar","Los Angeles",CA
+255,"Blackline Coffee","Grocery / Markets",Grocery/Markets,"Los Angeles",CA
+256,KUTULA,Restaurants,"Restaurants/Brick and Mortar","Los Angeles",CA
+265,"Call Me Cake Soul Food",Restaurants,"Restaurants/Brick and Mortar","Las Vegas",NV
+266,"Tasty T's Cheesecakes","Grocery / Markets",Grocery/Markets,"Las Vegas",NV
+267,"SoulFoo'd Restaurant",Restaurants,"Restaurants/Brick and Mortar","Las Vegas",NV
+268,"The LaMarre Theater","Local Events / Creators","Local Events/Creators","Las Vegas",NV
+269,"Tofu Tees Boutique","Retail / Shopping",Retail/Shopping,"Las Vegas",NV
+270,"B4 & After Nail Boutique","Beauty / Personal Care","Beauty/Personal Care","Las Vegas",NV
+271,"Legends Barber Studio","Beauty / Personal Care","Beauty/Personal Care","Las Vegas",NV
+272,"Left of Center Gallery","Local Events / Creators","Local Events/Creators","Las Vegas",NV
+279,"Jackson Soul Food",Restaurants,"Restaurants/Brick and Mortar",Miami,FL
+280,"Ms. Cheezious","Food Trucks","Food Trucks",Miami,FL
+281,"Cafe des Fleurs","Grocery / Markets",Grocery/Markets,Miami,FL
+282,"King of Opa Locka Grill",Restaurants,"Restaurants/Brick and Mortar",Miami,FL
+283,"Nena's Organics","Grocery / Markets",Grocery/Markets,Miami,FL
+284,"305 Concierge Courier","Courier / Parcel","Courier/Parcel Delivery",Miami,FL
+285,"Optical City Miami","Pharmacy / Health",Pharmacy/Health,Miami,FL
+288,"Suga Glow Beauty Studio","Beauty / Personal Care","Beauty/Personal Care",Miami,FL
+289,"Miami Event Collective","Local Events / Creators","Local Events/Creators",Miami,FL
+290,"Kulture Bakes","Home-Based Businessz","Home-Based Businesses",Miami,FL
+291,"The Half Smoke",Restaurants,"Restaurants/Brick and Mortar",Washington,DC
+292,"Jaliyaa Coffee Truck","Food Trucks","Food Trucks",Washington,DC
+293,"Simply Fresh Market","Grocery / Markets",Grocery/Markets,Washington,DC
+294,"Bailiwick Clothing","Retail / Shopping",Retail/Shopping,Washington,DC
+295,"Capitol Couriers DC","Courier / Parcel","Courier/Parcel Delivery",Washington,DC
+296,"Hue Health Pharmacy","Pharmacy / Health",Pharmacy/Health,Washington,DC
+297,"Moe's Barbershop DC","Beauty / Personal Care","Beauty/Personal Care",Washington,DC
+298,"DC Art Collective","Local Events / Creators","Local Events/Creators",Washington,DC
+299,"Kulture Bakery DC","Home-Based Businessz","Home-Based Businesses",Washington,DC
+300,"The Treats Factory","Grocery / Markets",Grocery/Markets,Washington,DC
+301,"Nelson's Buffeteria",Restaurants,"Restaurants/Brick and Mortar",Tulsa,OK
+302,"Wanda J's Kitchen",Restaurants,"Restaurants/Brick and Mortar",Tulsa,OK
+303,"The Vault Restaurant",Restaurants,"Restaurants/Brick and Mortar",Tulsa,OK
+304,"Greenwood Grocery","Grocery / Markets",Grocery/Markets,Tulsa,OK
+305,"Black Wall Street Events","Local Events / Creators","Local Events/Creators",Tulsa,OK
+306,"Tulsa Pharmacy Services","Pharmacy / Health",Pharmacy/Health,Tulsa,OK
+307,"Courier Plus Tulsa","Courier / Parcel","Courier/Parcel Delivery",Tulsa,OK
+308,"Lena's Homemade Pies","Home-Based Businessz","Home-Based Businesses",Tulsa,OK
+310,"Classy Nails & Spa","Beauty / Personal Care","Beauty/Personal Care",Tulsa,OK
+311,"Greenwood Barber Lounge","Beauty / Personal Care","Beauty/Personal Care",Tulsa,OK
+312,"The Supper Club CLT",Restaurants,"Restaurants/Brick and Mortar",Charlotte,NC
+313,"Lebanon's Restaurant",Restaurants,"Restaurants/Brick and Mortar",Charlotte,NC
+314,"Mama's Caribbean Grill",Restaurants,"Restaurants/Brick and Mortar",Charlotte,NC
+316,"Leroy Fox",Restaurants,"Restaurants/Brick and Mortar",Charlotte,NC
+317,"Pot Belly Sandwich Food Truck","Food Trucks","Food Trucks",Charlotte,NC
+318,"Uptown Market CLT","Grocery / Markets",Grocery/Markets,Charlotte,NC
+319,"CLT Fashion Boutique","Retail / Shopping",Retail/Shopping,Charlotte,NC
+320,"Carolina Health Pharmacy","Pharmacy / Health",Pharmacy/Health,Charlotte,NC
+321,"Queen City Courier","Courier / Parcel","Courier/Parcel Delivery",Charlotte,NC
+322,"CLT Events Venue","Local Events / Creators","Local Events/Creators",Charlotte,NC
+323,"Sweet Bella Bakery","Home-Based Businessz","Home-Based Businesses",Charlotte,NC
+324,"Crown Cuts Barbershop","Beauty / Personal Care","Beauty/Personal Care",Charlotte,NC
+325,"Jacob Restaurant",Restaurants,"Restaurants/Brick and Mortar","New York",NY
+326,"Miss Mamie's Spoonbread Too",Restaurants,"Restaurants/Brick and Mortar","New York",NY
+327,"Barney Greengrass","Grocery / Markets",Grocery/Markets,"New York",NY
+329,"Nubian Heritage Market","Grocery / Markets",Grocery/Markets,"New York",NY
+338,"Luzia Shop","Retail / Shopping",Retail/Shopping,Houston,TX
+339,"Class Bookstore","Retail / Shopping",Retail/Shopping,Houston,TX
+340,"The Blaq Shopp","Retail / Shopping",Retail/Shopping,Houston,TX
+342,"GloGele & Fashion World","Retail / Shopping",Retail/Shopping,Houston,TX
+343,"SisStore Joy Christian Bookstore","Retail / Shopping",Retail/Shopping,Houston,TX
+344,"Mr. Black's Boutique","Retail / Shopping",Retail/Shopping,Miami,FL
+345,"Roots Bookstore & Market","Retail / Shopping",Retail/Shopping,Miami,FL
+346,"Unique African Boutique","Retail / Shopping",Retail/Shopping,Miami,FL
+347,"Bohemi Chic","Retail / Shopping",Retail/Shopping,Miami,FL
+348,"Ankara Delights","Retail / Shopping",Retail/Shopping,Miami,FL
+349,"PD&K Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Atlanta,GA
+350,"Nubian Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Atlanta,GA
+351,"Ideal Beauty Supply & Suites","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Atlanta,GA
+352,"Ebony Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Atlanta,GA
+353,"Natasha's Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers","Las Vegas",NV
+354,"Kin Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers","Las Vegas",NV
+355,"Maxxie Posh Hair Extensions & Wigs","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers","Las Vegas",NV
+356,"Pink Noire Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Memphis,TN
+357,"K&K Beauty Supply","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Memphis,TN
+358,"Bnear Studios","Beauty / Personal Care","Beauty/Personal Care","Los Angeles",CA
+359,"The Den Salon","Beauty / Personal Care","Beauty/Personal Care","Los Angeles",CA
+360,"Knoel LauRen Hair Salon","Beauty / Personal Care","Beauty/Personal Care","Los Angeles",CA
+361,"Magnificent Brothers Barber & Beauty Salon","Beauty / Personal Care","Beauty/Personal Care","Los Angeles",CA
+362,"Eros' Hair & Beauty","Beauty / Personal Care","Beauty/Personal Care","Los Angeles",CA
+363,"Gipson Grocery","Grocery / Markets",Grocery/Markets,Dallas,TX
+364,"Oasis Fresh Market","Grocery / Markets",Grocery/Markets,Tulsa,OK
+365,"Elmira Market","Grocery / Markets",Grocery/Markets,Washington,DC
+366,"Aurora Market","Grocery / Markets",Grocery/Markets,Washington,DC
+367,"Marion Barry Avenue Market & Cafe","Grocery / Markets",Grocery/Markets,Washington,DC
+368,"Haile's Stanton Supermarket","Grocery / Markets",Grocery/Markets,Washington,DC
+369,"Pop's Market","Grocery / Markets",Grocery/Markets,Washington,DC
+370,"Fiesta MLK Pharmacy","Pharmacy / Health",Pharmacy/Health,Dallas,TX
+371,"Uptown Pharmacy","Pharmacy / Health",Pharmacy/Health,Dallas,TX
+372,"Buckner Neighborhood Pharmacy","Pharmacy / Health",Pharmacy/Health,Dallas,TX
+373,"Congress Heights Community Pharmacy","Pharmacy / Health",Pharmacy/Health,Washington,DC
+374,"Grubb's SE Pharmacy & Mini Mart","Pharmacy / Health",Pharmacy/Health,Washington,DC
+375,"KLS Courier Enterprises","Courier / Parcel","Courier/Parcel Delivery","New York",NY
+376,"YLG Courier Services","Courier / Parcel","Courier/Parcel Delivery","New York",NY
+377,"JetBlack Courier Services","Courier / Parcel","Courier/Parcel Delivery","New York",NY
+378,"Xentra Transport","Courier / Parcel","Courier/Parcel Delivery","New York",NY
+379,"Soliha Express Cargo","Courier / Parcel","Courier/Parcel Delivery",Brooklyn,NY
+380,"Express Errands & Courier LA","Courier / Parcel","Courier/Parcel Delivery","Los Angeles",CA
+381,"Creative Pop-up Collective","Local Events / Creators","Local Events/Creators",Houston,TX
+382,"Juneteenth Atlanta Parade & Music Festival","Local Events / Creators","Local Events/Creators",Atlanta,GA
+383,"Kelly Miller Market Days","Local Events / Creators","Local Events/Creators",Washington,DC
+384,"Charlotte Beauty Supply & Braids","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Charlotte,NC
+385,"Blend Beautique","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Birmingham,AL
+386,"Austin Beauty Supply Plus","Beauty Supply / Hair Providerz","Beauty Supply/Hair Providers",Austin,TX
+387,"Made By GEbony","Beauty / Personal Care","Beauty/Personal Care",Houston,TX
+389,"Buy Black Marketplace","Local Events / Creators","Local Events/Creators",Houston,TX
+390,"Peachez HTX","Liquor / Beverages",Liquor/Beverages,Houston,TX
+391,"Pur Noire Urban Wineries","Liquor / Beverages",Liquor/Beverages,Houston,TX
+392,"Trez Bistro & Wine Bar","Liquor / Beverages",Liquor/Beverages,Houston,TX
+393,"The Address Lounge","Liquor / Beverages",Liquor/Beverages,Houston,TX
+394,"Swanky Patron","Liquor / Beverages",Liquor/Beverages,Houston,TX
+395,"OKRA Charity Saloon","Liquor / Beverages",Liquor/Beverages,Houston,TX
+396,"King's Daiquiri","Liquor / Beverages",Liquor/Beverages,Houston,TX
+397,"Clutch Houston","Liquor / Beverages",Liquor/Beverages,Houston,TX
+398,"V Live Houston","Liquor / Beverages",Liquor/Beverages,Houston,TX
+399,"Anvil Bar & Refuge","Liquor / Beverages",Liquor/Beverages,Houston,TX
+400,"Daiquiri's To Go","Liquor / Beverages",Liquor/Beverages,Dallas,TX
+401,"Blends Daiquiri Express","Liquor / Beverages",Liquor/Beverages,Dallas,TX
+402,"Red Light Lounge","Liquor / Beverages",Liquor/Beverages,Dallas,TX
+403,"Lounge 31","Liquor / Beverages",Liquor/Beverages,Dallas,TX
+404,"The Cigar Warehouse","Liquor / Beverages",Liquor/Beverages,Dallas,TX
+405,"Casa de Montecristo","Liquor / Beverages",Liquor/Beverages,Dallas,TX
+406,"Bar Vegan","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+407,"Fellaship Lounge","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+408,"Stanley's Cigar Lounge","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+409,"Blue Flame Lounge","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+410,"Vanquish Nightclub","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+411,"Benny's Package Store","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+412,"Cigar City Club","Liquor / Beverages",Liquor/Beverages,Atlanta,GA
+413,"D'Bo's Daiquiris Wings & Seafood","Liquor / Beverages",Liquor/Beverages,Memphis,TN
+414,"Wild Bill's Juke Joint","Liquor / Beverages",Liquor/Beverages,Memphis,TN
+416,"The Candy Shop Daiquiri's","Liquor / Beverages",Liquor/Beverages,Memphis,TN
+417,"Black Wall Street Liquid Lounge","Liquor / Beverages",Liquor/Beverages,Tulsa,OK
+418,"PV's Liquor","Liquor / Beverages",Liquor/Beverages,Tulsa,OK
+419,"DVL Bar","Liquor / Beverages",Liquor/Beverages,Tulsa,OK
+420,"Texas Original - Houston","THC / Dispensary",THC/CBD,Houston,TX
+421,"Goodblend Texas - Houston","THC / Dispensary",THC/CBD,Houston,TX
+436,"Botanical Sciences - Atlanta","THC / Dispensary",THC/CBD,Atlanta,GA
+441,"Cookies Melrose","THC / Dispensary",THC/CBD,"Los Angeles",CA
+442,"MedMen - West Hollywood","THC / Dispensary",THC/CBD,"Los Angeles",CA
+443,"Jungle Boys - LA","THC / Dispensary",THC/CBD,"Los Angeles",CA
+444,"Stiiizy - DTLA","THC / Dispensary",THC/CBD,"Los Angeles",CA
+445,"The Artist Tree - West Hollywood","THC / Dispensary",THC/CBD,"Los Angeles",CA
+446,"Higher Path - Sherman Oaks","THC / Dispensary",THC/CBD,Inglewood,CA
+447,"Planet 13 Las Vegas","THC / Dispensary",THC/CBD,"Las Vegas",NV
+448,"The Dispensary NV - Henderson","THC / Dispensary",THC/CBD,"Las Vegas",NV
+449,"Reef Dispensaries - Las Vegas","THC / Dispensary",THC/CBD,"Las Vegas",NV
+450,"Oasis Cannabis","THC / Dispensary",THC/CBD,"Las Vegas",NV
+451,"Cultivate Las Vegas","THC / Dispensary",THC/CBD,"Las Vegas",NV
+452,"Trulieve - Miami","THC / Dispensary",THC/CBD,Miami,FL
+453,"Curaleaf - Miami","THC / Dispensary",THC/CBD,Miami,FL
+454,"MUV - Miami","THC / Dispensary",THC/CBD,Miami,FL
+455,"Fluent - Miami","THC / Dispensary",THC/CBD,Miami,FL
+457,"Takoma Wellness Center","THC / Dispensary",THC/CBD,Washington,DC
+458,"Anacostia Organics","THC / Dispensary",THC/CBD,Washington,DC
+459,"Capital City Care","THC / Dispensary",THC/CBD,Washington,DC
+460,"DC Buds","THC / Dispensary",THC/CBD,Washington,DC
+461,"National Holistic - DC","THC / Dispensary",THC/CBD,Washington,DC
+462,"Mango Cannabis - Tulsa","THC / Dispensary",THC/CBD,Tulsa,OK
+463,"Simply Plus Dispensary","THC / Dispensary",THC/CBD,Tulsa,OK
+464,"Buddha's Best Dispensary","THC / Dispensary",THC/CBD,Tulsa,OK
+465,"The Green Gorilla","THC / Dispensary",THC/CBD,Tulsa,OK
+466,"Kush House Dispensary","THC / Dispensary",THC/CBD,Tulsa,OK
+469,"Housing Works Cannabis Co.","THC / Dispensary",THC/CBD,"New York",NY
+470,"Union Square Travel Agency","THC / Dispensary",THC/CBD,"New York",NY
+471,"Gotham Cannabis Dispensary","THC / Dispensary",THC/CBD,"New York",NY
+472,"Smacked NYC","THC / Dispensary",THC/CBD,"New York",NY
+473,"The Cannabis Place","THC / Dispensary",THC/CBD,"New York",NY
+474,"Boss Lady Couture","Retail / Shopping",Retail/Shopping,Houston,TX
+476,"Black Book Houston","Local Events / Creators","Local Events/Creators",Houston,TX

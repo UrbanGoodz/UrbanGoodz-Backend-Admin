@@ -1,0 +1,62 @@
+{
+  "info": {
+    "name": "Urban Goodz Driver API (Session 2 / P8)",
+    "description": "Handoff collection for the separate driver-app repo. 25 driver endpoints under auth:delivery_man. Base URL and driver_token are environment variables. No real secrets. Read-only discovery (can_claim=false). No push/WebSocket. No payout fields.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://admin.urbangoodzdelivery.com", "type": "string" },
+    { "key": "driver_token", "value": "REPLACE_WITH_TEST_DRIVER_TOKEN", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{driver_token}}", "type": "string" } ]
+  },
+  "item": [
+    {
+      "name": "Business Courier",
+      "item": [
+        { "name": "List assigned jobs", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs"] } } },
+        { "name": "Job detail", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}"] } } },
+        { "name": "Accept job", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/accept", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","accept"] } } },
+        { "name": "Start job", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/start", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","start"] } } },
+        { "name": "Mark pickup", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/pickup", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","pickup"] } } },
+        { "name": "Mark delivery", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/delivery", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","delivery"] } } },
+        { "name": "Submit pickup proof (URL)", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"proof_url\": \"https://cdn.example.com/proofs/pickup-12.jpg\",\n  \"notes\": \"Loaded at dock A\"\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/proof-pickup", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","proof-pickup"] } } },
+        { "name": "Submit delivery proof (URL)", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"proof_url\": \"https://cdn.example.com/proofs/delivery-12.jpg\",\n  \"notes\": \"Delivered to desk\"\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/proof-delivery", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","proof-delivery"] } } },
+        { "name": "Report exception", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Vehicle breakdown, cannot complete route\",\n  \"notes\": \"Towed, ETA unknown\"\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/business-jobs/{{jobId}}/exception", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","business-jobs","{{jobId}}","exception"] } } }
+      ]
+    },
+    {
+      "name": "Capability",
+      "item": [
+        { "name": "Get profile", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile"] } } },
+        { "name": "Get summary", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-summary", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-summary"] } } },
+        { "name": "Update vehicle", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"vehicle_type\": \"box_truck\",\n  \"vehicle_id\": 8\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile/vehicle", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile","vehicle"] } } },
+        { "name": "Update cargo", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"cargo_capacity_notes\": \"14ft box\",\n  \"max_package_count\": 60,\n  \"max_weight_lbs\": 3000,\n  \"has_cargo_space\": true,\n  \"has_cooler_bag\": true,\n  \"has_medical_courier_training\": false,\n  \"has_liftgate\": true\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile/cargo", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile","cargo"] } } },
+        { "name": "Update zones", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"preferred_zones\": [\"Houston, TX\", \"Austin, TX\"]\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile/zones", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile","zones"] } } },
+        { "name": "Update work types", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"preferred_work_types\": [\"business_courier\", \"package_routes\"]\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile/work-types", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile","work-types"] } } },
+        { "name": "Update tags", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"capability_tags\": [\"business_courier\", \"cargo_van\", \"package_routes\"]\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile/tags", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile","tags"] } } },
+        { "name": "Update availability", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\n  \"availability_preference\": \"weekdays\",\n  \"available_for_business_courier\": true,\n  \"available_for_package_routes\": true,\n  \"available_for_order_anywhere\": false,\n  \"available_for_medical_courier\": false\n}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/capability-profile/availability", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","capability-profile","availability"] } } }
+      ]
+    },
+    {
+      "name": "Job Discovery",
+      "item": [
+        { "name": "List discovery", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/job-discovery", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","job-discovery"] } } },
+        { "name": "Discovery summary", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/job-discovery/summary", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","job-discovery","summary"] } } },
+        { "name": "Discovery detail", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/job-discovery/{{type}}/{{id}}", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","job-discovery","{{type}}","{{id}}"] } } }
+      ]
+    },
+    {
+      "name": "Dispatch Notifications",
+      "item": [
+        { "name": "List notifications", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/dispatch-notifications", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","dispatch-notifications"] } } },
+        { "name": "Unread count", "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/dispatch-notifications/unread-count", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","dispatch-notifications","unread-count"] } } },
+        { "name": "Mark read", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/dispatch-notifications/{{notificationId}}/read", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","dispatch-notifications","{{notificationId}}","read"] } } },
+        { "name": "Mark all read", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/dispatch-notifications/read-all", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","dispatch-notifications","read-all"] } } },
+        { "name": "Dismiss", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{}" }, "url": { "raw": "{{base_url}}/api/v1/urban-goodz/driver/dispatch-notifications/{{notificationId}}/dismiss", "host": ["{{base_url}}"], "path": ["api","v1","urban-goodz","driver","dispatch-notifications","{{notificationId}}","dismiss"] } } }
+      ]
+    }
+  ]
+}

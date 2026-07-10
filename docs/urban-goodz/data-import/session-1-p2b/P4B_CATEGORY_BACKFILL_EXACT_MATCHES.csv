@@ -1,0 +1,12 @@
+sourced_business_id,business_name,module_id,old_category_ids,new_category_ids,matched_category_id,matched_category_name,match_source,action_taken
+6,"River Oaks Galleria Medspa",14,[],[824],824,"Cosmetics","cosmetics",applied
+23,"Simply Mel Skincare",14,[],[823],823,"Skin Care","skincare",applied
+28,"Seven Thirteen Boutique",13,[],[98],98,"Women's Fashion","womens_fashion",applied
+108,"Glow Skincare Studio",14,[],[823],823,"Skin Care","skincare",applied
+259,"Suga Glow Beauty Studio",14,[],[823],823,"Skin Care","skincare",applied
+320,"Bnear Studios",14,[],[820],820,"Beauty / Personal Care","beauty_personal_care",applied
+321,"The Den Salon",14,[],[820],820,"Beauty / Personal Care","beauty_personal_care",applied
+322,"Knoel LauRen Hair Salon",14,[],[820],820,"Beauty / Personal Care","beauty_personal_care",applied
+323,"Magnificent Brothers Barber & Beauty Salon",14,[],[820],820,"Beauty / Personal Care","beauty_personal_care",applied
+324,"Eros' Hair & Beauty",14,[],[820],820,"Beauty / Personal Care","beauty_personal_care",applied
+349,"Made By GEbony",14,[],[820],820,"Beauty / Personal Care","beauty_personal_care",applied

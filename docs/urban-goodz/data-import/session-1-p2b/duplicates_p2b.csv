@@ -1,0 +1,19 @@
+row,business_name,city,state,match_reasons
+3,"The Breakfast Klub",Houston,TX,db_store_duplicate_name_city_or_address
+23,ChopnBlok,Houston,TX,db_store_duplicate_name_city_or_address
+39,"Erk and Jerk Caribbean Cuisine",Houston,TX,csv_duplicate_phone
+49,"Amazing Street Beans HTX",Houston,TX,csv_duplicate_name_city_state
+50,"Sauce Another HTX",Houston,TX,"csv_duplicate_name_city_state | csv_duplicate_website | csv_duplicate_phone"
+57,"Fresh Houwse Grocery",Houston,TX,"csv_duplicate_name_city_state | csv_duplicate_website"
+59,"Motherland African Food Market",Houston,TX,csv_duplicate_name_city_state
+118,"Sweet Georgia Brown",Dallas,TX,db_store_duplicate_name_city_or_address
+146,"Distant Relatives",Austin,TX,db_store_duplicate_name_city_or_address
+206,"Da Vegan Guru",Memphis,TN,csv_duplicate_website
+341,"Doss Couture Designs",Houston,TX,csv_duplicate_website
+388,"The Black Market HTX",Houston,TX,csv_duplicate_name_city_state
+415,"Earnestine & Hazel's",Memphis,TN,"csv_duplicate_name_city_state | csv_duplicate_phone"
+425,"Texas Original - Dallas",Dallas,TX,"csv_duplicate_website | csv_duplicate_phone"
+426,"Goodblend Texas - Dallas",Dallas,TX,"csv_duplicate_website | csv_duplicate_phone"
+428,"CBD Plus USA - Dallas",Dallas,TX,csv_duplicate_website
+429,"Texas Original - Austin",Austin,TX,"csv_duplicate_website | csv_duplicate_phone"
+468,"Your CBD Store - Charlotte",Charlotte,NC,csv_duplicate_website
