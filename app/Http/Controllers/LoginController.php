@@ -142,6 +142,15 @@ class LoginController extends Controller
                         if (!$gResponse->successful()) {
                             $fail(translate('ReCaptcha Failed'));
                         }
+
+                        $body = $gResponse->json();
+                        if (!isset($body['success']) || $body['success'] !== true) {
+                            $fail(translate('ReCaptcha Failed'));
+                        }
+
+                        if (isset($body['score']) && $body['score'] < 0.5) {
+                            $fail(translate('ReCaptcha Failed'));
+                        }
                     },
                 ],
             ]);
@@ -169,7 +178,7 @@ class LoginController extends Controller
 
         if ($request->role == 'admin_employee') {
             $data = Admin::where('email', $request->email)->where('role_id', 1)->exists();
-            if ($data) {
+            if (!$data) {
                 RateLimiter::hit($key, $decayMinutes * 60);
                 return redirect()->back()->withInput($request->only('email', 'remember'))
                     ->withErrors(['Email does not match.']);

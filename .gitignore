@@ -14,3 +14,32 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 .DS_Store
+.opencode/
+
+# Sprint backup archives
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# Scratch / temp scripts
+_check_*.php
+check_*.php
+extract_*.php
+p7_check*.php
+runtime-verify.php
+temp_schema_check.php
+
+# Temp extraction directories
+temp_zip_extract/
+temp_zip_extract_*/
+
+# Tinker scripts
+storage/app/run_tinker_script.php
+storage/app/tinker_script.php
+
+# Data files
+sourced_businesses_*.json
+
+# Import reports (keep in storage/app, ignore in repo)
+storage/app/urban_goodz_import_reports/
+storage/app/urban_goodz_import_tmp/
