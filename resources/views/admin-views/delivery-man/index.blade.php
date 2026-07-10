@@ -358,6 +358,267 @@
                 </div>
             </div>
 
+            <div class="card mb-20">
+                <div class="card-header">
+                   <div>
+                        <h3 class="mb-1">
+                            {{ translate('Vehicle, Trailer & Capability Settings') }}
+                        </h3>
+                        <p class="mb-0 fs-12">
+                            {{ translate('Configure vehicle type, trailer details, commercial credentials, and cargo capabilities.') }}
+                        </p>
+                   </div>
+                </div>
+                <div class="card-body">
+                    @php
+                        $vehicleTypes = [
+                            'car' => 'Car', 'suv' => 'SUV', 'pickup_truck' => 'Pickup Truck',
+                            'cargo_van' => 'Cargo Van', 'passenger_van' => 'Passenger Van',
+                            'sprinter_van' => 'Sprinter Van', 'box_truck' => 'Box Truck',
+                            'straight_truck' => 'Straight Truck', 'bicycle' => 'Bicycle',
+                            'motorcycle' => 'Motorcycle', 'scooter_moped' => 'Scooter/Moped',
+                            'tractor_trailer_18_wheeler' => 'Tractor Trailer / 18-Wheeler',
+                            'flatbed_truck' => 'Flatbed Truck', 'tow_truck' => 'Tow Truck',
+                            'refrigerated_truck' => 'Refrigerated Truck',
+                            'other_commercial_vehicle' => 'Other Commercial Vehicle',
+                        ];
+                        $trailerTypes = [
+                            'utility' => 'Utility', 'enclosed' => 'Enclosed', 'flatbed' => 'Flatbed',
+                            'car_hauler' => 'Car Hauler', 'gooseneck' => 'Gooseneck',
+                            'fifth_wheel' => 'Fifth Wheel', 'step_deck' => 'Step Deck',
+                            'lowboy' => 'Lowboy', 'refrigerated' => 'Refrigerated',
+                            'dry_van' => 'Dry Van', 'other' => 'Other',
+                        ];
+                        $hitchTypes = [
+                            'ball' => 'Ball', 'pintle' => 'Pintle', 'gooseneck' => 'Gooseneck',
+                            'fifth_wheel' => 'Fifth Wheel', 'bumper_pull' => 'Bumper Pull',
+                            'pintle_hook' => 'Pintle Hook', 'other' => 'Other',
+                        ];
+                        $cdlClasses = ['A' => 'Class A', 'B' => 'Class B', 'C' => 'Class C', 'none' => 'None', 'not_applicable' => 'Not Applicable'];
+                        $cdlStatuses = ['none' => 'None/Not Required', 'valid' => 'Valid', 'expired' => 'Expired', 'pending' => 'Pending', 'suspended' => 'Suspended'];
+                    @endphp
+
+                    <div class="shadow-sm p-xxl-20 p-xl-3 p-2 bg-white mb-20">
+                        <div class="mb-20">
+                            <h4 class="mb-1">{{ translate('Vehicle & Trailer Details') }}</h4>
+                        </div>
+                        <div class="bg-light2 rounded p-xxl-20 p-xl-3 p-3 mb-20">
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('messages.Vehicle_Type') }} <span class="text-danger">*</span></label>
+                                        <select name="vehicle_type" class="form-control js-select2-custom">
+                                            <option value="" readonly="true" hidden="true">{{ translate('messages.select_vehicle') }}</option>
+                                            @foreach($vehicleTypes as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Registration Expiration') }}</label>
+                                        <input type="date" name="registration_expiration" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Insurance Expiration') }}</label>
+                                        <input type="date" name="insurance_expiration" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Inspection Expiration') }}</label>
+                                        <input type="date" name="inspection_expiration" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('messages.Has Trailer') }}</label>
+                                        <select name="has_trailer" class="form-control js-select2-custom trailer-toggle">
+                                            <option value="0" selected>{{ translate('messages.No') }}</option>
+                                            <option value="1">{{ translate('messages.Yes') }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-light2 rounded p-xxl-20 p-xl-3 p-3 mb-20 trailer-fields" style="display:none">
+                            <h5 class="mb-3">{{ translate('Trailer Information') }}</h5>
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Trailer Type') }}</label>
+                                        <select name="trailer_type" class="form-control js-select2-custom">
+                                            <option value="" readonly="true" hidden="true">{{ translate('messages.select_vehicle') }}</option>
+                                            @foreach($trailerTypes as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Hitch Type') }}</label>
+                                        <select name="hitch_type" class="form-control js-select2-custom">
+                                            <option value="" readonly="true" hidden="true">{{ translate('messages.select_vehicle') }}</option>
+                                            @foreach($hitchTypes as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Length (ft)') }}</label>
+                                        <input type="number" step="0.1" name="trailer_length_feet" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Width (ft)') }}</label>
+                                        <input type="number" step="0.1" name="trailer_width_feet" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Capacity (lbs)') }}</label>
+                                        <input type="number" step="0.1" name="trailer_capacity_lbs" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Plate Number') }}</label>
+                                        <input type="text" name="trailer_plate_number" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Trailer Registration') }}</label>
+                                        <input type="date" name="trailer_registration_expiration" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Trailer Insurance') }}</label>
+                                        <input type="date" name="trailer_insurance_expiration" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-light2 rounded p-xxl-20 p-xl-3 p-3 mb-20">
+                            <h5 class="mb-3">{{ translate('Commercial Credentials') }}</h5>
+                            <div class="row g-3">
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('CDL Status') }}</label>
+                                        <select name="cdl_status" class="form-control js-select2-custom cdl-status-toggle">
+                                            @foreach($cdlStatuses as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4 cdl-class-field" style="display:none">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('CDL Class') }}</label>
+                                        <select name="cdl_class" class="form-control js-select2-custom">
+                                            @foreach($cdlClasses as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4 cdl-number-field" style="display:none">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('CDL Number') }}</label>
+                                        <input type="text" name="cdl_number" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('DOT Number') }}</label>
+                                        <input type="text" name="dot_number" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('MC Number') }}</label>
+                                        <input type="text" name="mc_number" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-light2 rounded p-xxl-20 p-xl-3 p-3">
+                            <h5 class="mb-3">{{ translate('Capabilities & Cargo') }}</h5>
+                            <div class="row g-3">
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Pallet Jack') }}</label>
+                                        <select name="has_pallet_jack" class="form-control js-select2-custom">
+                                            <option value="0" selected>{{ translate('messages.No') }}</option>
+                                            <option value="1">{{ translate('messages.Yes') }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Hazmat Certified') }}</label>
+                                        <select name="has_hazmat" class="form-control js-select2-custom">
+                                            <option value="0" selected>{{ translate('messages.No') }}</option>
+                                            <option value="1">{{ translate('messages.Yes') }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Cargo Insurance') }}</label>
+                                        <select name="has_cargo_insurance" class="form-control js-select2-custom cargo-insurance-toggle">
+                                            <option value="0" selected>{{ translate('messages.No') }}</option>
+                                            <option value="1">{{ translate('messages.Yes') }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-3 cargo-insurance-date" style="display:none">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Cargo Insurance Exp.') }}</label>
+                                        <input type="date" name="cargo_insurance_expiration" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Max Payload (lbs)') }}</label>
+                                        <input type="number" step="0.1" name="max_payload_lbs" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Cargo Length (in)') }}</label>
+                                        <input type="number" step="0.1" name="cargo_length_inches" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Cargo Width (in)') }}</label>
+                                        <input type="number" step="0.1" name="cargo_width_inches" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Cargo Height (in)') }}</label>
+                                        <input type="number" step="0.1" name="cargo_height_inches" class="form-control" placeholder="0.0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
             <div class="btn--container justify-content-end mt-20">
                 <button type="reset" id="reset_btn"
@@ -466,6 +727,21 @@
                 $('#ref_code').hide();
                 $('#referral_code').val('');
             }
+        });
+
+        $('.trailer-toggle').on('change', function() {
+            if ($(this).val() === '1') { $('.trailer-fields').show(); }
+            else { $('.trailer-fields').hide(); }
+        });
+
+        $('.cdl-status-toggle').on('change', function() {
+            if ($(this).val() === 'valid') { $('.cdl-class-field, .cdl-number-field').show(); }
+            else { $('.cdl-class-field, .cdl-number-field').hide(); }
+        });
+
+        $('.cargo-insurance-toggle').on('change', function() {
+            if ($(this).val() === '1') { $('.cargo-insurance-date').show(); }
+            else { $('.cargo-insurance-date').hide(); }
         });
 
         $(document).on('submit', 'form', function (e) {

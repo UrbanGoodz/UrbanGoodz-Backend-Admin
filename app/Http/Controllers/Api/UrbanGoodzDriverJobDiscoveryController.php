@@ -35,6 +35,15 @@ class UrbanGoodzDriverJobDiscoveryController extends Controller
         'pending_review', 'reviewing', 'quote_needed',
     ];
 
+    private const HEAVY_VEHICLE_TYPES = [
+        'box_truck', 'straight_truck', 'tractor_trailer_18_wheeler',
+        'flatbed_truck', 'tow_truck', 'refrigerated_truck', 'other_commercial_vehicle',
+    ];
+
+    private const CDL_REQUIRED_VEHICLE_TYPES = [
+        'tractor_trailer_18_wheeler', 'straight_truck', 'box_truck',
+    ];
+
     private function authDriver(Request $request): DeliveryMan
     {
         $driver = $request->user('delivery_man');
@@ -95,6 +104,56 @@ class UrbanGoodzDriverJobDiscoveryController extends Controller
         return null;
     }
 
+    private function checkVehicleTypeMatch(?string $required, ?string $driver): bool
+    {
+        if (!$required || !$driver) {
+            return false;
+        }
+
+        return $this->normalizeZone($required) === $this->normalizeZone($driver);
+    }
+
+    private function checkTrailerMatch(UrbanGoodzBusinessClientJob $job, DeliveryMan $driver): array
+    {
+        $matches = [];
+        $flags = [];
+
+        if (!empty($job->vehicle_type_needed) && $this->checkVehicleTypeMatch($job->vehicle_type_needed, $driver->vehicle_type)) {
+            $matches[] = 'vehicle_type_match';
+        }
+
+        if ($job->needs_liftgate && !$driver->has_liftgate) {
+            $flags[] = 'liftgate_required';
+        }
+
+        return ['matches' => $matches, 'flags' => $flags];
+    }
+
+    private function checkRouteTrailerMatch(UrbanGoodzDedicatedRoute $route, DeliveryMan $driver): array
+    {
+        $matches = [];
+        $flags = [];
+
+        if (!empty($route->vehicle_type_required) && $this->checkVehicleTypeMatch($route->vehicle_type_required, $driver->vehicle_type)) {
+            $matches[] = 'vehicle_type_match';
+        }
+
+        return ['matches' => $matches, 'flags' => $flags];
+    }
+
+    private function checkDriverQualifications(DeliveryMan $driver, ?string $vehicleType): array
+    {
+        $flags = [];
+
+        if (in_array($vehicleType, self::CDL_REQUIRED_VEHICLE_TYPES, true)) {
+            if (($driver->cdl_status ?? 'none') !== 'valid') {
+                $flags[] = 'cdl_required';
+            }
+        }
+
+        return $flags;
+    }
+
     private function normalizeBusinessJob(UrbanGoodzBusinessClientJob $job, DeliveryMan $driver): array
     {
         $zoneName = $this->businessJobZoneName($job);
@@ -102,22 +161,33 @@ class UrbanGoodzDriverJobDiscoveryController extends Controller
         $ageRestricted = false;
 
         $matchReasons = [];
+        $reviewFlags = [];
+
         if ($this->zoneMatch($zoneName, $driver->preferred_zones ?? [])) {
             $matchReasons[] = 'preferred_zone_match';
         }
-        if ($job->vehicle_type_needed && $driver->vehicle_type && $this->normalizeZone($job->vehicle_type_needed) === $this->normalizeZone($driver->vehicle_type)) {
-            $matchReasons[] = 'vehicle_type_match';
-        }
+
+        $vehicleResult = $this->checkTrailerMatch($job, $driver);
+        $matchReasons = array_merge($matchReasons, $vehicleResult['matches']);
+        $reviewFlags = array_merge($reviewFlags, $vehicleResult['flags']);
+
         if (in_array($job->job_type, $driver->preferred_work_types ?? [], true) || in_array($job->job_type, $driver->capability_tags ?? [], true)) {
             $matchReasons[] = 'work_type_match';
         }
+
+        $qualFlags = $this->checkDriverQualifications($driver, $job->vehicle_type_needed);
+        $reviewFlags = array_merge($reviewFlags, $qualFlags);
+
+        if ($requiresMedical && !$driver->has_medical_courier_training) {
+            $reviewFlags[] = 'medical_training_required';
+        }
+
         if ($job->needs_liftgate && $driver->has_liftgate) {
             $matchReasons[] = 'liftgate_match';
         }
 
-        $reviewFlags = [];
-        if ($requiresMedical && !$driver->has_medical_courier_training) {
-            $reviewFlags[] = 'medical_training_required';
+        if ($job->needs_liftgate && !$driver->has_liftgate) {
+            $reviewFlags[] = 'liftgate_required';
         }
 
         return [
@@ -147,6 +217,8 @@ class UrbanGoodzDriverJobDiscoveryController extends Controller
         $ageRestricted = (bool) ($pkg->age_restricted || $pkg->requires_id_verification);
 
         $matchReasons = [];
+        $reviewFlags = [];
+
         if ($this->zoneMatch($zoneName, $driver->preferred_zones ?? [])) {
             $matchReasons[] = 'preferred_zone_match';
         }
@@ -154,7 +226,6 @@ class UrbanGoodzDriverJobDiscoveryController extends Controller
             $matchReasons[] = 'work_type_match';
         }
 
-        $reviewFlags = [];
         if ($requiresMedical && !$driver->has_medical_courier_training) {
             $reviewFlags[] = 'medical_training_required';
         }
@@ -188,17 +259,22 @@ class UrbanGoodzDriverJobDiscoveryController extends Controller
         $ageRestricted = (bool) $route->contains_age_restricted_items;
 
         $matchReasons = [];
+        $reviewFlags = [];
+
         if ($route->pickup_location && $this->zoneMatch($route->pickup_location, $driver->preferred_zones ?? [])) {
             $matchReasons[] = 'preferred_zone_match';
         }
-        if ($route->vehicle_type_required && $driver->vehicle_type && $this->normalizeZone($route->vehicle_type_required) === $this->normalizeZone($driver->vehicle_type)) {
-            $matchReasons[] = 'vehicle_type_match';
-        }
+
+        $routeResult = $this->checkRouteTrailerMatch($route, $driver);
+        $matchReasons = array_merge($matchReasons, $routeResult['matches']);
+
+        $qualFlags = $this->checkDriverQualifications($driver, $route->vehicle_type_required);
+        $reviewFlags = array_merge($reviewFlags, $qualFlags);
+
         if (in_array($route->route_type, $driver->preferred_work_types ?? [], true)) {
             $matchReasons[] = 'work_type_match';
         }
 
-        $reviewFlags = [];
         if ($requiresMedical && !$driver->has_medical_courier_training) {
             $reviewFlags[] = 'medical_training_required';
         }

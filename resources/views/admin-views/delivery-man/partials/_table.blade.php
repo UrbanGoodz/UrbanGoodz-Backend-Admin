@@ -20,6 +20,22 @@
         <a class="deco-none" href="tel:{{$dm['phone']}}">{{$dm['phone']}}</a>
     </td>
     <td>
+        @php
+            $vtLabels = [
+                'car' => 'Car', 'suv' => 'SUV', 'pickup_truck' => 'Pickup Truck',
+                'cargo_van' => 'Cargo Van', 'passenger_van' => 'Passenger Van',
+                'sprinter_van' => 'Sprinter Van', 'box_truck' => 'Box Truck',
+                'straight_truck' => 'Straight Truck', 'bicycle' => 'Bicycle',
+                'motorcycle' => 'Motorcycle', 'scooter_moped' => 'Scooter/Moped',
+                'tractor_trailer_18_wheeler' => 'Tractor Trailer',
+                'flatbed_truck' => 'Flatbed Truck', 'tow_truck' => 'Tow Truck',
+                'refrigerated_truck' => 'Refrigerated Truck',
+                'other_commercial_vehicle' => 'Other Commercial',
+            ];
+        @endphp
+        <label class="text--title font-medium mb-0">{{ $vtLabels[$dm->vehicle_type] ?? $dm->vehicle_type ?? '-' }}</label>
+    </td>
+    <td>
         @if($dm->zone)
         <label class="text--title font-medium mb-0">{{$dm->zone->name}}</label>
         @else

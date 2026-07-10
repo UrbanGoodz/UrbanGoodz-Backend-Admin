@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'urban-goodz'], function () {
     Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
+    Route::get('driver/vehicle-options', 'Api\UrbanGoodzDriverCapabilityController@vehicleOptionsEndpoint');
 });
 
 Route::group(['prefix' => 'urban-goodz/discovery'], function () {
@@ -119,6 +120,8 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'auth:delivery_m
     Route::get('capability-profile', 'Api\UrbanGoodzDriverCapabilityController@profile');
     Route::get('capability-summary', 'Api\UrbanGoodzDriverCapabilityController@summary');
     Route::post('capability-profile/vehicle', 'Api\UrbanGoodzDriverCapabilityController@updateVehicle');
+    Route::post('capability-profile/trailer', 'Api\UrbanGoodzDriverCapabilityController@updateTrailer');
+    Route::post('capability-profile/commercial', 'Api\UrbanGoodzDriverCapabilityController@updateCommercial');
     Route::post('capability-profile/cargo', 'Api\UrbanGoodzDriverCapabilityController@updateCargo');
     Route::post('capability-profile/zones', 'Api\UrbanGoodzDriverCapabilityController@updateZones');
     Route::post('capability-profile/work-types', 'Api\UrbanGoodzDriverCapabilityController@updateWorkTypes');

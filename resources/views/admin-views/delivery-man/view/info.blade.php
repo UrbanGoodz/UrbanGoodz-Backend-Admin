@@ -364,7 +364,224 @@
         </div>
     </div>
 
+    @if ($deliveryMan->application_status == 'approved')
+    <div class="content container-fluid pt-0">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex gap-2 align-items-center mb-20">
+                    <h5 class="mb-0 fs-16 fw-bold">{{ translate('messages.Vehicle & Trailer Details') }}</h5>
+                </div>
+                <div class="row g-3">
+                    @php
+                        $vehicleTypeLabels = [
+                            'car' => 'Car', 'suv' => 'SUV', 'pickup_truck' => 'Pickup Truck',
+                            'cargo_van' => 'Cargo Van', 'passenger_van' => 'Passenger Van',
+                            'sprinter_van' => 'Sprinter Van', 'box_truck' => 'Box Truck',
+                            'straight_truck' => 'Straight Truck', 'bicycle' => 'Bicycle',
+                            'motorcycle' => 'Motorcycle', 'scooter_moped' => 'Scooter/Moped',
+                            'tractor_trailer_18_wheeler' => 'Tractor Trailer / 18-Wheeler',
+                            'flatbed_truck' => 'Flatbed Truck', 'tow_truck' => 'Tow Truck',
+                            'refrigerated_truck' => 'Refrigerated Truck',
+                            'other_commercial_vehicle' => 'Other Commercial Vehicle',
+                        ];
+                        $trailerTypeLabels = [
+                            'utility' => 'Utility', 'enclosed' => 'Enclosed', 'flatbed' => 'Flatbed',
+                            'car_hauler' => 'Car Hauler', 'gooseneck' => 'Gooseneck',
+                            'fifth_wheel' => 'Fifth Wheel', 'step_deck' => 'Step Deck',
+                            'lowboy' => 'Lowboy', 'refrigerated' => 'Refrigerated',
+                            'dry_van' => 'Dry Van', 'other' => 'Other',
+                        ];
+                        $hitchTypeLabels = [
+                            'ball' => 'Ball', 'pintle' => 'Pintle', 'gooseneck' => 'Gooseneck',
+                            'fifth_wheel' => 'Fifth Wheel', 'bumper_pull' => 'Bumper Pull',
+                            'pintle_hook' => 'Pintle Hook', 'other' => 'Other',
+                        ];
+                        $cdlClassLabels = ['A' => 'Class A', 'B' => 'Class B', 'C' => 'Class C', 'none' => 'None', 'not_applicable' => 'Not Applicable'];
+                        $cdlStatusLabels = ['valid' => 'Valid', 'expired' => 'Expired', 'pending' => 'Pending', 'suspended' => 'Suspended', 'none' => 'None'];
+                    @endphp
+                    <div class="col-lg-4">
+                        <div class="bg-light2 rounded p-3 h-100 d-flex flex-column gap-2">
+                            <div class="mb-1"><strong class="text-dark fs-14">{{ translate('messages.Vehicle_Type') }}</strong></div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('Type') }}</div>:
+                                <div class="text-dark fs-14 font-weight-bold">{{ $vehicleTypeLabels[$deliveryMan->vehicle_type] ?? $deliveryMan->vehicle_type ?? '-' }}</div>
+                            </div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('Registration Expiration') }}</div>:
+                                <div class="text-dark fs-14">{{ $deliveryMan->registration_expiration ? \Carbon\Carbon::parse($deliveryMan->registration_expiration)->format('M d, Y') : '-' }}</div>
+                            </div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('Insurance Expiration') }}</div>:
+                                <div class="text-dark fs-14">{{ $deliveryMan->insurance_expiration ? \Carbon\Carbon::parse($deliveryMan->insurance_expiration)->format('M d, Y') : '-' }}</div>
+                            </div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('Inspection Expiration') }}</div>:
+                                <div class="text-dark fs-14">{{ $deliveryMan->inspection_expiration ? \Carbon\Carbon::parse($deliveryMan->inspection_expiration)->format('M d, Y') : '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div class="col-lg-4">
+                        <div class="bg-light2 rounded p-3 h-100 d-flex flex-column gap-2">
+                            <div class="mb-1"><strong class="text-dark fs-14">{{ translate('Trailer Information') }}</strong></div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('Has Trailer') }}</div>:
+                                <div class="text-dark fs-14">
+                                    @if ($deliveryMan->has_trailer)
+                                        <span class="badge badge-soft-success">{{ translate('Yes') }}</span>
+                                    @else
+                                        <span class="badge badge-soft-secondary">{{ translate('No') }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                            @if ($deliveryMan->has_trailer)
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Trailer Type') }}</div>:
+                                    <div class="text-dark fs-14">{{ $trailerTypeLabels[$deliveryMan->trailer_type] ?? $deliveryMan->trailer_type ?? '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Length') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->trailer_length_feet ? $deliveryMan->trailer_length_feet . ' ft' : '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Width') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->trailer_width_feet ? $deliveryMan->trailer_width_feet . ' ft' : '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Capacity') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->trailer_capacity_lbs ? number_format($deliveryMan->trailer_capacity_lbs, 0) . ' lbs' : '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Hitch Type') }}</div>:
+                                    <div class="text-dark fs-14">{{ $hitchTypeLabels[$deliveryMan->hitch_type] ?? $deliveryMan->hitch_type ?? '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Plate Number') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->trailer_plate_number ?? '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Trailer Registration') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->trailer_registration_expiration ? \Carbon\Carbon::parse($deliveryMan->trailer_registration_expiration)->format('M d, Y') : '-' }}</div>
+                                </div>
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Trailer Insurance') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->trailer_insurance_expiration ? \Carbon\Carbon::parse($deliveryMan->trailer_insurance_expiration)->format('M d, Y') : '-' }}</div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="bg-light2 rounded p-3 h-100 d-flex flex-column gap-2">
+                            <div class="mb-1"><strong class="text-dark fs-14">{{ translate('Commercial Credentials') }}</strong></div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('CDL Status') }}</div>:
+                                <div class="text-dark fs-14">
+                                    @if ($deliveryMan->cdl_status && $deliveryMan->cdl_status !== 'none')
+                                        <span class="badge badge-soft-{{ $deliveryMan->cdl_status === 'valid' ? 'success' : ($deliveryMan->cdl_status === 'expired' ? 'warning' : 'danger') }}">
+                                            {{ $cdlStatusLabels[$deliveryMan->cdl_status] ?? $deliveryMan->cdl_status }}
+                                        </span>
+                                    @else
+                                        <span class="badge badge-soft-secondary">None</span>
+                                    @endif
+                                </div>
+                            </div>
+                            @if ($deliveryMan->cdl_class && $deliveryMan->cdl_class !== 'none')
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('CDL Class') }}</div>:
+                                    <div class="text-dark fs-14">{{ $cdlClassLabels[$deliveryMan->cdl_class] ?? $deliveryMan->cdl_class }}</div>
+                                </div>
+                            @endif
+                            @if ($deliveryMan->cdl_number)
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('CDL Number') }}</div>:
+                                    <div class="text-dark fs-14">{{ $deliveryMan->cdl_number }}</div>
+                                </div>
+                            @endif
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('DOT Number') }}</div>:
+                                <div class="text-dark fs-14">{{ $deliveryMan->dot_number ?? '-' }}</div>
+                            </div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('MC Number') }}</div>:
+                                <div class="text-dark fs-14">{{ $deliveryMan->mc_number ?? '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="bg-light2 rounded p-3 h-100 d-flex flex-column gap-2">
+                            <div class="mb-1"><strong class="text-dark fs-14">{{ translate('Capabilities') }}</strong></div>
+                            <div class="d-flex flex-wrap gap-2">
+                                @if ($deliveryMan->has_liftgate)
+                                    <span class="badge badge-soft-primary">{{ translate('Liftgate') }}</span>
+                                @endif
+                                @if ($deliveryMan->has_pallet_jack)
+                                    <span class="badge badge-soft-primary">{{ translate('Pallet Jack') }}</span>
+                                @endif
+                                @if ($deliveryMan->has_hazmat)
+                                    <span class="badge badge-soft-danger">{{ translate('Hazmat') }}</span>
+                                @endif
+                                @if ($deliveryMan->has_medical_courier_training)
+                                    <span class="badge badge-soft-success">{{ translate('Medical Courier') }}</span>
+                                @endif
+                                @if ($deliveryMan->has_cargo_insurance)
+                                    <span class="badge badge-soft-info">{{ translate('Cargo Insurance') }}</span>
+                                @endif
+                                @if ($deliveryMan->has_cooler_bag)
+                                    <span class="badge badge-soft-info">{{ translate('Cooler Bag') }}</span>
+                                @endif
+                                @if ($deliveryMan->has_cargo_space)
+                                    <span class="badge badge-soft-info">{{ translate('Cargo Space') }}</span>
+                                @endif
+                            </div>
+                            <div class="key-val-list-item d-flex gap-3 mt-2">
+                                <div class="text-title fs-14 identity__info">{{ translate('Max Payload') }}</div>:
+                                <div class="text-dark fs-14">{{ $deliveryMan->max_payload_lbs ? number_format($deliveryMan->max_payload_lbs, 0) . ' lbs' : '-' }}</div>
+                            </div>
+                            <div class="key-val-list-item d-flex gap-3">
+                                <div class="text-title fs-14 identity__info">{{ translate('Cargo Dimensions') }}</div>:
+                                <div class="text-dark fs-14">
+                                    @if ($deliveryMan->cargo_length_inches && $deliveryMan->cargo_width_inches && $deliveryMan->cargo_height_inches)
+                                        {{ number_format($deliveryMan->cargo_length_inches, 0) }}L x {{ number_format($deliveryMan->cargo_width_inches, 0) }}W x {{ number_format($deliveryMan->cargo_height_inches, 0) }}H in
+                                    @else
+                                        -
+                                    @endif
+                                </div>
+                            </div>
+                            @if ($deliveryMan->cargo_insurance_expiration)
+                                <div class="key-val-list-item d-flex gap-3">
+                                    <div class="text-title fs-14 identity__info">{{ translate('Cargo Insurance Exp.') }}</div>:
+                                    <div class="text-dark fs-14">{{ \Carbon\Carbon::parse($deliveryMan->cargo_insurance_expiration)->format('M d, Y') }}</div>
+                                </div>
+                            @endif
+                            @if (count($deliveryMan->capability_tags ?? []) > 0)
+                                <div class="mt-2">
+                                    <div class="text-title fs-14 identity__info mb-1">{{ translate('Tags') }}</div>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach ($deliveryMan->capability_tags as $tag)
+                                            <span class="badge badge-soft-dark">{{ ucwords(str_replace('_', ' ', $tag)) }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                            @if (count($deliveryMan->preferred_work_types ?? []) > 0)
+                                <div class="mt-2">
+                                    <div class="text-title fs-14 identity__info mb-1">{{ translate('Preferred Work Types') }}</div>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach ($deliveryMan->preferred_work_types as $wt)
+                                            <span class="badge badge-soft-primary">{{ ucwords(str_replace('_', ' ', $wt)) }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <div class="content container-fluid pt-0">
         <div class="card">

@@ -146,7 +146,7 @@
 @endsection
 
 @push('script_2')
-<script src="{{asset('public/assets/admin')}}/js/view-pages/dm-vehichle.js"></script>
+<script src="{{asset('public/assets/admin')}}/js/view-pages/dm-vehicle.js"></script>
 <script>
     "use strict";
         $('#vehicle-form').on('submit', function (e) {
