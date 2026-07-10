@@ -28,6 +28,8 @@ class TestEmailSender extends Mailable
      */
     public function build()
     {
-        return $this->view('email-templates.mail-tester');
+        return $this->from(config('mail.from.address'), config('mail.from.name'))
+            ->subject('Urban Goodz — Test Email')
+            ->view('email-templates.mail-tester');
     }
 }
