@@ -14,4 +14,9 @@ class UrbanGoodzCreatorProduct extends Model
     ];
 
     protected $casts = ['price' => 'decimal:2', 'is_active' => 'boolean', 'media_urls' => 'array'];
+
+    public function application()
+    {
+        return $this->belongsTo(UrbanGoodzCreatorApplication::class, 'creator_application_id');
+    }
 }
