@@ -111,11 +111,18 @@
                                     <div class="col-sm-12">
                                         <div class="form-group mb-0">
                                             <label class="form-label">{{ translate('OpenAI_API_Key') }}</label><br>
-                                            <input type="text"
+                                            @if(!empty($data['OPENAI_API_KEY_HAS_VALUE']))
+                                                <div class="mb-2 p-2 bg-light rounded">
+                                                    <code class="text-muted">{{ $data['OPENAI_API_KEY_MASKED'] ?? '' }}</code>
+                                                    <small class="text-muted ml-2">{{ translate('Leave blank to keep existing key') }}</small>
+                                                </div>
+                                            @endif
+                                            <input type="password"
                                                 placeholder="{{ translate('messages.Ex:') }} sk-proj-K0LhsdcbHJ......."
                                                 class="form-control" name="OPENAI_API_KEY"
-                                                value="{{ getEnvMode() != 'demo' ? $data['OPENAI_API_KEY'] ?? '' : '' }}"
-                                                required>
+                                                value="{{ getEnvMode() != 'demo' ? '' : '' }}"
+                                                autocomplete="off">
+                                            <small class="text-muted">{{ translate('Enter a new key to replace the existing one, or leave blank to keep current key.') }}</small>
                                         </div>
                                     </div>
 
@@ -125,13 +132,15 @@
                                             <input type="text"
                                                 placeholder="{{ translate('messages.Ex:') }} org-xxxxxxxxxxx"
                                                 class="form-control" name="OPENAI_ORGANIZATION"
-                                                value="{{ getEnvMode() != 'demo' ? $data['OPENAI_ORGANIZATION'] ?? '' : '' }}"
+                                                value="{{ getEnvMode() != 'demo' ? ($data['OPENAI_ORGANIZATION'] ?? '') : '' }}"
                                                 required>
                                         </div>
                                     </div>
 
                                     <div class="col-sm-12">
                                         <div class="btn--container justify-content-end">
+                                            <button type="button" id="test-connection-btn"
+                                                class="btn btn--secondary">{{ translate('Test Connection') }}</button>
                                             <button type="reset"
                                                 class="btn btn--reset">{{ translate('messages.reset') }}</button>
                                             <button type="{{ getEnvMode() != 'demo' ? 'submit' : 'button' }}"
@@ -198,4 +207,33 @@
     </div>
 @endsection
 @push('script_2')
+<script>
+$(document).ready(function () {
+    $('#test-connection-btn').on('click', function () {
+        const btn = $(this);
+        btn.prop('disabled', true).text('{{ translate('Testing...') }}');
+
+        $.ajax({
+            url: '{{ route('admin.business-settings.openAIConfigTest') }}',
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}'
+            },
+            success: function (res) {
+                if (res.success) {
+                    toastr.success(res.message);
+                } else {
+                    toastr.error(res.message);
+                }
+            },
+            error: function () {
+                toastr.error('{{ translate('Connection test failed') }}');
+            },
+            complete: function () {
+                btn.prop('disabled', false).text('{{ translate('Test Connection') }}');
+            }
+        });
+    });
+});
+</script>
 @endpush

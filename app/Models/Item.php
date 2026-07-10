@@ -45,6 +45,7 @@ class Item extends Model
         'rating_count' => 'integer',
         'unit_id' => 'integer',
         'is_halal' => 'integer',
+        'age_restricted' => 'integer',
     ];
 
     protected $appends = ['unit_type', 'image_full_url', 'images_full_url', 'video_full_url', 'video_size', 'video_preview_type', 'video_embed_url', 'video_preview_url', 'video_thumbnail_url', 'video_preview_modal_type', 'video_preview_modal_url', 'has_video_preview', 'has_video_source'];

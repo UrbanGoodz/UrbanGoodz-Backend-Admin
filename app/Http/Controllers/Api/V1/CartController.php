@@ -28,8 +28,11 @@ class CartController extends Controller
             $data->add_on_ids = json_decode($data->add_on_ids,true);
             $data->add_on_qtys = json_decode($data->add_on_qtys,true);
             $data->variation = json_decode($data->variation,true);
-			$data->item = Helpers::cart_product_data_formatting($data->item, $data->variation,$data->add_on_ids,
+            $rawItem = $data->item;
+            $ageRestricted = $rawItem instanceof \App\Models\Item && $rawItem->age_restricted;
+			$data->item = Helpers::cart_product_data_formatting($rawItem, $data->variation,$data->add_on_ids,
             $data->add_on_qtys, false, app()->getLocale());
+            $data->age_restricted = $ageRestricted;
 			return $data;
 		});
         return response()->json($carts, 200);

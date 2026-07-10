@@ -1237,131 +1237,255 @@
                                 <div class="pt-5">
                                     <h4>{{ translate('Urban Goodz Platform') }}</h4>
                                 </div>
-                                <div class="check--item-wrapper">
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_platform_core" class="form-check-input" id="urban_goodz_platform_core">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_platform_core">Platform Core</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_control_center" class="form-check-input" id="urban_goodz_control_center">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_control_center">Control Center</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_business_types" class="form-check-input" id="urban_goodz_business_types">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_business_types">Business Types</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_capabilities" class="form-check-input" id="urban_goodz_capabilities">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_capabilities">Capabilities</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_file_library" class="form-check-input" id="urban_goodz_file_library">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_file_library">File Library</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere" class="form-check-input" id="urban_goodz_order_anywhere">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_order_anywhere">Order Anywhere</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_fashion_fit" class="form-check-input" id="urban_goodz_fashion_fit">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_fashion_fit">Fashion Fit</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_ai_concierge" class="form-check-input" id="urban_goodz_ai_concierge">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_ai_concierge">AI Concierge</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_book_anything" class="form-check-input" id="urban_goodz_book_anything">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_book_anything">Book Anything</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_creator_commerce" class="form-check-input" id="urban_goodz_creator_commerce">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_creator_commerce">Creator Commerce</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_community" class="form-check-input" id="urban_goodz_community">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_community">Community</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_earn_money" class="form-check-input" id="urban_goodz_earn_money">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_earn_money">Earn Money</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_logistics" class="form-check-input" id="urban_goodz_logistics">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_logistics">Logistics</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_medical_courier" class="form-check-input" id="urban_goodz_medical_courier">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_medical_courier">Medical Courier</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_events" class="form-check-input" id="urban_goodz_events">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_events">Events</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_rentals" class="form-check-input" id="urban_goodz_rentals">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_rentals">Rentals (Car / Vehicle / Equipment)</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_plus" class="form-check-input" id="urban_goodz_plus">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_plus">Urban Goodz+</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_spotlight" class="form-check-input" id="urban_goodz_spotlight">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_spotlight">Black-Owned Spotlight</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_discovery" class="form-check-input" id="urban_goodz_discovery">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_discovery">Discovery</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_stylist_requests" class="form-check-input" id="urban_goodz_stylist_requests">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_stylist_requests">Stylist Requests</label>
-                                        </div>
-                                    </div>
-                                    <div class="check-item">
-                                        <div class="form-group form-check form--check">
-                                            <input type="checkbox" name="modules[]" value="urban_goodz_payments" class="form-check-input" id="urban_goodz_payments">
-                                            <label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_payments">Payments</label>
+                                <div class="shadow-cutom-box-xxl mb-20 p-3">
+                                    <div class="row g-3">
+                                        <div class="col-lg-12">
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Urban Goodz Command Center') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_command_center">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_command_center">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_view" class="form-check-input" id="urban_goodz_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_view">{{ translate('View Urban Goodz') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_dashboard" class="form-check-input" id="urban_goodz_dashboard"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_dashboard">{{ translate('Command Center Dashboard') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_files" class="form-check-input" id="urban_goodz_files"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_files">{{ translate('File Library') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_control_center" class="form-check-input" id="urban_goodz_control_center"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_control_center">{{ translate('Control Center') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_book_anything" class="form-check-input" id="urban_goodz_book_anything"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_book_anything">{{ translate('Book Anything') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_plus" class="form-check-input" id="urban_goodz_plus"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_plus">{{ translate('Urban Goodz+') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_spotlight" class="form-check-input" id="urban_goodz_spotlight"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="urban_goodz_spotlight">{{ translate('Black-Owned Spotlight') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Order Anywhere') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_order_anywhere">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_order_anywhere">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_view" class="form-check-input" id="ug_oa_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_view">{{ translate('View Orders') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_detail" class="form-check-input" id="ug_oa_detail"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_detail">{{ translate('View Order Detail') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_update_status" class="form-check-input" id="ug_oa_status"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_status">{{ translate('Update Status') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_assign_driver" class="form-check-input" id="ug_oa_assign"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_assign">{{ translate('Assign Driver') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_quote" class="form-check-input" id="ug_oa_quote"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_quote">{{ translate('Create Quote') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_capture_payment" class="form-check-input" id="ug_oa_capture"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_capture">{{ translate('Capture Payment') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_refund" class="form-check-input" id="ug_oa_refund"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_refund">{{ translate('Issue Refund') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_order_anywhere_notes" class="form-check-input" id="ug_oa_notes"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_oa_notes">{{ translate('Admin Notes') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Payments / Finance') }} <span class="text-danger">*</span></h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_payments">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_payments">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_payments_view" class="form-check-input" id="ug_pay_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_pay_view">{{ translate('View Payment Center') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_payment_ledgers_view" class="form-check-input" id="ug_pay_ledgers"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_pay_ledgers">{{ translate('View Ledgers') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_payment_splits_view" class="form-check-input" id="ug_pay_splits"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_pay_splits">{{ translate('View Payment Splits') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_refunds_manage" class="form-check-input" id="ug_refunds"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_refunds">{{ translate('Manage Refunds') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_financial_settings" class="form-check-input" id="ug_fin_settings"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_fin_settings">{{ translate('Financial Settings') }} <span class="text-danger">*</span></label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Rentals') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_rentals">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_rentals">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rentals_view" class="form-check-input" id="ug_rent_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_view">{{ translate('View Rentals Dashboard') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_assets_view" class="form-check-input" id="ug_rent_assets_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_assets_view">{{ translate('View Assets') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_assets_manage" class="form-check-input" id="ug_rent_assets_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_assets_mgmt">{{ translate('Manage Assets') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_bookings_view" class="form-check-input" id="ug_rent_book_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_book_view">{{ translate('View Bookings') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_bookings_manage" class="form-check-input" id="ug_rent_book_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_book_mgmt">{{ translate('Manage Bookings') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_deposits_manage" class="form-check-input" id="ug_rent_deposits"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_deposits">{{ translate('Manage Deposits') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_verification_manage" class="form-check-input" id="ug_rent_verify"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_verify">{{ translate('Manage Verification') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_inspections_manage" class="form-check-input" id="ug_rent_insp"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_insp">{{ translate('Manage Inspections') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_rental_damage_reports_manage" class="form-check-input" id="ug_rent_damage"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_rent_damage">{{ translate('Manage Damage Reports') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Vehicle Rentals') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_veh_rentals">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_veh_rentals">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_vehicle_rentals_view" class="form-check-input" id="ug_vr_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_vr_view">{{ translate('View Vehicle Rentals') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_vehicle_rentals_manage" class="form-check-input" id="ug_vr_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_vr_mgmt">{{ translate('Manage Vehicle Rentals') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_vehicle_availability_manage" class="form-check-input" id="ug_vr_avail"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_vr_avail">{{ translate('Manage Availability') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_vehicle_rates_manage" class="form-check-input" id="ug_vr_rates"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_vr_rates">{{ translate('Manage Rates') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_vehicle_pickup_return_manage" class="form-check-input" id="ug_vr_pickup"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_vr_pickup">{{ translate('Manage Pickup/Return') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_vehicle_damage_reports_manage" class="form-check-input" id="ug_vr_damage"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_vr_damage">{{ translate('Manage Damage Reports') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Fashion Fit') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_fashion">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_fashion">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_fashion_fit_view" class="form-check-input" id="ug_ff_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ff_view">{{ translate('View Fashion Fit') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_fashion_measurements_view" class="form-check-input" id="ug_ff_meas_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ff_meas_view">{{ translate('View Measurements') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_fashion_measurements_manage" class="form-check-input" id="ug_ff_meas_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ff_meas_mgmt">{{ translate('Manage Measurements') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_stylist_requests_view" class="form-check-input" id="ug_ff_stylist_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ff_stylist_view">{{ translate('View Stylist Requests') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_stylist_requests_manage" class="form-check-input" id="ug_ff_stylist_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ff_stylist_mgmt">{{ translate('Manage Stylist Requests') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_fashion_files_manage" class="form-check-input" id="ug_ff_files"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ff_files">{{ translate('Manage Fashion Files') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('AI Concierge') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_ai">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_ai">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_concierge_view" class="form-check-input" id="ug_ai_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_view">{{ translate('View AI Concierge') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_conversations_view" class="form-check-input" id="ug_ai_conv_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_conv_view">{{ translate('View Conversations') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_conversations_manage" class="form-check-input" id="ug_ai_conv_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_conv_mgmt">{{ translate('Manage Conversations') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_intents_view" class="form-check-input" id="ug_ai_intents_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_intents_view">{{ translate('View Intents') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_intents_manage" class="form-check-input" id="ug_ai_intents_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_intents_mgmt">{{ translate('Manage Intents') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_settings_view" class="form-check-input" id="ug_ai_settings_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_settings_view">{{ translate('View AI Settings') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_settings_manage" class="form-check-input" id="ug_ai_settings_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_settings_mgmt">{{ translate('Manage AI Settings') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_usage_view" class="form-check-input" id="ug_ai_usage"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_usage">{{ translate('View AI Usage') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_ai_copilot_use" class="form-check-input" id="ug_ai_copilot"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ai_copilot">{{ translate('Use AI Copilot') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Business Discovery / Marketplace') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_discovery">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_discovery">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_business_discovery_view" class="form-check-input" id="ug_bd_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_view">{{ translate('View Business Discovery') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_business_leads_view" class="form-check-input" id="ug_bd_leads_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_leads_view">{{ translate('View Business Leads') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_business_leads_manage" class="form-check-input" id="ug_bd_leads_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_leads_mgmt">{{ translate('Manage Business Leads') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_business_types_view" class="form-check-input" id="ug_bd_types_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_types_view">{{ translate('View Business Types') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_business_types_manage" class="form-check-input" id="ug_bd_types_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_types_mgmt">{{ translate('Manage Business Types') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_capabilities_view" class="form-check-input" id="ug_bd_caps_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_caps_view">{{ translate('View Capabilities') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_capabilities_manage" class="form-check-input" id="ug_bd_caps_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_caps_mgmt">{{ translate('Manage Capabilities') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_module_mapping_manage" class="form-check-input" id="ug_bd_mapping"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_bd_mapping">{{ translate('Manage Module Mapping') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Earn Money / Partners') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_earn">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_earn">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_earn_money_view" class="form-check-input" id="ug_em_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_em_view">{{ translate('View Earn Money') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_driver_opportunities_view" class="form-check-input" id="ug_em_driver_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_em_driver_view">{{ translate('View Driver Opportunities') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_driver_opportunities_manage" class="form-check-input" id="ug_em_driver_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_em_driver_mgmt">{{ translate('Manage Driver Opportunities') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_partner_applications_view" class="form-check-input" id="ug_em_partner_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_em_partner_view">{{ translate('View Partner Apps') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_partner_applications_manage" class="form-check-input" id="ug_em_partner_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_em_partner_mgmt">{{ translate('Manage Partner Apps') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Logistics / Medical Courier') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_logistics">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_logistics">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_logistics_view" class="form-check-input" id="ug_log_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_log_view">{{ translate('View Logistics') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_logistics_jobs_view" class="form-check-input" id="ug_log_jobs_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_log_jobs_view">{{ translate('View Logistics Jobs') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_logistics_jobs_manage" class="form-check-input" id="ug_log_jobs_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_log_jobs_mgmt">{{ translate('Manage Logistics Jobs') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_load_board_view" class="form-check-input" id="ug_log_load_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_log_load_view">{{ translate('View Load Board') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_load_board_manage" class="form-check-input" id="ug_log_load_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_log_load_mgmt">{{ translate('Manage Load Board') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_medical_courier_view" class="form-check-input" id="ug_mc_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_mc_view">{{ translate('View Medical Courier') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_medical_courier_jobs_view" class="form-check-input" id="ug_mc_jobs_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_mc_jobs_view">{{ translate('View Courier Jobs') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_medical_courier_jobs_manage" class="form-check-input" id="ug_mc_jobs_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_mc_jobs_mgmt">{{ translate('Manage Courier Jobs') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_medical_courier_custody_manage" class="form-check-input" id="ug_mc_custody"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_mc_custody">{{ translate('Manage Custody Logs') }} <span class="text-danger">*</span></label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-light2 rounded sub_slect_all_wrapper h-100 mb-20">
+                                                <div class="d-flex px-xxl-20 px-3 p-12 w-100 justify-content-between flex-wrap gap-2 border-bottom">
+                                                    <h5 class="input-label m-0 fs-14 title-clr text-capitalize">{{ translate('Events / Creators / Community') }}</h5>
+                                                    <div class="check-item check-item-custom pb-0 w-auto">
+                                                        <div class="form-group flex-row-reverse d-flex align-items-center form-check form--check pe-inline-start0 pe-inline-end0 m-0">
+                                                            <input type="checkbox" name="modules[]" value="" class="form-check-input mt-0 sub_select-all" id="ug_events">
+                                                            <label class="form-check-label pe-inline-end-24 fs-14 title-clr" for="ug_events">{{ translate('Select All') }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-xxl-20 p-3 d-flex flex-wrap gap-3">
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_events_view" class="form-check-input" id="ug_ev_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ev_view">{{ translate('View Events') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_events_manage" class="form-check-input" id="ug_ev_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_ev_mgmt">{{ translate('Manage Events') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_commerce_view" class="form-check-input" id="ug_cc_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_view">{{ translate('View Creator Commerce') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_applications_view" class="form-check-input" id="ug_cc_apps_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_apps_view">{{ translate('View Applications') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_applications_manage" class="form-check-input" id="ug_cc_apps"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_apps">{{ translate('Manage Applications') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_profiles_view" class="form-check-input" id="ug_cc_prof_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_prof_view">{{ translate('View Profiles') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_profiles_manage" class="form-check-input" id="ug_cc_prof_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_prof_mgmt">{{ translate('Manage Profiles') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_campaigns_view" class="form-check-input" id="ug_cc_camp_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_camp_view">{{ translate('View Campaigns') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_campaigns_manage" class="form-check-input" id="ug_cc_camp_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_camp_mgmt">{{ translate('Manage Campaigns') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_content_view" class="form-check-input" id="ug_cc_cont_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_cont_view">{{ translate('View Content') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_content_manage" class="form-check-input" id="ug_cc_cont_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_cont_mgmt">{{ translate('Manage Content') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_earnings_view" class="form-check-input" id="ug_cc_earn_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_earn_view">{{ translate('View Earnings') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_payouts_manage" class="form-check-input" id="ug_cc_payouts"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_payouts">{{ translate('Manage Payouts') }} <span class="text-danger">*</span></label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_leads_view" class="form-check-input" id="ug_cc_leads_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_leads_view">{{ translate('View Leads') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_leads_manage" class="form-check-input" id="ug_cc_leads_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_leads_mgmt">{{ translate('Manage Leads') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_reports_view" class="form-check-input" id="ug_cc_reports"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_reports">{{ translate('View Reports') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_creator_ai_tools_use" class="form-check-input" id="ug_cc_ai"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_cc_ai">{{ translate('Use AI Creator Tools') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_community_marketplace_view" class="form-check-input" id="ug_com_view"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_com_view">{{ translate('View Community Marketplace') }}</label></div></div>
+                                                    <div class="check-item m-0 p-0"><div class="form-group m-0 form-check form--check"><input type="checkbox" name="modules[]" value="urban_goodz_community_marketplace_manage" class="form-check-input" id="ug_com_mgmt"><label class="form-check-label ps--3 qcont text-dark opacity-70" for="ug_com_mgmt">{{ translate('Manage Community Marketplace') }}</label></div></div>
+                                                </div>
+                                            </div>
+
+                                            <p class="text-muted small mt-2"><span class="text-danger">*</span> {{ translate('Sensitive action — requires additional access') }}</p>
                                         </div>
                                     </div>
                                 </div>

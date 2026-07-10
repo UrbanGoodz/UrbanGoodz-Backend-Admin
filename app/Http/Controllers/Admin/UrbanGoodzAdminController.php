@@ -5,9 +5,26 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MeasurementRequest;
 use App\Models\OrderAnywhereRequest;
+use App\Models\UrbanGoodzAIConversation;
+use App\Models\UrbanGoodzAIIntent;
+use App\Models\UrbanGoodzBusinessType;
+use App\Models\UrbanGoodzCapability;
+use App\Models\UrbanGoodzCommunityPost;
+use App\Models\UrbanGoodzCreatorApplication;
+use App\Models\UrbanGoodzDiscoverySearch;
+use App\Models\UrbanGoodzEarnMoneyOpportunity;
+use App\Models\UrbanGoodzEvent;
 use App\Models\UrbanGoodzFile;
+use App\Models\UrbanGoodzLogisticsJob;
+use App\Models\UrbanGoodzMedicalCourierJob;
+use App\Models\UrbanGoodzOrderAnywhereCardRequest;
 use App\Models\UrbanGoodzPaymentLedger;
+use App\Models\UrbanGoodzRentalAsset;
+use App\Models\UrbanGoodzRentalBooking;
+use App\CentralLogics\Helpers;
+use App\Services\OrderAnywhereCardService;
 use App\Services\UrbanGoodzPaymentService;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -16,6 +33,11 @@ class UrbanGoodzAdminController extends Controller
 {
     public function index()
     {
+        if (auth('admin')->user()->role_id != 1 && !Helpers::module_permission_check('urban_goodz_dashboard')) {
+            Toastr::error(translate('messages.access_denied'));
+            return redirect()->route('admin.dashboard');
+        }
+
         return view('admin-views.urban-goodz.dashboard', [
             'sections' => $this->sections(),
             'counts' => $this->counts(),
@@ -61,11 +83,20 @@ class UrbanGoodzAdminController extends Controller
     {
         $record = OrderAnywhereRequest::with(['ledgers.splits', 'paymentSplits'])->findOrFail($id);
 
+        $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)->latest()->first();
+        $issuingMode = config('urban_goodz_payments.issuing.mode', 'sandbox');
+        $issuingProvider = config('urban_goodz_payments.issuing.provider', 'manual');
+
         return view('admin-views.urban-goodz.order-anywhere.show', [
             'request' => $record,
             'statuses' => OrderAnywhereRequest::STATUSES,
             'ledgers' => $record->ledgers()->latest()->get(),
             'splits' => $record->paymentSplits()->latest()->get(),
+            'paymentMode' => OrderAnywhereRequest::paymentMode(),
+            'liveMaxAmount' => OrderAnywhereRequest::liveMaxAmount(),
+            'cardRequest' => $cardRequest,
+            'issuingMode' => $issuingMode,
+            'issuingProvider' => $issuingProvider,
         ]);
     }
 
@@ -76,10 +107,12 @@ class UrbanGoodzAdminController extends Controller
         ]);
 
         $record = OrderAnywhereRequest::findOrFail($id);
-        $record->status = $data['status'];
+        $oldStatus = $record->status;
+        $record->transitionTo($data['status']);
         $record->reviewed_by = auth('admin')->id();
         $record->reviewed_at = now();
         $record->save();
+        $record->logStatusTransition($oldStatus, $data['status'], $request->input('reason'));
 
         return back()->with('success', translate('Order Anywhere status updated successfully.'));
     }
@@ -107,17 +140,28 @@ class UrbanGoodzAdminController extends Controller
         ]);
 
         $record = OrderAnywhereRequest::findOrFail($id);
+        $oldStatus = $record->status;
         $record->vendor_id = $data['vendor_id'] ?? $record->vendor_id;
         $record->assigned_delivery_man_id = $data['assigned_delivery_man_id'] ?? $record->assigned_delivery_man_id;
 
-        if (! empty($data['vendor_id']) && $record->status === 'pending_review') {
+        if (! empty($data['vendor_id']) && $record->isValidTransition($record->status, 'vendor_assigned')) {
             $record->status = 'vendor_assigned';
             $record->vendor_status = 'assigned';
+        }
+
+        if (! empty($data['assigned_delivery_man_id']) && $record->isValidTransition($record->status, 'approved')) {
+            $record->status = 'approved';
+            $record->driver_status = 'assigned';
+            $record->assigned_at = now();
         }
 
         $record->reviewed_by = auth('admin')->id();
         $record->reviewed_at = now();
         $record->save();
+
+        if ($oldStatus !== $record->status) {
+            $record->logStatusTransition($oldStatus, $record->status, 'Assignment updated');
+        }
 
         return back()->with('success', translate('Order Anywhere assignment updated successfully.'));
     }
@@ -138,6 +182,11 @@ class UrbanGoodzAdminController extends Controller
 
     public function orderAnywhereCapture($id, Request $request, UrbanGoodzPaymentService $payments)
     {
+        if (!Helpers::module_permission_check('urban_goodz_order_anywhere_capture_payment')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
             'captured_amount' => ['nullable', 'numeric', 'min:0.01'],
             'final_amount' => ['nullable', 'numeric', 'min:0.01'],
@@ -155,6 +204,11 @@ class UrbanGoodzAdminController extends Controller
 
     public function orderAnywhereRefund($id, Request $request, UrbanGoodzPaymentService $payments)
     {
+        if (!Helpers::module_permission_check('urban_goodz_order_anywhere_refund')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
             'refund_amount' => ['required', 'numeric', 'min:0.01'],
             'refund_reference' => ['nullable', 'string', 'max:255'],
@@ -166,12 +220,135 @@ class UrbanGoodzAdminController extends Controller
         return back()->with('success', translate('Order Anywhere refund ledger created successfully.'));
     }
 
+    public function orderAnywherePaymentLink($id, Request $request, UrbanGoodzPaymentService $payments)
+    {
+        $record = OrderAnywhereRequest::findOrFail($id);
+
+        $result = $payments->createPaymentLink($record, [
+            'amount' => $request->input('amount'),
+            'description' => $request->input('description'),
+        ]);
+
+        $mode = OrderAnywhereRequest::paymentMode();
+        $warning = $mode === 'live_controlled' ? ' [LIVE PAYMENT]' : '';
+
+        return back()->with('success', translate("Order Anywhere payment link created successfully{$warning}."));
+    }
+
+    // ─── Driver Card Request Actions ─────────────────────────────────────
+
+    public function orderAnywhereRequestCard($id, Request $request, OrderAnywhereCardService $cardService)
+    {
+        $data = $request->validate([
+            'spending_limit' => ['nullable', 'numeric', 'min:0.01'],
+            'card_type' => ['nullable', 'string', Rule::in(['virtual', 'physical'])],
+            'single_use' => ['nullable', 'boolean'],
+            'expiry_minutes' => ['nullable', 'integer', 'min:15', 'max:1440'],
+            'allowed_merchant' => ['nullable', 'string', 'max:255'],
+            'allowed_mccs' => ['nullable', 'array'],
+        ]);
+
+        $record = $cardService->createCardRequest(OrderAnywhereRequest::findOrFail($id), $data);
+
+        return back()->with('success', translate("Driver card requested successfully. Status: {$record->statusLabel()}."));
+    }
+
+    public function orderAnywhereFreezeCard($id, OrderAnywhereCardService $cardService)
+    {
+        $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
+            ->whereIn('card_status', ['issued', 'active', 'authorized'])
+            ->firstOrFail();
+
+        $cardService->freezeCard($cardRequest);
+
+        return back()->with('success', translate('Driver card frozen successfully.'));
+    }
+
+    public function orderAnywhereCancelCard($id, OrderAnywhereCardService $cardService)
+    {
+        $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
+            ->whereNotIn('card_status', ['cancelled', 'used', 'reconciled'])
+            ->firstOrFail();
+
+        $cardService->cancelCard($cardRequest);
+
+        return back()->with('success', translate('Driver card cancelled successfully.'));
+    }
+
+    public function orderAnywhereReconcileCard($id, Request $request, OrderAnywhereCardService $cardService)
+    {
+        $data = $request->validate([
+            'captured_amount' => ['nullable', 'numeric', 'min:0'],
+            'refunded_amount' => ['nullable', 'numeric', 'min:0'],
+            'merchant_name' => ['nullable', 'string', 'max:255'],
+            'receipt_total' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
+            ->whereIn('card_status', ['used', 'frozen'])
+            ->firstOrFail();
+
+        $cardService->reconcileCard($cardRequest, $data);
+
+        return back()->with('success', translate('Driver card reconciled successfully.'));
+    }
+
     public function payments(UrbanGoodzPaymentService $payments)
     {
         return view('admin-views.urban-goodz.payments.index', [
             'ledgers' => UrbanGoodzPaymentLedger::with('splits')->latest()->paginate(50),
             'readiness' => $payments->readiness(),
         ]);
+    }
+
+    public function paymentDetail(string $module)
+    {
+        $payments = app(UrbanGoodzPaymentService::class);
+        $readiness = $payments->readiness();
+        $featureKey = str_replace('-', '_', $module);
+
+        if (isset($readiness[$featureKey]) && $readiness[$featureKey] === 'no_payment_needed') {
+            $section = match ($module) {
+                'community-marketplace' => 'community',
+                default => $module,
+            };
+            return redirect()->route('admin.urban-goodz.modules.index', ['section' => $section]);
+        }
+
+        $moduleMap = [
+            'order-anywhere' => ['label' => 'Order Anywhere', 'feature' => 'order_anywhere', 'table' => 'order_anywhere_requests', 'route' => 'admin.urban-goodz.order-anywhere.index'],
+            'fashion-fit' => ['label' => 'Fashion Fit', 'feature' => 'fashion_fit', 'table' => 'urban_goodz_measurement_requests', 'route' => 'admin.urban-goodz.fashion-fit.index'],
+            'earn-money' => ['label' => 'Earn Money', 'feature' => 'earn_money', 'table' => 'urban_goodz_earn_money_opportunities', 'route' => 'admin.urban-goodz.modules.index', 'route_params' => ['section' => 'earn-money']],
+            'logistics' => ['label' => 'Logistics', 'feature' => 'logistics', 'table' => 'urban_goodz_logistics_jobs', 'route' => 'admin.urban-goodz.modules.index', 'route_params' => ['section' => 'logistics']],
+            'load-board' => ['label' => 'Load Board', 'feature' => 'load_board', 'table' => 'urban_goodz_logistics_jobs', 'route' => 'admin.urban-goodz.modules.index', 'route_params' => ['section' => 'logistics']],
+            'medical-courier' => ['label' => 'Medical Courier', 'feature' => 'medical_courier', 'table' => 'urban_goodz_medical_courier_jobs', 'route' => 'admin.urban-goodz.modules.index', 'route_params' => ['section' => 'medical-courier']],
+            'book-anything' => ['label' => 'Book Anything', 'feature' => 'book_anything', 'table' => 'urban_goodz_service_requests', 'route' => 'admin.urban-goodz.modules.index', 'route_params' => ['section' => 'book-anything']],
+            'rentals' => ['label' => 'Rentals', 'feature' => 'rentals', 'table' => 'urban_goodz_rental_bookings', 'route' => 'admin.urban-goodz.rentals.dashboard'],
+            'events' => ['label' => 'Events', 'feature' => 'events', 'table' => 'urban_goodz_events', 'route' => 'admin.urban-goodz.modules.index', 'route_params' => ['section' => 'events']],
+            'creator-commerce' => ['label' => 'Creator Commerce', 'feature' => 'creator_commerce', 'table' => 'urban_goodz_creator_earnings', 'route' => 'admin.urban-goodz.creator.dashboard'],
+        ];
+
+        $info = $moduleMap[$module] ?? abort(404);
+        $feature = $info['feature'];
+
+        $adminPageUrl = isset($info['route_params'])
+            ? route($info['route'], $info['route_params'])
+            : route($info['route']);
+
+        $totalRevenue = Schema::hasTable('urban_goodz_payment_ledgers')
+            ? UrbanGoodzPaymentLedger::where('feature', $feature)->where('event_type', 'capture')->sum('amount') : 0;
+        $totalRefunds = Schema::hasTable('urban_goodz_payment_ledgers')
+            ? UrbanGoodzPaymentLedger::where('feature', $feature)->where('event_type', 'refund')->sum('amount') : 0;
+        $pendingPayouts = Schema::hasTable('urban_goodz_payment_ledgers')
+            ? UrbanGoodzPaymentLedger::where('feature', $feature)->where('payment_status', 'pending')->count() : 0;
+        $ledgerCount = Schema::hasTable('urban_goodz_payment_ledgers')
+            ? UrbanGoodzPaymentLedger::where('feature', $feature)->count() : 0;
+        $recentLedgers = Schema::hasTable('urban_goodz_payment_ledgers')
+            ? UrbanGoodzPaymentLedger::where('feature', $feature)->with('splits')->latest()->take(20)->get() : collect();
+
+        $moduleReadiness = $readiness[$feature] ?? 'payment_pending';
+
+        return view('admin-views.urban-goodz.payments.detail', compact('info', 'module', 'totalRevenue', 'totalRefunds', 'pendingPayouts', 'ledgerCount', 'recentLedgers', 'moduleReadiness', 'adminPageUrl'));
     }
 
     public function fileLibrary(Request $request)
@@ -207,6 +384,21 @@ class UrbanGoodzAdminController extends Controller
         return [
             'order_anywhere' => Schema::hasTable('order_anywhere_requests') ? OrderAnywhereRequest::count() : 0,
             'fashion_fit' => Schema::hasTable('urban_goodz_measurement_requests') ? MeasurementRequest::count() : 0,
+            'payments' => Schema::hasTable('urban_goodz_payment_ledgers') ? UrbanGoodzPaymentLedger::count() : 0,
+            'rental_assets' => Schema::hasTable('urban_goodz_rental_assets') ? UrbanGoodzRentalAsset::count() : 0,
+            'rental_bookings' => Schema::hasTable('urban_goodz_rental_bookings') ? UrbanGoodzRentalBooking::count() : 0,
+            'ai_conversations' => Schema::hasTable('urban_goodz_ai_conversations') ? UrbanGoodzAIConversation::count() : 0,
+            'ai_intents' => Schema::hasTable('urban_goodz_ai_intents') ? UrbanGoodzAIIntent::count() : 0,
+            'business_types' => Schema::hasTable('urban_goodz_business_types') ? UrbanGoodzBusinessType::count() : 0,
+            'capabilities' => Schema::hasTable('urban_goodz_capabilities') ? UrbanGoodzCapability::count() : 0,
+            'logistics_jobs' => Schema::hasTable('urban_goodz_logistics_jobs') ? UrbanGoodzLogisticsJob::count() : 0,
+            'medical_courier_jobs' => Schema::hasTable('urban_goodz_medical_courier_jobs') ? UrbanGoodzMedicalCourierJob::count() : 0,
+            'events' => Schema::hasTable('urban_goodz_events') ? UrbanGoodzEvent::count() : 0,
+            'earn_opportunities' => Schema::hasTable('urban_goodz_earn_money_opportunities') ? UrbanGoodzEarnMoneyOpportunity::count() : 0,
+            'creator_applications' => Schema::hasTable('urban_goodz_creator_applications') ? UrbanGoodzCreatorApplication::count() : 0,
+            'community_posts' => Schema::hasTable('urban_goodz_community_posts') ? UrbanGoodzCommunityPost::count() : 0,
+            'discovery_searches' => Schema::hasTable('urban_goodz_discovery_searches') ? UrbanGoodzDiscoverySearch::count() : 0,
+            'business_clients' => Schema::hasTable('urban_goodz_business_clients') ? \App\Models\UrbanGoodzBusinessClient::count() : 0,
         ];
     }
 
@@ -214,91 +406,148 @@ class UrbanGoodzAdminController extends Controller
     {
         return [
             'order-anywhere' => [
-                'title' => 'Order Anywhere Requests',
+                'title' => 'Order Anywhere',
                 'url' => route('admin.urban-goodz.order-anywhere.index'),
-                'status' => 'DB-backed',
-                'table' => 'order_anywhere_requests',
-                'customer_api' => 'POST /api/v1/order-anywhere/requests',
-                'admin_workflow' => 'List, detail, status, notes, driver assignment fields',
-                'notes' => 'Converted from temporary JSON to Eloquent and SQL table.',
+                'status' => 'Live',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'List, detail, status, notes, assign driver, quote, capture payment, refund.',
             ],
             'payments' => [
                 'title' => 'Payment Center',
                 'url' => route('admin.urban-goodz.payments.index'),
-                'status' => 'Payment-ready',
-                'table' => 'urban_goodz_payment_ledgers, urban_goodz_payment_splits',
-                'customer_api' => 'Feature-specific payment actions',
-                'admin_workflow' => 'Ledger, splits, refunds, readiness',
-                'notes' => 'Reusable Urban Goodz payment accounting layer.',
+                'status' => 'Live',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Ledger, splits, refunds, readiness, financial settings.',
             ],
             'fashion-fit' => [
                 'title' => 'Fashion Fit',
                 'url' => route('admin.urban-goodz.fashion-fit.index'),
-                'status' => 'Partially DB-backed',
-                'table' => 'urban_goodz_measurement_requests',
-                'customer_api' => 'GET/POST /api/v1/urban-goodz/fashion/* and /api/v1/urban-goodz/fashion/measurements/*',
-                'admin_workflow' => 'Existing measurement/stylist request list; detail route needs view completion.',
-                'notes' => 'Measurement requests are real DB records. Separate profile/photo-guide/bid tables are not present.',
+                'status' => 'Live',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Measurement requests, stylist requests, measurement profiles, fashion files.',
             ],
-            'earn-money' => $this->missingSection('earn-money', 'Earn Money', 'urban_goodz_earn_money_opportunities, urban_goodz_earn_money_applications', 'GET /api/v1/urban-goodz/earn-money/opportunities'),
-            'logistics' => $this->missingSection('logistics', 'Logistics Jobs', 'urban_goodz_logistics_jobs', 'GET /api/v1/urban-goodz/logistics/jobs'),
-            'load-board' => $this->missingSection('load-board', 'Load Board', 'urban_goodz_load_board_loads', 'GET /api/v1/urban-goodz/load-board/loads'),
-            'medical-courier' => $this->missingSection('medical-courier', 'Medical Courier', 'urban_goodz_medical_courier_jobs, urban_goodz_medical_courier_custody_logs', 'GET /api/v1/urban-goodz/medical-courier/jobs'),
-            'book-anything' => $this->missingSection('book-anything', 'Book Anything', 'urban_goodz_service_requests, urban_goodz_service_providers, urban_goodz_appointments', 'GET /api/v1/urban-goodz/book-anything/records'),
             'rentals' => [
                 'title' => 'Rentals',
                 'url' => route('admin.urban-goodz.section', 'rentals'),
-                'status' => 'Existing 6amMart rental module plus Urban Goodz admin gap',
-                'table' => 'Rental module tables; car_rental, vehicle_rental, equipment_rental business types mapped',
-                'customer_api' => 'Existing rental module APIs/routes where enabled',
-                'admin_workflow' => 'Car, vehicle, and equipment rental types with capabilities: inventory, calendar, rates, deposits, verification, pickup/return, damage reports.',
-                'notes' => 'Rental business types: car_rental, vehicle_rental, equipment_rental, rental_provider. Capabilities include vehicle-inventory, rental-inventory, rental-calendar, daily-rate-management, hourly-rate-management, deposit-management, renter-verification, pickup-return-management, damage-report-management.',
+                'status' => 'Live',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Car, vehicle, equipment rental assets, bookings, deposits, verification, inspections, damage reports.',
             ],
             'vehicle-rentals' => [
                 'title' => 'Vehicle Rentals',
                 'url' => route('admin.urban-goodz.section', 'vehicle-rentals'),
-                'status' => 'Urban Goodz business type + capability mapping active',
-                'table' => 'urban_goodz_business_types (car_rental, vehicle_rental), urban_goodz_capabilities, urban_goodz_business_type_default_capabilities',
-                'customer_api' => 'Existing rental module APIs; Urban Goodz /api/v1/urban-goodz/...',
-                'admin_workflow' => 'Vehicle rental-specific (car_rental, vehicle_rental) management via existing 6amMart rental module. Use admin/rental/* routes for trip/provider/vehicle management.',
-                'notes' => 'vehicle_rental adds hourly-rate-management; car_rental does not have hourly rates.',
+                'status' => 'Live',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Vehicle-specific rental management, availability, rates, pickup/return, damage reports.',
             ],
-            'events' => $this->missingSection('events', 'Events', 'urban_goodz_events and related event opportunity tables', 'GET /api/v1/urban-goodz/events'),
+            'ai-concierge' => [
+                'title' => 'AI Concierge',
+                'url' => route('admin.urban-goodz.ai-concierge.intents'),
+                'status' => 'Live',
+                'revenue' => false,
+                'reportable' => true,
+                'admin_workflow' => 'Conversations, intents, AI settings, usage analytics, AI copilot.',
+            ],
+            'business-types' => [
+                'title' => 'Business Types',
+                'url' => route('admin.urban-goodz.business-types.index'),
+                'status' => 'Live',
+                'revenue' => false,
+                'reportable' => false,
+                'admin_workflow' => 'Manage business type definitions, module mapping, capabilities assignment.',
+            ],
+            'capabilities' => [
+                'title' => 'Capabilities',
+                'url' => route('admin.urban-goodz.capabilities.index'),
+                'status' => 'Live',
+                'revenue' => false,
+                'reportable' => false,
+                'admin_workflow' => 'Manage capability definitions for business types.',
+            ],
+            'files' => [
+                'title' => 'File Library',
+                'url' => route('admin.urban-goodz.files.index'),
+                'status' => 'Live',
+                'revenue' => false,
+                'reportable' => false,
+                'admin_workflow' => 'Upload, categorize, and manage files across Urban Goodz modules.',
+            ],
+            'earn-money' => [
+                'title' => 'Earn Money',
+                'url' => route('admin.urban-goodz.section', 'earn-money'),
+                'status' => 'DB-Backed',
+                'table' => 'urban_goodz_earn_money_opportunities',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Driver/partner opportunities, applications, partner management.',
+            ],
+            'logistics' => [
+                'title' => 'Logistics',
+                'url' => route('admin.urban-goodz.section', 'logistics'),
+                'status' => 'Admin Workflow Pending',
+                'table' => 'urban_goodz_logistics_jobs',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Logistics jobs, load board, dispatching.',
+            ],
+            'medical-courier' => [
+                'title' => 'Medical Courier',
+                'url' => route('admin.urban-goodz.section', 'medical-courier'),
+                'status' => 'Admin Workflow Pending',
+                'table' => 'urban_goodz_medical_courier_jobs',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Courier jobs, custody logs, chain-of-custody tracking.',
+            ],
+            'events' => [
+                'title' => 'Events',
+                'url' => route('admin.urban-goodz.section', 'events'),
+                'status' => 'Admin Workflow Pending',
+                'table' => 'urban_goodz_events',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Event management, ticketing, promotions.',
+            ],
             'creators' => [
-                'title' => 'Creator Commerce / Reels',
-                'url' => route('admin.urban-goodz.section', 'creators'),
-                'status' => 'Mixed: Reels module exists; creator commerce tester JSON exists',
-                'table' => 'Reels module tables; creator commerce SQL tables not present',
-                'customer_api' => 'Modules/ReelsModule API and /api/v1/urban-goodz/creator-commerce/*',
-                'admin_workflow' => 'Reels admin exists under /admin/reels when module is enabled; creator applications still need SQL workflow.',
-                'notes' => 'Creator tester JSON should be migrated in a later sprint like Order Anywhere.',
+                'title' => 'Creator Commerce',
+                'url' => route('admin.urban-goodz.creator.dashboard'),
+                'status' => 'Live',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Applications, profiles, campaigns, shoppable content, earnings, business leads, event promotions, AI tools, reports.',
             ],
-            'community' => $this->missingSection('community', 'Community Marketplace', 'urban_goodz_community_posts, urban_goodz_community_comments, urban_goodz_community_marketplace_items', 'Not found'),
+            'community' => [
+                'title' => 'Community Marketplace',
+                'url' => route('admin.urban-goodz.section', 'community'),
+                'status' => 'DB-Backed',
+                'table' => 'urban_goodz_community_posts',
+                'revenue' => false,
+                'reportable' => false,
+                'admin_workflow' => 'Community posts, comments, marketplace listings.',
+            ],
             'discovery' => [
-                'title' => 'Discovery / Search Capture',
+                'title' => 'Business Discovery',
                 'url' => route('admin.urban-goodz.section', 'discovery'),
-                'status' => 'API exists, DB missing',
-                'table' => 'urban_goodz_discovery_* tables not present',
-                'customer_api' => 'POST /api/v1/urban-goodz/discovery/search-capture',
-                'admin_workflow' => 'Needs DB persistence before admin can show captured searches.',
-                'notes' => 'Current controller logs searches only.',
+                'status' => 'API Connected, Admin Workflow Pending',
+                'table' => 'urban_goodz_discovery_searches',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Search captures, business leads, demand signals. API: search-capture, entities, opportunities. Needs admin management UI.',
             ],
-            'ask' => $this->missingSection('ask', 'Ask Urban Goodz', 'urban_goodz_ask_requests', 'Not found'),
-            'plus' => $this->missingSection('plus', 'Urban Goodz+', 'urban_goodz_plus_memberships, urban_goodz_plus_requests, urban_goodz_plus_benefits', 'Not found'),
-            'spotlight' => $this->missingSection('spotlight', 'Black-Owned Spotlight', 'urban_goodz_spotlight_businesses, urban_goodz_spotlight_requests', 'Not found'),
-        ];
-    }
-
-    private function missingSection(string $key, string $title, string $table, string $api): array
-    {
-        return [
-            'title' => $title,
-            'url' => route('admin.urban-goodz.section', $key),
-            'status' => 'Admin/backend DB missing',
-            'table' => $table,
-            'customer_api' => $api,
-            'admin_workflow' => 'Direct admin status page added; real list/detail workflow requires SQL table and persistence controller.',
-            'notes' => 'Checked in this sprint and not marked fully integrated.',
+            'business-clients' => [
+                'title' => 'Business Clients',
+                'url' => route('admin.urban-goodz.business-clients.index'),
+                'status' => 'Live',
+                'table' => 'urban_goodz_business_clients',
+                'revenue' => true,
+                'reportable' => true,
+                'admin_workflow' => 'Company registration, employee management, location management, document verification, job creation, quoting, driver assignment, invoicing.',
+            ],
         ];
     }
 }

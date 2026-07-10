@@ -88,7 +88,7 @@ class HomeController extends Controller
             'fixed_header_sub_title' => (isset($settings['fixed_header_sub_title']))  ? $settings['fixed_header_sub_title'] : null,
             'fixed_module_title' => (isset($settings['fixed_module_title']))  ? $settings['fixed_module_title'] : null,
             'fixed_module_sub_title' => (isset($settings['fixed_module_sub_title']))  ? $settings['fixed_module_sub_title'] : null,
-            'fixed_referal_title' => (isset($settings['fixed_referal_title']))  ? $settings['fixed_referal_title'] : null,
+            'fixed_referal_title' => (isset($settings['fixed_referal_title']))  ? str_replace(['Earn point by', 'Earn point'], 'Earn Points With Urban Goodz', $settings['fixed_referal_title']) : null,
             'fixed_referal_sub_title' => (isset($settings['fixed_referal_sub_title']))  ? $settings['fixed_referal_sub_title'] : null,
             'fixed_newsletter_title' => (isset($settings['fixed_newsletter_title']))  ? $settings['fixed_newsletter_title'] : null,
             'fixed_newsletter_sub_title' => (isset($settings['fixed_newsletter_sub_title']))  ? $settings['fixed_newsletter_sub_title'] : null,
@@ -529,6 +529,7 @@ class HomeController extends Controller
             softwareType: $request->get('software_type', base64_decode('cHJvZHVjdA=='))
         );
         $this->updateActivationConfig(app: 'admin_panel', response: $response);
-        return redirect(url('/'));
+        $intended = session()->pull('activation_intended_url', url('/login/admin'));
+        return redirect($intended);
     }
 }

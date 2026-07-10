@@ -10,9 +10,9 @@ Route::group(['prefix' => 'urban-goodz/discovery'], function () {
     Route::post('search-capture', 'Api\V1\UrbanGoodzDiscoveryController@searchCapture');
     Route::get('entities', 'Api\V1\UrbanGoodzDiscoveryController@entities');
     Route::get('entities/{id}', 'Api\V1\UrbanGoodzDiscoveryController@entity');
-    Route::post('entities/{id}/action', 'Api\V1\UrbanGoodzDiscoveryController@entityAction');
+    Route::post('entities/{id}/action', 'Api\V1\UrbanGoodzDiscoveryController@entityAction')->middleware('auth:api');
     Route::get('opportunities', 'Api\V1\UrbanGoodzDiscoveryController@opportunities');
-    Route::post('opportunities/{id}/accept', 'Api\V1\UrbanGoodzDiscoveryController@acceptOpportunity');
+    Route::post('opportunities/{id}/accept', 'Api\V1\UrbanGoodzDiscoveryController@acceptOpportunity')->middleware('auth:api');
 });
 
 Route::group(['prefix' => 'urban-goodz/earn-money'], function () {
@@ -64,6 +64,11 @@ Route::group(['prefix' => 'urban-goodz/fashion'], function () {
     Route::post('stylist-requests/{id}/status', 'Api\V1\UrbanGoodzFashionMeasurementController@updateStylistRequestStatus');
 });
 
+Route::post('adyen/webhook', 'Api\V1\AdyenWebhookController@handle');
+
+Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@handle')
+    ->where('provider', 'adyen|stripe');
+
 Route::group(['prefix' => 'order-anywhere'], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereTesterController@store');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereTesterController@show');
@@ -74,6 +79,7 @@ Route::group(['prefix' => 'order-anywhere'], function () {
     Route::post('admin/requests/{record}/status', 'Api\V1\OrderAnywhereTesterController@updateStatus');
     Route::post('admin/requests/{record}/notes', 'Api\V1\OrderAnywhereTesterController@addNotes');
     Route::post('admin/requests/{record}/assign-driver', 'Api\V1\OrderAnywhereTesterController@assignDriver');
+    Route::post('admin/requests/{record}/payment-link', 'Api\V1\OrderAnywhereTesterController@createPaymentLink');
     Route::post('vendor/requests/{record}/update', 'Api\V1\OrderAnywhereTesterController@vendorUpdate');
     Route::get('driver/available', 'Api\V1\OrderAnywhereTesterController@driverAvailable');
     Route::post('driver/{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
@@ -92,6 +98,60 @@ Route::group(['prefix' => 'urban-goodz/files'], function () {
 Route::group(['prefix' => 'urban-goodz/ai-concierge'], function () {
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
+});
+
+// Driver API - dedicated routes, package scanning, earnings, payouts
+Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'auth:delivery_man'], function () {
+    Route::get('routes', 'Api\UrbanGoodzDriverApiController@assignedRoutes');
+    Route::get('routes/{routeId}', 'Api\UrbanGoodzDriverApiController@routeDetail');
+    Route::post('routes/{routeId}/started', 'Api\UrbanGoodzDriverApiController@routeStarted');
+    Route::post('routes/{routeId}/completed', 'Api\UrbanGoodzDriverApiController@routeCompleted');
+    Route::post('routes/{routeId}/scan-pickup', 'Api\UrbanGoodzDriverApiController@scanPickup');
+    Route::post('routes/{routeId}/scan-dropoff', 'Api\UrbanGoodzDriverApiController@scanDropoff');
+    Route::post('routes/{routeId}/scan-exception', 'Api\UrbanGoodzDriverApiController@scanException');
+    Route::post('routes/{routeId}/age-verify', 'Api\UrbanGoodzDriverApiController@submitAgeVerification');
+    Route::post('routes/{routeId}/age-refuse', 'Api\UrbanGoodzDriverApiController@submitAgeRefusal');
+    Route::get('routes/{routeId}/age-status', 'Api\UrbanGoodzDriverApiController@checkAgeStatus');
+    Route::get('earnings', 'Api\UrbanGoodzDriverApiController@earnings');
+    Route::post('payout-request', 'Api\UrbanGoodzDriverApiController@requestPayout');
+    Route::get('payout-history', 'Api\UrbanGoodzDriverApiController@payoutHistory');
+    // Driver capability and vehicle profile
+    Route::get('capability-profile', 'Api\UrbanGoodzDriverCapabilityController@profile');
+    Route::get('capability-summary', 'Api\UrbanGoodzDriverCapabilityController@summary');
+    Route::post('capability-profile/vehicle', 'Api\UrbanGoodzDriverCapabilityController@updateVehicle');
+    Route::post('capability-profile/cargo', 'Api\UrbanGoodzDriverCapabilityController@updateCargo');
+    Route::post('capability-profile/zones', 'Api\UrbanGoodzDriverCapabilityController@updateZones');
+    Route::post('capability-profile/work-types', 'Api\UrbanGoodzDriverCapabilityController@updateWorkTypes');
+    Route::post('capability-profile/tags', 'Api\UrbanGoodzDriverCapabilityController@updateTags');
+    Route::post('capability-profile/availability', 'Api\UrbanGoodzDriverCapabilityController@updateAvailability');
+
+    // Driver job discovery (read-only discovery of available work)
+    Route::get('job-discovery', 'Api\UrbanGoodzDriverJobDiscoveryController@index');
+    Route::get('job-discovery/summary', 'Api\UrbanGoodzDriverJobDiscoveryController@summary');
+    Route::get('job-discovery/{type}/{id}', 'Api\UrbanGoodzDriverJobDiscoveryController@detail');
+
+    // Driver dispatch notifications (read-only inbox over existing notification system)
+    Route::get('dispatch-notifications', 'Api\UrbanGoodzDriverDispatchNotificationController@index');
+    Route::get('dispatch-notifications/unread-count', 'Api\UrbanGoodzDriverDispatchNotificationController@unreadCount');
+    Route::post('dispatch-notifications/read-all', 'Api\UrbanGoodzDriverDispatchNotificationController@readAll');
+    Route::post('dispatch-notifications/{notificationId}/read', 'Api\UrbanGoodzDriverDispatchNotificationController@markRead');
+    Route::post('dispatch-notifications/{notificationId}/dismiss', 'Api\UrbanGoodzDriverDispatchNotificationController@dismiss');
+
+    // Business courier jobs for driver
+    Route::get('business-jobs', 'Api\UrbanGoodzDriverBusinessCourierController@assignedJobs');
+    Route::get('business-jobs/{jobId}', 'Api\UrbanGoodzDriverBusinessCourierController@jobDetail');
+    Route::post('business-jobs/{jobId}/accept', 'Api\UrbanGoodzDriverBusinessCourierController@acceptJob');
+    Route::post('business-jobs/{jobId}/start', 'Api\UrbanGoodzDriverBusinessCourierController@startJob');
+    Route::post('business-jobs/{jobId}/pickup', 'Api\UrbanGoodzDriverBusinessCourierController@markPickup');
+    Route::post('business-jobs/{jobId}/delivery', 'Api\UrbanGoodzDriverBusinessCourierController@markDelivery');
+    Route::post('business-jobs/{jobId}/proof-pickup', 'Api\UrbanGoodzDriverBusinessCourierController@submitPickupProof');
+    Route::post('business-jobs/{jobId}/proof-delivery', 'Api\UrbanGoodzDriverBusinessCourierController@submitDeliveryProof');
+    Route::post('business-jobs/{jobId}/exception', 'Api\UrbanGoodzDriverBusinessCourierController@reportException');
+
+    // Driver Order Anywhere purchase card
+    Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
+    Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');
+    Route::post('order-anywhere/{requestId}/purchase-card/complete', 'Api\V1\UrbanGoodzDriverPurchaseCardController@completePurchase');
 });
 
 Route::group(['prefix' => 'urban-goodz/creator-commerce'], function () {

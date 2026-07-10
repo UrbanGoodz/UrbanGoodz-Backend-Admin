@@ -58,7 +58,7 @@ class UrbanGoodzDiscoveryController extends Controller
 
         // Check if there is an exact or similar match in active stores
         $storeMatch = \App\Models\Store::where('name', 'LIKE', "%{$query}%")->first();
-        $sourcedMatch = UrbanGoodzSourcedBusiness::where('name', 'LIKE', "%{$query}%")->first();
+        $sourcedMatch = UrbanGoodzSourcedBusiness::where('name', 'LIKE', "%{$query}%")->where('admin_review_status', 'approved')->first();
 
         // Update or create demand signal
         $signal = $this->ingestion->updateDemandSignals([
@@ -134,9 +134,9 @@ class UrbanGoodzDiscoveryController extends Controller
     public function entities(Request $request)
     {
         $entities = UrbanGoodzSourcedBusiness::with(['products', 'images'])
+            ->where('admin_review_status', 'approved')
             ->when($request->input('city'), fn($q, $city) => $q->where('city', $city))
             ->when($request->input('onboarding_status'), fn($q, $status) => $q->where('onboarding_status', $status))
-            ->when($request->input('admin_review_status'), fn($q, $status) => $q->where('admin_review_status', $status))
             ->when($request->input('module_id'), fn($q, $mid) => $q->where('module_id', $mid))
             ->when($request->input('is_black_owned'), fn($q, $bo) => $q->where('is_black_owned', $bo))
             ->latest()
@@ -153,7 +153,7 @@ class UrbanGoodzDiscoveryController extends Controller
      */
     public function entity($id)
     {
-        $entity = UrbanGoodzSourcedBusiness::with(['products', 'images'])->findOrFail($id);
+        $entity = UrbanGoodzSourcedBusiness::with(['products', 'images'])->where('admin_review_status', 'approved')->findOrFail($id);
 
         return response()->json([
             'success' => true,

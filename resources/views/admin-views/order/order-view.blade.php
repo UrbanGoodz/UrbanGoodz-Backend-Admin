@@ -2767,8 +2767,8 @@
             let map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
                 center: {
-                    lat: {{ isset($order->store) ? $order->store->latitude : '23.757989' }},
-                    lng: {{ isset($order->store) ? $order->store->longitude : '90.360587' }}
+                    lat: {{ isset($order->store) ? $order->store->latitude : '29.7604' }},
+                    lng: {{ isset($order->store) ? $order->store->longitude : '-95.3698' }}
                 },
                 mapId: mapId,
             });

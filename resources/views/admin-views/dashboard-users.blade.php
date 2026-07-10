@@ -519,8 +519,8 @@
         @php($default_location = \App\Models\BusinessSetting::where('key', 'default_location')->first())
         @php($default_location = $default_location->value ? json_decode($default_location->value, true) : 0)
         var myLatlng = {
-            lat: {{ $default_location ? $default_location['lat'] : '23.757989' }},
-            lng: {{ $default_location ? $default_location['lng'] : '90.360587' }}
+            lat: {{ $default_location ? $default_location['lat'] : '29.7604' }},
+            lng: {{ $default_location ? $default_location['lng'] : '-95.3698' }}
             };
         var dmbounds = new google.maps.LatLngBounds(null);
         const mapId = "{{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()->value }}"
@@ -592,8 +592,8 @@
         @php($default_location = \App\Models\BusinessSetting::where('key', 'default_location')->first())
         @php($default_location = $default_location->value ? json_decode($default_location->value, true) : 0)
         var myLatlng = {
-            lat: {{ $default_location ? $default_location['lat'] : '23.757989' }},
-            lng: {{ $default_location ? $default_location['lng'] : '90.360587' }}
+            lat: {{ $default_location ? $default_location['lat'] : '29.7604' }},
+            lng: {{ $default_location ? $default_location['lng'] : '-95.3698' }}
             };
         var riderBounds = new google.maps.LatLngBounds(null);
         const mapId = "{{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()->value }}"

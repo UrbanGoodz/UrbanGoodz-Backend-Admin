@@ -37,8 +37,338 @@
         </div>
         <!-- End Page Header -->
 
-        <!-- Stats -->
+        <!-- Urban Goodz Command Center -->
         <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-header-title">{{ translate('Urban Goodz Command Center') }}</h3>
+                <span class="badge badge-soft-primary">{{ translate('Platform Operations') }}</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">{{ translate('Manage business clients, orders, routes, drivers, vendors, creators, payments, and platform operations.') }}</p>
+
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <a href="{{ route('admin.urban-goodz.business-clients.index') }}" class="btn btn-primary btn-sm">{{ translate('Business Clients') }}</a>
+                    <a href="{{ route('admin.urban-goodz.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Command Center') }}</a>
+                    <a href="{{ route('admin.urban-goodz.payments.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Payment Center') }}</a>
+                    <a href="{{ route('admin.urban-goodz.dedicated-routes.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Dedicated Routes') }}</a>
+                    <a href="{{ route('admin.urban-goodz.driver-payouts.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Driver Payouts') }}</a>
+                    <a href="{{ route('admin.urban-goodz.creator.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Creator Space') }}</a>
+                    <a href="{{ url('/business/login') }}" class="btn btn-outline-secondary btn-sm" target="_blank">{{ translate('Business Portal Login') }}</a>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.business-clients.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Business Clients') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['business_clients_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="order--card h-100">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Business Portal Users') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['business_portal_users_count'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.dedicated-routes.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Dedicated Routes') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['dedicated_routes_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="order--card h-100">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Route Packages') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['route_packages_count'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.driver-earnings.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Driver Earnings') }}</h6>
+                                <span class="card-title text-success">{{ $ugData['driver_earnings_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.driver-payouts.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Driver Payouts') }}</h6>
+                                <span class="card-title text-warning">{{ $ugData['driver_payouts_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.order-anywhere.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Order Anywhere') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['order_anywhere_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Payment Center') }}</h6>
+                                <span class="card-title text-primary">{{ $ugData['payment_ledgers_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.creator.dashboard') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Creator Space') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['creator_applications_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.fashion-fit.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Fashion Fit') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['fashion_fit_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.ai-concierge.conversations') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('AI Concierge') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['ai_conversations_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'discovery') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Discovery Searches') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['discovery_searches_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'logistics') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Logistics') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['logistics_jobs_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'medical-courier') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Medical Courier') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['medical_courier_jobs_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="order--card h-100">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Load Board') }}</h6>
+                                <span class="badge badge-soft-warning">{{ translate('Workflow Pending') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Total Revenue') }}</h6>
+                                <span class="card-title text-success">{{ \App\CentralLogics\Helpers::format_currency($ugData['total_revenue'] ?? 0) }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Pending Refunds') }} <span class="text-danger">*</span></h6>
+                                <span class="card-title text-danger">{{ $ugData['pending_refunds'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Urban Goodz Command Center -->
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4 class="card-header-title">{{ translate('Urban Goodz Revenue Command Center') }}</h4>
+                <span class="badge badge-soft-primary">{{ translate('Marketplace Expansion') }}</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">{{ translate('Monitor marketplace expansion, Order Anywhere, rentals, services, creator commerce, logistics, medical courier, AI demand, and partner revenue.') }}</p>
+                <div class="row g-3">
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Total Revenue') }}</h6>
+                                <span class="card-title text-success">
+                                    {{ \App\CentralLogics\Helpers::format_currency($ugData['total_revenue'] ?? 0) }}
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.order-anywhere.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Order Anywhere') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['order_anywhere_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Payment Ledgers') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['payment_ledgers_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'rentals') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Rental Bookings') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['rental_bookings_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'rentals') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Rental Assets') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['rental_assets_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.fashion-fit.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Fashion Fit') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['fashion_fit_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.ai-concierge.conversations') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('AI Conversations') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['ai_conversations_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'logistics') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Logistics Jobs') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['logistics_jobs_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'medical-courier') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Medical Courier Jobs') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['medical_courier_jobs_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'events') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Events') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['events_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.creator.dashboard') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Creator Commerce') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['creator_applications_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.creator.campaigns') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Creator Campaigns') }}</h6>
+                                <span class="card-title text-warning">{{ $ugData['creator_campaigns_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.creator.earnings') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Creator Revenue') }}</h6>
+                                <span class="card-title text-success">{{ \App\CentralLogics\Helpers::format_currency($ugData['creator_revenue'] ?? 0) }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.creator.leads') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Business Leads') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['creator_business_leads_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Pending Refunds') }} <span class="text-danger">*</span></h6>
+                                <span class="card-title text-danger">{{ $ugData['pending_refunds'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.business-clients.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Business Clients') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['business_clients_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'earn-money') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Earn Opportunities') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['earn_opportunities_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'community') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Community Posts') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['community_posts_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.section', 'discovery') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Discovery Searches') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['discovery_searches_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legacy Marketplace Metrics -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="card-header-title">{{ translate('Legacy Marketplace Metrics') }}</h5>
+            </div>
             <div class="card-body pt-0">
                 <div class="d-flex flex-wrap align-items-center justify-content-end">
                     <div class="status-filter-wrap">
@@ -62,33 +392,33 @@
                     <div class="col-sm-6 col-lg-3">
                         <div class="__dashboard-card-2">
                             <img src="{{asset('/public/assets/admin/img/dashboard/food/items.svg')}}" alt="dashboard/grocery">
-                            <h6 class="name">Items</h6>
-                            <h3 class="count">33,451</h3>
-                            <div class="subtxt">12 newly added</div>
+                            <h6 class="name">{{ translate('Catalog Items') }}</h6>
+                            <h3 class="count">{{ $data['total_items'] ?? 0 }}</h3>
+                            <div class="subtxt">{{ $data['new_items'] ?? 0 }} {{ translate('newly added') }}</div>
                         </div>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <div class="__dashboard-card-2">
                             <img src="{{asset('/public/assets/admin/img/dashboard/food/orders.svg')}}" alt="dashboard/grocery">
-                            <h6 class="name">Orders</h6>
-                            <h3 class="count">30M+</h3>
-                            <div class="subtxt">12 newly added</div>
+                            <h6 class="name">{{ translate('Marketplace Orders') }}</h6>
+                            <h3 class="count">{{ $data['total_orders'] ?? 0 }}</h3>
+                            <div class="subtxt">{{ $data['new_orders'] ?? 0 }} {{ translate('newly added') }}</div>
                         </div>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <div class="__dashboard-card-2">
                             <img src="{{asset('/public/assets/admin/img/dashboard/food/stores.svg')}}" alt="dashboard/grocery">
-                            <h6 class="name">Grocery Stores</h6>
-                            <h3 class="count">556</h3>
-                            <div class="subtxt">12 newly added</div>
+                            <h6 class="name">{{ translate('Vendors / Providers') }}</h6>
+                            <h3 class="count">{{ $data['total_stores'] ?? 0 }}</h3>
+                            <div class="subtxt">{{ $data['new_stores'] ?? 0 }} {{ translate('newly added') }}</div>
                         </div>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <div class="__dashboard-card-2">
                             <img src="{{asset('/public/assets/admin/img/dashboard/food/customers.svg')}}" alt="dashboard/grocery">
-                            <h6 class="name">Customers</h6>
-                            <h3 class="count">1M+</h3>
-                            <div class="subtxt">566 newly added</div>
+                            <h6 class="name">{{ translate('Customers') }}</h6>
+                            <h3 class="count">{{ $data['total_customers'] ?? 0 }}</h3>
+                            <div class="subtxt">{{ $data['new_customers'] ?? 0 }} {{ translate('newly added') }}</div>
                         </div>
                     </div>
                     <div class="col-12">
@@ -214,28 +544,36 @@
         <div class="row g-2">
             <div class="col-lg-8 col--xl-8">
                 <div class="card h-100">
-                    <div class="card-body">
+                    <div class="card-body" id="sales-chart-section">
                         <div class="d-flex flex-wrap justify-content-between align-items-center __gap-12px">
-                            <div class="__gross-amount">
-                                <h6>$855.8K</h6>
-                                <span>Gross Sale</span>
+                            <div class="__gross-amount" id="gross_sale">
+                                <h6>{{\App\CentralLogics\Helpers::format_currency(array_sum($total_sell))}}</h6>
+                                <span>{{ translate('messages.Gross Sale') }}</span>
                             </div>
                             <div class="chart--label __chart-label p-0 move-left-100 ml-auto">
                                 <span class="indicator chart-bg-2"></span>
                                 <span class="info">
-                                    Sale (2022)
+                                    {{ translate('sale') }} ({{ date("Y") }})
                                 </span>
                             </div>
-                            <select class="custom-select border-0 text-center w-auto ml-auto">
-                                <option>
-                                    {{translate('This Month')}}
-                                </option>
-                                <option>
-                                    {{translate('This Year')}}
-                                </option>
+                            <select class="custom-select border-0 text-center w-auto ml-auto commission_overview_stats_update" name="commission_overview">
+                                <option
+                                value="this_year" {{$params['commission_overview'] == 'this_year'?'selected':''}}>
+                                {{translate('This year')}}
+                            </option>
+                                <option
+                                value="this_month" {{$params['commission_overview'] == 'this_month'?'selected':''}}>
+                                {{translate('This month')}}
+                            </option>
+                                <option
+                                value="this_week" {{$params['commission_overview'] == 'this_week'?'selected':''}}>
+                                {{translate('This week')}}
+                            </option>
                             </select>
                         </div>
-                        <div id="grow-sale-chart"></div>
+                        <div id="commission-overview-board">
+                            <div id="grow-sale-chart"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -346,6 +684,7 @@
             </div>
 
         </div>
+
         @else
         <!-- Page Header -->
         <div class="page-header">
@@ -413,38 +752,48 @@
         chart = new ApexCharts(document.querySelector("#dognut-pie"), options);
         chart.render();
 
-    options = {
-          series: [{
-          name: 'Gross Sale',
-          data: [60, 40, 80, 31, 42, 109, 100, 50, 30, 80, 65, 35]
-        }],
-          chart: {
-          height: 350,
-          type: 'area',
-          toolbar: {
-            show:false
-        }
-        },
-        dataLabels: {
-          enabled: false
-        },
-        stroke: {
-          curve: 'smooth',
-          width: 2,
-        },
-        fill: {
-            type: 'gradient',
-            colors: ['#76ffcd'],
-        },
-        xaxis: {
-        //   type: 'datetime',
-          categories: ["{{ translate('Jan') }}", "{{ translate('Feb') }}", "{{ translate('Mar') }}", "{{ translate('Apr') }}", "{{ translate('May') }}", "{{ translate('Jun') }}", "{{ translate('Jul') }}", "{{ translate('Aug') }}", "{{ translate('Sep') }}", "{{ translate('Oct') }}", "{{ translate('Nov') }}", "{{ translate('Dec') }}" ]
-        },
-        tooltip: {
-          x: {
-            format: 'dd/MM/yy HH:mm'
-          },
-        },
+        options = {
+            series: [{
+                name: '{{ translate('Gross Sale') }}',
+                data: [{{ implode(",",$total_sell) }}]
+            },{
+                name: '{{ translate('Admin Comission') }}',
+                data: [{{ implode(",",$commission) }}]
+            },{
+                name: '{{ translate('Delivery Comission') }}',
+                data: [{{ implode(",",$delivery_commission) }}]
+            }],
+            chart: {
+                height: 350,
+                type: 'area',
+                toolbar: {
+                    show:false
+                },
+                colors: ['#76ffcd','#ff6d6d', '#005555'],
+            },
+            colors: ['#76ffcd','#ff6d6d', '#005555'],
+            dataLabels: {
+                enabled: false,
+                colors: ['#76ffcd','#ff6d6d', '#005555'],
+            },
+            stroke: {
+                curve: 'smooth',
+                width: 2,
+                colors: ['#76ffcd','#ff6d6d', '#005555'],
+            },
+            fill: {
+                type: 'gradient',
+                colors: ['#76ffcd','#ff6d6d', '#005555'],
+            },
+            xaxis: {
+                //   type: 'datetime',
+                categories: [{!! implode(",",$label) !!}]
+            },
+            tooltip: {
+                x: {
+                    format: 'dd/MM/yy HH:mm'
+                },
+            },
         };
 
         chart = new ApexCharts(document.querySelector("#grow-sale-chart"), options);
@@ -542,6 +891,36 @@
                 }
             });
         })
+
+        $('.commission_overview_stats_update').on('change', function (){
+            let type = $(this).val();
+            commission_overview_stats_update(type);
+        })
+
+        function commission_overview_stats_update(type) {
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.post({
+                url: '{{route('admin.dashboard-stats.commission-overview')}}',
+                data: {
+                    commission_overview: type
+                },
+                beforeSend: function () {
+                    $('#loading').show()
+                },
+                success: function (data) {
+                    insert_param('commission_overview',type);
+                    $('#commission-overview-board').html(data.view)
+                    $('#gross_sale').html(data.gross_sale)
+                },
+                complete: function () {
+                    $('#loading').hide()
+                }
+            });
+        }
 
         function insert_param(key, value) {
             key = encodeURIComponent(key);

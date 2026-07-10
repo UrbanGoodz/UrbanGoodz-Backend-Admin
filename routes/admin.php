@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DeliveryMan\DeliveryManController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\BusinessSettingsController;
+use App\Http\Controllers\Admin\UrbanGoodzAdminController;
 
 
 Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
@@ -63,7 +64,126 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         //dashboard
         Route::get('/', 'DashboardController@dashboard')->name('dashboard');
 
-        Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_platform_core']], function () {
+        Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
+            Route::group(['prefix' => 'creator-commerce', 'as' => 'creator.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzCreatorController@dashboard')->name('dashboard');
+                Route::get('applications', 'UrbanGoodz\UrbanGoodzCreatorController@applications')->name('applications');
+                Route::get('applications/{id}', 'UrbanGoodz\UrbanGoodzCreatorController@applicationShow')->name('applications.show');
+                Route::post('applications/{id}/status', 'UrbanGoodz\UrbanGoodzCreatorController@applicationUpdateStatus')->name('applications.status');
+                Route::get('profiles', 'UrbanGoodz\UrbanGoodzCreatorController@profiles')->name('profiles');
+                Route::get('profiles/{id}', 'UrbanGoodz\UrbanGoodzCreatorController@profileShow')->name('profiles.show');
+                Route::post('profiles/{id}/update', 'UrbanGoodz\UrbanGoodzCreatorController@profileUpdate')->name('profiles.update');
+                Route::get('campaigns', 'UrbanGoodz\UrbanGoodzCreatorController@campaigns')->name('campaigns');
+                Route::get('campaigns/create', 'UrbanGoodz\UrbanGoodzCreatorController@campaignCreate')->name('campaigns.create');
+                Route::post('campaigns', 'UrbanGoodz\UrbanGoodzCreatorController@campaignStore')->name('campaigns.store');
+                Route::get('campaigns/{id}', 'UrbanGoodz\UrbanGoodzCreatorController@campaignShow')->name('campaigns.show');
+                Route::post('campaigns/{id}/update', 'UrbanGoodz\UrbanGoodzCreatorController@campaignUpdate')->name('campaigns.update');
+                Route::post('campaigns/{id}/assign', 'UrbanGoodz\UrbanGoodzCreatorController@campaignAssignCreator')->name('campaigns.assign');
+                Route::get('content', 'UrbanGoodz\UrbanGoodzCreatorController@content')->name('content');
+                Route::get('content/{id}', 'UrbanGoodz\UrbanGoodzCreatorController@contentShow')->name('content.show');
+                Route::post('content/{id}/status', 'UrbanGoodz\UrbanGoodzCreatorController@contentUpdateStatus')->name('content.status');
+                Route::get('earnings', 'UrbanGoodz\UrbanGoodzCreatorController@earnings')->name('earnings');
+                Route::get('earnings/{id}/approve', 'UrbanGoodz\UrbanGoodzCreatorController@earningsApprove')->name('earnings.approve');
+                Route::get('earnings/{id}/paid', 'UrbanGoodz\UrbanGoodzCreatorController@earningsMarkPaid')->name('earnings.paid');
+                Route::get('leads', 'UrbanGoodz\UrbanGoodzCreatorController@leads')->name('leads');
+                Route::post('leads/{id}/status', 'UrbanGoodz\UrbanGoodzCreatorController@leadsUpdateStatus')->name('leads.status');
+                Route::get('event-promotions', 'UrbanGoodz\UrbanGoodzCreatorController@eventPromotions')->name('event-promotions');
+                Route::post('event-promotions/{id}/status', 'UrbanGoodz\UrbanGoodzCreatorController@eventPromotionsUpdateStatus')->name('event-promotions.status');
+                Route::get('reports', 'UrbanGoodz\UrbanGoodzCreatorController@reports')->name('reports');
+                Route::get('ai-tools', 'UrbanGoodz\UrbanGoodzCreatorController@aiTools')->name('ai-tools');
+                Route::post('ai-tools/generate', 'UrbanGoodz\UrbanGoodzCreatorController@aiGenerate')->name('ai-tools.generate');
+            });
+
+            Route::group(['prefix' => 'business-clients', 'as' => 'business-clients.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzBusinessClientController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzBusinessClientController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzBusinessClientController@edit')->name('edit');
+                Route::post('{id}', 'UrbanGoodz\UrbanGoodzBusinessClientController@update')->name('update');
+                Route::post('{id}/approve', 'UrbanGoodz\UrbanGoodzBusinessClientController@approve')->name('approve');
+                Route::post('{id}/suspend', 'UrbanGoodz\UrbanGoodzBusinessClientController@suspend')->name('suspend');
+                Route::post('{id}/reactivate', 'UrbanGoodz\UrbanGoodzBusinessClientController@reactivate')->name('reactivate');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzBusinessClientController@destroy')->name('destroy');
+
+                Route::get('{clientId}/jobs', 'UrbanGoodz\UrbanGoodzBusinessClientController@jobs')->name('jobs');
+                Route::get('{clientId}/jobs/{jobId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@jobShow')->name('job-show');
+                Route::post('{clientId}/jobs/{jobId}/status', 'UrbanGoodz\UrbanGoodzBusinessClientController@jobUpdateStatus')->name('job-status');
+                Route::post('{clientId}/jobs/{jobId}/assign-driver', 'UrbanGoodz\UrbanGoodzBusinessClientController@jobAssignDriver')->name('job-assign-driver');
+                Route::post('{clientId}/jobs/{jobId}/quote', 'UrbanGoodz\UrbanGoodzBusinessClientController@jobQuote')->name('job-quote');
+
+                Route::group(['prefix' => '{clientId}/users', 'as' => 'users.'], function () {
+                    Route::get('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@users')->name('index');
+                    Route::get('create', 'UrbanGoodz\UrbanGoodzBusinessClientController@userCreate')->name('create');
+                    Route::post('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@userStore')->name('store');
+                    Route::get('{userId}/edit', 'UrbanGoodz\UrbanGoodzBusinessClientController@userEdit')->name('edit');
+                    Route::post('{userId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@userUpdate')->name('update');
+                    Route::delete('{userId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@userDestroy')->name('destroy');
+                });
+
+                Route::group(['prefix' => '{clientId}/locations', 'as' => 'locations.'], function () {
+                    Route::get('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@locations')->name('index');
+                    Route::get('create', 'UrbanGoodz\UrbanGoodzBusinessClientController@locationCreate')->name('create');
+                    Route::post('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@locationStore')->name('store');
+                    Route::get('{locationId}/edit', 'UrbanGoodz\UrbanGoodzBusinessClientController@locationEdit')->name('edit');
+                    Route::post('{locationId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@locationUpdate')->name('update');
+                    Route::delete('{locationId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@locationDestroy')->name('destroy');
+                });
+
+                Route::group(['prefix' => '{clientId}/documents', 'as' => 'documents.'], function () {
+                    Route::get('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@documents')->name('index');
+                    Route::post('upload', 'UrbanGoodz\UrbanGoodzBusinessClientController@documentUpload')->name('upload');
+                    Route::get('{documentId}/download', 'UrbanGoodz\UrbanGoodzBusinessClientController@documentDownload')->name('download');
+                    Route::delete('{documentId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@documentDestroy')->name('destroy');
+                });
+            });
+
+            Route::group(['prefix' => 'dedicated-routes', 'as' => 'dedicated-routes.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@show')->name('show');
+                Route::post('{id}/update', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@update')->name('update');
+                Route::post('{id}/assign-driver', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@assignDriver')->name('assign-driver');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@destroy')->name('destroy');
+                Route::get('{id}/optimize', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@optimize')->name('optimize');
+                Route::get('{id}/packages', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packages')->name('packages');
+                Route::post('packages/store', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageStore')->name('package-store');
+                Route::post('packages/bulk-store', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageBulkStore')->name('package-bulk-store');
+                Route::get('{routeId}/packages/{packageId}', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageShow')->name('package-show');
+                Route::post('{routeId}/packages/{packageId}/update-status', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageUpdateStatus')->name('package-update-status');
+                Route::get('{routeId}/packages/{packageId}/scans', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageScans')->name('package-scans');
+                Route::get('{id}/report', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@report')->name('report');
+                Route::get('{id}/export-report', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@exportReport')->name('export-report');
+            });
+
+            Route::group(['prefix' => 'manifests', 'as' => 'manifests.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzManifestController@index')->name('index');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzManifestController@show')->name('show');
+            });
+
+            Route::group(['prefix' => 'age-compliance', 'as' => 'age-compliance.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzAgeComplianceController@index')->name('index');
+                Route::get('verifications/{id}', 'UrbanGoodz\UrbanGoodzAgeComplianceController@show')->name('show');
+                Route::post('verifications/{id}/review', 'UrbanGoodz\UrbanGoodzAgeComplianceController@review')->name('review');
+                Route::get('packages', 'UrbanGoodz\UrbanGoodzAgeComplianceController@packages')->name('packages');
+                Route::get('packages/{id}', 'UrbanGoodz\UrbanGoodzAgeComplianceController@packageShow')->name('packages.show');
+                Route::get('orders', 'UrbanGoodz\UrbanGoodzAgeComplianceController@orders')->name('orders');
+                Route::get('items', 'UrbanGoodz\UrbanGoodzAgeComplianceController@items')->name('items');
+            });
+
+            Route::group(['prefix' => 'driver-payouts', 'as' => 'driver-payouts.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverPayouts')->name('index');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverPayoutShow')->name('show');
+                Route::post('{id}/approve', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverPayoutApprove')->name('approve');
+                Route::post('{id}/pay', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverPayoutPay')->name('pay');
+                Route::post('{id}/reject', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverPayoutReject')->name('reject');
+            });
+
+            Route::group(['prefix' => 'driver-earnings', 'as' => 'driver-earnings.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverEarnings')->name('index');
+            });
+
             Route::get('/', 'UrbanGoodzAdminController@index')->name('index');
             Route::get('order-anywhere', 'UrbanGoodzAdminController@orderAnywhere')->name('order-anywhere.index');
             Route::get('order-anywhere/{id}', 'UrbanGoodzAdminController@orderAnywhereShow')->name('order-anywhere.show');
@@ -73,7 +193,23 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::put('order-anywhere/{id}/quote', 'UrbanGoodzAdminController@orderAnywhereQuote')->name('order-anywhere.quote');
             Route::put('order-anywhere/{id}/capture', 'UrbanGoodzAdminController@orderAnywhereCapture')->name('order-anywhere.capture');
             Route::put('order-anywhere/{id}/refund', 'UrbanGoodzAdminController@orderAnywhereRefund')->name('order-anywhere.refund');
+            Route::post('order-anywhere/{id}/payment-link', 'UrbanGoodzAdminController@orderAnywherePaymentLink')->name('order-anywhere.payment-link');
+            Route::post('order-anywhere/{id}/request-card', 'UrbanGoodzAdminController@orderAnywhereRequestCard')->name('order-anywhere.request-card');
+            Route::post('order-anywhere/{id}/freeze-card', 'UrbanGoodzAdminController@orderAnywhereFreezeCard')->name('order-anywhere.freeze-card');
+            Route::post('order-anywhere/{id}/cancel-card', 'UrbanGoodzAdminController@orderAnywhereCancelCard')->name('order-anywhere.cancel-card');
+            Route::post('order-anywhere/{id}/reconcile-card', 'UrbanGoodzAdminController@orderAnywhereReconcileCard')->name('order-anywhere.reconcile-card');
             Route::get('payments', 'UrbanGoodzAdminController@payments')->name('payments.index');
+            Route::get('payments/order-anywhere', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('order-anywhere'); })->name('payments.order-anywhere');
+            Route::get('payments/fashion-fit', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('fashion-fit'); })->name('payments.fashion-fit');
+            Route::get('payments/earn-money', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('earn-money'); })->name('payments.earn-money');
+            Route::get('payments/logistics', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('logistics'); })->name('payments.logistics');
+            Route::get('payments/load-board', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('load-board'); })->name('payments.load-board');
+            Route::get('payments/medical-courier', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('medical-courier'); })->name('payments.medical-courier');
+            Route::get('payments/book-anything', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('book-anything'); })->name('payments.book-anything');
+            Route::get('payments/rentals', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('rentals'); })->name('payments.rentals');
+            Route::get('payments/events', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('events'); })->name('payments.events');
+            Route::get('payments/creator-commerce', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('creator-commerce'); })->name('payments.creator-commerce');
+            Route::get('payments/{module}', 'UrbanGoodzAdminController@paymentDetail')->name('payments.module');
             Route::get('fashion-fit', 'UrbanGoodzFashionMeasurementController@index')->name('fashion-fit.index');
             Route::get('fashion-fit/{id}', 'UrbanGoodzFashionMeasurementController@view')->name('fashion-fit.show');
             Route::put('fashion-fit/{id}', 'UrbanGoodzFashionMeasurementController@update')->name('fashion-fit.update');
@@ -85,6 +221,26 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('ai-concierge/conversations', 'UrbanGoodzAIConciergeController@conversations')->name('ai-concierge.conversations');
             Route::get('ai-concierge/conversations/{id}', 'UrbanGoodzAIConciergeController@conversationsShow')->name('ai-concierge.conversations.show');
             Route::put('ai-concierge/conversations/{id}', 'UrbanGoodzAIConciergeController@conversationsUpdate')->name('ai-concierge.conversations.update');
+
+            Route::group(['prefix' => 'ai-copilot', 'as' => 'ai-copilot.'], function () {
+                Route::get('/', 'UrbanGoodz\AiCopilotController@index')->name('index');
+                Route::get('generate', 'UrbanGoodz\AiCopilotController@generate')->name('generate');
+
+                Route::get('module-settings', 'UrbanGoodz\AiCopilotController@moduleSettings')->name('module-settings');
+                Route::post('module-settings', 'UrbanGoodz\AiCopilotController@saveModuleSettings')->name('module-settings.save');
+
+                Route::get('risk-rules', 'UrbanGoodz\AiCopilotController@riskRules')->name('risk-rules');
+                Route::post('risk-rules', 'UrbanGoodz\AiCopilotController@saveRiskRule')->name('risk-rules.save');
+                Route::post('risk-rules/{id}/toggle', 'UrbanGoodz\AiCopilotController@toggleRiskRule')->name('risk-rules.toggle');
+
+                Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->name('action-logs');
+
+                Route::get('settings', 'UrbanGoodz\AiCopilotController@settings')->name('settings');
+                Route::post('settings', 'UrbanGoodz\AiCopilotController@saveSettings')->name('settings.save');
+                Route::get('{id}', 'UrbanGoodz\AiCopilotController@show')->name('show');
+                Route::post('{id}/accept', 'UrbanGoodz\AiCopilotController@accept')->name('accept');
+                Route::post('{id}/dismiss', 'UrbanGoodz\AiCopilotController@dismiss')->name('dismiss');
+            });
 
             Route::group(['prefix' => 'business-types', 'as' => 'business-types.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzBusinessTypeController@index')->name('index');
@@ -153,6 +309,12 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             });
 
             Route::get('{section}', 'UrbanGoodzAdminController@section')->name('section');
+
+            Route::group(['prefix' => 'sourced-businesses', 'as' => 'sourced-businesses.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@index')->name('index');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@show')->name('show');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@update')->name('update');
+            });
         });
 
         Route::group(['prefix' => 'urban-goodz/fashion', 'as' => 'urban-goodz.fashion.'], function () {
@@ -523,6 +685,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::put('open-ai-settings-update', 'BusinessSettingsController@openAISettingsUpdate')->name('openAISettingsUpdate');
             Route::get('open-ai-config-status', 'BusinessSettingsController@openAIConfigStatus')->name('openAIConfigStatus');
             Route::post('openai-update', 'BusinessSettingsController@openAIConfigUpdate')->name('openAIConfigUpdate');
+            Route::post('openai-test', 'BusinessSettingsController@openAIConfigTest')->name('openAIConfigTest');
 
             // Page Meta Data
             Route::group(['prefix' => 'seo-settings', 'as' => 'seo-settings.'], function () {

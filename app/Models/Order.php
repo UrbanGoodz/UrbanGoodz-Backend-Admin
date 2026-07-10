@@ -48,6 +48,8 @@ class Order extends Model
         'is_guest' => 'boolean',
         'ref_bonus_amount' => 'float',
         'bring_change_amount'=>'integer',
+        'age_restricted_order' => 'boolean',
+        'customer_age_confirmed_at' => 'datetime',
     ];
 
     protected $appends = ['module_type','order_attachment_full_url','order_proof_full_url'];
@@ -391,5 +393,16 @@ class Order extends Model
     public function orderTaxes()
     {
         return $this->morphMany(OrderTax::class, 'order');
+    }
+
+    public function ageVerifications()
+    {
+        return $this->hasMany(UrbanGoodzAgeVerification::class, 'order_id');
+    }
+
+    public function isAgeRestrictedOrder(): bool
+    {
+        return $this->age_restricted_order
+            || ($this->details()->whereHas('item', fn($q) => $q->where('age_restricted', true))->exists());
     }
 }

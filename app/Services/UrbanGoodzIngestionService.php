@@ -461,6 +461,14 @@ class UrbanGoodzIngestionService
     {
         $b = UrbanGoodzSourcedBusiness::findOrFail($businessId);
 
+        // Eligibility gate: never bypass review/safety rules when provisioning.
+        $failures = $this->provisionEligibilityFailures($b);
+        if (!empty($failures)) {
+            throw new \RuntimeException(
+                'Refusing to provision sourced business ' . $businessId . ': ' . implode('; ', $failures)
+            );
+        }
+
         // Map Sourced Business to 6amMart active store structure
         $store = Store::create([
             'name' => $b->name,
@@ -577,5 +585,50 @@ class UrbanGoodzIngestionService
         }
 
         return $candidates;
+    }
+
+    /**
+     * Return a list of reasons a sourced business is NOT eligible for provisioning.
+     * Empty array means eligible. Mirrors the P5/P6 review-to-provision eligibility rules.
+     */
+    private function provisionEligibilityFailures(UrbanGoodzSourcedBusiness $b): array
+    {
+        $failures = [];
+
+        if ($b->admin_review_status !== 'approved') {
+            $failures[] = 'admin_review_status is not approved';
+        }
+        if (empty($b->category_ids)) {
+            $failures[] = 'category_ids is empty';
+        } elseif (in_array(1, (array) $b->category_ids, true)) {
+            $failures[] = 'category_ids contains 1 (fallback not allowed)';
+        } else {
+            foreach ((array) $b->category_ids as $cid) {
+                $catModule = \DB::table('categories')->where('id', $cid)->value('module_id');
+                if ($catModule !== $b->module_id) {
+                    $failures[] = "category {$cid} does not match module {$b->module_id}";
+                }
+            }
+        }
+
+        $url = is_array($b->source_urls) ? ($b->source_urls[0] ?? '') : $b->source_urls;
+        if (!filter_var($url, FILTER_VALIDATE_URL) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
+            $failures[] = 'source_url is invalid';
+        }
+
+        $moduleStatus = \DB::table('modules')->where('id', $b->module_id)->value('status');
+        if ($moduleStatus != 1) {
+            $failures[] = "module {$b->module_id} is not active";
+        }
+
+        if ((array) $b->fulfillment_modes === ['review_only']) {
+            $failures[] = 'age-restricted row requires separate compliance approval';
+        }
+
+        if (in_array('partnered_status_true', (array) $b->tags, true)) {
+            $failures[] = 'partnered status must be false';
+        }
+
+        return $failures;
     }
 }

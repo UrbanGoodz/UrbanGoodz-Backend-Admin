@@ -484,7 +484,7 @@ class StoreLogic
 
     public static function get_store_details($store_id,$longitude=0,$latitude=0)
     {
-        return Store::withOpen($longitude??0,$latitude??0)->with(['discount'=>function($q){
+        return Store::withOpen($longitude??0,$latitude??0)->Active()->with(['discount'=>function($q){
             return $q->validate();
         }, 'campaigns', 'schedules','activeCoupons','store_sub'])
             ->withCount(['items','campaigns','reviews_comments'])

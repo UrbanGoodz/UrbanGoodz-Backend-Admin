@@ -53,19 +53,27 @@ class UrbanGoodzController extends Controller
         ]);
 
         $record = OrderAnywhereRequest::where('vendor_id', Helpers::get_vendor_id())->findOrFail($id);
+        $oldStatus = $record->status;
         $record->vendor_status = $data['vendor_status'];
         $record->vendor_notes = $data['vendor_notes'] ?? $record->vendor_notes;
         $record->vendor_quote_amount = $data['vendor_quote_amount'] ?? $record->vendor_quote_amount;
 
-        if ($data['vendor_status'] === 'accepted') {
-            $record->status = 'vendor_accepted';
-        } elseif ($data['vendor_status'] === 'declined') {
-            $record->status = 'quote_needed';
-        } elseif ($data['vendor_status'] === 'ready_for_pickup') {
-            $record->status = 'shopping';
+        $newStatus = match ($data['vendor_status']) {
+            'accepted' => 'vendor_accepted',
+            'declined' => 'quote_needed',
+            'ready_for_pickup' => 'shopping',
+            default => $record->status,
+        };
+
+        if ($newStatus !== $record->status && $record->isValidTransition($record->status, $newStatus)) {
+            $record->status = $newStatus;
         }
 
         $record->save();
+
+        if ($oldStatus !== $record->status) {
+            $record->logStatusTransition($oldStatus, $record->status, 'Vendor update: ' . $data['vendor_status']);
+        }
 
         return back()->with('success', translate('Order Anywhere vendor response updated successfully.'));
     }

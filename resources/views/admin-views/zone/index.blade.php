@@ -434,7 +434,7 @@
     function initialize() {
         @php($default_location = \App\Models\BusinessSetting::where('key', 'default_location')->first())
         @php($default_location = $default_location->value ? json_decode($default_location->value, true) : 0)
-        let myLatlng = { lat: {{$default_location ? $default_location['lat'] : '23.757989'}}, lng: {{$default_location ? $default_location['lng'] : '90.360587'}} };
+        let myLatlng = { lat: {{$default_location ? $default_location['lat'] : '29.7604'}}, lng: {{$default_location ? $default_location['lng'] : '-95.3698'}} };
         const mapId = "{{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()->value }}"
 
         let myOptions = {

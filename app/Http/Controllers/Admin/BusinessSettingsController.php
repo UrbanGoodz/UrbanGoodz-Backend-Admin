@@ -7145,9 +7145,69 @@ class BusinessSettingsController extends Controller
         return back();
     }
 
+    public function openAIConfigTest(Request $request)
+    {
+        if (getEnvMode() == 'demo') {
+            return response()->json(['success' => false, 'message' => translate('Demo mode')]);
+        }
+
+        if (!\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_settings_manage')) {
+            return response()->json(['success' => false, 'message' => translate('messages.access_denied')]);
+        }
+
+        $config = BusinessSetting::where(['key' => 'openai_config'])->first();
+        $data = $config ? json_decode($config['value'], true) : null;
+
+        if (empty($data['OPENAI_API_KEY'])) {
+            return response()->json(['success' => false, 'message' => translate('No API key configured')]);
+        }
+
+        try {
+            $client = \OpenAI::client($data['OPENAI_API_KEY']);
+            $response = $client->chat()->create([
+                'model' => 'gpt-4o-mini',
+                'messages' => [
+                    ['role' => 'system', 'content' => 'Reply with exactly: OK'],
+                    ['role' => 'user', 'content' => 'Test'],
+                ],
+                'max_tokens' => 10,
+            ]);
+
+            $reply = $response->choices[0]->message->content ?? '';
+
+            if (str_contains($reply, 'OK')) {
+                return response()->json(['success' => true, 'message' => translate('Connection successful')]);
+            }
+
+            return response()->json(['success' => false, 'message' => translate('Unexpected response') . ': ' . $reply]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
     public function openAI()
     {
-        return view('admin-views.business-settings.3rd_party.open_ai_config');
+        if (!\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_settings_view')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
+        $config = BusinessSetting::where(['key' => 'openai_config'])->first();
+        $data = $config ? json_decode($config['value'], true) : null;
+
+        if ($data && !empty($data['OPENAI_API_KEY'])) {
+            $key = $data['OPENAI_API_KEY'];
+            $masked = strlen($key) > 8
+                ? substr($key, 0, 8) . '****' . substr($key, -4)
+                : '****';
+            $data['OPENAI_API_KEY_MASKED'] = $masked;
+            $data['OPENAI_API_KEY_HAS_VALUE'] = true;
+        } else {
+            $data['OPENAI_API_KEY_MASKED'] = '';
+            $data['OPENAI_API_KEY_HAS_VALUE'] = false;
+        }
+
+        return view('admin-views.business-settings.3rd_party.open_ai_config', compact('data'));
     }
 
     public function openAISettings()
@@ -7187,6 +7247,12 @@ class BusinessSettingsController extends Controller
 
             return back();
         }
+
+        if (!\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_settings_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $config = BusinessSetting::where(['key' => 'openai_config'])->first();
 
         $data = $config ? json_decode($config['value'], true) : null;
@@ -7214,17 +7280,27 @@ class BusinessSettingsController extends Controller
 
             return back();
         }
-        $config = BusinessSetting::where(['key' => 'openai_config'])->first();
 
-        $data = $config ? json_decode($config['value'], true) : null;
+        if (!\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_settings_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
+        $config = BusinessSetting::where(['key' => 'openai_config'])->first();
+        $existing = $config ? json_decode($config['value'], true) : [];
+
+        $apiKey = $request['OPENAI_API_KEY'] ?? '';
+        if (empty($apiKey)) {
+            $apiKey = $existing['OPENAI_API_KEY'] ?? '';
+        }
 
         Helpers::businessUpdateOrInsert(
             ['key' => 'openai_config'],
             [
                 'value' => json_encode([
-                    'status' => $data['status'] ?? 0,
+                    'status' => $existing['status'] ?? 0,
                     'OPENAI_ORGANIZATION' => $request['OPENAI_ORGANIZATION'] ?? '',
-                    'OPENAI_API_KEY' => $request['OPENAI_API_KEY'] ?? '',
+                    'OPENAI_API_KEY' => $apiKey,
                 ]),
                 'updated_at' => now(),
             ]

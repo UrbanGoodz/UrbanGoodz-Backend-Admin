@@ -362,8 +362,8 @@
         let map = new google.maps.Map(document.getElementById("map"), {
             zoom: 13,
             center: {
-                lat: {{ $store ? $store['latitude'] : '23.757989' }},
-                lng: {{ $store ? $store['longitude'] : '90.360587' }}
+                lat: {{ $store ? $store['latitude'] : '29.7604' }},
+                lng: {{ $store ? $store['longitude'] : '-95.3698' }}
             },
             mapId: mapId
         });

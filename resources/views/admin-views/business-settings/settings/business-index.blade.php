@@ -1063,13 +1063,13 @@
         const mapId = "{{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()->value }}"
 
         var myLatLng = {
-            lat: {{ $default_location ? $default_location['lat'] : '-33.8688' }},
-            lng: {{ $default_location ? $default_location['lng'] : '151.2195' }}
+            lat: {{ $default_location ? $default_location['lat'] : '29.7604' }},
+            lng: {{ $default_location ? $default_location['lng'] : '-95.3698' }}
             };
         const map = new google.maps.Map(document.getElementById("location_map_canvas"), {
             center: {
-                lat: {{ $default_location ? $default_location['lat'] : '-33.8688' }},
-                lng: {{ $default_location ? $default_location['lng'] : '151.2195' }}
+                lat: {{ $default_location ? $default_location['lat'] : '29.7604' }},
+                lng: {{ $default_location ? $default_location['lng'] : '-95.3698' }}
                 },
             zoom: 13,
             mapTypeId: "roadmap",

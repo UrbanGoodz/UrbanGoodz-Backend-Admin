@@ -219,7 +219,7 @@ class ConfigController extends Controller
             'email' => $settings['email_address'],
 
             'country' => $settings['country'],
-            'default_location' => ['lat' => $default_location ? $default_location['lat'] : '23.757989', 'lng' => $default_location ? $default_location['lng'] : '90.360587'],
+            'default_location' => ['lat' => $default_location ? $default_location['lat'] : '29.7604', 'lng' => $default_location ? $default_location['lng'] : '-95.3698'],
             'currency_symbol' => $currency_symbol,
             'currency_symbol_direction' => $settings['currency_symbol_position'],
 

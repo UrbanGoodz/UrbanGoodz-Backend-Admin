@@ -57,16 +57,27 @@ class UrbanGoodzController extends Controller
         ]);
 
         $record = OrderAnywhereRequest::where('assigned_delivery_man_id', auth('delivery_men')->id())->findOrFail($id);
+        $oldStatus = $record->status;
         $record->driver_task_status = $data['driver_task_status'];
         $record->driver_notes = $data['driver_notes'] ?? $record->driver_notes;
-        $record->status = match ($data['driver_task_status']) {
+
+        $newStatus = match ($data['driver_task_status']) {
             'picked_up' => 'picked_up',
             'en_route' => 'out_for_delivery',
             'delivered' => 'completed',
             'issue_reported' => 'reviewing',
             default => 'shopping',
         };
+
+        if ($newStatus !== $oldStatus && $record->isValidTransition($oldStatus, $newStatus)) {
+            $record->status = $newStatus;
+        }
+
         $record->save();
+
+        if ($oldStatus !== $record->status) {
+            $record->logStatusTransition($oldStatus, $record->status, 'Driver: ' . $data['driver_task_status']);
+        }
 
         return back()->with('success', 'Order Anywhere driver status updated.');
     }

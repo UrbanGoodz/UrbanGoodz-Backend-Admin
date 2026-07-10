@@ -200,8 +200,8 @@
     function initialize() {
         @php($default_location = \App\CentralLogics\Helpers::get_business_settings('default_location'))
         var myLatlng = {
-            lat: {{ $default_location ? $default_location['lat'] : '23.757989' }},
-            lng: {{ $default_location ? $default_location['lng'] : '90.360587' }}
+            lat: {{ $default_location ? $default_location['lat'] : '29.7604' }},
+            lng: {{ $default_location ? $default_location['lng'] : '-95.3698' }}
             };
         var dmbounds = new google.maps.LatLngBounds(null);
         const mapId = " {{  \App\CentralLogics\Helpers::get_business_settings('map_api_key')   }}"

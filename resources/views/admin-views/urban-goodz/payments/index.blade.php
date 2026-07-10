@@ -18,16 +18,56 @@
             </div>
         </div>
 
+        @php
+            $routeMap = [
+                'order_anywhere' => 'admin.urban-goodz.payments.order-anywhere',
+                'fashion_fit' => 'admin.urban-goodz.payments.fashion-fit',
+                'earn_money' => 'admin.urban-goodz.payments.earn-money',
+                'logistics' => 'admin.urban-goodz.payments.logistics',
+                'load_board' => 'admin.urban-goodz.payments.load-board',
+                'medical_courier' => 'admin.urban-goodz.payments.medical-courier',
+                'book_anything' => 'admin.urban-goodz.payments.book-anything',
+                'rentals' => 'admin.urban-goodz.payments.rentals',
+                'events' => 'admin.urban-goodz.payments.events',
+                'creator_commerce' => 'admin.urban-goodz.payments.creator-commerce',
+                'community_marketplace' => null,
+                'discovery' => null,
+                'ask_urban_goodz' => null,
+                'urban_goodz_plus' => null,
+                'spotlight' => null,
+            ];
+
+            $badgeMap = [
+                'payment_ready' => ['badge-soft-success', 'Payment Ready'],
+                'payment_partial' => ['badge-soft-warning', 'Partial'],
+                'payment_pending' => ['badge-soft-secondary', 'Payment Pending'],
+                'no_payment_needed' => ['badge-soft-info', 'No Payment Needed'],
+            ];
+        @endphp
+
         @if(isset($readiness))
             <div class="row g-2 mb-3">
                 @foreach($readiness as $key => $value)
+                    @php
+                        $routeName = $routeMap[$key] ?? null;
+                        $badge = $badgeMap[$value] ?? ['badge-soft-dark', $value];
+                        $label = ucwords(str_replace('_', ' ', $key));
+                    @endphp
                     <div class="col-md-3 col-6">
-                        <div class="card">
-                            <div class="card-body text-center py-2">
-                                <small class="text-muted">{{ translate($key) }}</small>
-                                <div class="font-weight-bold">{{ is_bool($value) ? ($value ? 'Yes' : 'No') : $value }}</div>
+                        @if($routeName)
+                        <a href="{{ route($routeName) }}" class="text-decoration-none">
+                        @endif
+                            <div class="card h-100">
+                                <div class="card-body text-center py-2">
+                                    <small class="text-muted">{{ translate($label) }}</small>
+                                    <div>
+                                        <span class="badge {{ $badge[0] }}">{{ translate($badge[1]) }}</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        @if($routeName)
+                        </a>
+                        @endif
                     </div>
                 @endforeach
             </div>

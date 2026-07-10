@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzRentalAsset;
 use App\Models\UrbanGoodzRentalBooking;
 use App\Models\UrbanGoodzRentalInspection;
+use App\CentralLogics\Helpers;
 use App\Services\UrbanGoodzPaymentService;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -237,6 +239,11 @@ class UrbanGoodzRentalController extends Controller
 
     public function bookingsVerification($id, $status)
     {
+        if (!Helpers::module_permission_check('urban_goodz_rental_verification_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'verified', 'failed'];
 
@@ -250,6 +257,11 @@ class UrbanGoodzRentalController extends Controller
 
     public function bookingsPayment($id, $status)
     {
+        if (!Helpers::module_permission_check('urban_goodz_rental_bookings_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'paid', 'refunded', 'failed'];
 
@@ -263,6 +275,11 @@ class UrbanGoodzRentalController extends Controller
 
     public function bookingsDeposit($id, $status)
     {
+        if (!Helpers::module_permission_check('urban_goodz_rental_deposits_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'collected', 'released', 'partially_released', 'forfeited'];
 

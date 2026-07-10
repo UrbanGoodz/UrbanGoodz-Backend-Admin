@@ -53,7 +53,7 @@
                     <!-- End Dashboards -->
 
                     <!-- Urban Goodz Full Ecosystem -->
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_platform_core'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
                     <li class="nav-item">
                         <small class="nav-subtitle" title="Urban Goodz">Urban Goodz</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
@@ -70,7 +70,7 @@
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Control Center</span>
                         </a>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_business_types'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_business_types_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/business-types*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.business-types.index') }}" title="Business Types">
                             <i class="tio-category nav-icon" style="color: #ED9914;"></i>
@@ -78,7 +78,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_capabilities'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_capabilities_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/capabilities*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.capabilities.index') }}" title="Capabilities">
                             <i class="tio-slider nav-icon" style="color: #ED9914;"></i>
@@ -86,7 +86,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_file_library'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_files'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/files*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.files.index') }}" title="File Library">
                             <i class="tio-folder-open nav-icon" style="color: #ED9914;"></i>
@@ -94,7 +94,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_payments'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_payments_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/payments*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.payments.index') }}" title="Payment Center">
                             <i class="tio-money nav-icon" style="color: #ED9914;"></i>
@@ -108,7 +108,7 @@
                         <small class="nav-subtitle" title="Commerce">Commerce</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/order-anywhere*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.order-anywhere.index') }}" title="Order Anywhere">
                             <i class="tio-shopping-cart nav-icon" style="color: #ED9914;"></i>
@@ -130,7 +130,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_fashion_fit'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_fashion_fit_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/fashion-fit*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.fashion-fit.index') }}" title="Fashion Fit">
                             <i class="tio-tshirt nav-icon" style="color: #ED9914;"></i>
@@ -138,7 +138,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_stylist_requests'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_stylist_requests_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/stylist-request*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.stylist-request.list') }}" title="Stylist Requests">
                             <i class="tio-tshirt nav-icon" style="color: #ED9914;"></i>
@@ -146,7 +146,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_medical_courier'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_medical_courier_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/medical-courier*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'medical-courier') }}" title="Medical Courier">
                             <i class="tio-medical nav-icon" style="color: #ED9914;"></i>
@@ -160,7 +160,7 @@
                         <small class="nav-subtitle" title="Rentals">Rentals</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_rentals'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_rentals_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/rentals') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.rentals.dashboard') }}" title="Rentals Dashboard">
                             <i class="tio-dashboard-outlined nav-icon" style="color: #ED9914;"></i>
@@ -230,11 +230,11 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_creator_commerce'))
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/creator-commerce*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'creator-commerce') }}" title="Creator Commerce">
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_creator_commerce_view') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_creator_commerce'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/creator-commerce*') || Request::is('admin/urban-goodz/modules/creator-commerce*') || Request::is('admin/urban-goodz/section/creators') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.creator.dashboard') }}" title="Creator Commerce">
                             <i class="tio-star nav-icon" style="color: #ED9914;"></i>
-                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Creator Commerce</span>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Creator Space</span>
                         </a>
                     </li>
                     @endif
@@ -244,7 +244,23 @@
                         <small class="nav-subtitle" title="Delivery / Driver">Delivery / Driver</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_logistics'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_manifests_view') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/manifests*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.manifests.index') }}" title="Manifests">
+                            <i class="tio-clipboard nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Manifests</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/age-compliance*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.age-compliance.index') }}" title="Age Compliance">
+                            <i class="tio-verified nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Age Compliance</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_logistics_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/logistics*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'logistics') }}" title="Logistics">
                             <i class="tio-truck nav-icon" style="color: #ED9914;"></i>
@@ -252,7 +268,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_earn_money'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_earn_money_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/earn-money*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'earn-money') }}" title="Earn Money">
                             <i class="tio-money nav-icon" style="color: #ED9914;"></i>
@@ -266,7 +282,7 @@
                         <small class="nav-subtitle" title="AI Services">AI Services</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_concierge'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_concierge_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-concierge*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-concierge.intents') }}" title="AI Concierge">
                             <i class="tio-robot nav-icon" style="color: #ED9914;"></i>
@@ -274,7 +290,15 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-copilot*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-copilot.index') }}" title="AI Ops Copilot">
+                            <i class="tio-robot nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">AI Ops Copilot</span>
+                        </a>
+                    </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/discovery*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'discovery') }}" title="Discovery">
                             <i class="tio-search nav-icon" style="color: #ED9914;"></i>
@@ -1324,7 +1348,7 @@
 
                 @if (\App\CentralLogics\Helpers::module_permission_check('custom_role'))
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/custom-role*') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.custom-role.create') }}" title="{{ translate('messages.employee_Role') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.users.custom-role.create') }}" title="{{ translate('messages.employee_Role') }}">
                         <i class="tio-incognito nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ translate('messages.employee_Role') }}</span>
                     </a>
@@ -1339,13 +1363,13 @@
                     </a>
                     <ul class="js-navbar-vertical-aside-submenu nav nav-sub"  style="display:{{ Request::is('admin/employee*') ? 'block' : 'none' }}">
                         <li class="nav-item {{ Request::is('admin/employee/add-new') ? 'active' : '' }}">
-                            <a class="nav-link " href="{{ route('admin.employee.add-new') }}" title="{{ translate('messages.add_new_Employee') }}">
+                            <a class="nav-link " href="{{ route('admin.users.employee.add-new') }}" title="{{ translate('messages.add_new_Employee') }}">
                                 <span class="tio-circle nav-indicator-icon"></span>
                                 <span class="text-truncate">{{ translate('messages.add_new') }}</span>
                             </a>
                         </li>
                         <li class="nav-item {{ Request::is('admin/employee/list') ? 'active' : '' }}">
-                            <a class="nav-link " href="{{ route('admin.employee.list') }}" title="{{ translate('messages.Employee_list') }}">
+                            <a class="nav-link " href="{{ route('admin.users.employee.list') }}" title="{{ translate('messages.Employee_list') }}">
                                 <span class="tio-circle nav-indicator-icon"></span>
                                 <span class="text-truncate">{{ translate('messages.list') }}</span>
                             </a>
