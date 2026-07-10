@@ -73,13 +73,21 @@ class OrderAnywhereTesterController extends Controller
             'status' => ['nullable', Rule::in(OrderAnywhereRequest::STATUSES)],
             'request_status' => ['nullable', Rule::in(OrderAnywhereRequest::STATUSES)],
             'admin_notes' => ['nullable', 'string'],
+            'reason' => ['nullable', 'string'],
         ]);
 
         $model = $this->findRecord($record);
-        $model->status = $data['status'] ?? $data['request_status'] ?? 'reviewing';
+        $newStatus = $data['status'] ?? $data['request_status'] ?? 'reviewing';
+        $oldStatus = $model->status;
+
+        if ($oldStatus !== $newStatus) {
+            $model->transitionTo($newStatus);
+        }
+
         $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
         $model->reviewed_at = now();
         $model->save();
+        $model->logStatusTransition($oldStatus, $newStatus, $data['reason'] ?? null);
 
         return $this->updated($model, 'Order Anywhere status updated.');
     }
@@ -161,6 +169,23 @@ class OrderAnywhereTesterController extends Controller
         $model->save();
 
         return $this->updated($model, 'Order Anywhere notes updated.');
+    }
+
+    public function createPaymentLink(Request $request, $record, UrbanGoodzPaymentService $payments)
+    {
+        $data = $request->validate([
+            'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $model = $this->findRecord($record);
+        $result = $payments->createPaymentLink($model, $data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment link created.',
+            'data' => $result,
+        ]);
     }
 
     public function assignDriver(Request $request, $record)

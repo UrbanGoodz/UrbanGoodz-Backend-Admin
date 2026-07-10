@@ -447,6 +447,34 @@ trait PlaceNewOrder
                         ], 403);
                     }
 
+                    $hasAgeRestrictedItems = false;
+                    foreach ($carts as $cart) {
+                        $cartItem = null;
+                        $itemId = is_array($cart) ? ($cart['item_id'] ?? null) : $cart->item_id;
+                        $itemType = is_array($cart) ? ($cart['item_type'] ?? null) : $cart->item_type;
+
+                        if ($itemId && in_array($itemType, ['App\Models\Item', 'AppModelsItem'])) {
+                            $cartItem = Item::find($itemId);
+                        }
+                        if ($cartItem && $cartItem->age_restricted) {
+                            $hasAgeRestrictedItems = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasAgeRestrictedItems) {
+                        if (!$request->age_confirmed) {
+                            DB::rollBack();
+                            return response()->json([
+                                'errors' => [
+                                    ['code' => 'age_confirmation_required', 'message' => translate('messages.age_confirmation_required_for_this_order')]
+                                ]
+                            ], 403);
+                        }
+                        $order->age_restricted_order = true;
+                        $order->customer_age_confirmed_at = now();
+                    }
+
                     $order_details = $this->makeOrderDetails($carts, $request, $order, $store);
 
                     if (data_get($order_details, 'status_code') === 403) {
