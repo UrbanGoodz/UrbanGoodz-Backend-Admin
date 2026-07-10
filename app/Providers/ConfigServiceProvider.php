@@ -43,19 +43,14 @@ class ConfigServiceProvider extends ServiceProvider
             $data = BusinessSetting::where(['key' => 'mail_config'])->first();
             $emailServices = json_decode($data['value'], true);
             if ($emailServices) {
-                $config = [
-                    'status' => (bool) (isset($emailServices['status']) ? $emailServices['status'] : 1),
-                    'driver' => $emailServices['driver'],
-                    'host' => $emailServices['host'],
-                    'port' => $emailServices['port'],
-                    'username' => $emailServices['username'],
-                    'password' => $emailServices['password'],
-                    'encryption' => $emailServices['encryption'],
-                    'from' => ['address' => $emailServices['email_id'], 'name' => $emailServices['name']],
-                    'sendmail' => '/usr/sbin/sendmail -bs',
-                    'pretend' => false,
-                ];
-                Config::set('mail', $config);
+                Config::set('mail.default', $emailServices['driver'] ?? 'smtp');
+                Config::set('mail.mailers.smtp.host', $emailServices['host'] ?? '');
+                Config::set('mail.mailers.smtp.port', $emailServices['port'] ?? 587);
+                Config::set('mail.mailers.smtp.username', $emailServices['username'] ?? '');
+                Config::set('mail.mailers.smtp.password', $emailServices['password'] ?? '');
+                Config::set('mail.mailers.smtp.encryption', $emailServices['encryption'] ?? 'tls');
+                Config::set('mail.from.address', $emailServices['email_id'] ?? '');
+                Config::set('mail.from.name', $emailServices['name'] ?? '');
             }
 
             $gateway =

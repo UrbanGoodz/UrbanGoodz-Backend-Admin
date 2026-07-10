@@ -68,6 +68,11 @@ return [
             'driver' => 'session',
             'provider' => 'delivery_men',
         ],
+
+        'business' => [
+            'driver' => 'session',
+            'provider' => 'business_clients',
+        ],
     ],
 
     /*
@@ -111,6 +116,11 @@ return [
         'delivery_men' => [
             'driver' => 'database',
             'table' => 'delivery_men',
+        ],
+
+        'business_clients' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\UrbanGoodzBusinessClientUser::class,
         ],
     ],
 

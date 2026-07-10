@@ -12,6 +12,7 @@
         "ext-curl": "*",
         "ext-json": "*",
         "ext-simplexml": "*",
+        "adyen/php-api-library": "*",
         "barryvdh/laravel-dompdf": "^3.1",
         "brian2694/laravel-toastr": "^5.54",
         "doctrine/dbal": "^4.3",
@@ -38,9 +39,9 @@
         "rap2hpoutre/fast-excel": "dev-master",
         "razorpay/razorpay": "^2.8",
         "stripe/stripe-php": "^10.10",
+        "symfony/http-foundation": "^5.4.50 || ^6.4.29 || ^7.3.7",
         "twilio/sdk": "^6.39",
-        "xendit/xendit-php": "^2.19",
-        "symfony/http-foundation": "^5.4.50 || ^6.4.29 || ^7.3.7"
+        "xendit/xendit-php": "^2.19"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.5",

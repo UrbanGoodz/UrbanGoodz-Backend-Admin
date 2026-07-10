@@ -107,6 +107,131 @@ return [
             'group' => 'urban_goodz',
             'description' => 'Access to Urban Goodz capability management',
         ],
+        'urban_goodz_business_clients_view' => [
+            'label' => 'Business Clients View',
+            'group' => 'urban_goodz',
+            'description' => 'View business client accounts',
+        ],
+        'urban_goodz_business_clients_manage' => [
+            'label' => 'Business Clients Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Manage business client accounts, approve/suspend',
+        ],
+        'urban_goodz_business_client_users_view' => [
+            'label' => 'Business Client Users View',
+            'group' => 'urban_goodz',
+            'description' => 'View business client user accounts',
+        ],
+        'urban_goodz_business_client_users_manage' => [
+            'label' => 'Business Client Users Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Create, edit, and remove business client users',
+        ],
+        'urban_goodz_business_client_locations_view' => [
+            'label' => 'Business Client Locations View',
+            'group' => 'urban_goodz',
+            'description' => 'View business client locations',
+        ],
+        'urban_goodz_business_client_locations_manage' => [
+            'label' => 'Business Client Locations Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Create, edit, and remove business client locations',
+        ],
+        'urban_goodz_business_client_documents_view' => [
+            'label' => 'Business Client Documents View',
+            'group' => 'urban_goodz',
+            'description' => 'View business client documents',
+        ],
+        'urban_goodz_business_client_documents_manage' => [
+            'label' => 'Business Client Documents Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Upload, download, and remove business client documents',
+        ],
+        'urban_goodz_logistics_view' => [
+            'label' => 'Logistics View',
+            'group' => 'urban_goodz',
+            'description' => 'View logistics jobs and load board',
+        ],
+        'urban_goodz_logistics_manage' => [
+            'label' => 'Logistics Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Manage logistics jobs, assign drivers, quote',
+        ],
+        'urban_goodz_load_board_view' => [
+            'label' => 'Load Board View',
+            'group' => 'urban_goodz',
+            'description' => 'View load board loads',
+        ],
+        'urban_goodz_load_board_manage' => [
+            'label' => 'Load Board Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Manage load board loads, assign drivers',
+        ],
+        'urban_goodz_medical_courier_view' => [
+            'label' => 'Medical Courier View',
+            'group' => 'urban_goodz',
+            'description' => 'View medical courier jobs',
+        ],
+        'urban_goodz_medical_courier_manage' => [
+            'label' => 'Medical Courier Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Manage medical courier jobs, custody logs',
+        ],
+        'urban_goodz_medical_courier_custody_view' => [
+            'label' => 'Medical Courier Custody View',
+            'group' => 'urban_goodz',
+            'description' => 'View medical courier custody logs',
+        ],
+        'urban_goodz_medical_courier_custody_manage' => [
+            'label' => 'Medical Courier Custody Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Manage medical courier custody logs',
+        ],
+        'urban_goodz_payments_view' => [
+            'label' => 'Payments View',
+            'group' => 'urban_goodz',
+            'description' => 'View payment center and ledgers',
+        ],
+        'urban_goodz_payments_manage' => [
+            'label' => 'Payments Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Manage payments, capture, refunds',
+        ],
+        'urban_goodz_reports_view' => [
+            'label' => 'Reports View',
+            'group' => 'urban_goodz',
+            'description' => 'View Urban Goodz reports',
+        ],
+        'urban_goodz_reports_export' => [
+            'label' => 'Reports Export',
+            'group' => 'urban_goodz',
+            'description' => 'Export Urban Goodz reports',
+        ],
+        'urban_goodz_dedicated_routes_view' => [
+            'label' => 'Dedicated Routes View',
+            'group' => 'urban_goodz',
+            'description' => 'View dedicated routes and packages',
+        ],
+        'urban_goodz_dedicated_routes_manage' => [
+            'label' => 'Dedicated Routes Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Create, edit, assign drivers to dedicated routes',
+        ],
+        'urban_goodz_driver_payouts_view' => [
+            'label' => 'Driver Payouts View',
+            'group' => 'urban_goodz',
+            'description' => 'View driver payout requests',
+        ],
+        'urban_goodz_driver_payouts_manage' => [
+            'label' => 'Driver Payouts Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Approve, reject, and process driver payouts',
+        ],
+        'urban_goodz_route_optimization' => [
+            'label' => 'Route Optimization',
+            'group' => 'urban_goodz',
+            'description' => 'Run route optimization and reorder stops',
+        ],
     ],
 
     'group_order' => ['urban_goodz' => 50],

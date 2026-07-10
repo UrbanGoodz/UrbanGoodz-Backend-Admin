@@ -96,6 +96,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'current-module' => CurrentModule::class,
             'admin-rental-module' => AdminRentalModuleCheckMiddleware::class,
             'provider-rental-module' => ProviderRentalModuleCheckMiddleware::class,
+            'business' => \App\Http\Middleware\BusinessMiddleware::class,
         ]);
     })
 
