@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title',translate('messages.react_landing_page'))
 
@@ -472,13 +472,13 @@
                                         <div class="card-header-cus" id="headingOne">            
                                             <button class="btn btn-link text-wrap text-title" type="button" data-toggle="collapse" data-target="#collapseOne"
                                             aria-expanded="true" aria-controls="collapseOne">
-                                                How do I place an order on 6amMart from start to finish?
+                                                How do I place an order on Urban Goodz from start to finish?
                                             </button>
                                         </div>
 
                                         <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#faqAccordion">
                                             <div class="card-body max-w-700 pt-0">
-                                            To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                            To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -491,7 +491,7 @@
                                         </div>
                                         <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#faqAccordion">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -504,7 +504,7 @@
                                         </div>
                                         <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#faqAccordion">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -517,7 +517,7 @@
                                         </div>
                                         <div id="collapseFour" class="collapse" aria-labelledby="headingFour" data-parent="#faqAccordion">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -530,7 +530,7 @@
                                         </div>
                                         <div id="collapseFive" class="collapse" aria-labelledby="headingFive" data-parent="#faqAccordion">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -562,13 +562,13 @@
                                         <div class="card-header-cus" id="headingOne01">            
                                             <button class="btn btn-link text-wrap text-title" type="button" data-toggle="collapse" data-target="#collapseOne01"
                                             aria-expanded="true" aria-controls="collapseOne01">
-                                                How do I place an order on 6amMart from start to finish?
+                                                How do I place an order on Urban Goodz from start to finish?
                                             </button>
                                         </div>
 
                                         <div id="collapseOne01" class="collapse show" aria-labelledby="headingOne01" data-parent="#faqAccordion2">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -581,7 +581,7 @@
                                         </div>
                                         <div id="collapseTwo02" class="collapse" aria-labelledby="headingTwo02" data-parent="#faqAccordion2">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -594,7 +594,7 @@
                                         </div>
                                         <div id="collapseThree03" class="collapse" aria-labelledby="headingThree03" data-parent="#faqAccordion2">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -607,7 +607,7 @@
                                         </div>
                                         <div id="collapseFour04" class="collapse" aria-labelledby="headingFour04" data-parent="#faqAccordion2">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -620,7 +620,7 @@
                                         </div>
                                         <div id="collapseFive05" class="collapse" aria-labelledby="headingFive05" data-parent="#faqAccordion2">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -652,13 +652,13 @@
                                         <div class="card-header-cus" id="headingOne-cus01">            
                                             <button class="btn btn-link text-wrap text-title" type="button" data-toggle="collapse" data-target="#collapseOne-cus01"
                                             aria-expanded="true" aria-controls="collapseOne-cus01">
-                                                How do I place an order on 6amMart from start to finish?
+                                                How do I place an order on Urban Goodz from start to finish?
                                             </button>
                                         </div>
 
                                         <div id="collapseOne-cus01" class="collapse show" aria-labelledby="headingOne-cus01" data-parent="#faqAccordion3">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -671,7 +671,7 @@
                                         </div>
                                         <div id="collapseTwo-cus02" class="collapse" aria-labelledby="headingTwo-cus02" data-parent="#faqAccordion3">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -684,7 +684,7 @@
                                         </div>
                                         <div id="collapseThree-cus03" class="collapse" aria-labelledby="headingThree-cus03" data-parent="#faqAccordion3">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -697,7 +697,7 @@
                                         </div>
                                         <div id="collapseFour-cus04" class="collapse" aria-labelledby="headingFour-cus04" data-parent="#faqAccordion3">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>
@@ -710,7 +710,7 @@
                                         </div>
                                         <div id="collapseFive-cus05" class="collapse" aria-labelledby="headingFive-cus05" data-parent="#faqAccordion3">
                                             <div class="card-body max-w-700 pt-0">
-                                                To place an order, open the 6amMart app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
+                                                To place an order, open the Urban Goodz app or website, browse or search for the products you need, and add them to your cart. At checkout, enter your delivery address and payment details, then confirm your order to complete the process.
                                             </div>
                                         </div>
                                     </div>

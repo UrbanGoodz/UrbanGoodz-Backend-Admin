@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('ride_sharing_setup_and_integration'))
 
@@ -88,7 +88,7 @@
                                         <label
                                             class="form-label">{{ (\App\CentralLogics\Helpers::get_business_data('business_name') ?? "Urban Goodz" ) . ' ' .translate('System Token') }}
                                             <i class="tio-info-outined text-primary"
-                                               title="{{ translate("Click on the Generate Token button, It will automatically generate the 6amMart System token and insert it into the input field.") }}"
+                                               title="{{ translate("Click on the Generate Token button, It will automatically generate the Urban Goodz System token and insert it into the input field.") }}"
                                                data-toggle="tooltip"></i>
                                         </label>
                                         <div class="input-group input-token-group">

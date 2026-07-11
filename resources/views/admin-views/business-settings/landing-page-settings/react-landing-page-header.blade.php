@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('messages.react_landing_page'))
 
@@ -583,7 +583,7 @@ if (isset($header_tag_line->translations) && count($header_tag_line->translation
                                 {!! \App\CentralLogics\Helpers::highlightWords(text:$header_title?->value ?? 'Your Everyday $Needs$, Delivered $Fast$') !!}
                             </h2>
                             <p class="text-title fs-14 mb-xl-4 mb-lg-4 mb-3">
-                                {{ $header_sub_title?->value ?? 'Enter your address to enjoy fast delivery of groceries, food, medicine, parcels & more from your favorite local stores with 6amMart.' }}
+                                {{ $header_sub_title?->value ?? 'Enter your address to enjoy fast delivery of groceries, food, medicine, parcels & more from your favorite local stores with Urban Goodz.' }}
                             </p>
                             <p class="fs-20 text-dark mb-20">
                                 {{$header_tag_line?->value ?? 'Discover everything you need near you'}}

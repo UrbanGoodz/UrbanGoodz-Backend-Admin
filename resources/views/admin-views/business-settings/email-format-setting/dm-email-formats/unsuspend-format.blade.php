@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('email_template'))
 
@@ -284,7 +284,7 @@
                                                                     <i class="tio-info-outined"></i>
                                                                 </span>
                                                             </label>
-                                                            <input type="text" maxlength="50" data-id="mail-copyright" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2024_6amMart._All_right_reserved')}}" class="form-control" value="{{ $data?->getRawOriginal('copyright_text') }}">
+                                                            <input type="text" maxlength="50" data-id="mail-copyright" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2024_Urban_Goodz._All_rights_reserved')}}" class="form-control" value="{{ $data?->getRawOriginal('copyright_text') }}">
                                                         </div>
                                                     @foreach(json_decode($language) as $lang)
                                                     <?php
@@ -305,7 +305,7 @@
                                                                     <i class="tio-info-outined"></i>
                                                                 </span>
                                                             </label>
-                                                            <input type="text" maxlength="50" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2024_6amMart._All_right_reserved')}}" class="form-control" value="{{ $translate[$lang]['copyright_text']??'' }}">
+                                                            <input type="text" maxlength="50" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2024_Urban_Goodz._All_rights_reserved')}}" class="form-control" value="{{ $translate[$lang]['copyright_text']??'' }}">
                                                         </div>
                                                     @endforeach
                                                 @else
@@ -316,7 +316,7 @@
                                                             <i class="tio-info-outined"></i>
                                                         </span>
                                                     </label>
-                                                    <input type="text" maxlength="50"  placeholder="{{ translate('Ex:_Copyright_2024_6amMart._All_right_reserved')}}"class="form-control" name="copyright_text[]" value="">
+                                                    <input type="text" maxlength="50"  placeholder="{{ translate('Ex:_Copyright_2024_Urban_Goodz._All_rights_reserved')}}"class="form-control" name="copyright_text[]" value="">
                                                 </div>
                                                 @endif
                                             </div>

@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title',translate('messages.react_landing_page'))
 
@@ -191,7 +191,7 @@
                                         Ride Anytime, Anywhere
                                     </h2>
                                     <p class="fs-12 m-0 text-white">
-                                        6amMart makes it easy to rent vehicles quickly and affordably.
+                                        Urban Goodz makes it easy to rent vehicles quickly and affordably.
                                     </p>
                                 </div>
                             </div>

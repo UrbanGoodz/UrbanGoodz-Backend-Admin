@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <?php
 $lang = \App\CentralLogics\Helpers::system_default_language();
 $site_direction = \App\CentralLogics\Helpers::system_default_direction();
@@ -593,7 +593,7 @@ $site_direction = \App\CentralLogics\Helpers::system_default_direction();
                         {{ translate('for any queries, we’re always happy to help.') }}
                     </div>
                     <div class="copyright" style="text-align:center" id="mail-copyright">
-                        {{ $BusinessData['footer_text'] ?? translate('Copyright 2023 6ammart. All right reserved') }}
+                        {{ $BusinessData['footer_text'] ?? translate('Copyright 2023 Urban Goodz. All right reserved') }}
                     </div>
                 </td>
             </tr>

@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('email_template'))
 @push('css_or_js')
@@ -246,7 +246,7 @@
                                                             <label class="form-label">
                                                                 {{translate('Copyright Content')}}({{ translate('messages.default') }})
                                                             </label>
-                                                            <input type="text" data-id="mail-copyright" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2023_6amMart._All_right_reserved') }}" class="form-control" value="{{ $data?->getRawOriginal('copyright_text') }}">
+                                                            <input type="text" data-id="mail-copyright" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2024_Urban_Goodz._All_rights_reserved') }}" class="form-control" value="{{ $data?->getRawOriginal('copyright_text') }}">
                                                         </div>
                                                     @foreach(json_decode($language) as $lang)
                                                     <?php
@@ -264,7 +264,7 @@
                                                             <label class="form-label">
                                                                 {{translate('Copyright Content')}}({{strtoupper($lang)}})
                                                             </label>
-                                                            <input type="text" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2023_6amMart._All_right_reserved') }}" class="form-control" value="{{ $translate[$lang]['copyright_text']??'' }}">
+                                                            <input type="text" name="copyright_text[]"  placeholder="{{ translate('Ex:_Copyright_2024_Urban_Goodz._All_rights_reserved') }}" class="form-control" value="{{ $translate[$lang]['copyright_text']??'' }}">
                                                         </div>
                                                     @endforeach
                                                 @else
@@ -275,7 +275,7 @@
                                                             <i class="tio-info-outined"></i>
                                                         </span>
                                                     </label>
-                                                    <input type="text" placeholder="{{ translate('Ex:_Copyright_2023_6amMart._All_right_reserved') }}" class="form-control" name="copyright_text[]" value="">
+                                                    <input type="text" placeholder="{{ translate('Ex:_Copyright_2024_Urban_Goodz._All_rights_reserved') }}" class="form-control" name="copyright_text[]" value="">
                                                 </div>
                                                 @endif
                                             </div>

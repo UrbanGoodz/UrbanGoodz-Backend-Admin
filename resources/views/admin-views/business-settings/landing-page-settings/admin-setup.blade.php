@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('admin_landing_page'))
 
@@ -128,7 +128,7 @@
                                         </span>
                                     </label>
                                     <input type="text"
-                                        placeholder="{{ translate('messages.Ex: https://6ammart-web.6amtech.com/') }}"
+                                        placeholder="{{ translate('messages.Ex: https://Urban Goodz-web.6amtech.com/') }}"
                                         class="form-control h--45px" id="redirect_url" name="redirect_url" value="{{ $redirect_url }}">
                                 </div>
                                 <div class="fs-12 px-3 py-2 rounded bg-info bg-opacity-10">
@@ -259,7 +259,7 @@
                             @endif
                             @if(isset($config) && $config)
                             <p class="fs-12 mb-0">
-                                <span class="font-semibold">{{ (\App\CentralLogics\Helpers::get_business_data('business_name') ?? "6amMart" ) .' '. translate('Default') }} </span>
+                                <span class="font-semibold">{{ (\App\CentralLogics\Helpers::get_business_data('business_name') ?? "Urban Goodz" ) .' '. translate('Default') }} </span>
                                 {{ translate('Landing Page') }}
                             </p>
                             @else

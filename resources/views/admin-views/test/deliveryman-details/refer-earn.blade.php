@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title',translate('messages.Delivery Man Preview'))
 
@@ -18,25 +18,25 @@
                 <!-- Nav -->
                 <ul class="nav nav-tabs nav--pills mb-3 border-0 nav--tabs">
                     <li class="nav-item">
-                        <a class="nav-link " href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/info" aria-disabled="true">Info</a>
+                        <a class="nav-link " href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/info" aria-disabled="true">Info</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/transaction" aria-disabled="true">Transaction</a>
+                        <a class="nav-link" href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/transaction" aria-disabled="true">Transaction</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link " href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/order_list" aria-disabled="true">Order list</a>
+                        <a class="nav-link " href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/order_list" aria-disabled="true">Order list</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link " href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/conversation" aria-disabled="true">Conversations</a>
+                        <a class="nav-link " href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/conversation" aria-disabled="true">Conversations</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link " href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/disbursement" aria-disabled="true">Disbursements</a>
+                        <a class="nav-link " href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/disbursement" aria-disabled="true">Disbursements</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link " href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/disbursement" aria-disabled="true">Loyalty Point</a>
+                        <a class="nav-link " href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/disbursement" aria-disabled="true">Loyalty Point</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="http://localhost/Backend-6amMart/admin/users/delivery-man/preview/6/disbursement" aria-disabled="true">Refer & Earn</a>
+                        <a class="nav-link active" href="http://localhost/Backend-Urban Goodz/admin/users/delivery-man/preview/6/disbursement" aria-disabled="true">Refer & Earn</a>
                     </li>
                 </ul>
                 <!-- End Nav -->

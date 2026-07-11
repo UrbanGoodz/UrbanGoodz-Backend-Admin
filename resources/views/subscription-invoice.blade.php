@@ -1,4 +1,4 @@
-<html>
+﻿<html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{translate('Subscription_Invoice')}}</title>
@@ -194,7 +194,7 @@
                             </div>
                         </td>
                         <td style="padding:0;text-align:right">
-                            <img width="60" height="40"  alt="6amMart"
+                            <img width="60" height="40"  alt="Urban Goodz"
                             src="{{ \App\CentralLogics\Helpers::get_full_url('business',$logo?->value,$logo?->storage[0]?->value ?? 'public' ) }}"
                             style="margin-bottom:5px">
                             <div class="font-normal">

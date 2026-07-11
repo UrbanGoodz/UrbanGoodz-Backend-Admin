@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('messages.websocket_settings'))
 
@@ -32,7 +32,7 @@
                     {{ translate('messages.Get instant alerts for subscription status updates.') }}
                 </li>
             </ul>
-            <a target="_blank" href="https://6ammart.app/documentation/admin-application-configuration/3rd-party-setup/" class="theme-clr fs-12 text-underline">{{ translate('messages.Get Credential Setup') }}</a>
+            <a target="_blank" href="https://Urban Goodz.app/documentation/admin-application-configuration/3rd-party-setup/" class="theme-clr fs-12 text-underline">{{ translate('messages.Get Credential Setup') }}</a>
         </div>
 
         <form action="{{ route('admin.business-settings.update-websocket') }}" method="post" enctype="multipart/form-data">

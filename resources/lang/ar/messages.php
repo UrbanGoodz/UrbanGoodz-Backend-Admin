@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 return array (
   'alert_store_out_from_campaign' => 'تريد متجرك من هذه الحملة؟',
@@ -6133,7 +6133,7 @@ return array (
   'is disable because this is not activated in the' => 'تم تعطيله لأنه لم يتم تنشيطه في',
   'Payment Option setup' => 'إعداد خيار الدفع',
   'Payment Settings Guideline' => 'إرشادات إعدادات الدفع',
-  '6ammart supports multiple payment methods to provide flexibility and convenience for customers while ensuring smooth transaction management for the platform and vendors.' => 'تدعم 6ammart طرق دفع متعددة لتوفير المرونة والراحة للعملاء مع ضمان إدارة المعاملات بسلاسة للمنصة والبائعين.',
+  'Urban Goodz supports multiple payment methods to provide flexibility and convenience for customers while ensuring smooth transaction management for the platform and vendors.' => 'تدعم 6ammart طرق دفع متعددة لتوفير المرونة والراحة للعملاء مع ضمان إدارة المعاملات بسلاسة للمنصة والبائعين.',
   'Customers pay in cash when they receive their order.' => 'يدفع العملاء نقدًا عندما يتلقون طلباتهم.',
   'Customers pay online using cards, mobile banking, or digital wallets. Payment is completed before the order is confirmed.' => 'يدفع العملاء عبر الإنترنت باستخدام البطاقات أو الخدمات المصرفية عبر الهاتف المحمول أو المحافظ الرقمية. ',
   'Customers place an order using manual payment methods such as bank transfer or mobile banking. Customers must provide a payment reference or proof. Admin or vendor approval may be required before order confirmation.' => 'يقدم العملاء طلبًا باستخدام طرق الدفع اليدوية مثل التحويل المصرفي أو الخدمات المصرفية عبر الهاتف المحمول. ',

@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title',translate('messages.react_landing_page'))
 
@@ -435,7 +435,7 @@
                             </div>
                            <div class="mt-xl-0 mt-2">
                                 <h2 class="mb-xxl-2 mb-1 fs-20">
-                                    Start Selling with <span class="text-base-clr">6amMart</span>
+                                    Start Selling with <span class="text-base-clr">Urban Goodz</span>
                                 </h2>
                                 <p class="text-title fs-12 mb-xl-3 mb-3">
                                     Turn your local shop into an online business and grow your sales with our powerful platform

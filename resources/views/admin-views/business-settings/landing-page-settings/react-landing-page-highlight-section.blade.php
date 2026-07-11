@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', translate('messages.react_landing_page'))
 
@@ -414,7 +414,7 @@
                                             {{$highlight_title?->value ?? 'Ride Anytime, Anywhere'}}
                                         </h2>
                                         <p class="fs-12 m-0 text-white">
-                                            {{$highlight_sub_title?->value ?? '6amMart makes it easy to rent vehicles quickly and affordably.'}}
+                                            {{$highlight_sub_title?->value ?? 'Urban Goodz makes it easy to rent vehicles quickly and affordably.'}}
                                         </p>
                                     </div>
                                 </div>

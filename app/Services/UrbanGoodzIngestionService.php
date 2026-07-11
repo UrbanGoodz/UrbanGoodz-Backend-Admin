@@ -469,7 +469,7 @@ class UrbanGoodzIngestionService
             );
         }
 
-        // Map Sourced Business to 6amMart active store structure
+        // Map Sourced Business to Urban Goodz active store structure
         $store = Store::create([
             'name' => $b->name,
             'phone' => $b->phone ?? '0000000000',

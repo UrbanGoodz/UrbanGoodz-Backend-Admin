@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title', $section['title'])
 
@@ -19,7 +19,7 @@
         @if(addon_published_status('Rental'))
             <div class="alert alert-info">
                 <i class="tio-info-outined mr-2"></i>
-                {{ translate('The 6amMart Rental module is active. Use the existing admin/rental/* routes for trip, provider, and vehicle management.') }}
+                {{ translate('The Urban Goodz Rental module is active. Use the existing admin/rental/* routes for trip, provider, and vehicle management.') }}
                 <div class="mt-2">
                     <a href="{{ route('admin.urban-goodz.rentals.dashboard') }}" class="btn btn-sm btn--primary">{{ translate('Rental Dashboard') }}</a>
                 </div>

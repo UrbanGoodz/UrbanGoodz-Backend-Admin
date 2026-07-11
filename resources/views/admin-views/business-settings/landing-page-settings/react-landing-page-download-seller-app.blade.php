@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title',translate('messages.react_landing_page'))
 
@@ -608,7 +608,7 @@
                                 </div>
                                 <div class="mt-xl-0 mt-2">
                                     <h2 class="mb-xxl-2 mb-1 fs-20">
-                                        {!! \App\CentralLogics\Helpers::highlightWords($download_seller_app_title?->value ?? 'Start Selling with $6amMart$') !!}
+                                        {!! \App\CentralLogics\Helpers::highlightWords($download_seller_app_title?->value ?? 'Start Selling with $Urban Goodz$') !!}
                                     </h2>
                                     <p class="text-title fs-12 mb-xl-3 mb-3">
                                         {{$download_seller_app_sub_title?->value ?? 'Turn your local shop into an online business and grow your sales with our powerful platform'}}

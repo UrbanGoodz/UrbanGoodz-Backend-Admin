@@ -1,4 +1,4 @@
-@extends('layouts.admin.app')
+﻿@extends('layouts.admin.app')
 
 @section('title',translate('messages.Reels_List'))
 
@@ -301,23 +301,23 @@
         
                             <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=2">2</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=2">2</a></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=3">3</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=3">3</a></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=4">4</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=4">4</a></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=5">5</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=5">5</a></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=6">6</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=6">6</a></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=7">7</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=7">7</a></li>
                             <li class="page-item"><a class="page-link"
-                                    href="http://localhost/6ammart/admin/order/list/all?page=8">8</a></li>
+                                    href="http://localhost/Urban Goodz/admin/order/list/all?page=8">8</a></li>
         
         
                             <li class="page-item">
-                                <a class="page-link" href="http://localhost/6ammart/admin/order/list/all?page=2" rel="next"
+                                <a class="page-link" href="http://localhost/Urban Goodz/admin/order/list/all?page=2" rel="next"
                                     aria-label="Next »">›</a>
                             </li>
                         </ul>
