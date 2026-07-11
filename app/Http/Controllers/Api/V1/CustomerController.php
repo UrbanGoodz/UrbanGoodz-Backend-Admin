@@ -803,45 +803,42 @@ class CustomerController extends Controller
             return ['is_success' => true, 'verification_medium' => 'email',  'message' => translate('Otp_verification_successful'), 'code' => 200];
         }
 
-        // $max_otp_hit = 5;
-        // $max_otp_hit_time = 60; // seconds
-        // $temp_block_time = 600; // seconds
+        $max_otp_hit = 5;
+        $max_otp_hit_time = 60;
+        $temp_block_time = 600;
 
-        // $verification_data =EmailVerifications::where('email', $request['email'])->first();
+        $verification_data = EmailVerifications::where('email', $request['email'])->first();
 
-        // if (isset($verification_data)) {
-        //     if (isset($verification_data->temp_block_time) && Carbon::parse($verification_data->temp_block_time)->DiffInSeconds() <= $temp_block_time) {
-        //         $time = $temp_block_time - Carbon::parse($verification_data->temp_block_time)->DiffInSeconds();
-        //         return  ['is_success'=> false, 'verification_medium'=>'email' , 'message'=> translate('messages.please_try_again_after_') . CarbonInterval::seconds($time)->cascade()->forHumans() ,'code' => 403];
-        //     }
+        if (isset($verification_data)) {
+            if (isset($verification_data->temp_block_time) && Carbon::parse($verification_data->temp_block_time)->DiffInSeconds() <= $temp_block_time) {
+                $time = $temp_block_time - Carbon::parse($verification_data->temp_block_time)->DiffInSeconds();
+                return ['is_success' => false, 'verification_medium' => 'email', 'message' => translate('messages.please_try_again_after_') . CarbonInterval::seconds($time)->cascade()->forHumans(), 'code' => 403];
+            }
 
-        //     if ($verification_data->is_temp_blocked == 1 && Carbon::parse($verification_data->updated_at)->DiffInSeconds() >= $max_otp_hit_time) {
-        //             $verification_data->otp_hit_count = 0;
-        //             $verification_data->is_temp_blocked = 0;
-        //             $verification_data->temp_block_time = null;
-        //             $verification_data->created_at = now();
-        //             $verification_data->updated_at = now();
-        //             $verification_data->save();
-        //     }
+            if ($verification_data->is_temp_blocked == 1 && Carbon::parse($verification_data->updated_at)->DiffInSeconds() >= $max_otp_hit_time) {
+                $verification_data->otp_hit_count = 0;
+                $verification_data->is_temp_blocked = 0;
+                $verification_data->temp_block_time = null;
+                $verification_data->created_at = now();
+                $verification_data->updated_at = now();
+                $verification_data->save();
+            }
 
-        //     if ($verification_data->otp_hit_count >= $max_otp_hit && Carbon::parse($verification_data->updated_at)->DiffInSeconds() < $max_otp_hit_time && $verification_data->is_temp_blocked == 0) {
+            if ($verification_data->otp_hit_count >= $max_otp_hit && Carbon::parse($verification_data->updated_at)->DiffInSeconds() < $max_otp_hit_time && $verification_data->is_temp_blocked == 0) {
+                $verification_data->is_temp_blocked = 1;
+                $verification_data->temp_block_time = now();
+                $verification_data->created_at = now();
+                $verification_data->updated_at = now();
+                $verification_data->save();
+                return ['is_success' => false, 'verification_medium' => 'email', 'message' => translate('messages.Too_many_attemps'), 'code' => 403];
+            }
+            $verification_data->otp_hit_count = $verification_data->otp_hit_count + 1;
+            $verification_data->updated_at = now();
+            $verification_data->temp_block_time = null;
+            $verification_data->save();
+        }
 
-        //             $verification_data->is_temp_blocked = 1;
-        //             $verification_data->temp_block_time = now();
-        //             $verification_data->created_at = now();
-        //             $verification_data->updated_at = now();
-        //             $verification_data->save();
-        //         return  ['is_success'=> false, 'verification_medium'=>'email' , 'message'=> translate('messages.Too_many_attemps') ,'code' => 403];
-        //     }
-        //     $verification_data->otp_hit_count = $verification_data->otp_hit_count+1;
-        //     $verification_data->updated_at = now();
-        //     $verification_data->temp_block_time = null;
-        //     $verification_data->save();
-
-        // }else{
-        //     return  ['is_success'=> false, 'verification_medium'=>'email' , 'message'=> translate('email_not_found!!!') ,'code' => 403];
-        // }
-        return  ['is_success' => false, 'verification_medium' => 'email', 'message' => translate('OTP_does_not_match!!!'), 'code' => 403];
+        return ['is_success' => false, 'verification_medium' => 'email', 'message' => translate('OTP_does_not_match!!!'), 'code' => 403];
     }
     private function check_SMS_otp($request)
     {
