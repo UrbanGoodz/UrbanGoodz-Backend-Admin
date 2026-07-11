@@ -8,6 +8,20 @@ use App\Http\Controllers\Admin\UrbanGoodzAdminController;
 
 Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
+    Route::group(['middleware' => ['admin']], function () {
+        Route::get('two-factor', 'TwoFactorAuthController@index')->name('two-factor.index');
+        Route::get('two-factor/setup', 'TwoFactorAuthController@showSetup')->name('two-factor.show-setup');
+        Route::post('two-factor/confirm', 'TwoFactorAuthController@confirm')->name('two-factor.confirm');
+        Route::get('two-factor/disable', 'TwoFactorAuthController@showDisable')->name('two-factor.disable');
+        Route::delete('two-factor/disable', 'TwoFactorAuthController@disable')->name('two-factor.disable-submit');
+        Route::get('two-factor/recovery-codes', 'TwoFactorAuthController@showRecoveryCodes')->name('two-factor.recovery-codes');
+        Route::post('two-factor/recovery-codes/regenerate', 'TwoFactorAuthController@regenerateRecoveryCodes')->name('two-factor.recovery-codes-regenerate');
+        Route::get('two-factor/verify', 'TwoFactorLoginController@showVerify')->name('two-factor.verify');
+        Route::post('two-factor/verify', 'TwoFactorLoginController@verify')->name('two-factor.verify-submit');
+        Route::get('two-factor/verify-recovery', 'TwoFactorLoginController@showRecoveryVerify')->name('two-factor.verify-recovery');
+        Route::post('two-factor/verify-recovery', 'TwoFactorLoginController@verifyRecovery')->name('two-factor.verify-recovery-submit');
+    });
+
     Route::group(['middleware' => ['admin', 'current-module', 'actch:admin_panel']], function () {
         Route::get('/test', function () {
             // return view('admin-views.test.VendorPanel-tax-report');

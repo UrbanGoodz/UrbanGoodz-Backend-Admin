@@ -98,6 +98,14 @@ class LoginController extends Controller
         $auth = ($role == 'admin_employee' ? 'admin' : $role);
         if (auth($auth)->attempt(['email' => $email, 'password' => $password], $remember)) {
             $user = auth($auth)->user();
+
+            if ($auth === 'admin' && $user->two_factor_enabled && $user->two_factor_secret) {
+                auth($auth)->logout();
+                session(['pending_2fa_admin_id' => $user->id]);
+                RateLimiter::clear('login-attempts:' . $ip);
+                return 'tfa_required';
+            }
+
             $newToken = $user?->login_remember_token ?? Str::random(60);
             $user->login_remember_token = $newToken;
             $user->save();
@@ -242,6 +250,10 @@ class LoginController extends Controller
         }
 
         $data = $this->login_attemp($request->role, $request->email, $request->password, $request->ip(), $request->remember);
+
+        if ($data == 'tfa_required') {
+            return redirect()->route('admin.two-factor.verify');
+        }
 
         if($request->remember){
             $forgetCookies = [];

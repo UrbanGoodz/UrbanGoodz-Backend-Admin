@@ -50,6 +50,10 @@ class Admin extends Authenticatable
         'role_id',
         'zone_id',
         'is_logged_in',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_enabled',
+        'two_factor_confirmed_at',
     ];
 
     /**

@@ -74,6 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'guest' => RedirectIfAuthenticated::class,
 
             'admin' => AdminMiddleware::class,
+            'tfa' => \App\Http\Middleware\TwoFactorAuthMiddleware::class,
             'vendor' => VendorMiddleware::class,
             'deliveryman' => DeliveryManWebMiddleware::class,
             'vendor.api' => VendorTokenIsValid::class,
