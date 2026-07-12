@@ -60,7 +60,7 @@ class UrbanGoodzPaymentService
             abort(403, "Live payment of \${$amount} exceeds maximum allowed cap of \${$maxAmount}. Reduce the amount or switch to sandbox mode.");
         }
 
-        if (! OrderAnywhereRequest::isLiveAdminAllowed()) {
+        if (auth('admin')->check() && ! OrderAnywhereRequest::isLiveAdminAllowed()) {
             Log::critical('LIVE PAYMENT BLOCKED: admin not in allowed list', [
                 'admin_id' => auth('admin')->id(),
                 'provider' => $this->gateway->providerName(),
@@ -443,6 +443,18 @@ class UrbanGoodzPaymentService
 
             $this->reversalSplits($ledger, $request, $amount);
 
+            $releasedVendorSplit = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $request->id)
+                ->where('recipient_type', 'vendor')
+                ->where('status', 'released')
+                ->first();
+            if ($releasedVendorSplit) {
+                $vendorWallet = \App\Models\StoreWallet::where('vendor_id', $releasedVendorSplit->recipient_id)->first();
+                if ($vendorWallet) {
+                    $vendorWallet->decrement('total_earning', $amount);
+                }
+            }
+
             $request->logPaymentEvent('refund', $amount, $request->refund_reference, [
                 'reason' => $data['reason'] ?? null,
                 'source' => $data['source'] ?? 'manual',
@@ -498,6 +510,86 @@ class UrbanGoodzPaymentService
         ];
     }
 
+    public function settleSplits(OrderAnywhereRequest $request): void
+    {
+        DB::transaction(function () use ($request) {
+            $splits = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $request->id)
+                ->where('status', 'manual_pending')
+                ->lockForUpdate()
+                ->get();
+
+            if (in_array($request->status, ['cancelled', 'failed'], true) || ($request->payment_status === 'refunded' && $request->captured_amount <= $request->refunded_amount)) {
+                foreach ($splits as $split) {
+                    $split->update(['status' => 'cancelled']);
+                }
+                return;
+            }
+
+            foreach ($splits as $split) {
+                if ($split->status !== 'manual_pending') {
+                    continue;
+                }
+
+                $amount = (float) $split->amount;
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $finalAmount = $amount;
+                if ($split->recipient_type === 'vendor' && $request->refunded_amount > 0) {
+                    $finalAmount = max($amount - (float) $request->refunded_amount, 0);
+                }
+
+                if ($finalAmount <= 0) {
+                    $split->update(['status' => 'cancelled']);
+                    continue;
+                }
+
+                if ($split->recipient_type === 'platform') {
+                    $admin = \App\Models\Admin::where('role_id', 1)->first();
+                    if ($admin) {
+                        $adminWallet = \App\Models\AdminWallet::firstOrCreate(['admin_id' => $admin->id]);
+                        $adminWallet->increment('total_commission_earning', $finalAmount);
+                    }
+                } elseif ($split->recipient_type === 'vendor') {
+                    $vendorId = $split->recipient_id;
+                    if ($vendorId) {
+                        $vendorWallet = \App\Models\StoreWallet::firstOrCreate(['vendor_id' => $vendorId]);
+                        $vendorWallet->increment('total_earning', $finalAmount);
+                    }
+                } elseif ($split->recipient_type === 'driver') {
+                    $driverId = $split->recipient_id;
+                    if ($driverId) {
+                        $dmWallet = \App\Models\DeliveryManWallet::firstOrCreate(['delivery_man_id' => $driverId]);
+                        $dmWallet->increment('total_earning', $finalAmount);
+
+                        \App\Models\UrbanGoodzDriverEarning::firstOrCreate(
+                            [
+                                'delivery_man_id' => $driverId,
+                                'dedicated_route_id' => null,
+                                'business_client_job_id' => null,
+                                'package_id' => null,
+                                'earning_type' => 'per_package',
+                                'amount' => $finalAmount,
+                                'description' => "Order Anywhere Delivery - Req #{$request->request_number}",
+                            ],
+                            [
+                                'currency' => $split->currency ?? 'USD',
+                                'status' => 'pending',
+                            ]
+                        );
+                    }
+                }
+
+                $split->update([
+                    'amount' => $finalAmount,
+                    'status' => 'released',
+                ]);
+            }
+        });
+    }
+
     // ─── Private Helpers ──────────────────────────────────────────────────
 
     private function ledger(OrderAnywhereRequest $request, string $event, string $direction, float $amount, string $status, array $options = []): UrbanGoodzPaymentLedger
@@ -538,7 +630,15 @@ class UrbanGoodzPaymentService
         $feePercent = (float) config('urban_goodz_payments.default_platform_fee_percent', 10);
         $platformFee = (float) ($data['platform_fee'] ?? round($amount * ($feePercent / 100), 2));
         $driverAmount = (float) ($data['driver_amount'] ?? 0);
-        $vendorAmount = (float) ($data['vendor_amount'] ?? max($amount - $platformFee - $driverAmount, 0));
+
+        if (isset($data['vendor_amount'])) {
+            $vendorAmount = (float) $data['vendor_amount'];
+            if (abs(($platformFee + $driverAmount + $vendorAmount) - $amount) > 0.01) {
+                throw new \InvalidArgumentException("Ledger split mismatch: Platform fee (\${$platformFee}) + Driver amount (\${$driverAmount}) + Vendor amount (\${$vendorAmount}) does not equal captured amount (\${$amount})");
+            }
+        } else {
+            $vendorAmount = max($amount - $platformFee - $driverAmount, 0);
+        }
 
         $this->split($ledger, $request, 'platform', null, 'platform_fee', $platformFee, 'manual_pending');
         $this->split($ledger, $request, 'vendor', $request->vendor_id, 'vendor_earning', $vendorAmount, 'manual_pending');

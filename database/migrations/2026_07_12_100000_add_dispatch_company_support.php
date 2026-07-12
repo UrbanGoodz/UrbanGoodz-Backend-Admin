@@ -61,8 +61,8 @@ return new class extends Migration
                 $table->timestamps();
                 $table->softDeletes();
 
-                $table->index(['dispatch_company_id', 'status']);
-                $table->index(['dispatcher_id', 'status']);
+                $table->index(['dispatch_company_id', 'status'], 'ug_disp_comm_company_status_idx');
+                $table->index(['dispatcher_id', 'status'], 'ug_disp_comm_dispatcher_status_idx');
             });
         }
     }

@@ -15,7 +15,16 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
 
     public function isEnabled(): bool
     {
-        return config('urban_goodz_payments.staged_test.enabled', true);
+        if (app()->environment('production')) {
+            return false;
+        }
+
+        $mode = config('urban_goodz_payments.mode', 'disabled');
+        if ($mode !== 'sandbox' && $mode !== 'test') {
+            return false;
+        }
+
+        return (bool) config('urban_goodz_payments.staged_test.enabled', false);
     }
 
     public function createPaymentLink(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array
@@ -101,15 +110,20 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
 
     public function validateWebhook(array|string $payload, array $headers = []): bool
     {
-        return true;
+        return $this->isEnabled();
     }
 
     public function parseWebhook(array|string $payload, array $headers = []): array
     {
-        return [
-            'success' => false,
-            'message' => 'Staged test mode does not receive real webhooks',
-        ];
+        if (is_array($payload)) {
+            if (isset($payload[0]) && is_array($payload[0])) {
+                return $payload;
+            }
+            if (isset($payload['event_code'])) {
+                return [$payload];
+            }
+        }
+        return [];
     }
 
     public function retrieveTransaction(string $providerReference): array

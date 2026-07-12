@@ -22,10 +22,16 @@ class PaymentWebhookController extends Controller
 
     public function handle(Request $request, string $provider, UrbanGoodzPaymentService $payments): Response
     {
-        $allowedProviders = ['adyen', 'stripe'];
+        $allowedProviders = ['adyen', 'stripe', 'staged_test'];
 
         if (! in_array($provider, $allowedProviders, true)) {
             Log::warning('Payment webhook received for unknown provider', ['provider' => $provider]);
+
+            return response('OK', 200);
+        }
+
+        if ($this->providerManager->isDisabled()) {
+            Log::warning('Payment webhook received but payments are globally disabled', ['provider' => $provider]);
 
             return response('OK', 200);
         }
@@ -72,6 +78,21 @@ class PaymentWebhookController extends Controller
                 continue;
             }
 
+            // Webhook idempotency protection: check if event has already been recorded in payment ledgers
+            $eventType = $this->mapWebhookEventToLedgerType($eventCode, $provider);
+            if ($eventType) {
+                $existingLedger = \App\Models\UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                    ->where('payable_id', $requestModel->id)
+                    ->where('event_type', $eventType)
+                    ->where('reference', $providerReference)
+                    ->first();
+                if ($existingLedger) {
+                    Log::info("Webhook event {$eventCode} with reference {$providerReference} already processed. Skipping.");
+                    $handled[] = $eventCode;
+                    continue;
+                }
+            }
+
             $result = $this->processEvent($event, $requestModel, $gateway, $payments);
 
             if ($result === 'unhandled') {
@@ -89,6 +110,31 @@ class PaymentWebhookController extends Controller
         ]);
 
         return response('OK', 200);
+    }
+
+    private function mapWebhookEventToLedgerType(string $eventCode, string $provider): ?string
+    {
+        if ($provider === 'adyen' || $provider === 'staged_test') {
+            return match ($eventCode) {
+                'AUTHORISATION' => 'authorize',
+                'CAPTURE' => 'capture',
+                'REFUND', 'CANCEL_OR_REFUND' => 'refund',
+                default => null,
+            };
+        }
+
+        if ($provider === 'stripe') {
+            return match ($eventCode) {
+                'checkout.session.completed',
+                'payment_intent.succeeded',
+                'charge.succeeded' => 'capture',
+                'charge.refunded',
+                'refund.succeeded' => 'refund',
+                default => null,
+            };
+        }
+
+        return null;
     }
 
     private function extractPayload(Request $request, string $provider): array|string
@@ -126,7 +172,7 @@ class PaymentWebhookController extends Controller
         ]);
 
         match ($provider) {
-            'adyen' => $this->processAdyenEvent($eventCode, $success, $providerReference, $amount, $currency, $requestModel, $payments),
+            'adyen', 'staged_test' => $this->processAdyenEvent($eventCode, $success, $providerReference, $amount, $currency, $requestModel, $payments),
             'stripe' => $this->processStripeEvent($eventCode, $success, $providerReference, $amount, $currency, $requestModel, $payments),
             default => null,
         };
@@ -218,25 +264,21 @@ class PaymentWebhookController extends Controller
             'refund.failed' => $this->markFailed($request, 'refund_failed', $providerReference, $amount),
             'charge.dispute.created' => $request->update([
                 'payment_status' => 'disputed',
-                'metadata' => array_merge($request->metadata ?? [], [
-                    'disputed_at' => now()->toISOString(),
-                    'provider_reference' => $providerReference,
-                ]),
             ]),
             default => null,
         };
     }
 
-    private function markFailed(OrderAnywhereRequest $request, string $status, ?string $providerReference, float $amount): void
+    private function markFailed(OrderAnywhereRequest $request, string $status, ?string $reference, float $amount): void
     {
         $request->update([
             'payment_status' => $status,
-            'metadata' => array_merge($request->metadata ?? [], [
-                "{$status}_at" => now()->toISOString(),
-                'provider_reference' => $providerReference,
-            ]),
         ]);
-        $request->logPaymentEvent($status, $amount, $providerReference, ['source' => 'webhook']);
+
+        $request->logPaymentEvent($status, $amount, $reference, [
+            'source' => 'webhook',
+            'failed' => true,
+        ]);
     }
 
     private function findRequestByReference(?string $merchantReference, ?string $providerReference): ?OrderAnywhereRequest

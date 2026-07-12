@@ -23,7 +23,9 @@ class UrbanGoodzDriverApiController extends Controller
 {
     private function authDriver(Request $request)
     {
-        $driver = $request->user('delivery_man');
+        // dm.api middleware logs the driver in via the 'delivery_men' guard.
+        // The singular 'delivery_man' alias also resolves the same provider.
+        $driver = $request->user('delivery_men') ?? auth('delivery_man')->user();
         if (!$driver) {
             abort(401, 'Unauthenticated driver');
         }
@@ -534,10 +536,17 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('status', 'pending')
             ->sum('amount');
 
-        if ($request->amount > $pendingEarnings) {
+        $pendingPayouts = UrbanGoodzDriverPayoutRequest::where('delivery_man_id', $driver->id)
+            ->whereIn('status', ['pending', 'approved', 'processing'])
+            ->sum('requested_amount');
+
+        $availableEarnings = max($pendingEarnings - $pendingPayouts, 0);
+
+        if ($request->amount > $availableEarnings) {
             return response()->json([
                 'error' => 'Requested amount exceeds pending earnings',
                 'pending_earnings' => $pendingEarnings,
+                'available_earnings' => $availableEarnings,
             ], 400);
         }
 
