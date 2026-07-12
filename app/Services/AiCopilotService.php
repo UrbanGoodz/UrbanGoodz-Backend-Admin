@@ -180,7 +180,7 @@ class AiCopilotService
 
         $availableDrivers = DeliveryMan::where('active', 1)
             ->where('application_status', 'approved')
-            ->whereColumn('current_orders', '<', DB::raw('CAST(`dm_maximum_orders` AS SIGNED)'))
+            ->where('current_orders', '<', (int) (config('dm_maximum_orders') ?? 1))
             ->get()
             ->keyBy('id');
 
@@ -251,7 +251,7 @@ class AiCopilotService
             $this->autoExecute($rec, 'ai_auto_dispatch_enabled', 0.7, function() use ($order) {
                 $availableDrivers = DeliveryMan::where('active', 1)
                     ->where('application_status', 'approved')
-                    ->whereColumn('current_orders', '<', DB::raw('CAST(`dm_maximum_orders` AS SIGNED)'))
+                    ->where('current_orders', '<', (int) (config('dm_maximum_orders') ?? 1))
                     ->get()
                     ->keyBy('id');
                 $suggested = $this->findBestDriverForOrder($order, $availableDrivers);
@@ -604,7 +604,7 @@ class AiCopilotService
 
         $availableDrivers = DeliveryMan::where('active', 1)
             ->where('application_status', 'approved')
-            ->whereColumn('current_orders', '<', DB::raw('CAST(`dm_maximum_orders` AS SIGNED)'))
+            ->where('current_orders', '<', (int) (config('dm_maximum_orders') ?? 1))
             ->get();
 
         if ($availableDrivers->isEmpty()) {
@@ -1065,7 +1065,7 @@ class AiCopilotService
             if ($order && !$order->delivery_man_id) {
                 $availableDrivers = DeliveryMan::where('active', 1)
                     ->where('application_status', 'approved')
-                    ->whereColumn('current_orders', '<', DB::raw('CAST(`dm_maximum_orders` AS SIGNED)'))
+                    ->where('current_orders', '<', (int) (config('dm_maximum_orders') ?? 1))
                     ->get()
                     ->keyBy('id');
                 $suggested = $this->findBestDriverForOrder($order, $availableDrivers);
