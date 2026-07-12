@@ -7,13 +7,17 @@ This document details the backend contract, API schemas, and integration points 
 ## 1. Environment & Auth
 
 - **Branch:** `adminpanel-v39-backend-sprint`
-- **Starting Commit SHA:** `58b983617becc4a3cce8c232c918a59ea3e414c4`
+- **Starting Commit SHA:** `e92164d4161972f98672e36cbc623c67481724a9`
+- **Previous SHA:** `58b983617becc4a3cce8c232c918a59ea3e414c4`
 - **Base URL:** `http://localhost/api/v1` or `https://admin.urbangoodzdelivery.com/api/v1`
 - **Authentication Headers:**
   ```http
   Authorization: Bearer <auth_token>
   Accept: application/json
   ```
+
+> [!IMPORTANT]
+> **Middleware Change (v39 Payments/AI Sprint):** All driver API routes under `/api/v1/urban-goodz/driver/*` now use the `dm.api` middleware instead of `auth:delivery_man`. The `dm.api` middleware authenticates via `?token=` query parameter or `Authorization: Bearer` header. Flutter driver app must ensure authentication tokens are sent correctly.
 
 ---
 
@@ -135,6 +139,26 @@ This document details the backend contract, API schemas, and integration points 
 - **Gateway Configuration:** Enforced via `config/urban_goodz_payments.php`.
 - **Driver Card Controls:** Card spending has a 10% safety buffer and a hard limit configured per driver. Webhook listener signatures are fully verified.
 
+> [!IMPORTANT]
+> **Payments/AI Sprint Changes (July 2026):**
+>
+> **Payout Balance Enforcement:** The `POST /api/v1/urban-goodz/driver/payout-request` endpoint now validates the **available** earning balance. It deducts all pending/approved/processing payouts from the driver's pending earnings before checking if the requested amount is allowed. The error response now includes `available_earnings` in addition to `pending_earnings`:
+> ```json
+> {
+>   "error": "Requested amount exceeds pending earnings",
+>   "pending_earnings": 10.00,
+>   "available_earnings": 5.00
+> }
+> ```
+>
+> **Idempotent Settlement:** `settleSplits()` now runs automatically on `completed`, `cancelled`, or `failed` status transitions. Calling it multiple times is safe — splits already in `released` status are skipped, preventing double-credit to wallets.
+>
+> **Refund-Aware Splits:** If a refund occurs before settlement, the vendor's released amount is reduced by the refunded amount. If a refund occurs after settlement, the vendor wallet is debited.
+>
+> **Staged Test Gateway Hardened:** `StagedTestPaymentGateway` is now **disabled** in `production` environments and when payment mode is `live` or `live_controlled`. It only activates in `sandbox`/`test` modes in non-production environments.
+>
+> **Webhook Idempotency:** Duplicate webhook events (same event type + provider reference for the same request) are now silently skipped via ledger-based deduplication.
+
 ---
 
 ## 4. Notifications Expectations
@@ -143,3 +167,19 @@ This document details the backend contract, API schemas, and integration points 
   - `load_assigned` -> Driver push notification.
   - `load_status_changed` -> Customer and Vendor updates.
   - `stylist_bid_received` -> Customer push notification.
+
+---
+
+## 5. Change Log
+
+### Payments/AI Sprint Integration — July 12, 2026
+
+| Area | Change | Flutter Impact |
+|------|--------|----------------|
+| **Driver Routes** | Middleware changed from `auth:delivery_man` to `dm.api` | Ensure `?token=` or `Authorization: Bearer` is sent |
+| **Payout Request** | Now validates available balance (pending earnings minus pending payouts) | Handle new `available_earnings` field in 400 response |
+| **Payment Settlement** | `settleSplits()` auto-triggered on status transitions | No direct Flutter impact — backend-only |
+| **Refund Behavior** | Refunds adjust vendor wallet before or after settlement | No direct Flutter impact — backend-only |
+| **Webhook Route** | Now accepts `staged_test` as a provider | No Flutter impact — webhook-only |
+| **AI Copilot** | Uses `config('dm_maximum_orders')` instead of DB column | No Flutter impact — backend-only |
+| **Load Board** | Null/empty `external_id` no longer causes false duplicate detection | No Flutter impact — backend-only |
