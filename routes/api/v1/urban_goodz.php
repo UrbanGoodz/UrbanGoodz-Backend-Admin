@@ -68,7 +68,7 @@ Route::group(['prefix' => 'urban-goodz/fashion'], function () {
 Route::post('adyen/webhook', 'Api\V1\AdyenWebhookController@handle');
 
 Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@handle')
-    ->where('provider', 'adyen|stripe');
+    ->where('provider', 'adyen|stripe|staged_test');
 
 Route::group(['prefix' => 'order-anywhere'], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereTesterController@store');

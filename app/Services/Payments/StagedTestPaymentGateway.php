@@ -106,10 +106,15 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
 
     public function parseWebhook(array|string $payload, array $headers = []): array
     {
-        return [
-            'success' => false,
-            'message' => 'Staged test mode does not receive real webhooks',
-        ];
+        if (is_array($payload)) {
+            if (isset($payload[0]) && is_array($payload[0])) {
+                return $payload;
+            }
+            if (isset($payload['event_code'])) {
+                return [$payload];
+            }
+        }
+        return [];
     }
 
     public function retrieveTransaction(string $providerReference): array
