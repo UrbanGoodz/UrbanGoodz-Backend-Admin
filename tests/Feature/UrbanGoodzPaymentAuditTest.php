@@ -345,9 +345,8 @@ class UrbanGoodzPaymentAuditTest extends TestCase
     public function test_payout_exceeding_available_balance(): void
     {
         $driver = $this->driver;
-
-        // Force login as driver
-        $this->actingAs($driver, 'delivery_man');
+        $driver->auth_token = 'test-driver-auth-token-999';
+        $driver->save();
 
         // Create $10.00 pending earning
         UrbanGoodzDriverEarning::create([
@@ -360,7 +359,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         ]);
 
         // Request payout of $15.00 -> should fail (400)
-        $response = $this->postJson('/api/v1/urban-goodz/driver/payout-request', [
+        $response = $this->postJson('/api/v1/urban-goodz/driver/payout-request?token=test-driver-auth-token-999', [
             'payout_type' => 'instant',
             'amount' => 15.00,
         ]);
@@ -368,14 +367,14 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $response->assertJsonPath('error', 'Requested amount exceeds pending earnings');
 
         // Request $5.00 payout -> should succeed
-        $response2 = $this->postJson('/api/v1/urban-goodz/driver/payout-request', [
+        $response2 = $this->postJson('/api/v1/urban-goodz/driver/payout-request?token=test-driver-auth-token-999', [
             'payout_type' => 'instant',
             'amount' => 5.00,
         ]);
         $response2->assertStatus(200);
 
         // Request another $6.00 payout -> should fail because only $5.00 remains available ($10 - $5 pending payout)
-        $response3 = $this->postJson('/api/v1/urban-goodz/driver/payout-request', [
+        $response3 = $this->postJson('/api/v1/urban-goodz/driver/payout-request?token=test-driver-auth-token-999', [
             'payout_type' => 'instant',
             'amount' => 6.00,
         ]);
@@ -423,5 +422,25 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->paymentService->captureOrderAnywhere($request, [
             'captured_amount' => 60.00,
         ]);
+    }
+
+    public function test_staged_test_rejected_in_production_or_live_mode(): void
+    {
+        // 1. Force payment mode to live -> staged_test must be disabled
+        Config::set('urban_goodz_payments.mode', 'live');
+        Config::set('urban_goodz_payments.staged_test.enabled', true);
+
+        $gateway = new \App\Services\Payments\StagedTestPaymentGateway();
+        $this->assertFalse($gateway->isEnabled());
+        $this->assertFalse($gateway->validateWebhook([]));
+
+        // 2. Force environment to production -> staged_test must be disabled
+        Config::set('urban_goodz_payments.mode', 'sandbox');
+        $this->app['env'] = 'production';
+        $this->assertFalse($gateway->isEnabled());
+        $this->assertFalse($gateway->validateWebhook([]));
+
+        // Restore environment
+        $this->app['env'] = 'testing';
     }
 }

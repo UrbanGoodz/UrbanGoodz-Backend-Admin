@@ -102,7 +102,7 @@ Route::group(['prefix' => 'urban-goodz/ai-concierge'], function () {
 });
 
 // Driver API - dedicated routes, package scanning, earnings, payouts
-Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'auth:delivery_man'], function () {
+Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], function () {
     Route::get('routes', 'Api\UrbanGoodzDriverApiController@assignedRoutes');
     Route::get('routes/{routeId}', 'Api\UrbanGoodzDriverApiController@routeDetail');
     Route::post('routes/{routeId}/started', 'Api\UrbanGoodzDriverApiController@routeStarted');
