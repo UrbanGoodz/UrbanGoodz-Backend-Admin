@@ -33,8 +33,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['payable_type', 'payable_id']);
-            $table->index(['provider', 'provider_reference']);
-            $table->index('internal_status');
+            $table->index(['provider', 'provider_reference'], 'ug_pay_tx_provider_ref_idx');
         });
     }
 

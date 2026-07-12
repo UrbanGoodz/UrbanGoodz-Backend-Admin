@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class AddOtpHitCountColsToEmailVerificationsTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
@@ -27,4 +27,4 @@ class AddOtpHitCountColsToEmailVerificationsTable extends Migration
             $table->dropColumn(['otp_hit_count', 'is_temp_blocked', 'temp_block_time']);
         });
     }
-}
+};
