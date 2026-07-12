@@ -217,6 +217,37 @@ class UrbanGoodzRentalController extends Controller
         return view('admin-views.urban-goodz.rentals.bookings.index', compact('bookings'));
     }
 
+    public function bookingsCreate()
+    {
+        $assets = UrbanGoodzRentalAsset::where('is_active', true)->orderBy('title')->get();
+
+        return view('admin-views.urban-goodz.rentals.bookings.create', compact('assets'));
+    }
+
+    public function bookingsStore(Request $request)
+    {
+        $data = $request->validate([
+            'rental_asset_id' => ['required', 'integer', 'exists:urban_goodz_rental_assets,id'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:50'],
+            'customer_id' => ['nullable', 'integer'],
+            'start_at' => ['required', 'date'],
+            'end_at' => ['required', 'date', 'after_or_equal:start_at'],
+            'total_amount' => ['required', 'numeric', 'min:0'],
+            'deposit_amount' => ['nullable', 'numeric', 'min:0'],
+            'customer_notes' => ['nullable', 'string'],
+        ]);
+
+        $data['status'] = 'pending';
+        $data['payment_status'] = 'pending';
+        $data['deposit_status'] = 'pending';
+        $data['verification_status'] = 'pending';
+
+        UrbanGoodzRentalBooking::create($data);
+
+        return redirect()->route('admin.urban-goodz.rentals.bookings.index')->with('success', translate('Booking created.'));
+    }
+
     public function bookingsShow($id)
     {
         $booking = UrbanGoodzRentalBooking::with(['asset', 'inspections'])->findOrFail($id);
@@ -224,68 +255,72 @@ class UrbanGoodzRentalController extends Controller
         return view('admin-views.urban-goodz.rentals.bookings.show', compact('booking'));
     }
 
-    public function bookingsStatus($id, $status)
+    public function bookingsStatus(Request $request, $id)
     {
+        $request->validate(['status' => 'required|string|max:100']);
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'approved', 'declined', 'active', 'picked_up', 'returned', 'completed', 'cancelled'];
 
-        abort_unless(in_array($status, $allowed), 400);
+        abort_unless(in_array($request->status, $allowed), 400);
 
-        $booking->status = $status;
+        $booking->status = $request->status;
         $booking->save();
 
         return back()->with('success', translate('Booking status updated.'));
     }
 
-    public function bookingsVerification($id, $status)
+    public function bookingsVerification(Request $request, $id)
     {
         if (!Helpers::module_permission_check('urban_goodz_rental_verification_manage')) {
             Toastr::error(translate('messages.access_denied'));
             return back();
         }
 
+        $request->validate(['status' => 'required|string|max:100']);
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'verified', 'failed'];
 
-        abort_unless(in_array($status, $allowed), 400);
+        abort_unless(in_array($request->status, $allowed), 400);
 
-        $booking->verification_status = $status;
+        $booking->verification_status = $request->status;
         $booking->save();
 
         return back()->with('success', translate('Verification status updated.'));
     }
 
-    public function bookingsPayment($id, $status)
+    public function bookingsPayment(Request $request, $id)
     {
         if (!Helpers::module_permission_check('urban_goodz_rental_bookings_manage')) {
             Toastr::error(translate('messages.access_denied'));
             return back();
         }
 
+        $request->validate(['status' => 'required|string|max:100']);
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'paid', 'refunded', 'failed'];
 
-        abort_unless(in_array($status, $allowed), 400);
+        abort_unless(in_array($request->status, $allowed), 400);
 
-        $booking->payment_status = $status;
+        $booking->payment_status = $request->status;
         $booking->save();
 
         return back()->with('success', translate('Payment status updated.'));
     }
 
-    public function bookingsDeposit($id, $status)
+    public function bookingsDeposit(Request $request, $id)
     {
         if (!Helpers::module_permission_check('urban_goodz_rental_deposits_manage')) {
             Toastr::error(translate('messages.access_denied'));
             return back();
         }
 
+        $request->validate(['status' => 'required|string|max:100']);
         $booking = UrbanGoodzRentalBooking::findOrFail($id);
         $allowed = ['pending', 'collected', 'released', 'partially_released', 'forfeited'];
 
-        abort_unless(in_array($status, $allowed), 400);
+        abort_unless(in_array($request->status, $allowed), 400);
 
-        $booking->deposit_status = $status;
+        $booking->deposit_status = $request->status;
         $booking->save();
 
         return back()->with('success', translate('Deposit status updated.'));

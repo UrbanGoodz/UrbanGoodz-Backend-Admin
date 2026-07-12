@@ -214,6 +214,42 @@ class AiCopilotController extends Controller
         return redirect()->route('admin.urban-goodz.ai-copilot.risk-rules');
     }
 
+    public function editRiskRule($id)
+    {
+        $rule = AiRiskRule::findOrFail($id);
+        return response()->json($rule);
+    }
+
+    public function updateRiskRule(Request $request, $id)
+    {
+        $rule = AiRiskRule::findOrFail($id);
+
+        $validated = $request->validate([
+            'rule_name' => 'required|string|max:255',
+            'trigger_type' => 'required|string|max:100',
+            'trigger_operator' => 'nullable|string|max:20',
+            'trigger_value' => 'nullable|string|max:255',
+            'risk_level' => 'required|in:low,medium,high,critical',
+            'requires_approval' => 'boolean',
+            'escalation_action' => 'nullable|string|max:50',
+            'enabled' => 'boolean',
+        ]);
+
+        $rule->update($validated);
+
+        Toastr::success(translate('Risk rule updated'));
+        return redirect()->route('admin.urban-goodz.ai-copilot.risk-rules');
+    }
+
+    public function deleteRiskRule($id)
+    {
+        $rule = AiRiskRule::findOrFail($id);
+        $rule->delete();
+
+        Toastr::success(translate('Risk rule deleted'));
+        return redirect()->route('admin.urban-goodz.ai-copilot.risk-rules');
+    }
+
     public function toggleRiskRule($id)
     {
         $rule = AiRiskRule::findOrFail($id);

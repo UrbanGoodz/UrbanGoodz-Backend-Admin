@@ -29,7 +29,7 @@ Route::group(['prefix' => 'urban-goodz/logistics'], function () {
     Route::post('jobs/{record}/status', 'Api\V1\UrbanGoodzOpportunityController@updateLogisticsJobStatus');
 });
 
-Route::group(['prefix' => 'urban-goodz/load-board'], function () {
+Route::group(['prefix' => 'urban-goodz/load-board', 'middleware' => 'auth:api'], function () {
     Route::get('loads', 'Api\V1\UrbanGoodzOpportunityController@loadBoardLoads');
     Route::get('loads/{record}', 'Api\V1\UrbanGoodzOpportunityController@loadBoardLoad');
     Route::post('loads/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptLoadBoardLoad');

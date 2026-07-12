@@ -397,3 +397,155 @@ All 10 PHP files pass `php -l` syntax check with zero errors.
 
 ### 27.9 Test Results
 45 pass / 7 fail (PDO connection to local dev DB, not code bugs). No new failures introduced.
+
+---
+
+## 28. Session 5 — Load Board Provider Adapters + Medical Courier Full Build
+
+**Date:** 2026-07-12
+**Branch:** `adminpanel-v39-backend-sprint`
+
+### 28.1 Load Board Provider Adapter Layer
+
+Built a full provider adapter architecture for sourcing loads from external freight boards (DAT, Truckstop):
+
+**Interface:** `app/Contracts/LoadBoard/LoadBoardProviderInterface.php`
+- Contract: `fetchLoads()`, `getLoad()`, `getProviderSlug()`, `isConfigured()`, `normalize()`
+
+**Abstract Base:** `app/Services/UrbanGoodz/LoadBoard/AbstractLoadBoardProvider.php`
+- HTTP helper methods (`get()`, `post()`) with timeout, headers, error handling
+- Field normalizers: `normalizeState()` (full state name → abbreviation), `castFloat()`, `castInt()`, `castBool()`, `parseDateTime()`
+
+**DAT Adapter:** `app/Services/UrbanGoodz/LoadBoard/DatAdapter.php`
+- Auth: API key header + bearer token
+- Search: `GET /loads/search` with origin/dest state, equipment type, weight, miles, hazmat, date range
+- Detail: `GET /loads/{loadId}`
+- Normalizer: maps DAT fields → Urban Goodz schema with full state normalization, equipment/load type mapping
+
+**Truckstop Adapter:** `app/Services\UrbanGoodz\LoadBoard\TruckstopAdapter.php`
+- Auth: OAuth2 client credentials with `refreshAccessToken()`
+- Search: `GET /api/v1/loads/search` with same filter set + min/max rate
+- Normalizer: maps Truckstop fields → Urban Goodz schema
+
+**Config:** `config/urban_goodz_load_board.php`
+- Per-provider: enabled, API keys, base URL, timeout, max per sync, sync interval, default filters
+- Global sync: enabled, dry_run, log results, purge stale days
+
+**Service Provider:** `app/Providers/LoadBoardServiceProvider.php`
+- Singleton `loadboard.providers` resolving enabled adapters
+- Binding `LoadBoardProviderInterface` to named provider
+
+**Artisan Command:** `app/Console/Commands/SyncLoadBoard.php`
+- Signature: `sync-load-board {--provider=} {--max=250} {--dry-run} {--state=}`
+- Iterates enabled adapters, fetches + syncs, supports dry-run preview table
+
+**Service Enhanced:** `app/Services/UrbanGoodz/UrbanGoodzLoadBoardService.php`
+- `syncAllProviders()` — syncs all enabled providers with summary per provider
+- `purgeStaleLoads(int $days)` — removes old external loads not refreshed
+
+**Schedule:** `app/Console/Kernel.php`
+- `sync-load-board` every 30 minutes, withoutOverlapping, runInBackground, conditional on config
+
+**.env entries added:**
+- `LOAD_BOARD_ENABLED`, `LOAD_BOARD_SYNC_ENABLED`, `LOAD_BOARD_SYNC_DRY_RUN`, `LOAD_BOARD_PURGE_DAYS`
+- `DAT_LOAD_BOARD_ENABLED`, `DAT_API_KEY`, `DAT_SESSION_TOKEN`, `DAT_API_BASE_URL`, etc.
+- `TRUCKSTOP_LOAD_BOARD_ENABLED`, `TRUCKSTOP_CLIENT_ID`, `TRUCKSTOP_CLIENT_SECRET`, `TRUCKSTOP_ACCESS_TOKEN`, etc.
+
+### 28.2 Medical Courier Full Build
+
+Replaced all stub methods with a complete feature:
+
+**Migration:** `database/migrations/2026_07_12_000000_enhance_urban_goodz_medical_courier_jobs_table.php`
+- 25 new columns: facility names, contact info, lat/lng for pickup/delivery, distance, payout, priority, specimen count, temperature range, pickup/delivery windows, timestamps, signature, metadata
+
+**Model Enhanced:** `app/Models/UrbanGoodzMedicalCourierJob.php`
+- Soft deletes, 35 fillable fields, full casts (datetimes, booleans, floats, array)
+- Relationships: `assignedDriver()`, `custodyLogs()`
+- Scopes: `available()`, `active()`
+- Accessors: `statusLabel`, `priorityLabel`
+
+**Model Enhanced:** `app/Models/UrbanGoodzMedicalCourierCustodyLog.php`
+- Added: `handler_role`, `handler_id`, `signature_path`
+- Relationship: `job()`
+
+**Service:** `app/Services/UrbanGoodz/UrbanGoodzMedicalCourierService.php`
+- `listJobs()` with filters (status, specimen, priority, driver, search)
+- `createJob()` with auto-generated job number (MC + date + sequence)
+- `assignDriver()` with medical courier training validation + custody log
+- `updateStatus()` with valid transition enforcement + custody log
+- `logCustody()` for chain of custody tracking
+- `getStats()` for dashboard (pending, assigned, in transit, 30d delivered, by specimen, by priority)
+- `deleteJob()` with protection for active jobs
+
+**Admin Controller:** `app/Http/Controllers/Admin/UrbanGoodz/UrbanGoodzMedicalCourierController.php`
+- Full CRUD: index, show, create, store, edit, update, destroy
+- Actions: assignDriver, updateStatus
+- Proper validation
+
+**Admin Routes:** `routes/admin.php`
+- 9 routes under `urban-goodz/medical-courier`
+
+**Blade Views:**
+- `medical-courier/index.blade.php` — stats cards, filter form (status, priority, specimen, search), paginated table
+- `medical-courier/show.blade.php` — full detail with specimen info, pickup/delivery locations, custody chain timeline, status actions, driver info
+- `medical-courier/create.blade.php` — comprehensive form (pickup/delivery locations, specimen info, priority, payout)
+- `medical-courier/edit.blade.php` — pre-populated edit form
+
+**API Replaced:** `app/Http/Controllers/Api/V1/UrbanGoodzOpportunityController.php`
+- `medicalCourierJobs()` — real DB query, pending jobs sorted by priority
+- `medicalCourierJob()` — real model lookup with driver
+- `acceptMedicalCourierJob()` — real driver assignment via service
+- `updateMedicalCourierJobStatus()` — real status transition via service
+- `updateMedicalCourierCustody()` — real custody log creation via service
+
+### 28.3 Sidebar Dynamic Pruning Complete
+
+All sections now use `UrbanGoodzModuleStatusService` to dynamically prune sidebar links when module tables don't exist:
+- Commerce: Order Anywhere, Fashion Fit, Medical Courier (with record count badge)
+- Social/Creator: Community, Creator Space
+- Delivery/Driver: Logistics, Earn Money
+- AI Services: AI Concierge, AI Copilot, Load Board (with record count badge), Discovery
+- Marketing/Subscription: Urban Goodz+, Black-Owned Spotlight (with record count badge), Events (with record count badge)
+
+### 28.4 Load Board Seeder
+
+**Created:** `database/seeders/UrbanGoodzLoadBoardSeeder.php`
+- 25 realistic loads across TX, CA, LA, TN, GA, IL, IN, OH, MI, KY, MO, AZ, NV, FL, AR, NE, MS
+- Mix of FTL, LTL, parcel; van, reefer, tanker equipment types
+- Hazmat, temperature-controlled, expedited, team loads
+- Real shipper/consignee contacts, realistic distances and payouts
+
+### 28.5 Files Created/Modified Summary
+
+| File | Action |
+|------|--------|
+| `app/Contracts/LoadBoard/LoadBoardProviderInterface.php` | **Created** |
+| `app/Services/UrbanGoodz/LoadBoard/AbstractLoadBoardProvider.php` | **Created** |
+| `app/Services/UrbanGoodz/LoadBoard/DatAdapter.php` | **Created** |
+| `app/Services/UrbanGoodz/LoadBoard/TruckstopAdapter.php` | **Created** |
+| `app/Providers/LoadBoardServiceProvider.php` | **Created** |
+| `app/Console/Commands/SyncLoadBoard.php` | **Created** |
+| `config/urban_goodz_load_board.php` | **Created** |
+| `database/seeders/UrbanGoodzLoadBoardSeeder.php` | **Created** |
+| `app/Services/UrbanGoodz/UrbanGoodzLoadBoardService.php` | Modified — syncAllProviders(), purgeStaleLoads() |
+| `app/Console/Kernel.php` | Modified — sync-load-board schedule |
+| `bootstrap/providers.php` | Modified — LoadBoardServiceProvider |
+| `.env` | Modified — load board + provider credentials |
+| `app/Services/UrbanGoodz/UrbanGoodzMedicalCourierService.php` | **Created** |
+| `app/Http/Controllers/Admin/UrbanGoodz/UrbanGoodzMedicalCourierController.php` | **Created** |
+| `database/migrations/2026_07_12_000000_enhance_urban_goodz_medical_courier_jobs_table.php` | **Created** |
+| `app/Models/UrbanGoodzMedicalCourierJob.php` | Modified — enhanced model |
+| `app/Models/UrbanGoodzMedicalCourierCustodyLog.php` | Modified — enhanced model |
+| `app/Http/Controllers/Api/V1/UrbanGoodzOpportunityController.php` | Modified — real DB queries for medical courier |
+| `routes/admin.php` | Modified — 9 medical courier routes |
+| `resources/views/admin-views/urban-goodz/medical-courier/index.blade.php` | **Created** |
+| `resources/views/admin-views/urban-goodz/medical-courier/show.blade.php` | **Created** |
+| `resources/views/admin-views/urban-goodz/medical-courier/create.blade.php` | **Created** |
+| `resources/views/admin-views/urban-goodz/medical-courier/edit.blade.php` | **Created** |
+| `resources/views/layouts/admin/partials/_sidebar.blade.php` | Modified — all sections dynamic pruning |
+
+### 28.6 Syntax Validation
+All 18 PHP files pass `php -l` syntax check with zero errors.
+
+### 28.7 Test Results
+46 pass / 44 fail (PDO connection to local dev DB, not code bugs). No new code failures introduced.

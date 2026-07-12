@@ -166,4 +166,20 @@ class UrbanGoodzLoadBoardController extends Controller
         Toastr::success(translate('Load deleted successfully'));
         return redirect()->route('admin.urban-goodz.load-board.index');
     }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:assigned,in_transit,picked_up,delivered,cancelled',
+        ]);
+
+        $result = $this->loadBoardService->updateStatus($id, $request->status, auth('admin')->id());
+        if (!$result) {
+            Toastr::error(translate('Invalid status transition'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Load status updated'));
+        return redirect()->route('admin.urban-goodz.load-board.show', $id);
+    }
 }

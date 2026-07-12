@@ -99,7 +99,24 @@
                                     </form>
                                 </td>
                                 <td>
-                                    <small class="text-muted">Created {{ $rule->created_at->format('M d, Y') }}</small>
+                                    <button type="button" class="btn btn-sm btn-outline-primary edit-rule-btn"
+                                        data-id="{{ $rule->id }}"
+                                        data-rule_name="{{ $rule->rule_name }}"
+                                        data-trigger_type="{{ $rule->trigger_type }}"
+                                        data-trigger_operator="{{ $rule->trigger_operator }}"
+                                        data-trigger_value="{{ $rule->trigger_value }}"
+                                        data-risk_level="{{ $rule->risk_level }}"
+                                        data-requires_approval="{{ $rule->requires_approval ? '1' : '0' }}"
+                                        data-escalation_action="{{ $rule->escalation_action }}">
+                                        <i class="tio-edit"></i>
+                                    </button>
+                                    <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.risk-rules.delete', $rule->id) }}" class="d-inline"
+                                        onsubmit="return confirm('{{ translate('Are you sure you want to delete this rule?') }}')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="tio-delete"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             @empty
@@ -195,5 +212,107 @@
                 </form>
             </div>
         </div>
+
+        <div class="modal fade" id="editModal" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" id="editRuleForm">
+                    @csrf @method('PUT')
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ translate('Edit Risk Rule') }}</h5>
+                            <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label>{{ translate('Rule Name') }}</label>
+                                <input type="text" name="rule_name" id="edit_rule_name" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>{{ translate('Trigger Type') }}</label>
+                                <input type="text" name="trigger_type" id="edit_trigger_type" class="form-control" required>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{ translate('Operator') }}</label>
+                                        <select name="trigger_operator" id="edit_trigger_operator" class="form-control">
+                                            <option value="">{{ translate('None (exact match)') }}</option>
+                                            <option value=">">&gt;</option>
+                                            <option value="<">&lt;</option>
+                                            <option value=">=">&gt;=</option>
+                                            <option value="<=">&lt;=</option>
+                                            <option value="=">=</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{ translate('Value') }}</label>
+                                        <input type="text" name="trigger_value" id="edit_trigger_value" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>{{ translate('Risk Level') }}</label>
+                                <select name="risk_level" id="edit_risk_level" class="form-control" required>
+                                    <option value="low">{{ translate('Low') }}</option>
+                                    <option value="medium">{{ translate('Medium') }}</option>
+                                    <option value="high">{{ translate('High') }}</option>
+                                    <option value="critical">{{ translate('Critical') }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>{{ translate('Escalation Action') }}</label>
+                                <select name="escalation_action" id="edit_escalation_action" class="form-control">
+                                    <option value="">{{ translate('None') }}</option>
+                                    <option value="flag_for_review">{{ translate('Flag for Review') }}</option>
+                                    <option value="block_action">{{ translate('Block Action') }}</option>
+                                    <option value="notify_admin">{{ translate('Notify Admin') }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-switch">
+                                    <input type="hidden" name="requires_approval" value="0">
+                                    <input type="checkbox" name="requires_approval" id="edit_requires_approval" value="1">
+                                    <span class="toggle-switch-slider"></span>
+                                    <span class="ml-2">{{ translate('Requires Approval') }}</span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-switch">
+                                    <input type="hidden" name="enabled" value="0">
+                                    <input type="checkbox" name="enabled" value="1" checked>
+                                    <span class="toggle-switch-slider"></span>
+                                    <span class="ml-2">{{ translate('Enabled') }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ translate('Cancel') }}</button>
+                            <button type="submit" class="btn btn--primary">{{ translate('Update Rule') }}</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
+
+    @push('script_js')
+    <script>
+        document.querySelectorAll('.edit-rule-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.dataset.id;
+                document.getElementById('editRuleForm').action = '{{ route("admin.urban-goodz.ai-copilot.risk-rules.update", ":id") }}'.replace(':id', id);
+                document.getElementById('edit_rule_name').value = this.dataset.rule_name;
+                document.getElementById('edit_trigger_type').value = this.dataset.trigger_type;
+                document.getElementById('edit_trigger_operator').value = this.dataset.trigger_operator || '';
+                document.getElementById('edit_trigger_value').value = this.dataset.trigger_value || '';
+                document.getElementById('edit_risk_level').value = this.dataset.risk_level;
+                document.getElementById('edit_escalation_action').value = this.dataset.escalation_action || '';
+                document.getElementById('edit_requires_approval').checked = this.dataset.requires_approval === '1';
+                $('#editModal').modal('show');
+            });
+        });
+    </script>
+    @endpush
 @endsection

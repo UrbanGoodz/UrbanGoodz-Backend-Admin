@@ -108,7 +108,8 @@
                         <small class="nav-subtitle" title="Commerce">Commerce</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere_view'))
+                    @php $ugModules = \App\Services\UrbanGoodzModuleStatusService::all(); @endphp
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere_view') && ($ugModules['order-anywhere']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/order-anywhere*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.order-anywhere.index') }}" title="Order Anywhere">
                             <i class="tio-shopping-cart nav-icon" style="color: #ED9914;"></i>
@@ -122,15 +123,7 @@
                         <small class="nav-subtitle" title="Services">Services</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_book_anything'))
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/book-anything*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'book-anything') }}" title="Book Anything">
-                            <i class="tio-calendar nav-icon" style="color: #ED9914;"></i>
-                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Book Anything</span>
-                        </a>
-                    </li>
-                    @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_fashion_fit_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_fashion_fit_view') && ($ugModules['fashion-fit']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/fashion-fit*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.fashion-fit.index') }}" title="Fashion Fit">
                             <i class="tio-tshirt nav-icon" style="color: #ED9914;"></i>
@@ -138,19 +131,14 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_stylist_requests_view'))
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/stylist-request*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.stylist-request.list') }}" title="Stylist Requests">
-                            <i class="tio-tshirt nav-icon" style="color: #ED9914;"></i>
-                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Stylist Requests</span>
-                        </a>
-                    </li>
-                    @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_medical_courier_view'))
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/medical-courier*') ? 'active' : '' }}">
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_medical_courier_view') && ($ugModules['medical-courier']['readiness'] ?? '') !== 'no_table')
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/medical-courier*') || Request::is('admin/urban-goodz/medical-courier*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'medical-courier') }}" title="Medical Courier">
                             <i class="tio-medical nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Medical Courier</span>
+                            @if(($ugModules['medical-courier']['record_count'] ?? 0) > 0)
+                            <span class="badge badge-pill badge-soft-secondary ml-1" style="font-size: 0.65rem;">{{ $ugModules['medical-courier']['record_count'] }}</span>
+                            @endif
                         </a>
                     </li>
                     @endif
@@ -244,23 +232,7 @@
                         <small class="nav-subtitle" title="Delivery / Driver">Delivery / Driver</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_manifests_view') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/manifests*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.manifests.index') }}" title="Manifests">
-                            <i class="tio-clipboard nav-icon" style="color: #ED9914;"></i>
-                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Manifests</span>
-                        </a>
-                    </li>
-                    @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/age-compliance*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.age-compliance.index') }}" title="Age Compliance">
-                            <i class="tio-verified nav-icon" style="color: #ED9914;"></i>
-                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Age Compliance</span>
-                        </a>
-                    </li>
-                    @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_logistics_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_logistics_view') && ($ugModules['logistics']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/logistics*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'logistics') }}" title="Logistics">
                             <i class="tio-truck nav-icon" style="color: #ED9914;"></i>
@@ -268,7 +240,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_earn_money_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_earn_money_view') && ($ugModules['earn-money']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/earn-money*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'earn-money') }}" title="Earn Money">
                             <i class="tio-money nav-icon" style="color: #ED9914;"></i>
@@ -282,7 +254,7 @@
                         <small class="nav-subtitle" title="AI Services">AI Services</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_concierge_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_concierge_view') && ($ugModules['ai-concierge']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-concierge*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-concierge.intents') }}" title="AI Concierge">
                             <i class="tio-robot nav-icon" style="color: #ED9914;"></i>
@@ -290,7 +262,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view') && ($ugModules['ai-copilot']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-copilot*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-copilot.index') }}" title="AI Ops Copilot">
                             <i class="tio-robot nav-icon" style="color: #ED9914;"></i>
@@ -298,15 +270,18 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_load_board_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_load_board_view') && ($ugModules['load-board']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/load-board*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.load-board.index') }}" title="Load Board">
                             <i class="tio-truck nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Load Board</span>
+                            @if(($ugModules['load-board']['record_count'] ?? 0) > 0)
+                            <span class="badge badge-pill badge-soft-secondary ml-1" style="font-size: 0.65rem;">{{ $ugModules['load-board']['record_count'] }}</span>
+                            @endif
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery_view'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery_view') && ($ugModules['discovery']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/discovery*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'discovery') }}" title="Discovery">
                             <i class="tio-search nav-icon" style="color: #ED9914;"></i>
@@ -320,7 +295,7 @@
                         <small class="nav-subtitle" title="Marketing / Subscription">Marketing / Subscription</small>
                         <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_plus'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_plus') && ($ugModules['plus']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/plus*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'plus') }}" title="Urban Goodz+">
                             <i class="tio-crown nav-icon" style="color: #ED9914;"></i>
@@ -328,7 +303,7 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_spotlight'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_spotlight') && ($ugModules['spotlight']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/spotlight*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'spotlight') }}" title="Black-Owned Spotlight">
                             <i class="tio-star nav-icon" style="color: #ED9914;"></i>
@@ -336,11 +311,14 @@
                         </a>
                     </li>
                     @endif
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_events'))
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_events') && ($ugModules['events']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/events*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'events') }}" title="Events">
                             <i class="tio-calendar nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Events</span>
+                            @if(($ugModules['events']['record_count'] ?? 0) > 0)
+                            <span class="badge badge-pill badge-soft-secondary ml-1" style="font-size: 0.65rem;">{{ $ugModules['events']['record_count'] }}</span>
+                            @endif
                         </a>
                     </li>
                     @endif

@@ -14,6 +14,9 @@
                 </div>
                 <div class="col-sm-auto">
                     <a href="{{ route('admin.urban-goodz.rentals.dashboard') }}" class="btn btn--secondary">{{ translate('Dashboard') }}</a>
+                    <a href="{{ route('admin.urban-goodz.rentals.bookings.create') }}" class="btn btn--primary ml-2">
+                        <i class="tio-add"></i> {{ translate('Create Booking') }}
+                    </a>
                 </div>
             </div>
         </div>

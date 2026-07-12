@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\UrbanGoodzMedicalCourierJob;
+use App\Models\UrbanGoodzMedicalCourierCustodyLog;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
+use App\Services\UrbanGoodz\UrbanGoodzMedicalCourierService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -221,71 +224,147 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function medicalCourierJobs()
     {
+        $jobs = UrbanGoodzMedicalCourierJob::where('status', 'pending')
+            ->orderBy('priority', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(fn($job) => [
+                'id' => $job->id,
+                'job_number' => $job->job_number,
+                'specimen_type' => $job->specimen_type,
+                'pickup_location' => $job->pickup_facility_name ?? $job->pickup_location,
+                'delivery_location' => $job->delivery_facility_name ?? $job->delivery_location,
+                'distance_miles' => $job->distance_miles,
+                'payout_amount' => $job->payout_amount,
+                'priority' => $job->priority,
+                'requires_refrigeration' => $job->requires_refrigeration,
+                'is_biological_hazard' => $job->is_biological_hazard,
+                'pickup_window_start' => $job->pickup_window_start,
+                'pickup_window_end' => $job->pickup_window_end,
+                'status' => $job->status,
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Medical courier jobs retrieved successfully',
-            'data' => [
-                [
-                    'id' => 30,
-                    'specimen_type' => 'Blood Samples',
-                    'lab_destination' => 'Houston Lab C',
-                    'payout' => 60.00,
-                    'status' => 'available',
-                ]
-            ],
+            'data' => $jobs,
         ]);
     }
 
     public function medicalCourierJob($record)
     {
+        $job = UrbanGoodzMedicalCourierJob::with('assignedDriver')->find($record);
+
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Job not found',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Medical courier job details retrieved successfully',
-            'data' => [
-                'id' => (int)$record,
-                'specimen_type' => 'Sample Type',
-                'status' => 'available',
-            ],
+            'data' => $job,
         ]);
     }
 
     public function acceptMedicalCourierJob(Request $request, $record)
     {
-        Log::info('Medical courier job accepted', ['record' => $record]);
+        $service = app(UrbanGoodzMedicalCourierService::class);
+        $driverId = $request->input('driver_id');
+
+        if (!$driverId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'driver_id is required',
+            ], 422);
+        }
+
+        $job = $service->assignDriver((int) $record, (int) $driverId);
+
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Job not found, already assigned, or driver lacks medical courier training',
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Medical courier job accepted successfully',
             'data' => [
-                'id' => (int)$record,
-                'status' => 'accepted',
+                'id' => $job->id,
+                'status' => $job->status,
+                'assigned_driver_id' => $job->assigned_driver_id,
             ],
         ]);
     }
 
     public function updateMedicalCourierJobStatus(Request $request, $record)
     {
-        $status = $request->input('status', 'delivered');
-        Log::info('Medical courier status updated', ['record' => $record, 'status' => $status]);
+        $service = app(UrbanGoodzMedicalCourierService::class);
+        $status = $request->input('status');
+        $notes = $request->input('notes');
+
+        if (!$status) {
+            return response()->json([
+                'success' => false,
+                'message' => 'status is required',
+            ], 422);
+        }
+
+        $job = $service->updateStatus((int) $record, $status, null, $notes);
+
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid status transition or job not found',
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Medical courier status updated successfully',
             'data' => [
-                'id' => (int)$record,
-                'status' => $status,
+                'id' => $job->id,
+                'status' => $job->status,
             ],
         ]);
     }
 
     public function updateMedicalCourierCustody(Request $request, $record)
     {
-        $custody = $request->input('custody', 'received');
-        Log::info('Medical courier custody updated', ['record' => $record, 'custody' => $custody]);
+        $service = app(UrbanGoodzMedicalCourierService::class);
+        $action = $request->input('action', 'custody_update');
+        $handlerName = $request->input('handler_name', 'Driver');
+        $notes = $request->input('notes');
+
+        $job = UrbanGoodzMedicalCourierJob::find($record);
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Job not found',
+            ], 404);
+        }
+
+        $log = $service->logCustody(
+            (int) $record,
+            $action,
+            $handlerName,
+            'driver',
+            $request->input('driver_id'),
+            $notes
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Medical courier custody signature captured',
             'data' => [
-                'id' => (int)$record,
-                'custody' => $custody,
+                'id' => $log->id,
+                'job_id' => $log->job_id,
+                'action' => $log->action,
+                'logged_at' => $log->logged_at,
             ],
         ]);
     }

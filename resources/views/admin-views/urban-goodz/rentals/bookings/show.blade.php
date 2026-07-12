@@ -81,10 +81,13 @@
                             <label class="d-block text-dark font-weight-bold mb-2">{{ translate('Booking Status') }}</label>
                             <div class="d-flex flex-wrap gap-1">
                                 @foreach(['pending','approved','declined','active','picked_up','returned','completed','cancelled'] as $st)
-                                    <a href="{{ route('admin.urban-goodz.rentals.bookings.status', [$booking->id, $st]) }}"
-                                       class="btn btn-sm {{ $booking->status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
-                                        {{ ucfirst($st) }}
-                                    </a>
+                                    <form method="POST" action="{{ route('admin.urban-goodz.rentals.bookings.status', $booking->id) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="status" value="{{ $st }}">
+                                        <button type="submit" class="btn btn-sm {{ $booking->status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
+                                            {{ ucfirst($st) }}
+                                        </button>
+                                    </form>
                                 @endforeach
                             </div>
                         </div>
@@ -95,10 +98,13 @@
                             <label class="d-block text-dark font-weight-bold mb-2">{{ translate('Verification') }}</label>
                             <div class="d-flex gap-1">
                                 @foreach(['pending','verified','failed'] as $st)
-                                    <a href="{{ route('admin.urban-goodz.rentals.bookings.verification', [$booking->id, $st]) }}"
-                                       class="btn btn-sm {{ $booking->verification_status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
-                                        {{ ucfirst($st) }}
-                                    </a>
+                                    <form method="POST" action="{{ route('admin.urban-goodz.rentals.bookings.verification', $booking->id) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="status" value="{{ $st }}">
+                                        <button type="submit" class="btn btn-sm {{ $booking->verification_status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
+                                            {{ ucfirst($st) }}
+                                        </button>
+                                    </form>
                                 @endforeach
                             </div>
                         </div>
@@ -109,10 +115,13 @@
                             <label class="d-block text-dark font-weight-bold mb-2">{{ translate('Payment') }}</label>
                             <div class="d-flex flex-wrap gap-1">
                                 @foreach(['pending','paid','refunded','failed'] as $st)
-                                    <a href="{{ route('admin.urban-goodz.rentals.bookings.payment', [$booking->id, $st]) }}"
-                                       class="btn btn-sm {{ $booking->payment_status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
-                                        {{ ucfirst($st) }}
-                                    </a>
+                                    <form method="POST" action="{{ route('admin.urban-goodz.rentals.bookings.payment', $booking->id) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="status" value="{{ $st }}">
+                                        <button type="submit" class="btn btn-sm {{ $booking->payment_status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
+                                            {{ ucfirst($st) }}
+                                        </button>
+                                    </form>
                                 @endforeach
                             </div>
                         </div>
@@ -123,10 +132,13 @@
                             <label class="d-block text-dark font-weight-bold mb-2">{{ translate('Deposit') }}</label>
                             <div class="d-flex flex-wrap gap-1">
                                 @foreach(['pending','collected','released','partially_released','forfeited'] as $st)
-                                    <a href="{{ route('admin.urban-goodz.rentals.bookings.deposit', [$booking->id, $st]) }}"
-                                       class="btn btn-sm {{ $booking->deposit_status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
-                                        {{ ucfirst($st) }}
-                                    </a>
+                                    <form method="POST" action="{{ route('admin.urban-goodz.rentals.bookings.deposit', $booking->id) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="status" value="{{ $st }}">
+                                        <button type="submit" class="btn btn-sm {{ $booking->deposit_status === $st ? 'btn-primary' : 'btn-outline-secondary' }} m-1">
+                                            {{ ucfirst($st) }}
+                                        </button>
+                                    </form>
                                 @endforeach
                             </div>
                         </div>

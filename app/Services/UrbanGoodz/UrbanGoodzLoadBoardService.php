@@ -5,6 +5,8 @@ namespace App\Services\UrbanGoodz;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\DeliveryMan;
 use App\Models\Order;
+use App\Services\UrbanGoodz\LoadBoard\DatAdapter;
+use App\Services\UrbanGoodz\LoadBoard\TruckstopAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -238,5 +240,63 @@ class UrbanGoodzLoadBoardService
         }
 
         return $count;
+    }
+
+    /**
+     * Sync from all enabled external providers.
+     * Returns summary per provider.
+     */
+    public function syncAllProviders(array $filters = [], int $maxPerProvider = 250): array
+    {
+        $results = [];
+        $providers = config('urban_goodz_load_board.providers', []);
+
+        foreach ($providers as $slug => $config) {
+            if (empty($config['enabled'])) {
+                continue;
+            }
+
+            $adapter = match ($slug) {
+                'dat' => new DatAdapter($config),
+                'truckstop' => new TruckstopAdapter($config),
+                default => null,
+            };
+
+            if (!$adapter || !$adapter->isConfigured()) {
+                $results[$slug] = ['status' => 'skipped', 'reason' => 'not_configured'];
+                continue;
+            }
+
+            try {
+                $mergedFilters = array_merge($config['default_filters'] ?? [], $filters);
+                $loads = $adapter->fetchLoads($mergedFilters, $maxPerProvider);
+                $synced = $this->syncFromProvider($slug, $loads);
+
+                $results[$slug] = [
+                    'status' => 'ok',
+                    'fetched' => count($loads),
+                    'synced' => $synced,
+                ];
+            } catch (\Exception $e) {
+                $results[$slug] = [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ];
+                Log::error("Load board syncAllProviders failed for {$slug}", ['error' => $e->getMessage()]);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Purge old available loads from external providers that haven't been refreshed.
+     */
+    public function purgeStaleLoads(int $days = 7): int
+    {
+        return UrbanGoodzLoadBoardLoad::where('status', 'available')
+            ->where('provider', '!=', 'internal')
+            ->where('updated_at', '<', now()->subDays($days))
+            ->delete();
     }
 }

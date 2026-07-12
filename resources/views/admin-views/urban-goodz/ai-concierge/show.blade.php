@@ -33,23 +33,29 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="font-weight-bold">{{ translate('User') }}</label>
-                            <p>{{ $conversation->user_id ?? translate('Guest') }}</p>
+                            <p>{{ $conversation->customer_id ?? translate('Guest') }}</p>
                         </div>
                         <div class="mb-3">
                             <label class="font-weight-bold">{{ translate('Detected Intent') }}</label>
-                            <p>{{ $conversation->detectedIntent->name ?? translate('Unknown') }} <code>{{ $conversation->detected_intent_id ? $conversation->detectedIntent->slug : '' }}</code></p>
+                            <p>{{ $conversation->detectedIntent->name ?? translate('Unknown') }} <code>{{ $conversation->detectedIntent?->slug ?? '' }}</code></p>
                         </div>
 
-                        @if($conversation->messages)
+                        @if($conversation->query_text || $conversation->response_text)
                             <hr>
-                            <h6>{{ translate('Message History') }}</h6>
+                            <h6>{{ translate('Conversation') }}</h6>
                             <div class="border rounded p-3 bg-light" style="max-height:400px;overflow-y:auto">
-                                @foreach($conversation->messages as $msg)
-                                    <div class="mb-2 p-2 rounded {{ $msg['role'] === 'assistant' ? 'bg-white ml-4' : 'bg-primary text-white mr-4' }}">
-                                        <small class="text-muted">{{ $msg['role'] ?? 'user' }} - {{ $msg['timestamp'] ?? '' }}</small>
-                                        <p class="mb-0">{{ $msg['content'] ?? json_encode($msg) }}</p>
+                                @if($conversation->query_text)
+                                    <div class="mb-2 p-2 rounded bg-primary text-white mr-4">
+                                        <small class="text-muted">{{ translate('User') }}</small>
+                                        <p class="mb-0">{{ $conversation->query_text }}</p>
                                     </div>
-                                @endforeach
+                                @endif
+                                @if($conversation->response_text)
+                                    <div class="mb-2 p-2 rounded bg-white ml-4">
+                                        <small class="text-muted">{{ translate('AI') }}</small>
+                                        <p class="mb-0">{{ $conversation->response_text }}</p>
+                                    </div>
+                                @endif
                             </div>
                         @endif
                     </div>

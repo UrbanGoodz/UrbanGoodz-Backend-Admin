@@ -27,6 +27,7 @@ class MeasurementRequest extends Model
         'inseam',
         'sleeve_length',
         'shoulder_width',
+        'neck',
         'source',
         'front_photo_path',
         'side_photo_path',
@@ -54,6 +55,7 @@ class MeasurementRequest extends Model
         'item_wanted',
         'request_type',
         'budget',
+        'due_date',
         'consent_to_share_photos',
     ];
 

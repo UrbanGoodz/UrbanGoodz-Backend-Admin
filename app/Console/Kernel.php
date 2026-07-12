@@ -28,6 +28,12 @@ class Kernel extends ConsoleKernel
             ->everyFifteenMinutes()
             ->withoutOverlapping()
             ->runInBackground();
+
+        $schedule->command('sync-load-board')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn() => config('urban_goodz_load_board.sync.enabled', true));
     }
 
     /**

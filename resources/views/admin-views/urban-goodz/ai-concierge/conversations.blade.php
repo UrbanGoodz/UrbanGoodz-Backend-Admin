@@ -36,14 +36,14 @@
                         @foreach($conversations as $key => $c)
                             <tr>
                                 <td>{{ $conversations->firstItem() + $key }}</td>
-                                <td>{{ $c->user_id ?? translate('Guest') }}</td>
+                                <td>{{ $c->customer_id ?? translate('Guest') }}</td>
                                 <td>{{ $c->detectedIntent->name ?? translate('Unknown') }}</td>
                                 <td>
                                     <span class="badge badge-soft-{{ $c->status === 'resolved' ? 'success' : ($c->status === 'escalated' ? 'danger' : 'info') }}">
                                         {{ $c->status }}
                                     </span>
                                 </td>
-                                <td>{{ $c->message_count ?? translate('N/A') }}</td>
+                                <td>{{ mb_substr($c->query_text ?? '', 0, 50) . (mb_strlen($c->query_text ?? '') > 50 ? '...' : '') }}</td>
                                 <td>{{ $c->created_at->format('M d, Y H:i') }}</td>
                                 <td>
                                     <a href="{{ route('admin.urban-goodz.ai-concierge.conversations.show', $c->id) }}" class="btn btn-sm btn--primary">

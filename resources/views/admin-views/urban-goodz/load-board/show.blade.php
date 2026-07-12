@@ -143,6 +143,68 @@
             <div class="col-lg-4">
                 <div class="card mb-3">
                     <div class="card-header">
+                        <h5 class="mb-0">{{ translate('Admin Actions') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        @if($load->status === 'available')
+                            <form method="POST" action="{{ route('admin.urban-goodz.load-board.status', $load->id) }}">
+                                @csrf
+                                <input type="hidden" name="status" value="cancelled">
+                                <button type="submit" class="btn btn-danger btn-block" onclick="return confirm('{{ translate('Cancel this load?') }}')">
+                                    <i class="tio-close-circle"></i> {{ translate('Cancel Load') }}
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($load->status === 'assigned')
+                            <form method="POST" action="{{ route('admin.urban-goodz.load-board.status', $load->id) }}">
+                                @csrf
+                                <input type="hidden" name="status" value="in_transit">
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="tio-route"></i> {{ translate('Mark In Transit') }}
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($load->status === 'in_transit')
+                            <form method="POST" action="{{ route('admin.urban-goodz.load-board.status', $load->id) }}">
+                                @csrf
+                                <input type="hidden" name="status" value="picked_up">
+                                <button type="submit" class="btn btn-warning btn-block">
+                                    <i class="tio-inbox"></i> {{ translate('Mark Picked Up') }}
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($load->status === 'picked_up')
+                            <form method="POST" action="{{ route('admin.urban-goodz.load-board.status', $load->id) }}">
+                                @csrf
+                                <input type="hidden" name="status" value="delivered">
+                                <button type="submit" class="btn btn-success btn-block">
+                                    <i class="tio-check-circle"></i> {{ translate('Mark Delivered') }}
+                                </button>
+                            </form>
+                        @endif
+
+                        @if(in_array($load->status, ['assigned', 'in_transit', 'picked_up']))
+                            <form method="POST" action="{{ route('admin.urban-goodz.load-board.status', $load->id) }}" class="mt-2">
+                                @csrf
+                                <input type="hidden" name="status" value="cancelled">
+                                <button type="submit" class="btn btn-outline-danger btn-block" onclick="return confirm('{{ translate('Cancel this load?') }}')">
+                                    <i class="tio-close-circle"></i> {{ translate('Cancel Load') }}
+                                </button>
+                            </form>
+                        @endif
+
+                        @if(!in_array($load->status, ['available', 'cancelled', 'delivered']))
+                            <hr>
+                            <small class="text-muted">{{ translate('Current status') }}: <strong>{{ $load->status_label }}</strong></small>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
                         <h5 class="mb-0">{{ translate('Payout') }}</h5>
                     </div>
                     <div class="card-body text-center">

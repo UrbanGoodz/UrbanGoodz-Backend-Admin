@@ -27,6 +27,22 @@ class BusinessPortalController extends Controller
         return auth('business')->user()->business_client_id;
     }
 
+    protected function checkPermission(string $permission): bool
+    {
+        $user = auth('business')->user();
+        if (!$user) return false;
+        if ($user->role === 'owner_admin') return true;
+        $userPermissions = $user->permissions ?? [];
+        return in_array($permission, $userPermissions);
+    }
+
+    protected function requirePermission(string $permission)
+    {
+        if (!$this->checkPermission($permission)) {
+            abort(403, translate('messages.access_denied'));
+        }
+    }
+
     public function dashboard()
     {
         $clientId = $this->getClientId();
@@ -72,6 +88,7 @@ class BusinessPortalController extends Controller
 
     public function routeStore(Request $request)
     {
+        $this->requirePermission('scan_packages');
         $clientId = $this->getClientId();
 
         $request->validate([
@@ -150,6 +167,7 @@ class BusinessPortalController extends Controller
 
     public function routeUpdate(Request $request, $id)
     {
+        $this->requirePermission('scan_packages');
         $clientId = $this->getClientId();
         $route = UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
             ->findOrFail($id);
@@ -178,6 +196,7 @@ class BusinessPortalController extends Controller
 
     public function routeDestroy($id)
     {
+        $this->requirePermission('scan_packages');
         $clientId = $this->getClientId();
         $route = UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
             ->findOrFail($id);
@@ -215,6 +234,7 @@ class BusinessPortalController extends Controller
 
     public function locationStore(Request $request)
     {
+        $this->requirePermission('business_locations_manage');
         $clientId = $this->getClientId();
 
         $data = $request->validate([
@@ -269,6 +289,7 @@ class BusinessPortalController extends Controller
 
     public function documentStore(Request $request)
     {
+        $this->requirePermission('business_documents_manage');
         $clientId = $this->getClientId();
 
         $request->validate([
@@ -806,6 +827,7 @@ class BusinessPortalController extends Controller
 
     public function locationUpdate(Request $request, $id)
     {
+        $this->requirePermission('business_locations_manage');
         $clientId = $this->getClientId();
         $location = UrbanGoodzBusinessClientLocation::where('business_client_id', $clientId)
             ->findOrFail($id);
@@ -856,6 +878,7 @@ class BusinessPortalController extends Controller
 
     public function userStore(Request $request)
     {
+        $this->requirePermission('business_users_manage');
         $clientId = $this->getClientId();
 
         $data = $request->validate([

@@ -245,6 +245,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
                 Route::get('risk-rules', 'UrbanGoodz\AiCopilotController@riskRules')->name('risk-rules');
                 Route::post('risk-rules', 'UrbanGoodz\AiCopilotController@saveRiskRule')->name('risk-rules.save');
+                Route::get('risk-rules/{id}/edit', 'UrbanGoodz\AiCopilotController@editRiskRule')->name('risk-rules.edit');
+                Route::put('risk-rules/{id}', 'UrbanGoodz\AiCopilotController@updateRiskRule')->name('risk-rules.update');
+                Route::delete('risk-rules/{id}', 'UrbanGoodz\AiCopilotController@deleteRiskRule')->name('risk-rules.delete');
                 Route::post('risk-rules/{id}/toggle', 'UrbanGoodz\AiCopilotController@toggleRiskRule')->name('risk-rules.toggle');
 
                 Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->name('action-logs');
@@ -264,7 +267,20 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@show')->name('show');
                 Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzLoadBoardController@edit')->name('edit');
                 Route::put('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@update')->name('update');
+                Route::post('{id}/status', 'UrbanGoodz\UrbanGoodzLoadBoardController@updateStatus')->name('status');
                 Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy');
+            });
+
+            Route::group(['prefix' => 'medical-courier', 'as' => 'medical-courier.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzMedicalCourierController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzMedicalCourierController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzMedicalCourierController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzMedicalCourierController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzMedicalCourierController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzMedicalCourierController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzMedicalCourierController@destroy')->name('destroy');
+                Route::post('{id}/assign-driver', 'UrbanGoodz\UrbanGoodzMedicalCourierController@assignDriver')->name('assign-driver');
+                Route::patch('{id}/status', 'UrbanGoodz\UrbanGoodzMedicalCourierController@updateStatus')->name('update-status');
             });
 
             Route::group(['prefix' => 'business-types', 'as' => 'business-types.'], function () {
@@ -304,11 +320,13 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
                 Route::group(['prefix' => 'bookings', 'as' => 'bookings.'], function () {
                     Route::get('/', 'UrbanGoodz\UrbanGoodzRentalController@bookingsIndex')->name('index');
+                    Route::get('create', 'UrbanGoodz\UrbanGoodzRentalController@bookingsCreate')->name('create');
+                    Route::post('/', 'UrbanGoodz\UrbanGoodzRentalController@bookingsStore')->name('store');
                     Route::get('{id}', 'UrbanGoodz\UrbanGoodzRentalController@bookingsShow')->name('show');
-                    Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzRentalController@bookingsStatus')->name('status');
-                    Route::get('{id}/verification/{status}', 'UrbanGoodz\UrbanGoodzRentalController@bookingsVerification')->name('verification');
-                    Route::get('{id}/payment/{status}', 'UrbanGoodz\UrbanGoodzRentalController@bookingsPayment')->name('payment');
-                    Route::get('{id}/deposit/{status}', 'UrbanGoodz\UrbanGoodzRentalController@bookingsDeposit')->name('deposit');
+                    Route::post('{id}/status', 'UrbanGoodz\UrbanGoodzRentalController@bookingsStatus')->name('status');
+                    Route::post('{id}/verification', 'UrbanGoodz\UrbanGoodzRentalController@bookingsVerification')->name('verification');
+                    Route::post('{id}/payment', 'UrbanGoodz\UrbanGoodzRentalController@bookingsPayment')->name('payment');
+                    Route::post('{id}/deposit', 'UrbanGoodz\UrbanGoodzRentalController@bookingsDeposit')->name('deposit');
                     Route::put('{id}/notes', 'UrbanGoodz\UrbanGoodzRentalController@bookingsNotes')->name('notes');
                     Route::delete('{id}', 'UrbanGoodz\UrbanGoodzRentalController@bookingsDestroy')->name('destroy');
                 });
