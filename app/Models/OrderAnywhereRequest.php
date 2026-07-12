@@ -180,6 +180,10 @@ class OrderAnywhereRequest extends Model
         $this->status = $newStatus;
         $this->save();
 
+        if (in_array($newStatus, ['completed', 'cancelled', 'failed'], true)) {
+            app(\App\Services\UrbanGoodzPaymentService::class)->settleSplits($this);
+        }
+
         return $this->fresh();
     }
 
