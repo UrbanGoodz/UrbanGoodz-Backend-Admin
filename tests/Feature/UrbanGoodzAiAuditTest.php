@@ -23,6 +23,8 @@ class UrbanGoodzAiAuditTest extends TestCase
     private DeliveryMan $driver1;
     private DeliveryMan $driver2;
     private \App\Models\Module $module;
+    private int $zone1Id;
+    private int $zone2Id;
 
     protected function setUp(): void
     {
@@ -49,19 +51,18 @@ class UrbanGoodzAiAuditTest extends TestCase
             ]
         );
 
+        // Zones: use name as key so auto-increment IDs are stable and consistent
         $zone1 = \App\Models\Zone::firstOrCreate(
-            ['id' => 1],
+            ['name' => 'UG Test Zone 1'],
             [
-                'name' => 'Zone 1',
                 'coordinates' => new \Illuminate\Database\Query\Expression("ST_GeomFromText('POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))')"),
                 'status' => 1,
             ]
         );
 
         $zone2 = \App\Models\Zone::firstOrCreate(
-            ['id' => 2],
+            ['name' => 'UG Test Zone 2'],
             [
-                'name' => 'Zone 2',
                 'coordinates' => new \Illuminate\Database\Query\Expression("ST_GeomFromText('POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))')"),
                 'status' => 1,
             ]
@@ -69,7 +70,7 @@ class UrbanGoodzAiAuditTest extends TestCase
 
         Config::set('dm_maximum_orders', 3);
 
-        $this->driver1 = DeliveryMan::firstOrCreate(
+        $this->driver1 = DeliveryMan::updateOrCreate(
             ['phone' => '9998887771'],
             [
                 'f_name' => 'Driver',
@@ -82,8 +83,9 @@ class UrbanGoodzAiAuditTest extends TestCase
                 'current_orders' => 0,
             ]
         );
+        $this->driver1->refresh();
 
-        $this->driver2 = DeliveryMan::firstOrCreate(
+        $this->driver2 = DeliveryMan::updateOrCreate(
             ['phone' => '9998887772'],
             [
                 'f_name' => 'Driver',
@@ -96,6 +98,11 @@ class UrbanGoodzAiAuditTest extends TestCase
                 'current_orders' => 1,
             ]
         );
+        $this->driver2->refresh();
+
+        // Store zone IDs for use in test order fixtures
+        $this->zone1Id = $zone1->id;
+        $this->zone2Id = $zone2->id;
     }
 
     public function test_load_board_duplicate_detection_null_external_ids(): void
@@ -141,7 +148,7 @@ class UrbanGoodzAiAuditTest extends TestCase
         $order = new Order();
         $order->user_id = 1;
         $order->order_amount = 100.00;
-        $order->zone_id = 1; // Matches driver 1
+        $order->zone_id = $this->zone1Id; // Matches driver1's zone
         $order->payment_status = 'paid';
         $order->order_status = 'pending';
         $order->delivery_address_id = null;
@@ -168,7 +175,7 @@ class UrbanGoodzAiAuditTest extends TestCase
         $order = new Order();
         $order->user_id = 1;
         $order->order_amount = 100.00;
-        $order->zone_id = 3; // No zone match for either driver
+        $order->zone_id = 99999; // No zone match for either driver
         $order->payment_status = 'paid';
         $order->order_status = 'pending';
         $order->delivery_address_id = null;
@@ -195,7 +202,7 @@ class UrbanGoodzAiAuditTest extends TestCase
         $order = new Order();
         $order->user_id = 1;
         $order->order_amount = 100.00;
-        $order->zone_id = 1;
+        $order->zone_id = $this->zone1Id;
         $order->payment_status = 'paid';
         $order->order_status = 'pending';
         $order->delivery_address_id = null;

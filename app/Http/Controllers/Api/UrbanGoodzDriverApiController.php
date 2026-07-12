@@ -23,7 +23,9 @@ class UrbanGoodzDriverApiController extends Controller
 {
     private function authDriver(Request $request)
     {
-        $driver = $request->user('delivery_man');
+        // dm.api middleware logs the driver in via the 'delivery_men' guard.
+        // The singular 'delivery_man' alias also resolves the same provider.
+        $driver = $request->user('delivery_men') ?? auth('delivery_man')->user();
         if (!$driver) {
             abort(401, 'Unauthenticated driver');
         }

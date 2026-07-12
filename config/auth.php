@@ -69,6 +69,9 @@ return [
             'provider' => 'delivery_men',
         ],
 
+        // Singular alias — required by UrbanGoodzDriverPurchaseCardController,
+        // LogsActivity, and other pre-existing files that call auth('delivery_man').
+        // Both guards share the same delivery_men provider.
         'delivery_man' => [
             'driver' => 'session',
             'provider' => 'delivery_men',
