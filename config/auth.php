@@ -69,6 +69,11 @@ return [
             'provider' => 'delivery_men',
         ],
 
+        'delivery_man' => [
+            'driver' => 'session',
+            'provider' => 'delivery_men',
+        ],
+
         'business' => [
             'driver' => 'session',
             'provider' => 'business_clients',
