@@ -534,10 +534,17 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('status', 'pending')
             ->sum('amount');
 
-        if ($request->amount > $pendingEarnings) {
+        $pendingPayouts = UrbanGoodzDriverPayoutRequest::where('delivery_man_id', $driver->id)
+            ->whereIn('status', ['pending', 'approved', 'processing'])
+            ->sum('requested_amount');
+
+        $availableEarnings = max($pendingEarnings - $pendingPayouts, 0);
+
+        if ($request->amount > $availableEarnings) {
             return response()->json([
                 'error' => 'Requested amount exceeds pending earnings',
                 'pending_earnings' => $pendingEarnings,
+                'available_earnings' => $availableEarnings,
             ], 400);
         }
 
