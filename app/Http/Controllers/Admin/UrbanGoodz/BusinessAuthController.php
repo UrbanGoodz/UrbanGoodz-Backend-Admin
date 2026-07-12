@@ -47,6 +47,10 @@ class BusinessAuthController extends Controller
             $user->last_login_at = now();
             $user->save();
 
+            if ($client->isDispatchCompany() && $user->isDispatchRole()) {
+                return redirect()->route('dispatcher.dashboard');
+            }
+
             return redirect()->route('business.dashboard');
         }
 

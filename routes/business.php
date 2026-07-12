@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessAuthController;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessPortalController;
+use App\Http\Controllers\Admin\UrbanGoodz\DispatcherPortalController;
 
 Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
 
@@ -65,5 +66,30 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
         Route::get('manifests/{id}', [BusinessPortalController::class, 'manifestShow'])->name('manifests.show');
         Route::get('manifests/{id}/scan', [BusinessPortalController::class, 'manifestScan'])->name('manifests.scan');
         Route::get('manifests/{id}/packages', [BusinessPortalController::class, 'manifestPackages'])->name('manifests.packages');
+    });
+
+    Route::middleware(['business', 'dispatcher', 'dispatch-territory'])->group(function () {
+        Route::prefix('dispatcher')->name('dispatcher.')->group(function () {
+            Route::get('/dashboard', [DispatcherPortalController::class, 'dashboard'])->name('dashboard');
+
+            Route::get('/loads', [DispatcherPortalController::class, 'loads'])->name('loads');
+            Route::get('/loads/{id}', [DispatcherPortalController::class, 'showLoad'])->name('loads.show');
+            Route::post('/loads/{id}/assign-driver', [DispatcherPortalController::class, 'assignDriver'])->name('loads.assign-driver');
+            Route::patch('/loads/{id}/status', [DispatcherPortalController::class, 'updateLoadStatus'])->name('loads.status');
+
+            Route::get('/drivers', [DispatcherPortalController::class, 'drivers'])->name('drivers');
+
+            Route::get('/commissions', [DispatcherPortalController::class, 'commissions'])->name('commissions');
+
+            Route::get('/territory', [DispatcherPortalController::class, 'territory'])->name('territory');
+            Route::post('/territory', [DispatcherPortalController::class, 'updateTerritory'])->name('territory.update');
+
+            Route::get('/users', [DispatcherPortalController::class, 'users'])->name('users');
+            Route::get('/users/create', [DispatcherPortalController::class, 'createUser'])->name('users.create');
+            Route::post('/users', [DispatcherPortalController::class, 'storeUser'])->name('users.store');
+            Route::get('/users/{id}/edit', [DispatcherPortalController::class, 'editUser'])->name('users.edit');
+            Route::post('/users/{id}/update', [DispatcherPortalController::class, 'updateUser'])->name('users.update');
+            Route::post('/users/{id}/deactivate', [DispatcherPortalController::class, 'deactivateUser'])->name('users.deactivate');
+        });
     });
 });
