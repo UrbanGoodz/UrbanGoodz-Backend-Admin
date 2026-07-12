@@ -918,6 +918,7 @@ class BusinessPortalController extends Controller
 
     public function userUpdate(Request $request, $id)
     {
+        $this->requirePermission('business_users_manage');
         $clientId = $this->getClientId();
         $user = UrbanGoodzBusinessClientUser::where('business_client_id', $clientId)
             ->findOrFail($id);
@@ -952,6 +953,7 @@ class BusinessPortalController extends Controller
 
     public function userDeactivate($id)
     {
+        $this->requirePermission('business_users_manage');
         $clientId = $this->getClientId();
         $user = UrbanGoodzBusinessClientUser::where('business_client_id', $clientId)
             ->findOrFail($id);
@@ -1048,6 +1050,7 @@ class BusinessPortalController extends Controller
 
     public function documentDelete($id)
     {
+        $this->requirePermission('business_documents_manage');
         $clientId = $this->getClientId();
         $document = UrbanGoodzBusinessClientDocument::where('business_client_id', $clientId)
             ->findOrFail($id);
