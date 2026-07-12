@@ -165,7 +165,7 @@ class InstallController extends Controller
         if (self::check_database_connection($request->DB_HOST, $request->DB_DATABASE, $request->DB_USERNAME, $request->DB_PASSWORD)) {
 
             $key = base64_encode(random_bytes(32));
-            $output = 'APP_NAME=6ammart'.time().
+            $output = 'APP_NAME=UrbanGoodz'.time().
                     'APP_ENV=live
                     APP_KEY=base64:' . $key . '
                     APP_DEBUG=false
