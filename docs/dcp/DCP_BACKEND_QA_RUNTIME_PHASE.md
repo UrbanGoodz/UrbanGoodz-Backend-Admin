@@ -549,3 +549,34 @@ All 18 PHP files pass `php -l` syntax check with zero errors.
 
 ### 28.7 Test Results
 46 pass / 44 fail (PDO connection to local dev DB, not code bugs). No new code failures introduced.
+
+---
+
+## 29. Session 6 — Load Board ↔ AI Copilot Integration + Demand Forecasting
+
+**Date:** 2026-07-12
+**Focus:** Complete AI Copilot ↔ Load Board integration, add demand forecasting, fix model compatibility
+
+### 29.1 Changes
+
+| File | Action |
+|------|--------|
+| `app/Services/AiCopilotService.php` | Modified — demand forecasting in `monitorLoadBoard()`, `createRecommendation()` updated for `UrbanGoodzLoadBoardLoad` + `UrbanGoodzMedicalCourierJob`, driver matching fixed (removed non-existent `available_for_load_board` and `available_states` fields) |
+| `app/Http/Controllers/Admin/UrbanGoodz/AiCopilotController.php` | Modified — `loadBoardAnalytics()` endpoint with stats, breakdowns, weekly trend, recommendations table |
+| `routes/admin.php` | Modified — `ai-copilot.load-board-analytics` route |
+| `resources/views/admin-views/urban-goodz/ai-copilot/index.blade.php` | Modified — Load Board Analytics button, load board type icons/labels/badges in filter + table, filter dropdown expanded with load board types |
+| `resources/views/admin-views/urban-goodz/ai-copilot/load-board-analytics.blade.php` | **Created** — full analytics view: stat cards, loads by state, loads by equipment, weekly volume trend, recommendation breakdown, recommendations table with pagination |
+
+### 29.2 Demand Forecasting
+Added to `monitorLoadBoard()`:
+- **Week-over-week comparison:** Compares current week load count vs previous week. Alerts on >30% drop (sync issue / seasonal slowdown) or >50% surge (need more drivers / rate adjustment)
+- **Concentration analysis:** Detects if demand is >2x concentrated in one state vs the second-highest, flags for diversification
+
+### 29.3 Model Compatibility Fixes
+- Removed `available_for_load_board` filter from `suggestLoadAcceptance()` (field doesn't exist on delivery_men)
+- Removed `available_states` matching from `findBestDriverForLoad()` (field doesn't exist)
+- Added `UrbanGoodzLoadBoardLoad` case to `createRecommendation()` — stores load_id in metadata
+- Added `UrbanGoodzMedicalCourierJob` case to `createRecommendation()` — stores medical_job_id in metadata
+
+### 29.4 Syntax Validation
+All 5 modified/created PHP files pass `php -l` with zero errors.

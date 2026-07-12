@@ -252,6 +252,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
                 Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->name('action-logs');
                 Route::post('action-logs/{logId}/rollback', 'UrbanGoodz\AiCopilotController@rollback')->name('action-logs.rollback');
+                Route::get('load-board-analytics', 'UrbanGoodz\AiCopilotController@loadBoardAnalytics')->name('load-board-analytics');
 
                 Route::get('settings', 'UrbanGoodz\AiCopilotController@settings')->name('settings');
                 Route::post('settings', 'UrbanGoodz\AiCopilotController@saveSettings')->name('settings.save');

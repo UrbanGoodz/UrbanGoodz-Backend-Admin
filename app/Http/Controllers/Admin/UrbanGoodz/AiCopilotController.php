@@ -8,6 +8,7 @@ use App\Models\AiCopilotRecommendation;
 use App\Models\AiCopilotSetting;
 use App\Models\AiModuleAutomationSetting;
 use App\Models\AiRiskRule;
+use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Services\AiCopilotService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
@@ -275,5 +276,55 @@ class AiCopilotController extends Controller
         $modules = AiModuleAutomationSetting::pluck('module')->toArray();
 
         return view('admin-views.urban-goodz.ai-copilot.action-logs', compact('logs', 'modules'));
+    }
+
+    public function loadBoardAnalytics()
+    {
+        $totalLoads = UrbanGoodzLoadBoardLoad::count();
+        $activeLoads = UrbanGoodzLoadBoardLoad::where('status', '!=', 'expired')->count();
+        $avgRate = UrbanGoodzLoadBoardLoad::where('rate_per_mile', '>', 0)->avg('rate_per_mile');
+        $totalPayout = UrbanGoodzLoadBoardLoad::sum('payout_amount');
+
+        $loadsByState = UrbanGoodzLoadBoardLoad::selectRaw('origin_state, COUNT(*) as count')
+            ->groupBy('origin_state')
+            ->orderByDesc('count')
+            ->limit(15)
+            ->get();
+
+        $loadsByEquipment = UrbanGoodzLoadBoardLoad::selectRaw('equipment_type, COUNT(*) as count')
+            ->groupBy('equipment_type')
+            ->orderByDesc('count')
+            ->get();
+
+        $loadRecs = \App\Models\AiCopilotRecommendation::where('recommendation_type', 'like', 'load_board%')
+            ->latest()
+            ->paginate(25);
+
+        $loadRecStats = \App\Models\AiCopilotRecommendation::where('recommendation_type', 'like', 'load_board%')
+            ->selectRaw('recommendation_type, status, COUNT(*) as count')
+            ->groupBy('recommendation_type', 'status')
+            ->get()
+            ->groupBy('recommendation_type');
+
+        $loadRecsPending = \App\Models\AiCopilotRecommendation::where('recommendation_type', 'like', 'load_board%')
+            ->where('status', 'pending')
+            ->count();
+
+        $loadRecsExecuted = \App\Models\AiCopilotRecommendation::where('recommendation_type', 'like', 'load_board%')
+            ->where('status', 'accepted')
+            ->count();
+
+        $weeklyTrend = UrbanGoodzLoadBoardLoad::selectRaw('YEAR(created_at) as y, WEEK(created_at) as w, COUNT(*) as count')
+            ->where('created_at', '>=', now()->subWeeks(8))
+            ->groupBy('y', 'w')
+            ->orderBy('y')
+            ->orderBy('w')
+            ->get();
+
+        return view('admin-views.urban-goodz.ai-copilot.load-board-analytics', compact(
+            'totalLoads', 'activeLoads', 'avgRate', 'totalPayout',
+            'loadsByState', 'loadsByEquipment', 'loadRecs', 'loadRecStats',
+            'loadRecsPending', 'loadRecsExecuted', 'weeklyTrend'
+        ));
     }
 }

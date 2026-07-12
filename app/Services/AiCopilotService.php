@@ -13,7 +13,9 @@ use App\Models\OrderAnywhereRequest;
 use App\Models\UrbanGoodzAgeVerification;
 use App\Models\UrbanGoodzBusinessClientJob;
 use App\Models\UrbanGoodzDedicatedRoute;
+use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\UrbanGoodzManifest;
+use App\Models\UrbanGoodzMedicalCourierJob;
 use App\Models\UrbanGoodzRoutePackage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -159,6 +161,9 @@ class AiCopilotService
         $results['order_anywhere'] = $this->triageOrderAnywhere();
         $results['package_monitoring'] = $this->monitorPackages();
         $results['age_verification'] = $this->alertAgeVerification();
+        $results['load_board'] = $this->monitorLoadBoard();
+        $results['load_acceptance'] = $this->suggestLoadAcceptance();
+        $results['load_pricing'] = $this->alertPricingAnomalies();
 
         return $results;
     }
@@ -441,6 +446,456 @@ class AiCopilotService
         return ['type' => 'age_verification_alert', 'count' => $count, 'label' => 'Age Verification Alerts'];
     }
 
+    // =========================================================================
+    // Load Board AI Integration
+    // =========================================================================
+
+    public function monitorLoadBoard(): array
+    {
+        $count = 0;
+
+        $availableLoads = UrbanGoodzLoadBoardLoad::available()->get();
+
+        if ($availableLoads->isEmpty()) {
+            return ['type' => 'load_board', 'count' => 0, 'label' => 'Load Board Monitor'];
+        }
+
+        $staleLoads = $availableLoads->filter(function ($load) {
+            return $load->created_at->isBefore(now()->subDays(3));
+        });
+
+        foreach ($staleLoads as $load) {
+            $this->createRecommendation(
+                'load_board_stale',
+                'aging_load',
+                $load,
+                'Consider repricing or removing this load',
+                "Load {$load->load_number} ({$load->origin_city}}, {$load->origin_state}} → {$load->destination_city}}, {$load->destination_state}}) has been available for {$load->created_at->diffForHumans()}",
+                0.65,
+                [
+                    'load_id' => $load->id,
+                    'load_number' => $load->load_number,
+                    'days_available' => $load->created_at->diffInDays(now()),
+                    'payout_amount' => $load->payout_amount,
+                    'rate_per_mile' => $load->rate_per_mile,
+                    'origin_state' => $load->origin_state,
+                    'destination_state' => $load->destination_state,
+                ]
+            );
+            $count++;
+        }
+
+        $laneStats = $availableLoads->groupBy(fn($l) => ($l->origin_state ?? '?') . '→' . ($l->destination_state ?? '?'))
+            ->map(fn($loads) => [
+                'count' => $loads->count(),
+                'avg_payout' => $loads->avg('payout_amount'),
+                'avg_rate_per_mile' => $loads->avg('rate_per_mile'),
+            ])
+            ->filter(fn($stats) => $stats['count'] >= 3);
+
+        foreach ($laneStats as $lane => $stats) {
+            if ($stats['avg_rate_per_mile'] < 2.50) {
+                $this->createRecommendation(
+                    'load_board_lane',
+                    'low_rate_lane',
+                    null,
+                    "Lane {$lane} averaging \${$stats['avg_rate_per_mile']}/mi — below $2.50 threshold",
+                    "{$stats['count']} loads on {$lane} with avg rate/mile of \${$stats['avg_rate_per_mile']}. Consider increasing pay or reducing volume.",
+                    0.7,
+                    [
+                        'lane' => $lane,
+                        'load_count' => $stats['count'],
+                        'avg_payout' => round($stats['avg_payout'], 2),
+                        'avg_rate_per_mile' => round($stats['avg_rate_per_mile'], 2),
+                    ]
+                );
+                $count++;
+            }
+        }
+
+        $thisWeek = UrbanGoodzLoadBoardLoad::where('created_at', '>=', now()->startOfWeek())->count();
+        $lastWeek = UrbanGoodzLoadBoardLoad::where('created_at', '>=', now()->subWeek()->startOfWeek())
+            ->where('created_at', '<', now()->startOfWeek())->count();
+
+        if ($lastWeek > 0) {
+            $pctChange = (($thisWeek - $lastWeek) / $lastWeek) * 100;
+
+            if ($pctChange < -30) {
+                $this->createRecommendation(
+                    'load_board_demand',
+                    'volume_drop',
+                    null,
+                    "Load volume dropped " . number_format(abs($pctChange), 0) . "% week-over-week ({$thisWeek} this week vs {$lastWeek} last week)",
+                    "Incoming load volume has dropped significantly. This may indicate a provider sync issue, seasonal slowdown, or pricing problem. Check DAT/Truckstop sync status.",
+                    0.75,
+                    [
+                        'this_week_count' => $thisWeek,
+                        'last_week_count' => $lastWeek,
+                        'pct_change' => round($pctChange, 1),
+                        'trend' => 'declining',
+                    ]
+                );
+                $count++;
+            } elseif ($pctChange > 50) {
+                $this->createRecommendation(
+                    'load_board_demand',
+                    'volume_surge',
+                    null,
+                    "Load volume up " . number_format($pctChange, 0) . "% week-over-week ({$thisWeek} this week vs {$lastWeek} last week)",
+                    "Incoming load volume has surged. Ensure enough drivers are available and consider temporary rate adjustments to maximize throughput.",
+                    0.7,
+                    [
+                        'this_week_count' => $thisWeek,
+                        'last_week_count' => $lastWeek,
+                        'pct_change' => round($pctChange, 1),
+                        'trend' => 'surging',
+                    ]
+                );
+                $count++;
+            }
+        }
+
+        $thisMonthByState = UrbanGoodzLoadBoardLoad::where('created_at', '>=', now()->startOfMonth())
+            ->selectRaw('origin_state, COUNT(*) as count, SUM(payout_amount) as total_payout, AVG(rate_per_mile) as avg_rate')
+            ->groupBy('origin_state')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+
+        if ($thisMonthByState->count() >= 3) {
+            $topLane = $thisMonthByState->first();
+            $secondLane = $thisMonthByState->skip(1)->first();
+            if ($topLane && $secondLane && $topLane->count > $secondLane->count * 2) {
+                $this->createRecommendation(
+                    'load_board_demand',
+                    'concentrated_demand',
+                    null,
+                    "Demand concentrated in {$topLane->origin_state} — {$topLane->count} loads (2x+ more than {$secondLane->origin_state} with {$secondLane->count})",
+                    "{$topLane->origin_state} dominates this month's load volume with avg rate \${$topLane->avg_rate}/mi. Consider diversifying origin states or targeting backhaul from {$secondLane->origin_state}.",
+                    0.6,
+                    [
+                        'top_state' => $topLane->origin_state,
+                        'top_count' => $topLane->count,
+                        'second_state' => $secondLane->origin_state,
+                        'second_count' => $secondLane->count,
+                        'top_avg_rate' => round($topLane->avg_rate ?? 0, 2),
+                    ]
+                );
+                $count++;
+            }
+        }
+
+        return ['type' => 'load_board', 'count' => $count, 'label' => 'Load Board Monitor'];
+    }
+
+    public function suggestLoadAcceptance(): array
+    {
+        $count = 0;
+
+        $availableLoads = UrbanGoodzLoadBoardLoad::available()
+            ->where('payout_amount', '>', 0)
+            ->orderBy('rate_per_mile', 'desc')
+            ->limit(20)
+            ->get();
+
+        if ($availableLoads->isEmpty()) {
+            return ['type' => 'load_board_accept', 'count' => 0, 'label' => 'Load Acceptance Suggestions'];
+        }
+
+        $availableDrivers = DeliveryMan::where('active', 1)
+            ->where('application_status', 'approved')
+            ->whereColumn('current_orders', '<', DB::raw('CAST(`dm_maximum_orders` AS SIGNED)'))
+            ->get();
+
+        if ($availableDrivers->isEmpty()) {
+            return ['type' => 'load_board_accept', 'count' => 0, 'label' => 'Load Acceptance Suggestions'];
+        }
+
+        foreach ($availableLoads as $load) {
+            $bestDriver = $this->findBestDriverForLoad($load, $availableDrivers);
+            if (!$bestDriver) {
+                continue;
+            }
+
+            $confidence = $bestDriver['confidence'];
+            $action = "Assign {$bestDriver['driver_name']} to Load {$load->load_number} (\${$load->payout_amount})";
+
+            $rec = $this->createRecommendation(
+                'load_board_accept',
+                'driver_match',
+                $load,
+                $action,
+                "Load {$load->load_number} ({$load->origin_city}}, {$load->origin_state}} → {$load->destination_city}}, {$load->destination_state}}, {$load->equipment_type}}) paying \${$load->payout_amount} (\${$load->rate_per_mile}/mi) matched to {$bestDriver['driver_name']} ({$bestDriver['reason']})",
+                $confidence,
+                [
+                    'load_id' => $load->id,
+                    'load_number' => $load->load_number,
+                    'driver_id' => $bestDriver['driver_id'],
+                    'driver_name' => $bestDriver['driver_name'],
+                    'payout_amount' => $load->payout_amount,
+                    'rate_per_mile' => $load->rate_per_mile,
+                    'equipment_type' => $load->equipment_type,
+                    'distance_miles' => $load->distance_miles,
+                    'origin_state' => $load->origin_state,
+                    'destination_state' => $load->destination_state,
+                ]
+            );
+
+            $this->autoExecute($rec, 'ai_auto_load_board_enabled', $confidence, function () use ($load, $bestDriver) {
+                return $this->autoAcceptLoad($load, $bestDriver['driver_id']);
+            }, 'load_board', 'load_acceptance', $load->payout_amount ?? 0);
+
+            $count++;
+        }
+
+        return ['type' => 'load_board_accept', 'count' => $count, 'label' => 'Load Acceptance Suggestions'];
+    }
+
+    public function alertPricingAnomalies(): array
+    {
+        $count = 0;
+
+        $recentLoads = UrbanGoodzLoadBoardLoad::where('created_at', '>=', now()->subDays(7))
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        if ($recentLoads->count() < 5) {
+            return ['type' => 'load_board_repricing', 'count' => 0, 'label' => 'Load Pricing Alerts'];
+        }
+
+        $lanePricing = $recentLoads->groupBy(fn($l) => ($l->origin_state ?? '?') . '→' . ($l->destination_state ?? '?'))
+            ->map(fn($loads) => [
+                'avg_rate' => $loads->avg('rate_per_mile'),
+                'std_dev' => $this->standardDeviation($loads->pluck('rate_per_mile')->filter()->values()->toArray()),
+                'count' => $loads->count(),
+            ])
+            ->filter(fn($s) => $s['count'] >= 3);
+
+        $currentAvailable = UrbanGoodzLoadBoardLoad::available()->get();
+
+        foreach ($currentAvailable as $load) {
+            $lane = ($load->origin_state ?? '?') . '→' . ($load->destination_state ?? '?');
+            if (!isset($lanePricing[$lane]) || !$load->rate_per_mile) {
+                continue;
+            }
+
+            $stats = $lanePricing[$lane];
+            $zScore = $stats['std_dev'] > 0
+                ? ($load->rate_per_mile - $stats['avg_rate']) / $stats['std_dev']
+                : 0;
+
+            if ($zScore < -1.5) {
+                $rec = $this->createRecommendation(
+                    'load_board_repricing',
+                    'underpriced',
+                    $load,
+                    "Reprice Load {$load->load_number} — rate \${$load->rate_per_mile}/mi is well below lane avg \${$stats['avg_rate']}/mi",
+                    "Load {$load->load_number} (\${$load->rate_per_mile}/mi) is {$this->formatPercent($stats['avg_rate'], $load->rate_per_mile)} below the {$lane} 7-day average (\${$stats['avg_rate']}/mi). Raising the rate may attract more drivers.",
+                    min(0.95, abs($zScore) / 3),
+                    [
+                        'load_id' => $load->id,
+                        'load_number' => $load->load_number,
+                        'current_rate' => $load->rate_per_mile,
+                        'lane_avg_rate' => round($stats['avg_rate'], 2),
+                        'z_score' => round($zScore, 2),
+                        'suggested_rate' => round($stats['avg_rate'] * 0.95, 2),
+                        'lane' => $lane,
+                    ]
+                );
+                $count++;
+            } elseif ($zScore > 2.0) {
+                $rec = $this->createRecommendation(
+                    'load_board_repricing',
+                    'overpriced',
+                    $load,
+                    "Load {$load->load_number} — rate \${$load->rate_per_mile}/mi is significantly above lane avg \${$stats['avg_rate']}/mi",
+                    "Load {$load->load_number} (\${$load->rate_per_mile}/mi) is {$this->formatPercent($load->rate_per_mile, $stats['avg_rate'])} above the {$lane} 7-day average (\${$stats['avg_rate']}/mi). Consider if this rate is sustainable.",
+                    0.75,
+                    [
+                        'load_id' => $load->id,
+                        'load_number' => $load->load_number,
+                        'current_rate' => $load->rate_per_mile,
+                        'lane_avg_rate' => round($stats['avg_rate'], 2),
+                        'z_score' => round($zScore, 2),
+                        'lane' => $lane,
+                    ]
+                );
+                $count++;
+            }
+        }
+
+        return ['type' => 'load_board_repricing', 'count' => $count, 'label' => 'Load Pricing Alerts'];
+    }
+
+    private function findBestDriverForLoad(UrbanGoodzLoadBoardLoad $load, $availableDrivers): ?array
+    {
+        if ($availableDrivers->isEmpty()) {
+            return null;
+        }
+
+        $equipmentMap = [
+            'van' => ['van', 'box'],
+            'reefer' => ['reefer', 'refrigerated'],
+            'flatbed' => ['flatbed', 'flat'],
+            'step_deck' => ['step_deck', 'stepdeck', 'lowboy'],
+            'tanker' => ['tanker', 'tank'],
+            'car_hauler' => ['car_hauler', 'auto'],
+            'container' => ['container', 'chassis'],
+        ];
+        $compatibleEquipment = $equipmentMap[$load->equipment_type] ?? [$load->equipment_type];
+
+        $candidates = $availableDrivers->filter(function ($driver) use ($compatibleEquipment, $load) {
+            $driverEquipment = strtolower($driver->vehicle_type ?? 'van');
+            $equipmentMatch = in_array($driverEquipment, $compatibleEquipment);
+
+            $trainingOk = !$load->is_hazmat || !empty($driver->has_hazmat);
+
+            return $equipmentMatch && $trainingOk;
+        });
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $best = $candidates->sortBy('current_orders')->first();
+
+        $confidence = 0.65;
+        if ($best->vehicle_type === $load->equipment_type) $confidence += 0.15;
+        if ($load->payout_amount > 500) $confidence += 0.05;
+        if ($load->rate_per_mile > 3.50) $confidence += 0.05;
+        if ($load->is_expedited) $confidence += 0.05;
+        if ($load->is_hazmat && !empty($best->has_hazmat)) $confidence += 0.05;
+
+        $confidence = min(0.95, $confidence);
+
+        return [
+            'driver_id' => $best->id,
+            'driver_name' => trim(($best->f_name ?? '') . ' ' . ($best->l_name ?? '')),
+            'current_orders' => $best->current_orders,
+            'confidence' => $confidence,
+            'reason' => "equipment match ({$best->vehicle_type}), {$best->current_orders} current orders",
+        ];
+    }
+
+    private function autoAcceptLoad(UrbanGoodzLoadBoardLoad $load, int $driverId): bool
+    {
+        $service = app(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
+        $result = $service->acceptLoad($load->id, $driverId);
+        return $result !== null;
+    }
+
+    private function executeLoadBoardAcceptAction(AiCopilotRecommendation $rec, array $meta): bool
+    {
+        $loadId = $meta['load_id'] ?? null;
+        $driverId = $meta['driver_id'] ?? null;
+
+        if (!$loadId || !$driverId) {
+            return false;
+        }
+
+        $load = UrbanGoodzLoadBoardLoad::find($loadId);
+        if (!$load || $load->status !== 'available') {
+            return false;
+        }
+
+        $beforeSnapshot = json_encode([
+            'status' => $load->status,
+            'assigned_driver_id' => $load->assigned_driver_id,
+        ]);
+
+        $service = app(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
+        $result = $service->acceptLoad($loadId, $driverId);
+
+        if ($result) {
+            $afterSnapshot = json_encode([
+                'status' => $result->status,
+                'assigned_driver_id' => $result->assigned_driver_id,
+            ]);
+
+            $this->logAction(
+                actionTaken: $rec->suggested_action,
+                module: 'load_board',
+                affectedUserType: 'App\Models\DeliveryMan',
+                affectedUserId: $driverId,
+                beforeValue: $beforeSnapshot,
+                afterValue: $afterSnapshot,
+                reason: 'Admin accepted: ' . $rec->reason,
+                recommendationId: $rec->id,
+                approvedBy: auth('admin')->id(),
+                rollbackAvailable: true,
+            );
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function executeLoadBoardRepricingAction(AiCopilotRecommendation $rec, array $meta): bool
+    {
+        $loadId = $meta['load_id'] ?? null;
+        $suggestedRate = $meta['suggested_rate'] ?? null;
+
+        if (!$loadId || !$suggestedRate) {
+            return false;
+        }
+
+        $load = UrbanGoodzLoadBoardLoad::find($loadId);
+        if (!$load || $load->status !== 'available') {
+            return false;
+        }
+
+        $beforeSnapshot = json_encode([
+            'rate_per_mile' => $load->rate_per_mile,
+            'payout_amount' => $load->payout_amount,
+        ]);
+
+        $newPayout = round($suggestedRate * ($load->distance_miles ?? 1), 2);
+        $load->update([
+            'rate_per_mile' => $suggestedRate,
+            'payout_amount' => $newPayout,
+        ]);
+
+        $afterSnapshot = json_encode([
+            'rate_per_mile' => $suggestedRate,
+            'payout_amount' => $newPayout,
+        ]);
+
+        $this->logAction(
+            actionTaken: $rec->suggested_action,
+            module: 'load_board',
+            affectedUserType: 'App\Models\UrbanGoodzLoadBoardLoad',
+            affectedUserId: $loadId,
+            beforeValue: $beforeSnapshot,
+            afterValue: $afterSnapshot,
+            reason: 'Admin accepted: ' . $rec->reason,
+            recommendationId: $rec->id,
+            approvedBy: auth('admin')->id(),
+            rollbackAvailable: true,
+        );
+
+        return true;
+    }
+
+    private function standardDeviation(array $values): float
+    {
+        $n = count($values);
+        if ($n < 2) return 0;
+        $mean = array_sum($values) / $n;
+        $sumSquaredDiff = 0;
+        foreach ($values as $v) {
+            $sumSquaredDiff += ($v - $mean) ** 2;
+        }
+        return sqrt($sumSquaredDiff / ($n - 1));
+    }
+
+    private function formatPercent(float $baseline, float $value): string
+    {
+        if ($baseline == 0) return '0%';
+        $pct = abs(($value - $baseline) / $baseline) * 100;
+        return number_format($pct, 0) . '%';
+    }
+
     public function accept(int $id, int $adminId, ?string $notes = null): ?AiCopilotRecommendation
     {
         $rec = AiCopilotRecommendation::find($id);
@@ -512,6 +967,10 @@ class AiCopilotService
                     return $this->executeStuckOrderAction($rec, $meta);
                 case 'order_anywhere_triage':
                     return $this->executeOrderAnywhereAction($rec, $meta);
+                case 'load_board_accept':
+                    return $this->executeLoadBoardAcceptAction($rec, $meta);
+                case 'load_board_repricing':
+                    return $this->executeLoadBoardRepricingAction($rec, $meta);
                 default:
                     return false;
             }
@@ -1054,6 +1513,10 @@ class AiCopilotService
                 $data['package_id'] = $relatable->package_id;
             } elseif ($relatable instanceof UrbanGoodzBusinessClientJob) {
                 $data['order_id'] = $relatable->id;
+            } elseif ($relatable instanceof UrbanGoodzLoadBoardLoad) {
+                $data['metadata'] = array_merge($data['metadata'] ?? [], ['load_id' => $relatable->id]);
+            } elseif ($relatable instanceof UrbanGoodzMedicalCourierJob) {
+                $data['metadata'] = array_merge($data['metadata'] ?? [], ['medical_job_id' => $relatable->id]);
             }
         }
 

@@ -25,6 +25,9 @@
                 <a href="{{ route('admin.urban-goodz.ai-copilot.action-logs') }}" class="btn btn-outline--primary">
                     <i class="tio-list"></i> {{ translate('Logs') }}
                 </a>
+                <a href="{{ route('admin.urban-goodz.ai-copilot.load-board-analytics') }}" class="btn btn-outline--primary">
+                    <i class="tio-truck"></i> {{ translate('Load Board Analytics') }}
+                </a>
                 <a href="{{ route('admin.urban-goodz.ai-copilot.settings') }}" class="btn btn-outline--primary">
                     <i class="tio-settings"></i> {{ translate('Settings') }}
                 </a>
@@ -97,7 +100,7 @@
                 <div class="card">
                     <div class="card-body d-flex align-items-center gap-3 py-3">
                         <div class="rec-type-icon text--primary">
-                            @php $icons = ['dispatch_suggestion' => 'tio-delivery', 'stuck_order' => 'tio-alert', 'order_anywhere_triage' => 'tio-chat', 'package_monitoring' => 'tio-package', 'age_verification_alert' => 'tio-verified']; @endphp
+                            @php $icons = ['dispatch_suggestion' => 'tio-delivery', 'stuck_order' => 'tio-alert', 'order_anywhere_triage' => 'tio-chat', 'package_monitoring' => 'tio-package', 'age_verification_alert' => 'tio-verified', 'load_board' => 'tio-truck', 'load_board_demand' => 'tio-chart-line', 'load_board_driver_match' => 'tio-user-check', 'load_board_pricing' => 'tio-dollar']; @endphp
                             <i class="{{ $icons[$type] ?? 'tio-flag' }}"></i>
                         </div>
                         <div>
@@ -117,7 +120,7 @@
                 <form method="GET" class="d-flex gap-2 flex-wrap">
                     <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
                         <option value="">{{ translate('All Types') }}</option>
-                        @foreach(['dispatch_suggestion', 'stuck_order', 'order_anywhere_triage', 'package_monitoring', 'age_verification_alert'] as $t)
+                        @foreach(['dispatch_suggestion', 'stuck_order', 'order_anywhere_triage', 'package_monitoring', 'age_verification_alert', 'load_board', 'load_board_demand', 'load_board_driver_match', 'load_board_pricing'] as $t)
                         <option value="{{ $t }}" {{ request('type') === $t ? 'selected' : '' }}>{{ ucwords(str_replace('_', ' ', $t)) }}</option>
                         @endforeach
                     </select>
@@ -152,8 +155,8 @@
                                 <td>{{ $r->id }}</td>
                                 <td>
                                     @php
-                                        $typeLabels = ['dispatch_suggestion' => 'Dispatch', 'stuck_order' => 'Stuck Order', 'order_anywhere_triage' => 'OA Triage', 'package_monitoring' => 'Package', 'age_verification_alert' => 'Age Verify'];
-                                        $typeBadges = ['dispatch_suggestion' => 'primary', 'stuck_order' => 'danger', 'order_anywhere_triage' => 'info', 'package_monitoring' => 'warning', 'age_verification_alert' => 'dark'];
+                                        $typeLabels = ['dispatch_suggestion' => 'Dispatch', 'stuck_order' => 'Stuck Order', 'order_anywhere_triage' => 'OA Triage', 'package_monitoring' => 'Package', 'age_verification_alert' => 'Age Verify', 'load_board' => 'Load Board', 'load_board_demand' => 'Load Demand', 'load_board_driver_match' => 'Driver Match', 'load_board_pricing' => 'Pricing'];
+                                        $typeBadges = ['dispatch_suggestion' => 'primary', 'stuck_order' => 'danger', 'order_anywhere_triage' => 'info', 'package_monitoring' => 'warning', 'age_verification_alert' => 'dark', 'load_board' => 'success', 'load_board_demand' => 'info', 'load_board_driver_match' => 'primary', 'load_board_pricing' => 'warning'];
                                     @endphp
                                     <span class="badge badge-soft-{{ $typeBadges[$r->recommendation_type] ?? 'secondary' }}">
                                         {{ $typeLabels[$r->recommendation_type] ?? $r->recommendation_type }}
