@@ -20,7 +20,8 @@ function sendNotificationToHttp(array|null $data)
             'Content-Type' => 'application/json',
         ];
         try {
-            Http::withHeaders($headers)->post($url, $data);
+            $response = Http::withHeaders($headers)->post($url, $data);
+            return $response->successful();
         }catch (\Exception $exception){
             return false;
         }

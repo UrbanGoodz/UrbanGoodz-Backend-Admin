@@ -209,6 +209,59 @@ class CustomerAuthController extends Controller
                             'updated_at' => now(),
                             'temp_block_time' => null,
                         ]);
+                } elseif ($request->verification_type == 'email') {
+                    $max_otp_hit = 5;
+                    $max_otp_hit_time = 60;
+                    $temp_block_time = 600;
+
+                    $verification_data = DB::table('email_verifications')->where('email', $request['email'])->first();
+
+                    if (isset($verification_data)) {
+                        if (isset($verification_data->temp_block_time) && Carbon::parse($verification_data->temp_block_time)->DiffInSeconds() <= $temp_block_time) {
+                            $time = $temp_block_time - Carbon::parse($verification_data->temp_block_time)->DiffInSeconds();
+
+                            $errors = [];
+                            array_push($errors, ['code' => 'otp_block_time',
+                                'message' => translate('messages.please_try_again_after_') . CarbonInterval::seconds($time)->cascade()->forHumans()
+                            ]);
+                            return response()->json([
+                                'errors' => $errors
+                            ], 405);
+                        }
+
+                        if ($verification_data->is_temp_blocked == 1 && Carbon::parse($verification_data->updated_at)->DiffInSeconds() >= $max_otp_hit_time) {
+                            DB::table('email_verifications')->updateOrInsert(['email' => $request['email']],
+                                [
+                                    'otp_hit_count' => 0,
+                                    'is_temp_blocked' => 0,
+                                    'temp_block_time' => null,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                        }
+
+                        if ($verification_data->otp_hit_count >= $max_otp_hit && Carbon::parse($verification_data->updated_at)->DiffInSeconds() < $max_otp_hit_time && $verification_data->is_temp_blocked == 0) {
+                            DB::table('email_verifications')->updateOrInsert(['email' => $request['email']],
+                                [
+                                    'is_temp_blocked' => 1,
+                                    'temp_block_time' => now(),
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            $errors = [];
+                            array_push($errors, ['code' => 'otp_temp_blocked', 'message' => translate('messages.Too_many_attemps')]);
+                            return response()->json([
+                                'errors' => $errors
+                            ], 405);
+                        }
+                    }
+
+                    DB::table('email_verifications')->updateOrInsert(['email' => $request['email']],
+                        [
+                            'otp_hit_count' => DB::raw('otp_hit_count + 1'),
+                            'updated_at' => now(),
+                            'temp_block_time' => null,
+                        ]);
                 }
                 return response()->json([
                     'message' => translate('OTP does not match')

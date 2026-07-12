@@ -64,6 +64,9 @@ class DeliveryMan extends Authenticatable
         'registration_expiration' => 'date',
         'insurance_expiration' => 'date',
         'inspection_expiration' => 'date',
+        'vehicle_year' => 'integer',
+        'cdl_expiration' => 'date',
+        'load_board_eligible' => 'boolean',
         'ref_by'=>'integer',
         'loyalty_point'=>'float',
     ];

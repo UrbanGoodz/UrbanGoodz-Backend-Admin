@@ -389,7 +389,43 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-sm-6">
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Vehicle Make') }}</label>
+                                        <input type="text" name="vehicle_make" class="form-control" value="{{ $deliveryMan->vehicle_make ?? '' }}" placeholder="e.g. Ford">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Vehicle Model') }}</label>
+                                        <input type="text" name="vehicle_model" class="form-control" value="{{ $deliveryMan->vehicle_model ?? '' }}" placeholder="e.g. E-Transit">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Vehicle Year') }}</label>
+                                        <input type="number" name="vehicle_year" class="form-control" value="{{ $deliveryMan->vehicle_year ?? '' }}" min="1900" max="2099" placeholder="YYYY">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Vehicle Color') }}</label>
+                                        <input type="text" name="vehicle_color" class="form-control" value="{{ $deliveryMan->vehicle_color ?? '' }}" placeholder="e.g. White">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Vehicle VIN') }}</label>
+                                        <input type="text" name="vehicle_vin" class="form-control" value="{{ $deliveryMan->vehicle_vin ?? '' }}" maxlength="17" placeholder="17-character VIN">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('License Plate') }}</label>
+                                        <input type="text" name="license_plate" class="form-control" value="{{ $deliveryMan->license_plate ?? '' }}" placeholder="Plate number">
+                                    </div>
+                                </div>
+                                <div class="col-sm-3">
                                     <div class="form-group mb-0">
                                         <label class="input-label">{{ translate('Registration Expiration') }}</label>
                                         <input type="date" name="registration_expiration" class="form-control" value="{{ $deliveryMan->registration_expiration ?? '' }}">
@@ -422,6 +458,24 @@
                         <div class="bg-light2 rounded p-xxl-20 p-xl-3 p-3 mb-20 trailer-fields" style="{{ $deliveryMan->has_trailer ? '' : 'display:none' }}">
                             <h5 class="mb-3">{{ translate('Trailer Information') }}</h5>
                             <div class="row g-3">
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Trailer Make') }}</label>
+                                        <input type="text" name="trailer_make" class="form-control" value="{{ $deliveryMan->trailer_make ?? '' }}" placeholder="e.g. Continental">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Trailer Model') }}</label>
+                                        <input type="text" name="trailer_model" class="form-control" value="{{ $deliveryMan->trailer_model ?? '' }}" placeholder="e.g. CT-400">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Trailer VIN') }}</label>
+                                        <input type="text" name="trailer_vin" class="form-control" value="{{ $deliveryMan->trailer_vin ?? '' }}" maxlength="17" placeholder="17-character VIN">
+                                    </div>
+                                </div>
                                 <div class="col-sm-6">
                                     <div class="form-group mb-0">
                                         <label class="input-label">{{ translate('Trailer Type') }}</label>
@@ -522,6 +576,45 @@
                                     <div class="form-group mb-0">
                                         <label class="input-label">{{ translate('MC Number') }}</label>
                                         <input type="text" name="mc_number" class="form-control" value="{{ $deliveryMan->mc_number ?? '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('USDOT Number') }}</label>
+                                        <input type="text" name="usdot_number" class="form-control" value="{{ $deliveryMan->usdot_number ?? '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4 cdl-state-field" style="{{ ($deliveryMan->cdl_status ?? 'none') === 'valid' ? '' : 'display:none' }}">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('CDL State') }}</label>
+                                        <input type="text" name="cdl_state" class="form-control" value="{{ $deliveryMan->cdl_state ?? '' }}" maxlength="2" placeholder="2-letter state" style="text-transform:uppercase">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4 cdl-expiration-field" style="{{ ($deliveryMan->cdl_status ?? 'none') === 'valid' ? '' : 'display:none' }}">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('CDL Expiration') }}</label>
+                                        <input type="date" name="cdl_expiration" class="form-control" value="{{ $deliveryMan->cdl_expiration ?? '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Insurance Carrier') }}</label>
+                                        <input type="text" name="insurance_carrier" class="form-control" value="{{ $deliveryMan->insurance_carrier ?? '' }}" placeholder="e.g. Progressive">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Insurance Policy #') }}</label>
+                                        <input type="text" name="insurance_policy" class="form-control" value="{{ $deliveryMan->insurance_policy ?? '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-group mb-0">
+                                        <label class="input-label">{{ translate('Load Board Eligible') }}</label>
+                                        <select name="load_board_eligible" class="form-control js-select2-custom">
+                                            <option value="0" {{ !$deliveryMan->load_board_eligible ? 'selected' : '' }}>{{ translate('messages.No') }}</option>
+                                            <option value="1" {{ $deliveryMan->load_board_eligible ? 'selected' : '' }}>{{ translate('messages.Yes') }}</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -676,8 +769,8 @@
         });
 
         $('.cdl-status-toggle').on('change', function() {
-            if ($(this).val() === 'valid') { $('.cdl-class-field, .cdl-number-field').show(); }
-            else { $('.cdl-class-field, .cdl-number-field').hide(); }
+            if ($(this).val() === 'valid') { $('.cdl-class-field, .cdl-number-field, .cdl-state-field, .cdl-expiration-field').show(); }
+            else { $('.cdl-class-field, .cdl-number-field, .cdl-state-field, .cdl-expiration-field').hide(); }
         });
 
         $('.cargo-insurance-toggle').on('change', function() {

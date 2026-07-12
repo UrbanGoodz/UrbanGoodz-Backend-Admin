@@ -248,12 +248,23 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('risk-rules/{id}/toggle', 'UrbanGoodz\AiCopilotController@toggleRiskRule')->name('risk-rules.toggle');
 
                 Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->name('action-logs');
+                Route::post('action-logs/{logId}/rollback', 'UrbanGoodz\AiCopilotController@rollback')->name('action-logs.rollback');
 
                 Route::get('settings', 'UrbanGoodz\AiCopilotController@settings')->name('settings');
                 Route::post('settings', 'UrbanGoodz\AiCopilotController@saveSettings')->name('settings.save');
                 Route::get('{id}', 'UrbanGoodz\AiCopilotController@show')->name('show');
                 Route::post('{id}/accept', 'UrbanGoodz\AiCopilotController@accept')->name('accept');
                 Route::post('{id}/dismiss', 'UrbanGoodz\AiCopilotController@dismiss')->name('dismiss');
+            });
+
+            Route::group(['prefix' => 'load-board', 'as' => 'load-board.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzLoadBoardController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzLoadBoardController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzLoadBoardController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzLoadBoardController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy');
             });
 
             Route::group(['prefix' => 'business-types', 'as' => 'business-types.'], function () {

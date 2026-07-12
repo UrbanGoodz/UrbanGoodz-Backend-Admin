@@ -126,10 +126,19 @@
                                             </div>
                                             @endif
                                             @if($log->rollback_available)
-                                            <div class="alert alert-info mb-0">
+                                            <div class="alert alert-warning mb-3">
                                                 <i class="tio-refresh"></i>
                                                 {{ translate('Rollback is available for this action') }}
                                             </div>
+                                            <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.action-logs.rollback', $log->id) }}" onsubmit="return confirm('{{ translate('Are you sure you want to roll back this action?') }}')">
+                                                @csrf
+                                                <div class="form-group mb-2">
+                                                    <input type="text" name="admin_notes" class="form-control form-control-sm" placeholder="{{ translate('Rollback reason (optional)') }}">
+                                                </div>
+                                                <button type="submit" class="btn btn-sm btn-warning">
+                                                    <i class="tio-refresh"></i> {{ translate('Rollback Action') }}
+                                                </button>
+                                            </form>
                                             @endif
                                         </div>
                                         <div class="modal-footer">

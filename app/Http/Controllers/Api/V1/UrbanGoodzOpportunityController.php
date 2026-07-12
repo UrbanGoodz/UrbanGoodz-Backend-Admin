@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -129,61 +131,87 @@ class UrbanGoodzOpportunityController extends Controller
     // Load Board
     // =========================================================================
 
-    public function loadBoardLoads()
+    public function loadBoardLoads(Request $request, UrbanGoodzLoadBoardService $loadBoardService)
     {
+        $filters = $request->only([
+            'origin_state', 'destination_state', 'load_type', 'equipment_type',
+            'min_payout', 'max_distance_miles',
+        ]);
+
+        $result = $loadBoardService->listAvailable($filters);
+
         return response()->json([
             'success' => true,
             'message' => 'Load board loads retrieved successfully',
-            'data' => [
-                [
-                    'id' => 20,
-                    'origin' => 'Houston, TX',
-                    'destination' => 'Austin, TX',
-                    'payout' => 350.00,
-                    'status' => 'available',
-                ]
-            ],
+            'data' => $result['loads'],
+            'meta' => $result['meta'],
         ]);
     }
 
-    public function loadBoardLoad($record)
+    public function loadBoardLoad($record, UrbanGoodzLoadBoardService $loadBoardService)
     {
+        $load = $loadBoardService->getById((int) $record);
+
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Load details retrieved successfully',
-            'data' => [
-                'id' => (int)$record,
-                'origin' => 'Origin Point',
-                'destination' => 'Destination Point',
-                'status' => 'available',
-            ],
+            'data' => $load,
         ]);
     }
 
-    public function acceptLoadBoardLoad(Request $request, $record)
+    public function acceptLoadBoardLoad(Request $request, $record, UrbanGoodzLoadBoardService $loadBoardService)
     {
-        Log::info('Load board load accepted', ['record' => $record]);
+        $driverId = $request->user()?->id;
+        if (!$driverId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required',
+            ], 401);
+        }
+
+        $load = $loadBoardService->acceptLoad((int) $record, $driverId);
+
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not available or driver not eligible',
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Load accepted successfully',
-            'data' => [
-                'id' => (int)$record,
-                'status' => 'accepted',
-            ],
+            'data' => $load,
         ]);
     }
 
-    public function updateLoadBoardLoadStatus(Request $request, $record)
+    public function updateLoadBoardLoadStatus(Request $request, $record, UrbanGoodzLoadBoardService $loadBoardService)
     {
-        $status = $request->input('status', 'delivered');
-        Log::info('Load board status updated', ['record' => $record, 'status' => $status]);
+        $validated = $request->validate([
+            'status' => 'required|string|in:in_transit,picked_up,delivered,cancelled',
+        ]);
+
+        $driverId = $request->user()?->id;
+        $load = $loadBoardService->updateStatus((int) $record, $validated['status'], $driverId);
+
+        if (!$load) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Load not found or invalid status transition',
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Load status updated successfully',
-            'data' => [
-                'id' => (int)$record,
-                'status' => $status,
-            ],
+            'data' => $load,
         ]);
     }
 

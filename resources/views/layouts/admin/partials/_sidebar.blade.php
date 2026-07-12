@@ -298,6 +298,14 @@
                         </a>
                     </li>
                     @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_load_board_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/load-board*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.load-board.index') }}" title="Load Board">
+                            <i class="tio-truck nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Load Board</span>
+                        </a>
+                    </li>
+                    @endif
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/discovery*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'discovery') }}" title="Discovery">

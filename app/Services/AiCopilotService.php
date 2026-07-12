@@ -448,13 +448,266 @@ class AiCopilotService
             return null;
         }
 
+        $executed = $this->executeRecommendationAction($rec);
+
         $rec->status = 'accepted';
         $rec->reviewed_by = $adminId;
         $rec->reviewed_at = now();
         $rec->admin_notes = $notes;
+
+        $meta = $rec->metadata ?? [];
+        $meta['admin_executed'] = $executed;
+        $meta['admin_executed_at'] = now()->toDateTimeString();
+        $rec->metadata = $meta;
+
         $rec->save();
 
         return $rec;
+    }
+
+    public function rollback(int $logId, int $adminId, ?string $notes = null): ?AiActionLog
+    {
+        $log = AiActionLog::find($logId);
+        if (!$log || !$log->rollback_available) {
+            return null;
+        }
+
+        $before = json_decode($log->before_value, true);
+        if (!$before) {
+            return null;
+        }
+
+        $success = false;
+
+        if ($log->module === 'dispatch' && isset($before['delivery_man_id'])) {
+            $success = $this->rollbackDispatch($log, $before);
+        }
+
+        if ($success) {
+            $log->rollback_available = false;
+            $log->save();
+
+            if ($log->recommendation_id) {
+                $rec = AiCopilotRecommendation::find($log->recommendation_id);
+                if ($rec) {
+                    $rec->status = 'dismissed';
+                    $rec->admin_notes = ($rec->admin_notes ? $rec->admin_notes . ' | ' : '') . 'Rolled back by admin';
+                    $rec->save();
+                }
+            }
+        }
+
+        return $success ? $log : null;
+    }
+
+    private function executeRecommendationAction(AiCopilotRecommendation $rec): bool
+    {
+        $meta = $rec->metadata ?? [];
+
+        try {
+            switch ($rec->recommendation_type) {
+                case 'dispatch_suggestion':
+                    return $this->executeDispatchAction($rec, $meta);
+                case 'stuck_order':
+                    return $this->executeStuckOrderAction($rec, $meta);
+                case 'order_anywhere_triage':
+                    return $this->executeOrderAnywhereAction($rec, $meta);
+                default:
+                    return false;
+            }
+        } catch (\Exception $e) {
+            $meta['execute_error'] = $e->getMessage();
+            $rec->metadata = $meta;
+            $rec->save();
+            return false;
+        }
+    }
+
+    private function executeDispatchAction(AiCopilotRecommendation $rec, array $meta): bool
+    {
+        $driverId = $meta['driver_id'] ?? null;
+        if (!$driverId) {
+            return false;
+        }
+
+        $driver = DeliveryMan::where('id', $driverId)
+            ->where('active', 1)
+            ->where('application_status', 'approved')
+            ->first();
+        if (!$driver) {
+            return false;
+        }
+
+        $driverInfo = [
+            'driver_id' => $driver->id,
+            'driver_name' => trim(($driver->f_name ?? '') . ' ' . ($driver->l_name ?? '')),
+        ];
+
+        $success = false;
+
+        if ($rec->order_id) {
+            $order = Order::find($rec->order_id);
+            if ($order && !$order->delivery_man_id) {
+                $beforeSnapshot = json_encode([
+                    'delivery_man_id' => $order->delivery_man_id,
+                    'order_status' => $order->order_status,
+                ]);
+
+                $success = $this->autoDispatchOrder($order, $driverInfo);
+
+                if ($success) {
+                    $afterSnapshot = json_encode([
+                        'delivery_man_id' => $order->fresh()->delivery_man_id,
+                        'order_status' => $order->fresh()->order_status,
+                    ]);
+                    $this->logAction(
+                        actionTaken: $rec->suggested_action,
+                        module: 'dispatch',
+                        affectedUserType: 'App\Models\DeliveryMan',
+                        affectedUserId: $driverId,
+                        beforeValue: $beforeSnapshot,
+                        afterValue: $afterSnapshot,
+                        reason: 'Admin accepted: ' . $rec->reason,
+                        recommendationId: $rec->id,
+                        approvedBy: auth('admin')->id(),
+                        rollbackAvailable: true,
+                    );
+                }
+            }
+        } elseif ($rec->route_id) {
+            $route = UrbanGoodzDedicatedRoute::find($rec->route_id);
+            if ($route && !$route->assigned_driver_id) {
+                $success = $this->autoDispatchRoute($route, $driverInfo);
+
+                if ($success) {
+                    $this->logAction(
+                        actionTaken: $rec->suggested_action,
+                        module: 'dispatch',
+                        affectedUserType: 'App\Models\DeliveryMan',
+                        affectedUserId: $driverId,
+                        beforeValue: json_encode(['assigned_driver_id' => null]),
+                        afterValue: json_encode(['assigned_driver_id' => $driverId]),
+                        reason: 'Admin accepted: ' . $rec->reason,
+                        recommendationId: $rec->id,
+                        approvedBy: auth('admin')->id(),
+                        rollbackAvailable: true,
+                    );
+                }
+            }
+        }
+
+        return $success;
+    }
+
+    private function executeStuckOrderAction(AiCopilotRecommendation $rec, array $meta): bool
+    {
+        if ($rec->order_id) {
+            $order = Order::find($rec->order_id);
+            if ($order && !$order->delivery_man_id) {
+                $availableDrivers = DeliveryMan::where('active', 1)
+                    ->where('application_status', 'approved')
+                    ->whereColumn('current_orders', '<', DB::raw('CAST(`dm_maximum_orders` AS SIGNED)'))
+                    ->get()
+                    ->keyBy('id');
+                $suggested = $this->findBestDriverForOrder($order, $availableDrivers);
+                if ($suggested) {
+                    $meta['driver_id'] = $suggested['driver_id'];
+                    $meta['driver_name'] = $suggested['driver_name'];
+                    $rec->metadata = $meta;
+                    $rec->save();
+                    return $this->executeDispatchAction($rec, $meta);
+                }
+            }
+        }
+        return false;
+    }
+
+    private function executeOrderAnywhereAction(AiCopilotRecommendation $rec, array $meta): bool
+    {
+        $requestId = $meta['request_id'] ?? $rec->request_id;
+        if (!$requestId) {
+            return false;
+        }
+
+        $req = OrderAnywhereRequest::find($requestId);
+        if (!$req || $req->status === 'completed') {
+            return false;
+        }
+
+        $newStatus = match ($meta['status'] ?? $req->status) {
+            'pending' => 'pending_review',
+            'pending_review' => 'in_progress',
+            'quote_needed' => 'pending_review',
+            default => 'in_progress',
+        };
+
+        $before = json_encode(['status' => $req->status]);
+        $req->status = $newStatus;
+        $req->save();
+        $after = json_encode(['status' => $newStatus]);
+
+        $this->logAction(
+            actionTaken: $rec->suggested_action,
+            module: 'order_anywhere',
+            affectedUserType: 'App\Models\OrderAnywhereRequest',
+            affectedUserId: $requestId,
+            beforeValue: $before,
+            afterValue: $after,
+            reason: 'Admin accepted: ' . $rec->reason,
+            recommendationId: $rec->id,
+            approvedBy: auth('admin')->id(),
+            rollbackAvailable: true,
+        );
+
+        return true;
+    }
+
+    private function rollbackDispatch(AiActionLog $log, array $before): bool
+    {
+        try {
+            DB::beginTransaction();
+
+            $meta = $log->recommendation?->metadata ?? [];
+            $driverId = $meta['driver_id'] ?? null;
+            $orderId = $log->recommendation?->order_id;
+
+            if ($orderId) {
+                $order = Order::find($orderId);
+                if ($order) {
+                    $order->delivery_man_id = $before['delivery_man_id'] ?? null;
+                    if (isset($before['order_status'])) {
+                        $order->order_status = $before['order_status'];
+                    }
+                    $order->save();
+
+                    if ($driverId) {
+                        $driver = DeliveryMan::find($driverId);
+                        if ($driver) {
+                            $driver->decrement('current_orders');
+                            $driver->decrement('assigned_order_count');
+                        }
+                    }
+                }
+            } elseif ($log->module === 'dispatch' && isset($before['assigned_driver_id'])) {
+                $routeId = $log->recommendation?->route_id;
+                if ($routeId) {
+                    $route = UrbanGoodzDedicatedRoute::find($routeId);
+                    if ($route) {
+                        $route->assigned_driver_id = $before['assigned_driver_id'];
+                        if (isset($before['status'])) {
+                            $route->status = $before['status'];
+                        }
+                        $route->save();
+                    }
+                }
+            }
+
+            DB::commit();
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return false;
+        }
     }
 
     public function dismiss(int $id, int $adminId, ?string $notes = null): ?AiCopilotRecommendation
@@ -724,6 +977,37 @@ class AiCopilotService
             'confidence' => 0.7,
             'action' => "Assign {$best->f_name} {$best->l_name} to route '{$route->route_name}'",
         ];
+    }
+
+    public function notifyHighConfidenceRecommendations(array $results): void
+    {
+        $total = collect($results)->sum('count');
+        if ($total === 0) {
+            return;
+        }
+
+        $highConfidenceCount = AiCopilotRecommendation::where('status', 'pending')
+            ->where('confidence_score', '>=', 0.8)
+            ->where('created_at', '>=', now()->subMinute())
+            ->count();
+
+        if ($highConfidenceCount === 0) {
+            return;
+        }
+
+        $adminIds = \App\Models\Admin::where('is_active', 1)->pluck('id');
+        foreach ($adminIds as $adminId) {
+            \App\Models\UserNotification::create([
+                'admin_id' => $adminId,
+                'data' => json_encode([
+                    'type' => 'ai_copilot_high_confidence',
+                    'title' => 'AI Copilot: ' . $highConfidenceCount . ' high-confidence recommendations',
+                    'description' => "{$total} new recommendations generated. {$highConfidenceCount} are high-confidence and ready for review.",
+                    'priority' => 'normal',
+                    'requires_action' => true,
+                ]),
+            ]);
+        }
     }
 
     private function createRecommendation(string $type, string $subtype, $relatable, string $action, string $reason, float $confidence, array $meta = []): AiCopilotRecommendation

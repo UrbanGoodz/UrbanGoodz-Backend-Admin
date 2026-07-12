@@ -63,6 +63,8 @@ class AiCopilotController extends Controller
 
             $total = collect($results)->sum('count');
 
+            $this->copilotService->notifyHighConfidenceRecommendations($results);
+
             $mode = $this->copilotService->getMode();
             if ($mode === 'full_low_risk_automation' || $mode === 'supervised_automation') {
                 $autoCount = AiCopilotRecommendation::where('status', 'accepted')
@@ -104,6 +106,19 @@ class AiCopilotController extends Controller
 
         Toastr::success('Recommendation dismissed');
         return redirect()->route('admin.urban-goodz.ai-copilot.index');
+    }
+
+    public function rollback(Request $request, $logId)
+    {
+        $log = $this->copilotService->rollback((int) $logId, auth('admin')->id(), $request->admin_notes);
+
+        if (!$log) {
+            Toastr::error('Action log not found or rollback not available');
+            return redirect()->back();
+        }
+
+        Toastr::success('Action rolled back successfully');
+        return redirect()->route('admin.urban-goodz.ai-copilot.action-logs');
     }
 
     public function show($id)
