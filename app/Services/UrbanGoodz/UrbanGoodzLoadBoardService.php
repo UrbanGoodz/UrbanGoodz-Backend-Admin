@@ -222,9 +222,12 @@ class UrbanGoodzLoadBoardService
         $count = 0;
 
         foreach ($externalLoads as $extLoad) {
-            $existing = UrbanGoodzLoadBoardLoad::where('provider', $provider)
-                ->where('external_id', $extLoad['external_id'] ?? null)
-                ->first();
+            $existing = null;
+            if (!empty($extLoad['external_id'])) {
+                $existing = UrbanGoodzLoadBoardLoad::where('provider', $provider)
+                    ->where('external_id', $extLoad['external_id'])
+                    ->first();
+            }
 
             if ($existing) {
                 if ($existing->status === 'available') {
