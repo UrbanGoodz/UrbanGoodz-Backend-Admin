@@ -14,6 +14,7 @@ use App\Models\UrbanGoodzPackageScan;
 use App\Models\UrbanGoodzClientInvoice;
 use App\Models\UrbanGoodzBusinessClientJob;
 use App\Models\UrbanGoodzManifest;
+use App\Models\UrbanGoodzLoadBoardLoad;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -1064,5 +1065,154 @@ class BusinessPortalController extends Controller
 
         Toastr::success(translate('Document deleted successfully'));
         return redirect()->route('business.documents.index');
+    }
+
+    // =========================================================
+    // BUSINESS PORTAL LOAD BOARD
+    // =========================================================
+
+    public function loadBoardIndex(Request $request)
+    {
+        $clientId = $this->getClientId();
+        
+        $query = UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('origin_state')) {
+            $query->where('origin_state', $request->origin_state);
+        }
+        if ($request->filled('destination_state')) {
+            $query->where('destination_state', $request->destination_state);
+        }
+        if ($request->filled('load_type')) {
+            $query->where('load_type', $request->load_type);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('load_number', 'like', "%{$search}%")
+                  ->orWhere('origin_city', 'like', "%{$search}%")
+                  ->orWhere('destination_city', 'like', "%{$search}%")
+                  ->orWhere('commodity_description', 'like', "%{$search}%");
+            });
+        }
+
+        $loads = $query->with('assignedDriver')
+            ->latest()
+            ->paginate(25);
+
+        $stats = [
+            'total' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)->count(),
+            'available' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)->where('status', 'available')->count(),
+            'active' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)->whereIn('status', ['assigned', 'in_transit', 'picked_up'])->count(),
+            'completed' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)->where('status', 'delivered')->count(),
+            'cancelled' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)->where('status', 'cancelled')->count(),
+        ];
+
+        return view('business.load-board.index', compact('loads', 'stats'));
+    }
+
+    public function loadBoardCreate()
+    {
+        $clientId = $this->getClientId();
+        $locations = UrbanGoodzBusinessClientLocation::where('business_client_id', $clientId)
+            ->where('is_active', true)
+            ->get();
+
+        return view('business.load-board.create', compact('locations'));
+    }
+
+    public function loadBoardStore(Request $request)
+    {
+        $clientId = $this->getClientId();
+
+        $validated = $request->validate([
+            'load_number' => 'nullable|string|max:100',
+            'origin_name' => 'nullable|string|max:255',
+            'origin_city' => 'nullable|string|max:100',
+            'origin_state' => 'nullable|string|max:2',
+            'origin_zip' => 'nullable|string|max:10',
+            'destination_name' => 'nullable|string|max:255',
+            'destination_city' => 'nullable|string|max:100',
+            'destination_state' => 'nullable|string|max:2',
+            'destination_zip' => 'nullable|string|max:10',
+            'distance_miles' => 'nullable|numeric|min:0',
+            'payout_amount' => 'required|numeric|min:0',
+            'payout_type' => 'nullable|string|in:flat,per_mile,per_hour',
+            'rate_per_mile' => 'nullable|numeric|min:0',
+            'load_type' => 'nullable|string|max:50',
+            'equipment_type' => 'nullable|string|max:50',
+            'weight_lbs' => 'nullable|numeric|min:0',
+            'length_ft' => 'nullable|numeric|min:0',
+            'pieces' => 'nullable|integer|min:0',
+            'commodity_description' => 'nullable|string|max:500',
+            'special_requirements' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:1000',
+            'is_hazmat' => 'boolean',
+            'is_temperature_controlled' => 'boolean',
+            'temperature_min_f' => 'nullable|numeric',
+            'temperature_max_f' => 'nullable|numeric',
+            'requires_liftgate' => 'boolean',
+            'requires_pallet_jack' => 'boolean',
+            'is_team_load' => 'boolean',
+            'is_expedited' => 'boolean',
+            'shipper_name' => 'nullable|string|max:255',
+            'shipper_phone' => 'nullable|string|max:20',
+            'consignee_name' => 'nullable|string|max:255',
+            'consignee_phone' => 'nullable|string|max:20',
+            'origin_ready_at' => 'nullable|date',
+            'destination_due_at' => 'nullable|date',
+        ]);
+
+        $validated['business_client_id'] = $clientId;
+        $validated['provider'] = 'internal';
+        $validated['status'] = 'available';
+
+        UrbanGoodzLoadBoardLoad::create($validated);
+
+        Toastr::success(translate('Load Board request created successfully'));
+        return redirect()->route('business.load-board.index');
+    }
+
+    public function loadBoardShow($id)
+    {
+        $clientId = $this->getClientId();
+        $load = UrbanGoodzLoadBoardLoad::where('id', $id)
+            ->where('business_client_id', $clientId)
+            ->with(['assignedDriver'])
+            ->firstOrFail();
+
+        return view('business.load-board.show', compact('load'));
+    }
+
+    public function loadBoardCancel($id, \App\Services\UrbanGoodz\UrbanGoodzLoadBoardService $service)
+    {
+        $clientId = $this->getClientId();
+        $load = UrbanGoodzLoadBoardLoad::where('id', $id)
+            ->where('business_client_id', $clientId)
+            ->firstOrFail();
+
+        if ($load->status === 'delivered' || $load->status === 'cancelled') {
+            Toastr::error(translate('This load cannot be cancelled'));
+            return redirect()->back();
+        }
+
+        if ($load->status === 'available') {
+            $load->update(['status' => 'cancelled']);
+            Toastr::success(translate('Load cancelled successfully'));
+            return redirect()->route('business.load-board.show', $id);
+        }
+
+        $result = $service->updateStatus($id, 'cancelled', $load->assigned_driver_id);
+        if (!$result) {
+            Toastr::error(translate('Failed to cancel load'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Load cancelled successfully'));
+        return redirect()->route('business.load-board.show', $id);
     }
 }

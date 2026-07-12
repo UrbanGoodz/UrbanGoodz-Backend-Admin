@@ -66,6 +66,13 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
         Route::get('manifests/{id}', [BusinessPortalController::class, 'manifestShow'])->name('manifests.show');
         Route::get('manifests/{id}/scan', [BusinessPortalController::class, 'manifestScan'])->name('manifests.scan');
         Route::get('manifests/{id}/packages', [BusinessPortalController::class, 'manifestPackages'])->name('manifests.packages');
+
+        // Load Board
+        Route::get('load-board', [BusinessPortalController::class, 'loadBoardIndex'])->name('load-board.index');
+        Route::get('load-board/create', [BusinessPortalController::class, 'loadBoardCreate'])->name('load-board.create');
+        Route::post('load-board', [BusinessPortalController::class, 'loadBoardStore'])->name('load-board.store');
+        Route::get('load-board/{id}', [BusinessPortalController::class, 'loadBoardShow'])->name('load-board.show');
+        Route::post('load-board/{id}/cancel', [BusinessPortalController::class, 'loadBoardCancel'])->name('load-board.cancel');
     });
 
     Route::middleware(['business', 'dispatcher', 'dispatch-territory'])->group(function () {
