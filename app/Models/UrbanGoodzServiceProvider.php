@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class UrbanGoodzServiceProvider extends Model
 {
@@ -14,4 +15,14 @@ class UrbanGoodzServiceProvider extends Model
     ];
 
     protected $casts = ['is_verified' => 'boolean', 'is_active' => 'boolean', 'service_areas' => 'array'];
+
+    public function serviceRequests(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzServiceRequest::class, 'assigned_vendor_id');
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzAppointment::class, 'service_provider_id');
+    }
 }

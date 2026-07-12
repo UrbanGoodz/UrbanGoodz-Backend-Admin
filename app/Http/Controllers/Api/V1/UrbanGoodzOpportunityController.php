@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\UrbanGoodzBookAnythingRequest;
+use App\Models\UrbanGoodzEarnMoneyApplication;
+use App\Models\UrbanGoodzEarnMoneyOpportunity;
+use App\Models\UrbanGoodzEvent;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\UrbanGoodzLogisticsJob;
 use App\Models\UrbanGoodzMedicalCourierJob;
 use App\Models\UrbanGoodzMedicalCourierCustodyLog;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use App\Services\UrbanGoodz\UrbanGoodzMedicalCourierService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class UrbanGoodzOpportunityController extends Controller
 {
@@ -19,52 +25,83 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function earnMoneyOpportunities()
     {
+        $opportunities = UrbanGoodzEarnMoneyOpportunity::where('status', 'available')
+            ->latest()
+            ->get()
+            ->map(fn($opp) => [
+                'id' => $opp->id,
+                'title' => $opp->title,
+                'description' => $opp->description,
+                'type' => $opp->type,
+                'earnings' => (float) $opp->reward_amount,
+                'reward_type' => $opp->reward_type,
+                'status' => $opp->status,
+                'terms' => $opp->terms,
+                'starts_at' => $opp->starts_at,
+                'ends_at' => $opp->ends_at,
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Earning opportunities retrieved successfully',
-            'data' => [
-                [
-                    'id' => 1,
-                    'title' => 'Deliver Food Package',
-                    'description' => 'Delivery job from local kitchen to customer house.',
-                    'earnings' => 15.50,
-                    'status' => 'available',
-                ],
-                [
-                    'id' => 2,
-                    'title' => 'Retail Merch Setup',
-                    'description' => 'Assemble display stand at storefront.',
-                    'earnings' => 45.00,
-                    'status' => 'available',
-                ]
-            ],
+            'data' => $opportunities,
         ]);
     }
 
     public function earnMoneyOpportunity($record)
     {
+        $opportunity = UrbanGoodzEarnMoneyOpportunity::find($record);
+
+        if (!$opportunity) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Opportunity not found',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Opportunity details retrieved successfully',
             'data' => [
-                'id' => (int)$record,
-                'title' => 'Opportunity ' . $record,
-                'description' => 'Sample description for opportunity ' . $record,
-                'earnings' => 25.00,
-                'status' => 'available',
+                'id' => $opportunity->id,
+                'title' => $opportunity->title,
+                'description' => $opportunity->description,
+                'type' => $opportunity->type,
+                'earnings' => (float) $opportunity->reward_amount,
+                'reward_type' => $opportunity->reward_type,
+                'status' => $opportunity->status,
+                'terms' => $opportunity->terms,
+                'starts_at' => $opportunity->starts_at,
+                'ends_at' => $opportunity->ends_at,
             ],
         ]);
     }
 
     public function acceptEarnMoneyOpportunity(Request $request, $record)
     {
-        Log::info('Earn money opportunity accepted', ['record' => $record, 'ip' => $request->ip()]);
+        $opportunity = UrbanGoodzEarnMoneyOpportunity::find($record);
+
+        if (!$opportunity) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Opportunity not found',
+            ], 404);
+        }
+
+        $application = UrbanGoodzEarnMoneyApplication::create([
+            'opportunity_id' => $opportunity->id,
+            'applicant_name' => $request->input('applicant_name', $request->user()?->name),
+            'applicant_email' => $request->input('applicant_email', $request->user()?->email),
+            'status' => 'pending',
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Opportunity accepted successfully',
             'data' => [
-                'id' => (int)$record,
-                'status' => 'accepted',
+                'id' => $application->id,
+                'opportunity_id' => $opportunity->id,
+                'status' => $application->status,
             ],
         ]);
     }
@@ -75,57 +112,126 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function logisticsJobs()
     {
+        $jobs = UrbanGoodzLogisticsJob::where('status', 'available')
+            ->latest()
+            ->get()
+            ->map(fn($job) => [
+                'id' => $job->id,
+                'job_number' => $job->job_number,
+                'pickup_location' => $job->pickup_location,
+                'delivery_location' => $job->delivery_location,
+                'pickup_by' => $job->pickup_by,
+                'deliver_by' => $job->deliver_by,
+                'description' => $job->description,
+                'weight_kg' => (float) $job->weight_kg,
+                'payout' => (float) $job->offer_amount,
+                'status' => $job->status,
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Logistics jobs retrieved successfully',
-            'data' => [
-                [
-                    'id' => 10,
-                    'title' => 'Warehouse Package Route',
-                    'weight' => '120 lbs',
-                    'payout' => 85.00,
-                    'status' => 'available',
-                ]
-            ],
+            'data' => $jobs,
         ]);
     }
 
     public function logisticsJob($record)
     {
+        $job = UrbanGoodzLogisticsJob::find($record);
+
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Logistics job not found',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Logistics job details retrieved successfully',
             'data' => [
-                'id' => (int)$record,
-                'title' => 'Logistics Job ' . $record,
-                'status' => 'available',
+                'id' => $job->id,
+                'job_number' => $job->job_number,
+                'pickup_location' => $job->pickup_location,
+                'delivery_location' => $job->delivery_location,
+                'pickup_by' => $job->pickup_by,
+                'deliver_by' => $job->deliver_by,
+                'description' => $job->description,
+                'weight_kg' => (float) $job->weight_kg,
+                'payout' => (float) $job->offer_amount,
+                'status' => $job->status,
+                'assigned_driver_id' => $job->assigned_driver_id,
             ],
         ]);
     }
 
     public function acceptLogisticsJob(Request $request, $record)
     {
-        Log::info('Logistics job accepted', ['record' => $record]);
+        $job = UrbanGoodzLogisticsJob::find($record);
+
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Logistics job not found',
+            ], 404);
+        }
+
+        if ($job->status !== 'available') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Logistics job is no longer available',
+            ], 422);
+        }
+
+        $driverId = $request->user()?->id;
+        if (!$driverId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required',
+            ], 401);
+        }
+
+        $job->update([
+            'assigned_driver_id' => $driverId,
+            'status' => 'assigned',
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Logistics job accepted successfully',
             'data' => [
-                'id' => (int)$record,
-                'status' => 'accepted',
+                'id' => $job->id,
+                'job_number' => $job->job_number,
+                'status' => $job->status,
+                'assigned_driver_id' => $job->assigned_driver_id,
             ],
         ]);
     }
 
     public function updateLogisticsJobStatus(Request $request, $record)
     {
-        $status = $request->input('status', 'in_transit');
-        Log::info('Logistics job status updated', ['record' => $record, 'status' => $status]);
+        $validated = $request->validate([
+            'status' => 'required|string|in:available,assigned,picked_up,in_transit,delivered,cancelled',
+        ]);
+
+        $job = UrbanGoodzLogisticsJob::find($record);
+
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Logistics job not found',
+            ], 404);
+        }
+
+        $job->update(['status' => $validated['status']]);
+
         return response()->json([
             'success' => true,
             'message' => 'Logistics job status updated successfully',
             'data' => [
-                'id' => (int)$record,
-                'status' => $status,
+                'id' => $job->id,
+                'job_number' => $job->job_number,
+                'status' => $job->status,
             ],
         ]);
     }
@@ -375,43 +481,92 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function bookAnythingRecords()
     {
+        $records = UrbanGoodzBookAnythingRequest::latest()
+            ->get()
+            ->map(fn($rec) => [
+                'id' => $rec->id,
+                'request_number' => $rec->request_number,
+                'service_name' => $rec->service_name,
+                'description' => $rec->description,
+                'preferred_date' => $rec->preferred_date,
+                'preferred_time' => $rec->preferred_time,
+                'location' => $rec->location,
+                'budget_amount' => $rec->budget_amount ? (float) $rec->budget_amount : null,
+                'status' => $rec->status,
+                'assigned_provider_id' => $rec->assigned_provider_id,
+                'completed_at' => $rec->completed_at,
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Booking records retrieved successfully',
-            'data' => [
-                [
-                    'id' => 40,
-                    'service_name' => 'Custom Fashion Consultation',
-                    'scheduled_time' => '2026-07-05 14:00:00',
-                    'status' => 'confirmed',
-                ]
-            ],
+            'data' => $records,
         ]);
     }
 
     public function bookAnythingRecord($record)
     {
+        $record = UrbanGoodzBookAnythingRequest::find($record);
+
+        if (!$record) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Booking record not found',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Booking record details retrieved successfully',
             'data' => [
-                'id' => (int)$record,
-                'service_name' => 'Bespoke Alterations',
-                'status' => 'confirmed',
+                'id' => $record->id,
+                'request_number' => $record->request_number,
+                'service_name' => $record->service_name,
+                'description' => $record->description,
+                'preferred_date' => $record->preferred_date,
+                'preferred_time' => $record->preferred_time,
+                'location' => $record->location,
+                'budget_amount' => $record->budget_amount ? (float) $record->budget_amount : null,
+                'status' => $record->status,
+                'assigned_provider_id' => $record->assigned_provider_id,
+                'admin_notes' => $record->admin_notes,
+                'completed_at' => $record->completed_at,
             ],
         ]);
     }
 
     public function submitBookAnythingRequest(Request $request)
     {
-        $payload = $request->all();
-        Log::info('Book anything request submitted', ['payload' => $payload]);
+        $validated = $request->validate([
+            'service_name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'preferred_date' => 'nullable|date',
+            'preferred_time' => 'nullable|string|max:50',
+            'location' => 'nullable|string|max:255',
+            'budget_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        $requestNumber = 'BA-' . now()->format('Ymd') . '-' . strtoupper(Str::random(4));
+
+        $booking = UrbanGoodzBookAnythingRequest::create([
+            'request_number' => $requestNumber,
+            'customer_id' => $request->user()?->id,
+            'service_name' => $validated['service_name'],
+            'description' => $validated['description'] ?? null,
+            'preferred_date' => $validated['preferred_date'] ?? null,
+            'preferred_time' => $validated['preferred_time'] ?? null,
+            'location' => $validated['location'] ?? null,
+            'budget_amount' => $validated['budget_amount'] ?? null,
+            'status' => 'pending',
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Booking request submitted successfully',
             'data' => [
-                'id' => rand(100, 999),
-                'status' => 'pending',
+                'id' => $booking->id,
+                'request_number' => $booking->request_number,
+                'status' => $booking->status,
             ],
         ]);
     }
@@ -422,42 +577,83 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function events()
     {
+        $events = UrbanGoodzEvent::where('status', 'active')
+            ->orderBy('starts_at')
+            ->get()
+            ->map(fn($event) => [
+                'id' => $event->id,
+                'title' => $event->title,
+                'description' => $event->description,
+                'location' => $event->location,
+                'starts_at' => $event->starts_at,
+                'ends_at' => $event->ends_at,
+                'organizer_name' => $event->organizer_name,
+                'ticket_price' => $event->ticket_price ? (float) $event->ticket_price : null,
+                'capacity' => $event->capacity,
+                'status' => $event->status,
+                'image_url' => $event->image_url,
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Events list retrieved successfully',
-            'data' => [
-                [
-                    'id' => 50,
-                    'title' => 'Houston Local Creator Expo',
-                    'location' => 'Expo Hall B',
-                    'event_date' => '2026-08-15',
-                    'status' => 'active',
-                ]
-            ],
+            'data' => $events,
         ]);
     }
 
     public function event($record)
     {
+        $event = UrbanGoodzEvent::find($record);
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Event not found',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Event details retrieved successfully',
             'data' => [
-                'id' => (int)$record,
-                'title' => 'Event ' . $record,
-                'status' => 'active',
+                'id' => $event->id,
+                'title' => $event->title,
+                'description' => $event->description,
+                'location' => $event->location,
+                'starts_at' => $event->starts_at,
+                'ends_at' => $event->ends_at,
+                'organizer_name' => $event->organizer_name,
+                'organizer_contact' => $event->organizer_contact,
+                'ticket_price' => $event->ticket_price ? (float) $event->ticket_price : null,
+                'capacity' => $event->capacity,
+                'status' => $event->status,
+                'image_url' => $event->image_url,
             ],
         ]);
     }
 
     public function eventInterest(Request $request, $record)
     {
-        Log::info('Event interest expressed', ['record' => $record]);
+        $event = UrbanGoodzEvent::find($record);
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Event not found',
+            ], 404);
+        }
+
+        Log::info('Event interest expressed', [
+            'event_id' => $event->id,
+            'user_id' => $request->user()?->id,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Interest recorded successfully',
             'data' => [
-                'id' => (int)$record,
+                'id' => $event->id,
+                'title' => $event->title,
                 'interested' => true,
             ],
         ]);
@@ -465,13 +661,33 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function eventVendorOpportunity(Request $request, $record)
     {
-        $payload = $request->all();
-        Log::info('Event vendor opportunity request', ['record' => $record, 'payload' => $payload]);
+        $event = UrbanGoodzEvent::find($record);
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Event not found',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'business_name' => 'required|string|max:255',
+            'contact_email' => 'required|email|max:255',
+            'booth_type' => 'nullable|string|max:100',
+            'notes' => 'nullable|string',
+        ]);
+
+        Log::info('Event vendor opportunity request', [
+            'event_id' => $event->id,
+            'user_id' => $request->user()?->id,
+            'payload' => $validated,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Vendor application submitted successfully',
             'data' => [
-                'id' => (int)$record,
+                'id' => $event->id,
                 'status' => 'submitted',
             ],
         ]);
@@ -479,13 +695,34 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function eventCreatorOpportunity(Request $request, $record)
     {
-        $payload = $request->all();
-        Log::info('Event creator opportunity request', ['record' => $record, 'payload' => $payload]);
+        $event = UrbanGoodzEvent::find($record);
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Event not found',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'creator_name' => 'required|string|max:255',
+            'contact_email' => 'required|email|max:255',
+            'content_type' => 'nullable|string|max:100',
+            'portfolio_url' => 'nullable|url|max:255',
+            'notes' => 'nullable|string',
+        ]);
+
+        Log::info('Event creator opportunity request', [
+            'event_id' => $event->id,
+            'user_id' => $request->user()?->id,
+            'payload' => $validated,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Creator application submitted successfully',
             'data' => [
-                'id' => (int)$record,
+                'id' => $event->id,
                 'status' => 'submitted',
             ],
         ]);
@@ -493,13 +730,34 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function eventLogisticsSupport(Request $request, $record)
     {
-        $payload = $request->all();
-        Log::info('Event logistics support request', ['record' => $record, 'payload' => $payload]);
+        $event = UrbanGoodzEvent::find($record);
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Event not found',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'provider_name' => 'required|string|max:255',
+            'contact_email' => 'required|email|max:255',
+            'service_type' => 'nullable|string|max:100',
+            'capacity_details' => 'nullable|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        Log::info('Event logistics support request', [
+            'event_id' => $event->id,
+            'user_id' => $request->user()?->id,
+            'payload' => $validated,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Logistics support application submitted successfully',
             'data' => [
-                'id' => (int)$record,
+                'id' => $event->id,
                 'status' => 'submitted',
             ],
         ]);

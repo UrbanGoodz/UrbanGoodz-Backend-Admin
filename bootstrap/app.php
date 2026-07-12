@@ -98,6 +98,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin-rental-module' => AdminRentalModuleCheckMiddleware::class,
             'provider-rental-module' => ProviderRentalModuleCheckMiddleware::class,
             'business' => \App\Http\Middleware\BusinessMiddleware::class,
+            'dispatcher' => \App\Http\Middleware\DispatcherMiddleware::class,
+            'dispatch-territory' => \App\Http\Middleware\DispatchTerritoryScope::class,
         ]);
     })
 

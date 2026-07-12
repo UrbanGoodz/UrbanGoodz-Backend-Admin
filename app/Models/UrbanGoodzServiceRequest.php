@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class UrbanGoodzServiceRequest extends Model
 {
@@ -15,4 +17,14 @@ class UrbanGoodzServiceRequest extends Model
     ];
 
     protected $casts = ['preferred_dates' => 'array'];
+
+    public function assignedProvider(): BelongsTo
+    {
+        return $this->belongsTo(UrbanGoodzServiceProvider::class, 'assigned_vendor_id');
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzAppointment::class, 'service_request_id');
+    }
 }

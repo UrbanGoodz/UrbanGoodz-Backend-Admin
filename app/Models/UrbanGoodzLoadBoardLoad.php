@@ -24,6 +24,8 @@ class UrbanGoodzLoadBoardLoad extends Model
         'shipper_name', 'shipper_phone', 'consignee_name', 'consignee_phone',
         'assigned_driver_id', 'assigned_by', 'assigned_at', 'picked_up_at', 'delivered_at', 'delivery_proof',
         'business_client_id', 'order_id', 'metadata',
+        'dispatch_company_id', 'dispatcher_id', 'dispatch_status',
+        'commission_amount', 'commission_rate',
     ];
 
     protected $casts = [
@@ -52,6 +54,8 @@ class UrbanGoodzLoadBoardLoad extends Model
         'is_team_load' => 'boolean',
         'is_expedited' => 'boolean',
         'metadata' => 'array',
+        'commission_amount' => 'decimal:2',
+        'commission_rate' => 'decimal:2',
     ];
 
     public function assignedDriver(): BelongsTo
@@ -72,6 +76,39 @@ class UrbanGoodzLoadBoardLoad extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'order_id');
+    }
+
+    public function dispatchCompany(): BelongsTo
+    {
+        return $this->belongsTo(UrbanGoodzBusinessClient::class, 'dispatch_company_id');
+    }
+
+    public function dispatcherUser(): BelongsTo
+    {
+        return $this->belongsTo(UrbanGoodzBusinessClientUser::class, 'dispatcher_id');
+    }
+
+    public function commissions()
+    {
+        return $this->hasMany(UrbanGoodzDispatchCommission::class, 'load_id');
+    }
+
+    public function scopeForDispatchCompany($query, int $companyId)
+    {
+        return $query->where('dispatch_company_id', $companyId);
+    }
+
+    public function scopeAssignedToDispatcher($query, int $dispatcherId)
+    {
+        return $query->where('dispatcher_id', $dispatcherId);
+    }
+
+    public function scopeInTerritory($query, array $states)
+    {
+        if (empty($states)) {
+            return $query;
+        }
+        return $query->whereIn('origin_state', $states)->orWhereIn('destination_state', $states);
     }
 
     public function scopeAvailable($query)

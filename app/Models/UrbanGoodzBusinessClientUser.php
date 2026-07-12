@@ -28,6 +28,14 @@ class UrbanGoodzBusinessClientUser extends Authenticatable
         'compliance_manager', 'location_manager', 'read_only_viewer',
     ];
 
+    const DISPATCH_ROLES = [
+        'dispatch_owner'    => 'Dispatch Company Owner',
+        'dispatch_manager'  => 'Dispatch Manager',
+        'dispatcher'        => 'Dispatcher',
+        'dispatch_readonly' => 'Read-Only Dispatcher',
+        'dispatch_finance'  => 'Dispatch Finance',
+    ];
+
     const STATUSES = ['active', 'inactive', 'suspended'];
 
     const PERMISSIONS = [
@@ -39,13 +47,85 @@ class UrbanGoodzBusinessClientUser extends Authenticatable
         'scan_packages', 'view_package_pool', 'assign_packages_to_routes',
     ];
 
+    const DISPATCH_PERMISSIONS = [
+        'dispatch_loads_view',           'dispatch_loads_assign',        'dispatch_loads_manage',
+        'dispatch_loads_create',         'dispatch_drivers_view',        'dispatch_drivers_assign',
+        'dispatch_status_update',        'dispatch_commissions_view',    'dispatch_commissions_approve',
+        'dispatch_territory_manage',     'dispatch_users_manage',        'dispatch_reports_view',
+        'dispatch_notes_manage',         'dispatch_loads_cancel',
+    ];
+
     public function client()
     {
         return $this->belongsTo(UrbanGoodzBusinessClient::class, 'business_client_id');
     }
 
+    public function assignedDispatchLoads()
+    {
+        return $this->hasMany(UrbanGoodzLoadBoardLoad::class, 'dispatcher_id');
+    }
+
+    public function dispatchCommissions()
+    {
+        return $this->hasMany(UrbanGoodzDispatchCommission::class, 'dispatcher_id');
+    }
+
     public function getNameAttribute(): string
     {
         return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    public function isDispatchRole(): bool
+    {
+        return in_array($this->role, array_keys(self::DISPATCH_ROLES));
+    }
+
+    public function isDispatchOwner(): bool
+    {
+        return $this->role === 'dispatch_owner';
+    }
+
+    public function isDispatchManager(): bool
+    {
+        return $this->role === 'dispatch_manager';
+    }
+
+    public function isDispatcher(): bool
+    {
+        return $this->role === 'dispatcher';
+    }
+
+    public function isDispatchReadonly(): bool
+    {
+        return $this->role === 'dispatch_readonly';
+    }
+
+    public function isDispatchFinance(): bool
+    {
+        return $this->role === 'dispatch_finance';
+    }
+
+    public function canDispatch(): bool
+    {
+        return $this->client && $this->client->isDispatchCompany() && $this->isDispatchRole();
+    }
+
+    public function hasDispatchPermission(string $permission): bool
+    {
+        if ($this->role === 'dispatch_owner') {
+            return true;
+        }
+        $userPerms = $this->permissions ?? [];
+        return in_array($permission, $userPerms);
+    }
+
+    public function hasAnyDispatchPermission(array $permissions): bool
+    {
+        foreach ($permissions as $perm) {
+            if ($this->hasDispatchPermission($perm)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

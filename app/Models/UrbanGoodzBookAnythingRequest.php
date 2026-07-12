@@ -9,7 +9,7 @@ class UrbanGoodzBookAnythingRequest extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'urban_goodz_book_anything_requests';
+    protected $table = 'urban_goodz_book_anywhere_requests';
 
     protected $fillable = [
         'request_number', 'customer_id', 'service_name', 'description',

@@ -342,6 +342,21 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 });
             });
 
+            Route::group(['prefix' => 'community', 'as' => 'community.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzCommunityController@dashboard')->name('dashboard');
+                Route::get('posts', 'UrbanGoodz\UrbanGoodzCommunityController@posts')->name('posts');
+                Route::get('posts/{id}', 'UrbanGoodz\UrbanGoodzCommunityController@postShow')->name('posts.show');
+                Route::post('posts/{id}/toggle-publish', 'UrbanGoodz\UrbanGoodzCommunityController@postTogglePublish')->name('posts.toggle-publish');
+                Route::get('comments', 'UrbanGoodz\UrbanGoodzCommunityController@comments')->name('comments');
+                Route::post('comments/{id}/approve', 'UrbanGoodz\UrbanGoodzCommunityController@commentApprove')->name('comments.approve');
+                Route::post('comments/{id}/reject', 'UrbanGoodz\UrbanGoodzCommunityController@commentReject')->name('comments.reject');
+                Route::delete('comments/{id}', 'UrbanGoodz\UrbanGoodzCommunityController@commentDestroy')->name('comments.destroy');
+                Route::get('marketplace', 'UrbanGoodz\UrbanGoodzCommunityController@marketplace')->name('marketplace');
+                Route::get('marketplace/{id}', 'UrbanGoodz\UrbanGoodzCommunityController@marketplaceShow')->name('marketplace.show');
+                Route::post('marketplace/{id}/toggle-active', 'UrbanGoodz\UrbanGoodzCommunityController@marketplaceToggleActive')->name('marketplace.toggle-active');
+                Route::post('marketplace/{id}/status', 'UrbanGoodz\UrbanGoodzCommunityController@marketplaceUpdateStatus')->name('marketplace.status');
+            });
+
             Route::group(['prefix' => 'modules', 'as' => 'modules.'], function () {
                 Route::get('{section}', 'UrbanGoodz\UrbanGoodzModuleController@index')->name('index');
                 Route::get('{section}/create', 'UrbanGoodz\UrbanGoodzModuleController@create')->name('create');
@@ -358,6 +373,72 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@index')->name('index');
                 Route::get('{id}', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@show')->name('show');
                 Route::put('{id}', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@update')->name('update');
+            });
+
+            Route::group(['prefix' => 'activity-logs', 'as' => 'activity-logs.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzActivityLogController@index')->name('index');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzActivityLogController@show')->name('show');
+            });
+
+            Route::group(['prefix' => 'appointments', 'as' => 'appointments.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzAppointmentController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzAppointmentController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzAppointmentController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzAppointmentController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzAppointmentController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzAppointmentController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzAppointmentController@destroy')->name('destroy');
+                Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzAppointmentController@status')->name('status');
+            });
+
+            Route::group(['prefix' => 'plus-membership', 'as' => 'plus-membership.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzPlusMembershipController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzPlusMembershipController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzPlusMembershipController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzPlusMembershipController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzPlusMembershipController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzPlusMembershipController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzPlusMembershipController@destroy')->name('destroy');
+                Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzPlusMembershipController@status')->name('status');
+            });
+
+            Route::group(['prefix' => 'service-providers', 'as' => 'service-providers.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzServiceProviderController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzServiceProviderController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzServiceProviderController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzServiceProviderController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzServiceProviderController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzServiceProviderController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzServiceProviderController@destroy')->name('destroy');
+                Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzServiceProviderController@status')->name('status');
+            });
+
+            Route::group(['prefix' => 'service-requests', 'as' => 'service-requests.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzServiceRequestController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzServiceRequestController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzServiceRequestController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzServiceRequestController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzServiceRequestController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzServiceRequestController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzServiceRequestController@destroy')->name('destroy');
+                Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzServiceRequestController@status')->name('status');
+            });
+
+            Route::group(['prefix' => 'spotlight-businesses', 'as' => 'spotlight-businesses.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@store')->name('store');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@show')->name('show');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@destroy')->name('destroy');
+                Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzSpotlightBusinessController@status')->name('status');
+            });
+
+            Route::group(['prefix' => 'import-batches', 'as' => 'import-batches.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzImportBatchController@index')->name('index');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzImportBatchController@show')->name('show');
+                Route::get('{id}/status/{status}', 'UrbanGoodz\UrbanGoodzImportBatchController@status')->name('status');
             });
         });
 
