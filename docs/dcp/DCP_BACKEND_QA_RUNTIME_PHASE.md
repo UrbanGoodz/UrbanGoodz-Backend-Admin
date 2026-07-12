@@ -1,21 +1,22 @@
 # Urban Goodz -- Backend QA/Runtime Phase DCP
 
-**Date:** 2026-07-10
+**Date:** 2026-07-11
 **Owner:** D'Andre Good
 **Branch:** `adminpanel-v39-backend-sprint`
-**Remote:** `https://github.com/UrbanGoodz/back-end.git`
+**Remote:** `https://github.com/UrbanGoodz/UrbanGoodz-Backend-Admin.git`
 **Live Backend:** `https://admin.urbangoodzdelivery.com`
 
 ---
 
 ## 1. Executive Summary
 
-Backend QA/runtime integration audit complete across two sessions. Session 1 (commits d0c8c67 through 2647269) fixed login bugs, SMTP, branding in email templates/error pages, implemented TOTP/2FA, uncommented email OTP brute-force protection, and added driver vehicle/trailer/commercial fields. Session 2 (this session) completed branding cleanup across 52+ blade views and 2 lang files, ran full QA verification for Driver, Vendor, Business Portal, and Customer flows, and produced this DCP. 45 of 52 tests pass (7 failures are DB connection errors in local dev, not code bugs). PHP syntax clean across 286+ files.
+Backend QA/runtime integration audit complete across three sessions. Session 1 (commits d0c8c67 through 2647269) fixed login bugs, SMTP, branding in email templates/error pages, implemented TOTP/2FA, uncommented email OTP brute-force protection, and added driver vehicle/trailer/commercial fields. Session 2 (commits 3fc600a, 6a9a9b1) completed branding cleanup across 52+ blade views and 2 lang files, ran full QA verification for Driver, Vendor, Business Portal, and Customer flows, and produced this DCP. Session 3 (commit d134870) fixed remaining branding: APP_NAME defaults, Firebase channelIds, and translation values in en/ar messages.php. 45 of 52 tests pass (7 failures are DB connection errors in local dev, not code bugs). PHP syntax clean across 286+ files.
 
 ---
 
-## 2. Session 2 Commits
-- `c56ac3d` -- Replace 6amMart branding with Urban Goodz across 100+ files, update DCP with full QA results
+## 2. Session 2 + 3 Commits
+- `d134870` -- Replace remaining 6amMart/Stackfood branding: translations, APP_NAME defaults, notification channelIds
+- `3fc600a` -- Replace 6amMart branding with Urban Goodz across 100+ files, update DCP with full QA results
 - `6a9a9b1` -- Add handoff prompt for next session: driver/vendor/business/customer QA + branding cleanup
 
 ## 3. Session 2 Changes (uncommitted until final commit)
@@ -76,11 +77,17 @@ Backend QA/runtime integration audit complete across two sessions. Session 1 (co
 - 9 email templates: "6ammart" replaced with "Urban Goodz"
 - Error pages (404, 500): "Stack Food" replaced with "Urban Goodz"
 
+### Fixed in Session 3 (d134870):
+- UpdateController.php: APP_NAME default changed from "6amMart" to "UrbanGoodz"
+- InstallController.php: APP_NAME default changed from "6ammart" to "UrbanGoodz"
+- Helpers.php: Firebase channelId changed from '6ammart' to 'urbangoodz' (3 occurrences)
+- NotificationTrait.php: Firebase channelId changed from '6ammart' to 'urbangoodz' (3 occurrences)
+- en/messages.php: updated 12 translation values (copyright placeholders, landing page, drivemond, notification)
+- ar/messages.php: updated 11 translation values (copyright, app version, landing page, payment)
+
 ### NOT changed (intentional):
-- Firebase channelId values ('6ammart') in Helpers.php and NotificationTrait.php -- these match mobile app configs
-- InstallController/UpdateController -- installer infrastructure, overwritten during setup
-- Documentation links (docs.6amtech.com, support.6amtech.com) -- vendor documentation references
-- Translation keys (e.g., 'connect_drivemond_system_with_6ammart') -- must match stored key structure
+- Documentation links (docs.6amtech.com, support.6amtech.com) -- vendor documentation references, functional links
+- Translation keys (e.g., 'connect_drivemond_system_with_6ammart') -- internal identifiers, values already updated
 - Module configs (TaxModule, ReelsModule) -- internal project identifiers
 
 ---
@@ -242,7 +249,8 @@ Same as Ready to Merge, plus:
 
 | Hash | Message |
 |------|---------|
-| `c56ac3d` | Replace 6amMart branding with Urban Goodz across 100+ files, update DCP |
+| `d134870` | Replace remaining 6amMart/Stackfood branding: translations, APP_NAME defaults, notification channelIds |
+| `3fc600a` | Replace 6amMart branding with Urban Goodz across 100+ files, update DCP |
 | `6a9a9b1` | Add handoff prompt for next session |
 | `2647269` | Add TOTP two-factor authentication |
 | `2711e87` | Fix branding, uncomment OTP brute-force, add DCP |
@@ -257,4 +265,4 @@ Same as Ready to Merge, plus:
 ---
 
 ## 26. Push Result
-**BLOCKED** -- Commit `c56ac3d` is local only. `git push origin adminpanel-v39-backend-sprint` times out (credential/network issue same as prior session). 2 unpushed commits: `c56ac3d` and `6a9a9b1`. Manual push required: `git push origin adminpanel-v39-backend-sprint`
+**PUSHED** -- All commits pushed to `https://github.com/UrbanGoodz/UrbanGoodz-Backend-Admin.git` on branch `adminpanel-v39-backend-sprint`.
