@@ -470,7 +470,7 @@ class AiCopilotService
                 'aging_load',
                 $load,
                 'Consider repricing or removing this load',
-                "Load {$load->load_number} ({$load->origin_city}}, {$load->origin_state}} → {$load->destination_city}}, {$load->destination_state}}) has been available for {$load->created_at->diffForHumans()}",
+                "Load {$load->load_number} ({$load->origin_city}, {$load->origin_state} → {$load->destination_city}, {$load->destination_state}) has been available for {$load->created_at->diffForHumans()}",
                 0.65,
                 [
                     'load_id' => $load->id,
@@ -625,7 +625,7 @@ class AiCopilotService
                 'driver_match',
                 $load,
                 $action,
-                "Load {$load->load_number} ({$load->origin_city}}, {$load->origin_state}} → {$load->destination_city}}, {$load->destination_state}}, {$load->equipment_type}}) paying \${$load->payout_amount} (\${$load->rate_per_mile}/mi) matched to {$bestDriver['driver_name']} ({$bestDriver['reason']})",
+                "Load {$load->load_number} ({$load->origin_city}, {$load->origin_state} → {$load->destination_city}, {$load->destination_state}, {$load->equipment_type}) paying \${$load->payout_amount} (\${$load->rate_per_mile}/mi) matched to {$bestDriver['driver_name']} ({$bestDriver['reason']})",
                 $confidence,
                 [
                     'load_id' => $load->id,

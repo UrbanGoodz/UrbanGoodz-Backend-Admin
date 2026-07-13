@@ -276,4 +276,61 @@ class UrbanGoodzLoadBoardController extends Controller
         Toastr::success(translate('Load review completed'));
         return redirect()->route('admin.urban-goodz.load-board.show', $id);
     }
+
+    public function syncProviders(Request $request)
+    {
+        $provider = $request->input('provider');
+        $filters = $request->only(['origin_state', 'destination_state', 'equipment_type']);
+
+        try {
+            if ($provider) {
+                $results = $this->loadBoardService->syncAllProviders(
+                    array_merge($filters, ['provider' => $provider]),
+                    (int) $request->input('max', 250)
+                );
+            } else {
+                $results = $this->loadBoardService->syncAllProviders($filters, (int) $request->input('max', 250));
+            }
+
+            $totalSynced = collect($results)->sum('synced');
+            $totalFetched = collect($results)->sum('fetched');
+            $errors = collect($results)->filter(fn($r) => $r['status'] === 'error');
+
+            if ($errors->isNotEmpty()) {
+                Toastr::warning("Sync completed with errors: {$errors->pluck('message')->implode(', ')}");
+            } else {
+                Toastr::success("Synced {$totalSynced} loads from {$totalFetched} fetched");
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'results' => $results,
+                    'total_synced' => $totalSynced,
+                    'total_fetched' => $totalFetched,
+                ]);
+            }
+
+            return redirect()->route('admin.urban-goodz.load-board.index');
+        } catch (\Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            }
+            Toastr::error('Sync failed: ' . $e->getMessage());
+            return redirect()->back();
+        }
+    }
+
+    public function purgeStale(Request $request)
+    {
+        $days = (int) $request->input('days', 7);
+        $purged = $this->loadBoardService->purgeStaleLoads($days);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'purged' => $purged]);
+        }
+
+        Toastr::success("Purged {$purged} stale loads older than {$days} days");
+        return redirect()->route('admin.urban-goodz.load-board.index');
+    }
 }

@@ -18,12 +18,14 @@ class UrbanGoodzAIConversation extends Model
         'admin_notes',
         'status',
         'source',
+        'metadata',
     ];
 
     protected $casts = [
         'customer_id' => 'integer',
         'detected_intent_id' => 'integer',
         'confidence_score' => 'decimal:2',
+        'metadata' => 'array',
     ];
 
     public function detectedIntent(): BelongsTo

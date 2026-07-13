@@ -10,7 +10,9 @@ class OpenAIEngine implements AIEngineInterface
 {
     public function boot(): void
     {
-        // TODO: Implement boot() method.
+        if (!config('openai.api_key')) {
+            throw new \RuntimeException('OpenAI API key is not configured. Set OPENAI_API_KEY in your .env file.');
+        }
     }
 
     public function core($prompt, $imageUrl = null): string

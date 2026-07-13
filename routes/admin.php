@@ -273,6 +273,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('{id}/reassign', 'UrbanGoodz\UrbanGoodzLoadBoardController@reassignDriver')->name('reassign');
                 Route::post('{id}/review', 'UrbanGoodz\UrbanGoodzLoadBoardController@review')->name('review');
                 Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy');
+                Route::post('sync', 'UrbanGoodz\UrbanGoodzLoadBoardController@syncProviders')->name('sync');
+                Route::post('purge', 'UrbanGoodz\UrbanGoodzLoadBoardController@purgeStale')->name('purge');
             });
 
             Route::group(['prefix' => 'medical-courier', 'as' => 'medical-courier.'], function () {
