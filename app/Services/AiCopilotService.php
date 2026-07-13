@@ -780,7 +780,8 @@ class AiCopilotService
     private function autoAcceptLoad(UrbanGoodzLoadBoardLoad $load, int $driverId): bool
     {
         $service = app(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
-        $result = $service->acceptLoad($load->id, $driverId);
+        $adminId = auth('admin')->id();
+        $result = $service->acceptLoad($load->id, $driverId, $adminId);
         return $result !== null;
     }
 
@@ -804,7 +805,7 @@ class AiCopilotService
         ]);
 
         $service = app(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
-        $result = $service->acceptLoad($loadId, $driverId);
+        $result = $service->acceptLoad($loadId, $driverId, auth('admin')->id());
 
         if ($result) {
             $afterSnapshot = json_encode([

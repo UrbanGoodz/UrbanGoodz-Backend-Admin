@@ -261,6 +261,11 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('{id}/dismiss', 'UrbanGoodz\AiCopilotController@dismiss')->name('dismiss');
             });
 
+            Route::group(['prefix' => 'ai', 'as' => 'ai.'], function () {
+                Route::get('settings', [\Modules\AI\app\Http\Controllers\Admin\Web\Settings\AISettingsController::class, 'index'])->name('settings');
+                Route::post('settings', [\Modules\AI\app\Http\Controllers\Admin\Web\Settings\AISettingsController::class, 'update'])->name('settings.update');
+            });
+
             Route::group(['prefix' => 'load-board', 'as' => 'load-board.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzLoadBoardController@index')->name('index');
                 Route::get('create', 'UrbanGoodz\UrbanGoodzLoadBoardController@create')->name('create');

@@ -13,7 +13,8 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        //
+        \App\Console\Commands\AiCopilotGenerateRecommendations::class,
+        \App\Console\Commands\SyncLoadBoard::class,
     ];
 
     /**
