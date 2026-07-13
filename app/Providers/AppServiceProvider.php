@@ -23,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\FashionFitMeasurementProvider::class,
             \App\Services\FashionFit\HttpFashionFitMeasurementProvider::class,
         );
+        $this->app->bind(
+            \App\Contracts\ServiceBookingPaymentGateway::class,
+            \App\Services\ServiceBookings\HttpSandboxServiceBookingPaymentGateway::class,
+        );
     }
 
     /**
