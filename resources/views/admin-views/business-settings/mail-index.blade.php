@@ -150,8 +150,10 @@
                                     <div class="col-md-4">
                                         <div class="form-group mb-0">
                                             <label for="password" class="form-label">{{ translate('messages.password') }}</label><br>
-                                            <input id="password" type="text" class="form-control" name="password" placeholder="{{translate('messages.Ex : 5+ Characters')}}"
-                                                value="{{ getEnvMode() != 'demo' ? $data['password'] ?? '' : '' }}" required>
+                                            <input id="password" type="password" class="form-control" name="password"
+                                                autocomplete="new-password"
+                                                placeholder="{{ !empty($data['password']) ? translate('Leave blank to keep the saved password') : translate('messages.Ex : 5+ Characters') }}"
+                                                {{ empty($data['password']) ? 'required' : '' }}>
                                         </div>
                                     </div>
                                     <div class="col-sm-12">

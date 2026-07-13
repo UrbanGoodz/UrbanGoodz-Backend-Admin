@@ -210,7 +210,7 @@
                         });
                         $.ajax({
                             url: "{{ route('admin.business-settings.third-party.mail.send') }}",
-                            method: 'GET',
+                            method: 'POST',
                             data: {
                                 "email": $('#test-email').val()
                             },
@@ -218,11 +218,11 @@
                                 $('#loading').show();
                             },
                             success: function(data) {
-                                if (data.success === 2) {
+                                if (!data.accepted) {
                                     toastr.error(
-                                        '{{ translate('email_configuration_error') }} !!'
+                                        '{{ translate('email_configuration_error') }}: ' + (data.error_code || 'unknown')
                                     );
-                                } else if (data.success === 1) {
+                                } else if (data.accepted) {
                                     toastr.success(
                                         '{{ translate('email_configured_perfectly!') }}!'
                                     );

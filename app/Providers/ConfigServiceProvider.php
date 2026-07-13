@@ -40,18 +40,15 @@ class ConfigServiceProvider extends ServiceProvider
                 return;
             }
 
-            $data = BusinessSetting::where(['key' => 'mail_config'])->first();
-            $emailServices = $data && $data->value ? json_decode($data->value, true) : null;
-            if ($emailServices && isset($emailServices['host'])) {
-                $mailerName = strtolower($emailServices['driver'] ?? 'smtp');
-                Config::set('mail.default', $mailerName);
-                Config::set("mail.mailers.{$mailerName}.host", $emailServices['host'] ?? '');
-                Config::set("mail.mailers.{$mailerName}.port", (int) ($emailServices['port'] ?? 587));
-                Config::set("mail.mailers.{$mailerName}.username", $emailServices['username'] ?? '');
-                Config::set("mail.mailers.{$mailerName}.password", $emailServices['password'] ?? '');
-                Config::set("mail.mailers.{$mailerName}.encryption", $emailServices['encryption'] ?? 'tls');
-                Config::set('mail.from.address', $emailServices['email_id'] ?? '');
-                Config::set('mail.from.name', $emailServices['name'] ?? '');
+            if (BusinessSetting::where('key', 'mail_config')->exists()) {
+                try {
+                    app(\App\Services\MailRuntimeConfiguration::class)->applyStored();
+                } catch (\Throwable $exception) {
+                    logger()->warning('Saved SMTP configuration could not be applied.', [
+                        'category' => app(\App\Services\MailRuntimeConfiguration::class)->classify($exception),
+                        'exception' => $exception::class,
+                    ]);
+                }
             }
 
             $gateway =

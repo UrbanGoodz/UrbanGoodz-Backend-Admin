@@ -906,7 +906,12 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('test-mail', 'BusinessSettingsController@test_mail')->name('test');
                 Route::post('mail-config', 'BusinessSettingsController@mail_config');
                 Route::post('mail-config-status', 'BusinessSettingsController@mail_config_status')->name('mail-config-status');
-                Route::get('send-mail', 'BusinessSettingsController@send_mail')->name('mail.send');
+                Route::post('send-mail', 'BusinessSettingsController@send_mail')
+                    ->middleware('throttle:3,1')
+                    ->name('mail.send');
+                Route::get('mail-diagnostics', 'BusinessSettingsController@mail_diagnostics')
+                    ->middleware('throttle:12,1')
+                    ->name('mail.diagnostics');
                 // social media login
                 Route::group(['prefix' => 'social-login', 'as' => 'social-login.'], function () {
                     Route::get('view', 'BusinessSettingsController@viewSocialLogin')->name('view');

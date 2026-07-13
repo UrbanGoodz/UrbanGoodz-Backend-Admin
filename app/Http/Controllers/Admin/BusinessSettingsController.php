@@ -621,23 +621,51 @@ class BusinessSettingsController extends Controller
 
             return back();
         }
+        $request->validate([
+            'name' => 'required|string|max:191',
+            'host' => 'required|string|max:255',
+            'driver' => 'required|in:smtp',
+            'port' => 'required|integer|min:1|max:65535',
+            'username' => 'required|string|max:255',
+            'email' => 'required|email:rfc|max:255',
+            'encryption' => 'nullable|in:tls,ssl,starttls,none',
+            'password' => 'nullable|string|max:2048',
+            'timeout' => 'nullable|integer|min:1|max:120',
+            'auth_mode' => 'nullable|string|max:32',
+            'local_domain' => 'nullable|string|max:255',
+        ]);
+
+        $mailRuntime = app(\App\Services\MailRuntimeConfiguration::class);
+        $existing = $mailRuntime->stored() ?? [];
+        $password = (string) ($request->input('password') ?: ($existing['password'] ?? ''));
+
+        if ($password === '') {
+            return back()->withErrors(['password' => translate('messages.password_is_required')]);
+        }
+
+        $configuration = [
+            'status' => $request->integer('status', 0),
+            'name' => $request->string('name')->toString(),
+            'host' => $request->string('host')->toString(),
+            'driver' => $request->string('driver')->toString(),
+            'port' => $request->integer('port'),
+            'username' => $request->string('username')->toString(),
+            'email_id' => $request->string('email')->toString(),
+            'encryption' => $request->input('encryption'),
+            'password' => $mailRuntime->encryptPassword($password),
+            'timeout' => $request->integer('timeout', 30),
+            'auth_mode' => $request->input('auth_mode'),
+            'local_domain' => $request->input('local_domain'),
+        ];
+
         Helpers::businessUpdateOrInsert(
             ['key' => 'mail_config'],
             [
-                'value' => json_encode([
-                    'status' => $request['status'] ?? 0,
-                    'name' => $request['name'],
-                    'host' => $request['host'],
-                    'driver' => $request['driver'],
-                    'port' => $request['port'],
-                    'username' => $request['username'],
-                    'email_id' => $request['email'],
-                    'encryption' => $request['encryption'],
-                    'password' => $request['password'],
-                ]),
+                'value' => json_encode($configuration),
                 'updated_at' => now(),
             ]
         );
+        $mailRuntime->apply($configuration);
         Toastr::success(translate('messages.configuration_updated_successfully'));
 
         return back();
@@ -2363,16 +2391,38 @@ class BusinessSettingsController extends Controller
 
             return back();
         }
-        $response_flag = 0;
-        try {
-            Mail::to($request->email)->send(new \App\Mail\TestEmailSender);
-            $response_flag = 1;
-        } catch (\Exception $exception) {
-            info($exception->getMessage());
-            $response_flag = 2;
-        }
+        $request->validate(['email' => 'required|email:rfc|max:255']);
+        $mailRuntime = app(\App\Services\MailRuntimeConfiguration::class);
 
-        return response()->json(['success' => $response_flag]);
+        try {
+            $mailRuntime->applyStored(requireActive: true);
+            $sent = Mail::to($request->email)->send(new \App\Mail\TestEmailSender);
+
+            return response()->json([
+                'accepted' => true,
+                'stage' => 'provider_acceptance',
+                'message_id' => method_exists($sent, 'getMessageId') ? $sent->getMessageId() : null,
+            ]);
+        } catch (\Throwable $exception) {
+            $category = $mailRuntime->classify($exception);
+            logger()->warning('SMTP test email failed.', [
+                'category' => $category,
+                'exception' => $exception::class,
+            ]);
+
+            return response()->json([
+                'accepted' => false,
+                'stage' => $category === 'missing_configuration' ? 'configuration' : 'delivery_attempt',
+                'error_code' => $category,
+            ], $category === 'missing_configuration' ? 422 : 502);
+        }
+    }
+
+    public function mail_diagnostics()
+    {
+        return response()->json(
+            app(\App\Services\MailRuntimeConfiguration::class)->diagnostics()
+        );
     }
 
     public function site_direction(Request $request)
