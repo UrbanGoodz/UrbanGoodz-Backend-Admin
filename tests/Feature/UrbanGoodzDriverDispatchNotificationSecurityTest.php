@@ -20,7 +20,7 @@ class UrbanGoodzDriverDispatchNotificationSecurityTest extends TestCase
     {
         $routes = $this->routeSource();
 
-        $this->assertStringContainsString("'prefix' => 'urban-goodz/driver', 'middleware' => 'auth:delivery_man'", $routes);
+        $this->assertStringContainsString("'prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'", $routes);
         foreach ([
             "Route::get('dispatch-notifications',",
             "Route::get('dispatch-notifications/unread-count',",

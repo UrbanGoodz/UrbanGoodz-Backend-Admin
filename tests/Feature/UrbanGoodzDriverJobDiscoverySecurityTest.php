@@ -20,7 +20,7 @@ class UrbanGoodzDriverJobDiscoverySecurityTest extends TestCase
     {
         $routes = $this->routeSource();
 
-        $this->assertStringContainsString("'prefix' => 'urban-goodz/driver', 'middleware' => 'auth:delivery_man'", $routes);
+        $this->assertStringContainsString("'prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'", $routes);
         foreach ([
             "Route::get('job-discovery',",
             "Route::get('job-discovery/summary',",
