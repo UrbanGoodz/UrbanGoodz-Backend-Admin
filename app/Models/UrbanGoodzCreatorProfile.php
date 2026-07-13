@@ -9,10 +9,10 @@ class UrbanGoodzCreatorProfile extends Model
     protected $table = 'urban_goodz_creator_profiles';
 
     protected $fillable = [
-        'creator_application_id', 'handle', 'display_name', 'bio',
+        'vendor_id', 'creator_application_id', 'handle', 'display_name', 'bio',
         'avatar_url', 'banner_url', 'city', 'zone', 'niches',
         'social_links', 'content_samples', 'is_approved', 'is_featured',
-        'approved_at', 'featured_at', 'admin_notes',
+        'approved_at', 'featured_at', 'admin_notes', 'status',
     ];
 
     protected $casts = [

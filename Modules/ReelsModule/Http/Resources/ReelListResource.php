@@ -19,6 +19,12 @@ class ReelListResource extends JsonResource
             'store_logo_full_url' => $this->store?->logo_full_url,
             'verified_seller' => Helpers::get_verified_seller_status($this->store, $this->store?->storeConfig),
             'stats' => (new ReelStatsResource($this->resource))->resolve(),
+            'creator' => $this->creatorProfile ? [
+                'id' => $this->creatorProfile->id,
+                'handle' => $this->creatorProfile->handle,
+                'display_name' => $this->creatorProfile->display_name,
+            ] : null,
+            'tags' => $this->commerceTags,
         ];
     }
 }

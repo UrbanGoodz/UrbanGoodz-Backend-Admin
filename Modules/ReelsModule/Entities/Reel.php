@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Modules\ReelsModule\Support\ReelModuleConfig;
+use App\Models\CreatorReelTag;
+use App\Models\UrbanGoodzCreatorProfile;
 
 class Reel extends Model
 {
@@ -31,6 +33,7 @@ class Reel extends Model
         'created_by_id' => 'integer',
         'start_date' => 'datetime',
         'end_date' => 'datetime',
+        'published_at' => 'datetime',
     ];
 
     protected $appends = ['thumbnail_full_url', 'video_full_url', 'reel_status_label'];
@@ -58,6 +61,16 @@ class Reel extends Model
     public function engagements(): HasMany
     {
         return $this->hasMany(ReelEngagement::class, 'reel_id');
+    }
+
+    public function creatorProfile()
+    {
+        return $this->belongsTo(UrbanGoodzCreatorProfile::class, 'creator_profile_id');
+    }
+
+    public function commerceTags(): HasMany
+    {
+        return $this->hasMany(CreatorReelTag::class, 'reel_id');
     }
 
     public function getDescriptionAttribute($value)
@@ -150,6 +163,8 @@ class Reel extends Model
         $now = now();
 
         return $query->where('status', 1)
+            ->where('publication_status', 'published')
+            ->where('moderation_status', 'approved')
             ->where(function (Builder $builder) use ($now) {
                 $builder->where('is_always_visible', 1)
                     ->orWhere(function (Builder $dateQuery) use ($now) {

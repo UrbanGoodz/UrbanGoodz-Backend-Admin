@@ -6,7 +6,6 @@ Route::group(['prefix' => 'urban-goodz'], function () {
     Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
     Route::get('driver/vehicle-options', 'Api\UrbanGoodzDriverCapabilityController@vehicleOptionsEndpoint');
 });
-
 Route::group(['prefix' => 'urban-goodz/discovery'], function () {
     Route::post('search-capture', 'Api\V1\UrbanGoodzDiscoveryController@searchCapture');
     Route::get('entities', 'Api\V1\UrbanGoodzDiscoveryController@entities');
@@ -155,14 +154,4 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
     Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');
     Route::post('order-anywhere/{requestId}/purchase-card/complete', 'Api\V1\UrbanGoodzDriverPurchaseCardController@completePurchase');
-});
-
-Route::group(['prefix' => 'urban-goodz/creator-commerce'], function () {
-    Route::post('applications', 'Api\V1\CreatorCommerceTesterController@storeApplication');
-    Route::get('customer/applications', 'Api\V1\CreatorCommerceTesterController@customerApplications');
-    Route::get('admin/applications', 'Api\V1\CreatorCommerceTesterController@adminApplications');
-    Route::post('admin/applications/{record}/status', 'Api\V1\CreatorCommerceTesterController@updateApplicationStatus');
-    Route::post('promotions', 'Api\V1\CreatorCommerceTesterController@storePromotion');
-    Route::get('admin/promotions', 'Api\V1\CreatorCommerceTesterController@promotions');
-    Route::post('admin/promotions/{record}/status', 'Api\V1\CreatorCommerceTesterController@updatePromotionStatus');
 });

@@ -23,15 +23,18 @@ class ReelApiService
 
         return Reel::query()
             ->active()
-            ->with(['store.storeConfig:id,store_id,verified_seller', 'storage'])
+            ->with(['store.storeConfig:id,store_id,verified_seller', 'storage', 'creatorProfile', 'commerceTags'])
             ->select([
                 'id',
                 'description',
                 'thumbnail',
                 'video',
                 'store_id',
+                'creator_profile_id',
                 'module_id',
                 'status',
+                'publication_status',
+                'moderation_status',
                 'is_always_visible',
                 'start_date',
                 'end_date',
@@ -76,7 +79,7 @@ class ReelApiService
     {
         return Reel::query()
             ->active()
-            ->with(['store.storeConfig:id,store_id,verified_seller', 'storage'])
+            ->with(['store.storeConfig:id,store_id,verified_seller', 'storage', 'creatorProfile', 'commerceTags'])
             ->when($moduleId !== null, fn (Builder $query) => $query->where('module_id', $moduleId))
             ->find($id);
     }

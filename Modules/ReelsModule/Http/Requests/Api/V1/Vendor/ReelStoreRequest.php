@@ -29,6 +29,7 @@ class ReelStoreRequest extends FormRequest
             'is_always_visible' => 'nullable|in:1',
             'dates' => 'required_without:is_always_visible|nullable|string',
             'status' => 'nullable|boolean',
+            'tags' => 'required|json',
         ];
     }
 
@@ -57,6 +58,10 @@ class ReelStoreRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $tags = json_decode((string) $this->input('tags'), true);
+            if (!is_array($tags) || count($tags) < 1 || count($tags) > 20) {
+                $validator->errors()->add('tags', 'At least one and no more than 20 commerce tags are required.');
+            }
             $this->validateUploadQuantity($validator);
             $this->validateVideoDuration($validator);
 

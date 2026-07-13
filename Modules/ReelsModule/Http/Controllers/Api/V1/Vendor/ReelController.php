@@ -19,6 +19,9 @@ use Modules\ReelsModule\Entities\ReelEngagement;
 use Modules\ReelsModule\Http\Requests\Api\V1\Vendor\ReelStoreRequest;
 use Modules\ReelsModule\Http\Requests\Api\V1\Vendor\ReelUpdateRequest;
 use Modules\ReelsModule\Support\ReelModuleConfig;
+use App\Models\Item;
+use App\Models\UrbanGoodzCreatorProfile;
+use Illuminate\Validation\ValidationException;
 
 class ReelController extends Controller
 {
@@ -95,6 +98,10 @@ class ReelController extends Controller
     public function store(ReelStoreRequest $request)
     {
         $store = $request['vendor']->stores[0];
+        $profile = UrbanGoodzCreatorProfile::where('vendor_id', $request['vendor']->id)->first();
+        if (!$profile || !$profile->is_approved || $profile->status !== 'approved') {
+            return response()->json(['errors' => [['code' => 'creator_not_approved', 'message' => 'Approved creator status is required.']]], 403);
+        }
 
         if (!addon_published_status('ReelsModule')) {
             return response()->json([
@@ -282,8 +289,13 @@ class ReelController extends Controller
             ], 404);
         }
 
-        $reel->status = $request->status;
-        $reel->save();
+        if ($request->boolean('status')) {
+            return response()->json([
+                'errors' => [['code' => 'moderation_required', 'message' => 'Use the publish action; Admin moderation is required before a reel becomes public.']]
+            ], 409);
+        }
+
+        $reel->update(['status' => false, 'publication_status' => 'draft', 'published_at' => null]);
 
         return response()->json(['message' => translate('messages.reel_status_updated_successfully')], 200);
     }
@@ -297,6 +309,8 @@ class ReelController extends Controller
         $translations = $this->prepareTranslations($request);
 
         $reel->store_id = $store->id;
+        $profile = UrbanGoodzCreatorProfile::where('vendor_id', $request['vendor']->id)->firstOrFail();
+        $reel->creator_profile_id = $profile->id;
         if (ReelModuleConfig::isMultiModule()) {
             $reel->module_id = (int) $store->module_id;
             $reel->module_type = (string) ($store->module?->module_type ?? ReelModuleConfig::defaultModuleType());
@@ -345,6 +359,10 @@ class ReelController extends Controller
 
         $reel->save();
 
+        if ($request->filled('tags')) {
+            $this->syncCommerceTags($reel, $request, $store->id);
+        }
+
         if (!empty($translations)) {
             $reel->translations()->delete();
 
@@ -355,6 +373,27 @@ class ReelController extends Controller
 
             Translation::insert($translations);
         }
+    }
+
+    private function syncCommerceTags(Reel $reel, Request $request, int $storeId): void
+    {
+        $tags = json_decode((string) $request->input('tags'), true);
+        if (!is_array($tags)) {
+            throw ValidationException::withMessages(['tags' => 'Commerce tags must be valid JSON.']);
+        }
+
+        $normalized = [];
+        foreach ($tags as $index => $tag) {
+            $type = $tag['type'] ?? null;
+            $id = filter_var($tag['id'] ?? null, FILTER_VALIDATE_INT);
+            if ($type !== 'product' || !$id || !Item::whereKey($id)->where('store_id', $storeId)->exists()) {
+                throw ValidationException::withMessages(["tags.$index" => 'Only products owned by this store may be tagged.']);
+            }
+            $normalized[] = ['store_id' => $storeId, 'taggable_type' => $type, 'taggable_id' => $id, 'label' => $tag['label'] ?? null];
+        }
+
+        $reel->commerceTags()->delete();
+        $reel->commerceTags()->createMany($normalized);
     }
 
     private function prepareTranslations(Request $request): array
