@@ -11,12 +11,15 @@ class UrbanGoodzFashionMeasurementController extends Controller
 {
     public function index(Request $request)
     {
+        $measurements = MeasurementRequest::query()
+            ->forVendor($this->vendorId($request))
+            ->latest()
+            ->paginate($request->input('limit', 20));
+        $measurements->through(fn (MeasurementRequest $measurement) => $this->forVendorResponse($measurement));
+
         return response()->json([
             'success' => true,
-            'data' => MeasurementRequest::query()
-                ->forVendor($this->vendorId($request))
-                ->latest()
-                ->paginate($request->input('limit', 20)),
+            'data' => $measurements,
         ]);
     }
 
@@ -26,7 +29,7 @@ class UrbanGoodzFashionMeasurementController extends Controller
             ->forVendor($this->vendorId($request))
             ->findOrFail($id);
 
-        return response()->json(['success' => true, 'data' => $measurement]);
+        return response()->json(['success' => true, 'data' => $this->forVendorResponse($measurement)]);
     }
 
     public function review(Request $request, $id)
@@ -52,7 +55,7 @@ class UrbanGoodzFashionMeasurementController extends Controller
         $measurement->payment_required = ! $measurement->free_tester_mode && $measurement->total_measurement_fee > 0;
         $measurement->save();
 
-        return response()->json(['success' => true, 'data' => $measurement]);
+        return response()->json(['success' => true, 'data' => $this->forVendorResponse($measurement)]);
     }
 
     public function settings(Request $request)
@@ -71,8 +74,34 @@ class UrbanGoodzFashionMeasurementController extends Controller
         ]);
     }
 
-    private function vendorId(Request $request): ?int
+    private function vendorId(Request $request): int
     {
-        return $request->vendor?->id ?? auth('vendor')->id() ?? ($request->filled('vendor_id') ? (int) $request->input('vendor_id') : null);
+        $vendorId = $request->vendor?->id;
+        abort_unless($vendorId, 401, 'Authenticated vendor is required.');
+
+        return (int) $vendorId;
+    }
+
+    private function forVendorResponse(MeasurementRequest $measurement): array
+    {
+        $data = $measurement->toArray();
+        $canViewPhotos = $measurement->consent_to_share_photos
+            && $measurement->privacy_review_status === 'approved';
+
+        if (! $canViewPhotos) {
+            foreach ([
+                'front_photo_path', 'side_photo_path', 'back_photo_path',
+                'front_photo_file_id', 'side_photo_file_id', 'back_photo_file_id',
+            ] as $key) {
+                unset($data[$key]);
+            }
+            $data['photos_available'] = false;
+        } else {
+            $data['photos_available'] = true;
+        }
+
+        unset($data['admin_notes']);
+
+        return $data;
     }
 }

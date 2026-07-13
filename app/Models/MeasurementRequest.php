@@ -121,6 +121,6 @@ class MeasurementRequest extends Model
 
     public function scopeForVendor($query, ?int $vendorId)
     {
-        return $vendorId ? $query->where('vendor_id', $vendorId) : $query;
+        return $query->where('vendor_id', $vendorId ?? 0);
     }
 }
