@@ -89,7 +89,7 @@ Route::group(['prefix' => 'order-anywhere'], function () {
 });
 
 Route::group(['prefix' => 'urban-goodz/fashion-fit'], function () {
-    Route::post('photos/upload', 'Api\V1\UrbanGoodz\FashionFitFileController@uploadPhoto');
+    Route::post('photos/upload', 'Api\V1\UrbanGoodz\FashionFitFileController@uploadPhoto')->middleware('auth:api');
 });
 
 Route::group(['prefix' => 'urban-goodz/files'], function () {

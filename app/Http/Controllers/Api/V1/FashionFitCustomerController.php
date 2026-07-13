@@ -281,7 +281,7 @@ class FashionFitCustomerController extends Controller
         abort_unless(FashionFitProviderProfile::where('vendor_id', $data['vendor_id'])->where('status', 'approved')->exists(), 422, 'Fashion Fit provider is not approved.');
 
         $fashionRequest = DB::transaction(function () use ($data, $profile, $service) {
-            $record = FashionFitRequest::create(array_merge($data, [
+            $record = FashionFitRequest::create(array_merge(collect($data)->except('profile_uuid')->all(), [
                 'uuid' => Str::uuid(), 'profile_id' => $profile->id, 'customer_id' => $profile->customer_id,
                 'share_measurements' => true, 'status' => 'submitted', 'currency' => 'USD',
             ]));
@@ -330,7 +330,12 @@ class FashionFitCustomerController extends Controller
     {
         $record = FashionFitRequest::where('customer_id', $request->user()->id)->where('uuid', $uuid)->firstOrFail();
         abort_unless($record->status === 'accepted' && $record->payment_status === 'pending', 409, 'Payment is not available.');
-        abort_unless(config('app.env') !== 'production' || config('payment_test_mode', true), 403, 'Live payment is not enabled for this flow.');
+        abort_unless(
+            app()->environment(['local', 'testing'])
+                && config('fashion_fit_ai.staged_payments_enabled', false),
+            403,
+            'Fashion Fit staged payments are disabled.'
+        );
         $reference = 'ff-test-'.Str::uuid();
         UrbanGoodzPaymentTransaction::create([
             'payable_type' => FashionFitRequest::class, 'payable_id' => $record->id,

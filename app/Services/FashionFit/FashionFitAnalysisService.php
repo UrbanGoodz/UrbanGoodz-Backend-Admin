@@ -20,7 +20,18 @@ class FashionFitAnalysisService
     public function process(FashionFitAnalysis $analysis): void
     {
         $analysis->load('profile');
+        $consent = $analysis->profile->consents()
+            ->whereNull('revoked_at')
+            ->latest('accepted_at')
+            ->first();
+        if (! $consent?->ai_processing_allowed) {
+            throw new RuntimeException('Fashion Fit AI consent is not active.');
+        }
         $photos = $analysis->profile->photos()->with('file')->where('status', 'accepted')->get();
+        $missingViews = array_diff(config('fashion_fit_ai.required_views'), $photos->pluck('view')->all());
+        if ($missingViews !== []) {
+            throw new RuntimeException('Fashion Fit required photo views are missing.');
+        }
         $analysis->increment('attempts');
         $analysis->update([
             'status' => 'processing',

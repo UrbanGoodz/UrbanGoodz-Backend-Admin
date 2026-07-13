@@ -66,4 +66,21 @@ class FashionFitAiContractTest extends TestCase
         $this->assertStringContainsString('Customer photo-sharing consent is not active.', $provider);
         $this->assertStringContainsString('Provider access has been revoked.', $provider);
     }
+
+    public function test_queued_analysis_rechecks_consent_and_required_views(): void
+    {
+        $service = file_get_contents(__DIR__.'/../../app/Services/FashionFit/FashionFitAnalysisService.php');
+
+        $this->assertStringContainsString('Fashion Fit AI consent is not active.', $service);
+        $this->assertStringContainsString('Fashion Fit required photo views are missing.', $service);
+    }
+
+    public function test_staged_payment_and_legacy_upload_fail_closed(): void
+    {
+        $customer = file_get_contents(__DIR__.'/../../app/Http/Controllers/Api/V1/FashionFitCustomerController.php');
+        $routes = file_get_contents(__DIR__.'/../../routes/api/v1/urban_goodz.php');
+
+        $this->assertStringContainsString("config('fashion_fit_ai.staged_payments_enabled', false)", $customer);
+        $this->assertStringContainsString("FashionFitFileController@uploadPhoto')->middleware('auth:api')", $routes);
+    }
 }
