@@ -164,6 +164,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
     Route::group(['prefix' => 'vendor', 'namespace' => 'Vendor', 'middleware'=>['vendor.api','actch:vendor_app']], function () {
         Route::get('notifications', 'VendorController@get_notifications');
         Route::get('profile', 'VendorController@get_profile');
+        Route::post('logout', 'VendorController@logout');
         Route::post('update-active-status', 'VendorController@active_status');
         // Route::get('verified-badge-popup-seen', 'VendorController@verifiedBadgePopupSeen');
         Route::get('earning-info', 'VendorController@get_earning_data');

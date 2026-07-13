@@ -295,6 +295,35 @@ class VendorLoginController extends Controller
 
 
     private function storeSubscriptionCheck($store, $vendor,$token){
+        if (! $store) {
+            return [
+                'type' => 'errors',
+                'code' => 403,
+                'data' => ['errors' => [['code' => 'store_missing', 'message' => 'No store is assigned to this vendor.']]],
+            ];
+        }
+
+        $ownerStatus = $vendor instanceof VendorEmployee
+            ? (int) ($vendor->vendor?->status ?? 0)
+            : (int) $vendor->status;
+
+        if ((int) $store->status !== 1 || $ownerStatus !== 1) {
+            $pending = (int) $store->status === 0 && $ownerStatus === 0;
+
+            return [
+                'type' => 'errors',
+                'code' => 403,
+                'data' => [
+                    'errors' => [[
+                        'code' => $pending ? 'auth-002' : 'store_inactive',
+                        'message' => $pending
+                            ? translate('messages.Your_registration_is_not_approved_yet._You_can_login_once_admin_approved_the_request')
+                            : translate('messages.Your_account_is_suspended'),
+                    ]],
+                ],
+            ];
+        }
+
         if ($store?->store_business_model == 'none') {
             $vendor->auth_token = $token;
             $vendor?->save();
@@ -309,28 +338,6 @@ class VendorLoginController extends Controller
                         'zone_wise_topic' => $store?->zone?->store_wise_topic,
                         'type' => 'new_join',
                         'module_type' => $store?->module?->module_type
-                    ]
-                ]
-            ];
-        }
-
-        if ($store->status == 0 && $vendor->status == 0) {
-            return [
-                'type' => 'errors',
-                'code' => 403,
-                'data' => [
-                    'errors' => [
-                        ['code' => 'auth-002', 'message' => translate('messages.Your_registration_is_not_approved_yet._You_can_login_once_admin_approved_the_request')]
-                    ]
-                ]
-            ];
-        } elseif ($store->status == 0 && $vendor->status == 1 && in_array($store?->store_business_model ,['subscription' ,'commission']) ) {
-            return [
-                'type' => 'errors',
-                'code' => 403,
-                'data' => [
-                    'errors' => [
-                        ['code' => 'auth-002', 'message' => translate('messages.Your_account_is_suspended')]
                     ]
                 ]
             ];

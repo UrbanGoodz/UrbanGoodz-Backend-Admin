@@ -1485,7 +1485,14 @@ class ItemController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $product = Item::find($request['product_id']);
+        $storeId = $request['vendor']?->stores[0]?->id;
+        $product = Item::where('store_id', $storeId)->find($request['product_id']);
+
+        if (! $product) {
+            return response()->json([
+                'errors' => [['code' => 'product_id', 'message' => translate('messages.product_not_found')]],
+            ], 404);
+        }
 
         if( count(json_decode($product->variations , true) ?? []) > 0  &&  !$request['type']){
             $validator->getMessageBag()->add('type', translate("Variation types_are_required"));

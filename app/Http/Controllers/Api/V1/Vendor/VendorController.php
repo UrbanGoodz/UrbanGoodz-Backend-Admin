@@ -40,6 +40,15 @@ use Modules\Rental\Emails\ProviderWithdrawRequestMail;
 
 class VendorController extends Controller
 {
+    public function logout(Request $request)
+    {
+        $authenticatable = $request['vendor_employee'] ?? $request['vendor'];
+        $authenticatable->auth_token = null;
+        $authenticatable->save();
+
+        return response()->json(['message' => 'Logged out'], 200);
+    }
+
     public function get_profile(Request $request)
     {
         $vendor = $request['vendor'];
@@ -377,7 +386,30 @@ class VendorController extends Controller
         ->Notpos()
         ->first();
 
-        if($request['order_status']=='canceled')
+        if (! $order) {
+            return response()->json([
+                'errors' => [['code' => 'order_id', 'message' => trans('messages.order_data_not_found')]],
+            ], 404);
+        }
+
+        $allowedTransitions = [
+            'pending' => ['confirmed', 'canceled'],
+            'confirmed' => ['processing'],
+            'processing' => ['handover'],
+            'handover' => ['delivered'],
+        ];
+        $currentStatus = (string) $order->order_status;
+        if ($request->status === $currentStatus) {
+            return response()->json(['message' => 'Order status is already current'], 200);
+        }
+
+        if (! in_array($request->status, $allowedTransitions[$currentStatus] ?? [], true)) {
+            return response()->json([
+                'errors' => [['code' => 'status', 'message' => 'Illegal order status transition.']],
+            ], 409);
+        }
+
+        if($request['status']=='canceled')
         {
             if(!config('canceled_by_store'))
             {
@@ -846,6 +878,11 @@ class VendorController extends Controller
         }
 
         $method = WithdrawalMethod::find($request['id']);
+        if (! $method) {
+            return response()->json([
+                'errors' => [['code' => 'id', 'message' => 'Withdrawal method not found.']],
+            ], 404);
+        }
         $fields = array_column($method->method_fields, 'input_name');
         $values = $request->all();
 
@@ -857,7 +894,8 @@ class VendorController extends Controller
         }
 
         $w = $request['vendor']?->wallet;
-        if ($w?->balance >= $request['amount']) {
+        $availableBalance = max(0, (float) ($w?->balance ?? 0) - (float) ($w?->pending_withdraw ?? 0));
+        if ($availableBalance >= (float) $request['amount']) {
             $data = [
                 'vendor_id' => $w?->vendor_id,
                 'amount' => $request['amount'],

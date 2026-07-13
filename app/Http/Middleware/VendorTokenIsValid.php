@@ -46,8 +46,17 @@ class VendorTokenIsValid
                     ]
                 ], 401);
             }
+            if ((int) $vendor->status !== 1) {
+                return $this->accountUnavailable('vendor_account_inactive', 'Vendor account is not active.');
+            }
+
+            $store = $vendor->stores()->with('module')->first();
+            if (! $store || (int) $store->status !== 1) {
+                return $this->accountUnavailable('store_inactive', 'Store is not active.');
+            }
+
             $request['vendor']=$vendor;
-            Config::set('module.current_module_data', $vendor->stores[0]->module);
+            Config::set('module.current_module_data', $store->module);
         }elseif($vendor_type == 'employee'){
             $vendor = VendorEmployee::where('auth_token', $token)->first();
             if(!isset($vendor))
@@ -58,10 +67,25 @@ class VendorTokenIsValid
                     ]
                 ], 401);
             }
+            if (! $vendor->vendor || (int) $vendor->vendor->status !== 1 || ! $vendor->store || (int) $vendor->store->status !== 1) {
+                return $this->accountUnavailable('store_inactive', 'Vendor or store is not active.');
+            }
+
             $request['vendor']=$vendor->vendor;
             $request['vendor_employee']=$vendor;
-            Config::set('module.current_module_data', $vendor->vendor->stores[0]->module);
+            Config::set('module.current_module_data', $vendor->store->module);
+        } else {
+            return response()->json([
+                'errors' => [['code' => 'vendor_type', 'message' => 'Invalid vendor type.']],
+            ], 403);
         }
         return $next($request);
+    }
+
+    private function accountUnavailable(string $code, string $message)
+    {
+        return response()->json([
+            'errors' => [['code' => $code, 'message' => $message]],
+        ], 403);
     }
 }
