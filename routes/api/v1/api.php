@@ -163,6 +163,10 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
 
     Route::group(['prefix' => 'vendor', 'namespace' => 'Vendor', 'middleware'=>['vendor.api','actch:vendor_app']], function () {
         Route::get('notifications', 'VendorController@get_notifications');
+        Route::get('notifications/unread-count', 'Vendor\VendorNotificationController@unreadCount');
+        Route::post('notifications/{notificationId}/read', 'Vendor\VendorNotificationController@markRead');
+        Route::post('notifications/read-all', 'Vendor\VendorNotificationController@markAllRead');
+        Route::delete('notifications/{notificationId}', 'Vendor\VendorNotificationController@destroy');
         Route::get('profile', 'VendorController@get_profile');
         Route::post('logout', 'VendorController@logout');
         Route::post('update-active-status', 'VendorController@active_status');

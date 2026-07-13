@@ -154,4 +154,27 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
     Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');
     Route::post('order-anywhere/{requestId}/purchase-card/complete', 'Api\V1\UrbanGoodzDriverPurchaseCardController@completePurchase');
+
+    // Driver active jobs (unified across all sources)
+    Route::get('active-jobs', 'Api\UrbanGoodzDriverActiveJobsController@index');
+    Route::get('active-jobs/{jobId}', 'Api\UrbanGoodzDriverActiveJobsController@detail');
+    Route::post('active-jobs/{jobId}/start', 'Api\UrbanGoodzDriverActiveJobsController@startJob');
+    Route::post('active-jobs/{jobId}/complete', 'Api\UrbanGoodzDriverActiveJobsController@completeJob');
+    Route::post('active-jobs/{jobId}/cancel', 'Api\UrbanGoodzDriverActiveJobsController@cancelJob');
+    Route::post('active-jobs/{jobId}/status', 'Api\UrbanGoodzDriverActiveJobsController@updateStatus');
+
+    // Driver load board
+    Route::get('load-board', 'Api\UrbanGoodzDriverActiveJobsController@loadBoardAvailable');
+    Route::post('load-board/{loadId}/bid', 'Api\UrbanGoodzDriverActiveJobsController@loadBoardBid');
+    Route::post('load-board/{loadId}/accept', 'Api\UrbanGoodzDriverActiveJobsController@acceptJob');
+
+    // Driver opportunities
+    Route::get('opportunities', 'Api\UrbanGoodzDriverActiveJobsController@opportunities');
+    Route::post('opportunities/{opportunityId}/claim', 'Api\UrbanGoodzDriverActiveJobsController@claimOpportunity');
+
+    // Driver vehicles and certifications
+    Route::get('vehicles', 'Api\UrbanGoodzDriverActiveJobsController@vehicles');
+    Route::get('certifications', 'Api\UrbanGoodzDriverActiveJobsController@certifications');
+    Route::post('certifications/{certId}/upload', 'Api\UrbanGoodzDriverActiveJobsController@uploadCertDocument');
+    Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
 });
