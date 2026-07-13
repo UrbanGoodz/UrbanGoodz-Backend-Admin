@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzPlusMembership;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 
 class UrbanGoodzPlusMembershipController extends Controller
@@ -46,8 +48,12 @@ class UrbanGoodzPlusMembershipController extends Controller
 
     public function store(Request $request)
     {
+        if (!Helpers::module_permission_check('urban_goodz_plus_membership_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
-            'member_name' => ['required', 'string', 'max:255'],
             'member_email' => ['required', 'email', 'max:255'],
             'tier' => ['required', 'string', 'in:basic,premium,elite'],
             'status' => ['required', 'string', 'max:50'],
@@ -74,6 +80,11 @@ class UrbanGoodzPlusMembershipController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_plus_membership_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $membership = UrbanGoodzPlusMembership::findOrFail($id);
 
         $data = $request->validate([

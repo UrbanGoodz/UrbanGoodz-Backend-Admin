@@ -102,6 +102,11 @@ class UrbanGoodzAgeComplianceController extends Controller
 
     public function review(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_age_compliance_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $request->validate([
             'admin_review_status' => 'required|in:pending,reviewed,resolved,escalated',
             'admin_notes' => 'nullable|string|max:2000',

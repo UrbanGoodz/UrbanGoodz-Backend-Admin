@@ -2,12 +2,12 @@
 # =====================================================
 # Urban Goodz — Sprint Integration Deployment Script
 # Branch: adminpanel-v39-backend-sprint
-# Locked SHA: e9cf97bdbf2fe8ef5c19ce8562c77ea0ef320d57
+# Locked SHA: 4940fd0e7cd3fc9abd7813be0be7658f4386b411
 # Date: 2026-07-12
 # =====================================================
 set -euo pipefail
 
-DEPLOY_SHA="e9cf97bdbf2fe8ef5c19ce8562c77ea0ef320d57"
+DEPLOY_SHA="4940fd0e7cd3fc9abd7813be0be7658f4386b411"
 BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
 PUBLIC_DIR="public_html"
 APP_DIR="."
@@ -63,7 +63,11 @@ fi
 # STEP 4: Pull the locked SHA
 echo "[4/10] Pulling locked SHA $DEPLOY_SHA..."
 git fetch origin
-git checkout "$DEPLOY_SHA" 2>/dev/null || git pull origin adminpanel-v39-backend-sprint
+git checkout "$DEPLOY_SHA"
+if [ $? -ne 0 ]; then
+    echo "  ERROR: Failed to checkout locked SHA $DEPLOY_SHA. Aborting deploy."
+    exit 1
+fi
 echo "  SHA checked out"
 
 # STEP 5: Install PHP dependencies

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzAppointment;
 use App\Models\UrbanGoodzServiceProvider;
 use App\Models\UrbanGoodzServiceRequest;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 
 class UrbanGoodzAppointmentController extends Controller
@@ -47,8 +49,12 @@ class UrbanGoodzAppointmentController extends Controller
 
     public function store(Request $request)
     {
+        if (!Helpers::module_permission_check('urban_goodz_appointment_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
-            'service_request_id' => ['nullable', 'integer', 'exists:urban_goodz_service_requests,id'],
             'service_provider_id' => ['nullable', 'integer', 'exists:urban_goodz_service_providers,id'],
             'scheduled_at' => ['required', 'date'],
             'completed_at' => ['nullable', 'date'],
@@ -73,6 +79,11 @@ class UrbanGoodzAppointmentController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_appointment_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $appointment = UrbanGoodzAppointment::findOrFail($id);
 
         $data = $request->validate([
@@ -92,6 +103,11 @@ class UrbanGoodzAppointmentController extends Controller
 
     public function destroy($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_appointment_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $appointment = UrbanGoodzAppointment::findOrFail($id);
         $appointment->delete();
 

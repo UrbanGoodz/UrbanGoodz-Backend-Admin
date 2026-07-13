@@ -2,7 +2,7 @@
 
 Date: 2026-07-12
 Source branch: `smtp-vendor-api-sprint`
-Locked primary source: `0576608b4aec286fe362596db84b3c80f872251e`
+Locked primary source: `4940fd0e7cd3fc9abd7813be0be7658f4386b411`
 Integration target: `adminpanel-v39-backend-sprint`
 Production domain: `https://admin.urbangoodzdelivery.com`
 Deployment: not performed

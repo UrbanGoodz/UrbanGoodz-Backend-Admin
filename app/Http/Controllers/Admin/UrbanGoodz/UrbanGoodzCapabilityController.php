@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzCapability;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -46,6 +48,11 @@ class UrbanGoodzCapabilityController extends Controller
 
     public function store(Request $request)
     {
+        if (!Helpers::module_permission_check('urban_goodz_capability_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
             'slug' => ['required', 'string', 'max:100', 'alpha_dash', Rule::unique('urban_goodz_capabilities', 'slug')],
             'name' => ['required', 'string', 'max:255'],
@@ -75,6 +82,11 @@ class UrbanGoodzCapabilityController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_capability_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $capability = UrbanGoodzCapability::findOrFail($id);
 
         $data = $request->validate([
@@ -97,6 +109,11 @@ class UrbanGoodzCapabilityController extends Controller
 
     public function destroy($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_capability_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $capability = UrbanGoodzCapability::findOrFail($id);
         $capability->businessTypes()->detach();
         $capability->delete();

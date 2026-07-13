@@ -90,7 +90,7 @@ class MeasurementRequest extends Model
         return [
             'source' => 'manual',
             'face_blur_enabled' => true,
-            'face_blur_status' => 'unavailable',
+            'face_blur_status' => 'pending_review',
             'privacy_review_status' => 'pending',
             'platform_measurement_fee' => 0,
             'vendor_review_fee' => 0,
@@ -98,7 +98,7 @@ class MeasurementRequest extends Model
             'currency' => 'USD',
             'payment_required' => false,
             'payment_status' => 'waived',
-            'free_tester_mode' => true,
+            'free_tester_mode' => false,
             'measurement_status' => 'not_started',
             'review_status' => 'pending',
         ];

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzCommunityPost;
 use App\Models\UrbanGoodzCommunityComment;
 use App\Models\UrbanGoodzCommunityMarketplaceItem;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 
 class UrbanGoodzCommunityController extends Controller
@@ -55,6 +57,11 @@ class UrbanGoodzCommunityController extends Controller
 
     public function postTogglePublish($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_community_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $post = UrbanGoodzCommunityPost::findOrFail($id);
         $post->is_published = !$post->is_published;
         if ($post->is_published && !$post->published_at) {
@@ -91,6 +98,11 @@ class UrbanGoodzCommunityController extends Controller
 
     public function commentApprove($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_community_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $comment = UrbanGoodzCommunityComment::findOrFail($id);
         $comment->is_approved = true;
         $comment->save();
@@ -100,6 +112,11 @@ class UrbanGoodzCommunityController extends Controller
 
     public function commentReject($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_community_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $comment = UrbanGoodzCommunityComment::findOrFail($id);
         $comment->is_approved = false;
         $comment->save();
@@ -109,6 +126,11 @@ class UrbanGoodzCommunityController extends Controller
 
     public function commentDestroy($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_community_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         UrbanGoodzCommunityComment::findOrFail($id)->delete();
 
         return redirect()->back()->with('success', 'Comment deleted.');
@@ -148,6 +170,11 @@ class UrbanGoodzCommunityController extends Controller
 
     public function marketplaceToggleActive($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_community_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $item = UrbanGoodzCommunityMarketplaceItem::findOrFail($id);
         $item->is_active = !$item->is_active;
         $item->save();
@@ -157,6 +184,11 @@ class UrbanGoodzCommunityController extends Controller
 
     public function marketplaceUpdateStatus(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_community_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $request->validate([
             'status' => 'required|string|in:available,sold,reserved,expired',
         ]);

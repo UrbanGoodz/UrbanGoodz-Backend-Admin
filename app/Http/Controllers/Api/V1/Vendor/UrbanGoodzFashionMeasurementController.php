@@ -66,10 +66,9 @@ class UrbanGoodzFashionMeasurementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Vendor tester review fee accepted. Existing requests keep their own fee until reviewed.',
+            'message' => 'Vendor review fee updated.',
             'data' => [
                 'vendor_review_fee' => (float) $data['vendor_review_fee'],
-                'payment_status' => 'waived_in_tester_mode',
             ],
         ]);
     }

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzServiceRequest;
 use App\Models\UrbanGoodzServiceProvider;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 
 class UrbanGoodzServiceRequestController extends Controller
@@ -44,8 +46,12 @@ class UrbanGoodzServiceRequestController extends Controller
 
     public function store(Request $request)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_request_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
-            'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['nullable', 'email', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'service_type' => ['required', 'string', 'max:255'],
@@ -74,6 +80,11 @@ class UrbanGoodzServiceRequestController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_request_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $serviceRequest = UrbanGoodzServiceRequest::findOrFail($id);
 
         $data = $request->validate([
@@ -99,6 +110,11 @@ class UrbanGoodzServiceRequestController extends Controller
 
     public function destroy($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_request_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $serviceRequest = UrbanGoodzServiceRequest::findOrFail($id);
         $serviceRequest->delete();
 
@@ -107,6 +123,11 @@ class UrbanGoodzServiceRequestController extends Controller
 
     public function status($id, $status)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_request_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $serviceRequest = UrbanGoodzServiceRequest::findOrFail($id);
         $serviceRequest->status = $status;
         $serviceRequest->save();

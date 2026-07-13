@@ -18,30 +18,33 @@ use Illuminate\Support\Facades\Log;
 class UrbanGoodzIngestionService
 {
     /**
-     * Discover candidate businesses via mock search query simulation.
+     * Discover candidate businesses via Google Places API or configured external provider.
+     * Falls back to seeded database candidates when no API key is configured.
      */
     public function discoverBusinesses(string $city, string $category, array $filters = []): array
     {
-        $query = "{$city} local {$category} business";
-        Log::info("UG Ingestion: Simulating discovery query: '{$query}'");
+        $apiKey = config('services.google.places_key', env('GOOGLE_PLACES_API_KEY'));
+        $candidates = [];
 
-        // Simulate external API fetch from directories/social links
-        $candidates = $this->getMockCandidates($city, $category);
+        if (!empty($apiKey)) {
+            $candidates = $this->fetchFromGooglePlaces($city, $category, $apiKey, $filters);
+        }
+
+        if (empty($candidates)) {
+            $candidates = $this->fetchSeededCandidates($city, $category);
+        }
 
         $results = [];
         foreach ($candidates as $cand) {
-            // Step 3: Deduplicate
             $isDuplicate = $this->checkDuplicates($cand);
             if ($isDuplicate) {
                 Log::info("UG Ingestion: Duplicate business found: '{$cand['name']}' in {$city}. Skipping.");
                 continue;
             }
 
-            // Step 2 & 8: Enrich & Score Confidence
             $cand = $this->enrichBusiness($cand);
             $cand['data_confidence_score'] = $this->scoreConfidence($cand);
 
-            // Step 4: Classify module and category
             $classification = $this->classifyBusiness($cand);
             $cand = array_merge($cand, $classification);
 
@@ -49,6 +52,95 @@ class UrbanGoodzIngestionService
         }
 
         return $results;
+    }
+
+    /**
+     * Fetch businesses from Google Places API (Nearby Search + Text Search).
+     */
+    private function fetchFromGooglePlaces(string $city, string $category, string $apiKey, array $filters): array
+    {
+        $results = [];
+        $query = "{$category} in {$city}";
+        $url = "https://maps.googleapis.com/maps/api/place/textsearch/json?" . http_build_query([
+            'query' => $query,
+            'key' => $apiKey,
+            'type' => 'establishment',
+        ]);
+
+        $response = @file_get_contents($url);
+        if ($response === false) {
+            Log::warning("UG Ingestion: Google Places API request failed for query: {$query}");
+            return [];
+        }
+
+        $data = json_decode($response, true);
+        if (!isset($data['results']) || !is_array($data['results'])) {
+            return [];
+        }
+
+        foreach ($data['results'] as $place) {
+            $results[] = [
+                'name' => $place['name'] ?? '',
+                'category' => $category,
+                'phone' => $place['formatted_phone_number'] ?? '',
+                'address' => $place['formatted_address'] ?? $place['vicinity'] ?? '',
+                'city' => $city,
+                'state' => $this->extractStateFromAddress($place['formatted_address'] ?? ''),
+                'lat' => $place['geometry']['location']['lat'] ?? null,
+                'lng' => $place['geometry']['location']['lng'] ?? null,
+                'rating' => $place['rating'] ?? null,
+                'website' => $place['website'] ?? null,
+                'place_id' => $place['place_id'] ?? null,
+                'is_black_owned' => false,
+                'source_urls' => ["https://place.google.com/place?id={$place['place_id']}"],
+                'products' => [],
+            ];
+        }
+
+        Log::info("UG Ingestion: Fetched " . count($results) . " candidates from Google Places for '{$query}'");
+        return $results;
+    }
+
+    /**
+     * Extract state code from a formatted address string.
+     */
+    private function extractStateFromAddress(string $address): string
+    {
+        preg_match('/,\s*([A-Z]{2})\s*\d{5}/', $address, $matches);
+        return $matches[1] ?? 'TX';
+    }
+
+    /**
+     * Fetch seeded candidates from the urban_goodz_sourced_businesses table.
+     */
+    private function fetchSeededCandidates(string $city, string $category): array
+    {
+        $sourced = UrbanGoodzSourcedBusiness::whereRaw('LOWER(city) = ?', [strtolower($city)])
+            ->where('admin_review_status', '!=', 'rejected')
+            ->limit(20)
+            ->get()
+            ->map(fn($b) => [
+                'name' => $b->name,
+                'category' => $b->category_name ?? $category,
+                'phone' => $b->phone ?? '',
+                'address' => $b->address ?? '',
+                'city' => $b->city ?? $city,
+                'state' => $b->state ?? 'TX',
+                'lat' => $b->lat ?? null,
+                'lng' => $b->lng ?? null,
+                'website' => $b->website ?? null,
+                'email' => $b->email ?? null,
+                'is_black_owned' => $b->is_black_owned ?? false,
+                'source_urls' => $b->source_urls ?? [],
+                'products' => $b->products ?? [],
+            ])
+            ->toArray();
+
+        if (!empty($sourced)) {
+            Log::info("UG Ingestion: Fetched " . count($sourced) . " seeded candidates for '{$city}' / '{$category}'");
+        }
+
+        return $sourced;
     }
 
     /**
@@ -122,10 +214,19 @@ class UrbanGoodzIngestionService
             $moduleId = $dbModule->id;
         }
 
+        // Resolve category IDs from the categories table by module
+        $categoryIds = [];
+        if ($moduleId) {
+            $categoryIds = \DB::table('categories')
+                ->where('module_id', $moduleId)
+                ->pluck('id')
+                ->toArray();
+        }
+
         return [
             'module_id' => $moduleId,
             'module_name' => $matchedModule,
-            'category_ids' => [1], // Default placeholder category ID
+            'category_ids' => !empty($categoryIds) ? $categoryIds : [1],
             'tags' => [$candidate['category'] ?? 'Local'],
             'fulfillment_modes' => ['delivery', 'pickup', 'quote_required', 'order_anywhere'],
         ];
@@ -517,74 +618,12 @@ class UrbanGoodzIngestionService
     }
 
     /**
-     * Internal mock listings database to support the min 5 / 10 population handoff rules.
+     * Legacy mock candidates method — replaced by fetchSeededCandidates + Google Places API.
+     * @deprecated Use discoverBusinesses() which routes through real APIs.
      */
     private function getMockCandidates(string $city, string $category): array
     {
-        // Define some realistic businesses per category in different cities
-        // TX cities require 10, other cities require 5.
-        $isTx = strtolower($city) === 'houston' || strtolower($city) === 'austin' || strtolower($city) === 'dallas' || str_contains(strtolower($city), 'tx') || str_contains(strtolower($city), 'texas');
-        $count = $isTx ? 10 : 5;
-
-        $templates = [
-            'Restaurants' => [
-                ['name' => 'Soul Food Haven', 'category' => 'Soul Food', 'phone' => '832-555-0101', 'address' => '1202 Martin Luther King Blvd'],
-                ['name' => 'Taco Fusion Truck', 'category' => 'Mexican Fusion', 'phone' => '832-555-0102', 'address' => '2405 Washington Ave'],
-                ['name' => 'Green Garden Salads', 'category' => 'Vegan/Healthy', 'phone' => '832-555-0103', 'address' => '506 Yale St'],
-                ['name' => 'The Breakfast Corner', 'category' => 'Breakfast & Brunch', 'phone' => '832-555-0104', 'address' => '3300 Main St'],
-                ['name' => 'Smokin Barbecue Co.', 'category' => 'Texas BBQ', 'phone' => '832-555-0105', 'address' => '1902 N Durham Dr'],
-                ['name' => 'Pasta Bella Bistro', 'category' => 'Italian', 'phone' => '832-555-0106', 'address' => '4410 Westheimer Rd'],
-                ['name' => 'Tokyo Express Sushi', 'category' => 'Japanese Sushi', 'phone' => '832-555-0107', 'address' => '2200 Shepherd Dr'],
-                ['name' => 'Island Spice Caribbean', 'category' => 'Caribbean', 'phone' => '832-555-0108', 'address' => '8803 Bissonnet St'],
-                ['name' => 'The Burger Lab', 'category' => 'Burgers & Fries', 'phone' => '832-555-0109', 'address' => '1001 Heights Blvd'],
-                ['name' => 'Dessert Oasis Bakery', 'category' => 'Bakery & Sweets', 'phone' => '832-555-0110', 'address' => '1515 Kirby Dr'],
-            ],
-            'Beauty Supply / Hair Providerz' => [
-                ['name' => 'Classic Crown Beauty Supply', 'category' => 'Beauty Supply', 'phone' => '832-555-0201', 'address' => '4102 Almeda Rd'],
-                ['name' => 'Urban Glow Hair Extensionz', 'category' => 'Hair Extensions', 'phone' => '832-555-0202', 'address' => '6700 Highway 6'],
-                ['name' => 'Natural Roots Braiding Salon', 'category' => 'Hair Braiding', 'phone' => '832-555-0203', 'address' => '2300 Southmore Blvd'],
-                ['name' => 'Organic Tresses Boutique', 'category' => 'Hair Products', 'phone' => '832-555-0204', 'address' => '1205 W 19th St'],
-                ['name' => 'H-Town Barber Supply', 'category' => 'Barber Tools', 'phone' => '832-555-0205', 'address' => '900 Richmond Ave'],
-                ['name' => 'Elegant Wigs & Beyond', 'category' => 'Wig Boutique', 'phone' => '832-555-0206', 'address' => '5400 Fannin St'],
-                ['name' => 'Edge Control & Lashes Depot', 'category' => 'Cosmetics Store', 'phone' => '832-555-0207', 'address' => '3200 Scott St'],
-                ['name' => 'Melanin Skincare Lab', 'category' => 'Skincare Products', 'phone' => '832-555-0208', 'address' => '7100 Almeda Rd'],
-                ['name' => 'Nail Artisan Lounge', 'category' => 'Nail Supplies', 'phone' => '832-555-0209', 'address' => '4005 Washington Ave'],
-                ['name' => 'Hair Magic Beauty Mall', 'category' => 'Beauty Supply', 'phone' => '832-555-0210', 'address' => '1100 Gessner Rd'],
-            ]
-        ];
-
-        // Fallback generator for other categories
-        $candidates = [];
-        $srcCategory = isset($templates[$category]) ? $category : 'Restaurants';
-        $items = $templates[$srcCategory];
-
-        for ($i = 0; $i < $count; $i++) {
-            $item = $items[$i % count($items)];
-            $nameSuffix = $isTx ? "" : " " . Str::upper(substr($city, 0, 3));
-            
-            // Adjust address according to city name
-            $address = $item['address'];
-            if (!$isTx) {
-                $address = str_replace(['Blvd', 'Ave', 'St', 'Dr', 'Rd'], ['Avenue', 'Street', 'Boulevard', 'Way', 'Drive'], $address) . ", {$city}";
-            }
-
-            $candidates[] = [
-                'name' => $item['name'] . $nameSuffix,
-                'category' => $category,
-                'phone' => $item['phone'],
-                'address' => $address,
-                'city' => $city,
-                'state' => $isTx ? 'TX' : 'GA', // Default fallback GA for Atlanta, etc.
-                'is_black_owned' => ($i % 3 === 0) ? true : false,
-                'products' => [
-                    ['name' => "Starter Package from " . $item['name'], 'price' => 25.00],
-                    ['name' => "Premium Package from " . $item['name'], 'price' => 75.00],
-                    ['name' => "Custom request quote item", 'price' => null]
-                ]
-            ];
-        }
-
-        return $candidates;
+        return $this->fetchSeededCandidates($city, $category);
     }
 
     /**

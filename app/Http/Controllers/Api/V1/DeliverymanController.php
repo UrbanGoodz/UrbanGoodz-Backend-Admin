@@ -206,8 +206,8 @@ class DeliverymanController extends Controller
             $dm['total_trip_commission'] = $totalCommission;
             $dm['total_trip_earning'] = $totalEarning;
             $dm['total_trip_tips'] = $tips;
-            $dm['paid_amount'] = 0; // TODO: need to check if this is required or not, if required then need to add the logic for this.
-            $dm['level_up_reward_amount'] = 0; // TODO: need to check if this is required or not, if required then need to add the logic for this.
+            $dm['paid_amount'] = $dm->wallet->total_withdrawn ?? 0;
+            $dm['level_up_reward_amount'] = 0;
             $dm['total_income'] = $dm['trip_income'] + $dm['total_delivery_income'];
             $dm['total_tips'] = $tips + $dm['total_delivery_tips'];
             $dm['ride_count'] =(integer)$dm->driverTrips->count();

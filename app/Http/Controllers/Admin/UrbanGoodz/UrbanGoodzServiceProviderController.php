@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzServiceProvider;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -44,6 +46,11 @@ class UrbanGoodzServiceProviderController extends Controller
 
     public function store(Request $request)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_provider_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $data = $request->validate([
             'business_name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', 'alpha_dash', Rule::unique('urban_goodz_service_providers', 'slug')],
@@ -74,6 +81,11 @@ class UrbanGoodzServiceProviderController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_provider_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $provider = UrbanGoodzServiceProvider::findOrFail($id);
 
         $data = $request->validate([
@@ -99,6 +111,11 @@ class UrbanGoodzServiceProviderController extends Controller
 
     public function destroy($id)
     {
+        if (!Helpers::module_permission_check('urban_goodz_service_provider_manage')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $provider = UrbanGoodzServiceProvider::findOrFail($id);
         $provider->delete();
 

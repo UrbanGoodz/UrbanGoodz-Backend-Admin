@@ -31,7 +31,6 @@ class UrbanGoodzFashionMeasurementController extends Controller
         $data = $this->validateMeasurementData($request);
 
         $measurement = MeasurementRequest::create(array_merge(
-            MeasurementRequest::testerDefaults(),
             $data,
             [
                 'customer_id' => $this->customerId($request),
@@ -39,13 +38,12 @@ class UrbanGoodzFashionMeasurementController extends Controller
                 'measurement_status' => 'manual_only',
                 'payment_required' => false,
                 'payment_status' => 'waived',
-                'free_tester_mode' => true,
             ]
         ));
 
         return response()->json([
             'success' => true,
-            'message' => 'Measurement profile saved for tester review.',
+            'message' => 'Measurement profile saved.',
             'data' => $measurement,
         ], 201);
     }
@@ -58,7 +56,6 @@ class UrbanGoodzFashionMeasurementController extends Controller
         $needsPhotos = $source === 'photo_assisted';
 
         $measurement = MeasurementRequest::create(array_merge(
-            MeasurementRequest::testerDefaults(),
             $data,
             [
                 'customer_id' => $this->customerId($request),
@@ -69,7 +66,6 @@ class UrbanGoodzFashionMeasurementController extends Controller
                 'currency' => $settings['default_currency'] ?? 'USD',
                 'payment_required' => false,
                 'payment_status' => 'waived',
-                'free_tester_mode' => true,
                 'measurement_status' => $needsPhotos ? 'photos_needed' : 'manual_only',
                 'review_status' => 'pending',
             ]
@@ -77,7 +73,7 @@ class UrbanGoodzFashionMeasurementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Measurement request created in free tester mode.',
+            'message' => 'Measurement request created.',
             'data' => $measurement,
         ], 201);
     }
@@ -94,24 +90,29 @@ class UrbanGoodzFashionMeasurementController extends Controller
         $measurement = MeasurementRequest::findOrFail($data['measurement_request_id']);
 
         foreach (['front_photo_path' => 'front_photo', 'side_photo_path' => 'side_photo', 'back_photo_path' => 'back_photo'] as $column => $field) {
-            if ($request->has($field) || $request->hasFile($field)) {
-                $measurement->{$column} = 'tester-placeholder://urban-goodz/measurements/' . $measurement->id . '/' . $field;
+            if ($request->hasFile($field)) {
+                $file = $request->file($field);
+                $filename = 'measurements/' . $measurement->id . '/' . $field . '_' . time() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('public', $filename);
+                $measurement->{$column} = '/storage/' . $filename;
+            } elseif ($request->has($field) && is_string($request->input($field))) {
+                $measurement->{$column} = $request->input($field);
             }
         }
 
         $measurement->source = 'photo_assisted';
         $measurement->measurement_status = 'photos_uploaded';
         $measurement->face_blur_enabled = true;
-        $measurement->face_blur_status = 'unavailable';
+        $measurement->face_blur_status = 'pending_review';
         $measurement->privacy_review_status = $measurement->privacy_review_status ?: 'pending';
         $measurement->payment_required = false;
         $measurement->payment_status = 'waived';
-        $measurement->free_tester_mode = true;
+        $measurement->free_tester_mode = false;
         $measurement->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Tester photo placeholders attached. Production storage and face blur are not claimed.',
+            'message' => 'Measurement photos uploaded successfully.',
             'data' => $measurement,
         ]);
     }
@@ -218,7 +219,7 @@ class UrbanGoodzFashionMeasurementController extends Controller
             'front_photo_path' => $profile?->front_photo_path,
             'side_photo_path' => $profile?->side_photo_path,
             'back_photo_path' => $profile?->back_photo_path,
-            'free_tester_mode' => true,
+            'free_tester_mode' => false,
             'review_status' => 'Pending Stylist Review',
             'measurement_status' => 'estimating',
         ]);

@@ -9,7 +9,7 @@ class UrbanGoodzEarnMoneyApplication extends Model
 {
     protected $table = 'urban_goodz_earn_money_applications';
 
-    protected $fillable = ['opportunity_id', 'applicant_name', 'applicant_email', 'status', 'admin_notes'];
+    protected $fillable = ['opportunity_id', 'applicant_name', 'applicant_email', 'delivery_man_id', 'applied_at', 'status', 'admin_notes'];
 
     public function opportunity(): BelongsTo
     {
