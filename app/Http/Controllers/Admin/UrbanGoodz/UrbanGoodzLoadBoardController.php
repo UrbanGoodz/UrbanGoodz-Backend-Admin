@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\DeliveryMan;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
@@ -17,8 +18,9 @@ class UrbanGoodzLoadBoardController extends Controller
     public function index(Request $request)
     {
         $filters = $request->only([
-            'origin_state', 'destination_state', 'load_type', 'equipment_type',
+            'status', 'search', 'origin_state', 'destination_state', 'load_type', 'equipment_type',
             'min_payout', 'max_distance_miles', 'is_hazmat', 'requires_liftgate', 'is_expedited',
+            'provider', 'business_client_id', 'assigned_driver_id',
         ]);
 
         $result = $this->loadBoardService->listAvailable($filters, $request->input('page', 1));
@@ -29,6 +31,7 @@ class UrbanGoodzLoadBoardController extends Controller
             'meta' => $result['meta'],
             'stats' => $stats,
             'filters' => $filters,
+            'statuses' => UrbanGoodzLoadBoardLoad::STATUSES,
         ]);
     }
 
@@ -39,7 +42,15 @@ class UrbanGoodzLoadBoardController extends Controller
             abort(404);
         }
 
-        return view('admin-views.urban-goodz.load-board.show', ['load' => $load]);
+        $eligibleDrivers = DeliveryMan::where('active', 1)
+            ->where('application_status', 'approved')
+            ->where('load_board_eligible', true)
+            ->get();
+
+        return view('admin-views.urban-goodz.load-board.show', [
+            'load' => $load,
+            'eligibleDrivers' => $eligibleDrivers,
+        ]);
     }
 
     public function create()
@@ -63,6 +74,13 @@ class UrbanGoodzLoadBoardController extends Controller
             'payout_amount' => 'required|numeric|min:0',
             'payout_type' => 'nullable|string|in:flat,per_mile,per_hour',
             'rate_per_mile' => 'nullable|numeric|min:0',
+            'driver_payout_amount' => 'nullable|numeric|min:0',
+            'customer_price' => 'nullable|numeric|min:0',
+            'platform_margin' => 'nullable|numeric|min:0',
+            'dispatcher_incentive' => 'nullable|numeric|min:0',
+            'source_cost' => 'nullable|numeric|min:0',
+            'processing_fee' => 'nullable|numeric|min:0',
+            'accessorials' => 'nullable|numeric|min:0',
             'load_type' => 'nullable|string|max:50',
             'equipment_type' => 'nullable|string|max:50',
             'weight_lbs' => 'nullable|numeric|min:0',
@@ -88,7 +106,6 @@ class UrbanGoodzLoadBoardController extends Controller
         ]);
 
         $validated['provider'] = 'internal';
-
         $this->loadBoardService->createLoad($validated);
 
         Toastr::success(translate('Load created successfully'));
@@ -121,6 +138,13 @@ class UrbanGoodzLoadBoardController extends Controller
             'payout_amount' => 'required|numeric|min:0',
             'payout_type' => 'nullable|string|in:flat,per_mile,per_hour',
             'rate_per_mile' => 'nullable|numeric|min:0',
+            'driver_payout_amount' => 'nullable|numeric|min:0',
+            'customer_price' => 'nullable|numeric|min:0',
+            'platform_margin' => 'nullable|numeric|min:0',
+            'dispatcher_incentive' => 'nullable|numeric|min:0',
+            'source_cost' => 'nullable|numeric|min:0',
+            'processing_fee' => 'nullable|numeric|min:0',
+            'accessorials' => 'nullable|numeric|min:0',
             'load_type' => 'nullable|string|max:50',
             'equipment_type' => 'nullable|string|max:50',
             'weight_lbs' => 'nullable|numeric|min:0',
@@ -145,7 +169,7 @@ class UrbanGoodzLoadBoardController extends Controller
             'destination_due_at' => 'nullable|date',
         ]);
 
-        $result = $this->loadBoardService->updateLoad($id, $validated);
+        $result = $this->loadBoardService->updateLoad($id, $validated, auth('admin')->id());
         if (!$result) {
             Toastr::error(translate('Load not found'));
             return redirect()->back();
@@ -170,16 +194,86 @@ class UrbanGoodzLoadBoardController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:assigned,in_transit,picked_up,delivered,cancelled',
+            'status' => 'required|string|in:' . implode(',', UrbanGoodzLoadBoardLoad::STATUSES),
+            'notes' => 'nullable|string|max:500',
         ]);
 
-        $result = $this->loadBoardService->updateStatus($id, $request->status, auth('admin')->id());
+        $result = $this->loadBoardService->updateStatus(
+            $id,
+            $request->status,
+            auth('admin')->id(),
+            'admin',
+            $request->notes
+        );
+
         if (!$result) {
             Toastr::error(translate('Invalid status transition'));
             return redirect()->back();
         }
 
         Toastr::success(translate('Load status updated'));
+        return redirect()->route('admin.urban-goodz.load-board.show', $id);
+    }
+
+    public function assignDriver(Request $request, $id)
+    {
+        $request->validate([
+            'driver_id' => 'required|integer|exists:delivery_men,id',
+        ]);
+
+        $result = $this->loadBoardService->acceptLoad($id, $request->driver_id, auth('admin')->id());
+        if (!$result) {
+            Toastr::error(translate('Unable to assign driver'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Driver assigned successfully'));
+        return redirect()->route('admin.urban-goodz.load-board.show', $id);
+    }
+
+    public function reassignDriver(Request $request, $id)
+    {
+        $request->validate([
+            'driver_id' => 'required|integer|exists:delivery_men,id',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $result = $this->loadBoardService->reassignLoad(
+            $id,
+            $request->driver_id,
+            auth('admin')->id(),
+            $request->reason
+        );
+
+        if (!$result) {
+            Toastr::error(translate('Unable to reassign driver'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Driver reassigned successfully'));
+        return redirect()->route('admin.urban-goodz.load-board.show', $id);
+    }
+
+    public function review(Request $request, $id)
+    {
+        $request->validate([
+            'decision' => 'required|string|in:approve,reject,send_to_board',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $result = $this->loadBoardService->reviewLoad(
+            $id,
+            $request->decision,
+            auth('admin')->id(),
+            $request->notes
+        );
+
+        if (!$result) {
+            Toastr::error(translate('Unable to review load'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Load review completed'));
         return redirect()->route('admin.urban-goodz.load-board.show', $id);
     }
 }

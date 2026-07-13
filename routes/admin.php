@@ -269,6 +269,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzLoadBoardController@edit')->name('edit');
                 Route::put('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@update')->name('update');
                 Route::post('{id}/status', 'UrbanGoodz\UrbanGoodzLoadBoardController@updateStatus')->name('status');
+                Route::post('{id}/assign', 'UrbanGoodz\UrbanGoodzLoadBoardController@assignDriver')->name('assign');
+                Route::post('{id}/reassign', 'UrbanGoodz\UrbanGoodzLoadBoardController@reassignDriver')->name('reassign');
+                Route::post('{id}/review', 'UrbanGoodz\UrbanGoodzLoadBoardController@review')->name('review');
                 Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy');
             });
 

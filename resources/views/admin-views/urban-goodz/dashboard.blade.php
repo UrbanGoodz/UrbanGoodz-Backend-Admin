@@ -103,31 +103,40 @@
                 </div>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.load-board.index') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Logistics Jobs') }}</h6>
                         <h3>{{ $counts['logistics_jobs'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-warning">{{ translate('Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.load-board.index') }}" style="text-decoration:none;color:inherit;">
+                    <div class="card-body">
+                        <h6>{{ translate('Load Board') }}</h6>
+                        <h3>{{ \App\Models\UrbanGoodzLoadBoardLoad::count() }}</h3>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.medical-courier.index') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Medical Courier Jobs') }}</h6>
                         <h3>{{ $counts['medical_courier_jobs'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-warning">{{ translate('Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.section', 'events') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Events') }}</h6>
                         <h3>{{ $counts['events'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-warning">{{ translate('Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-info">{{ translate('DB-Backed') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
                 <div class="card h-100">
