@@ -75,7 +75,7 @@ class ServiceBookingCustomerController extends Controller
     {
         abort_unless((int)$booking->user_id===(int)$request->user()->id,404);
         abort_unless($booking->status==='accepted',409,'Provider acceptance is required.');
-        abort_unless($booking->payment_status==='paid' || $booking->payment_status==='not_required',409,'Required sandbox payment has not been accepted.');
+        abort_unless($booking->payment_status==='paid' || $booking->payment_status==='not_required',409,'Required payment has not been accepted.');
         return response()->json(['data'=>$workflow->transition($booking,'confirmed','customer',$request->user()->id)]);
     }
 
@@ -93,13 +93,14 @@ class ServiceBookingCustomerController extends Controller
         $data=$request->validate(['payment_token'=>'required|string|max:500','idempotency_key'=>'required|string|max:100']);
         $existing=UrbanGoodzPaymentTransaction::where('idempotency_key',$data['idempotency_key'])->where('payable_type',UrbanGoodzServiceRequest::class)->where('payable_id',$booking->id)->first();
         if($existing && $existing->internal_status==='succeeded'){ return response()->json(['message'=>'Payment already accepted.','payment_status'=>'paid']); }
-        try { $result=$gateway->chargeSandbox($booking,$data['payment_token'],$data['idempotency_key']); }
-        catch(Throwable $e){ report(new \RuntimeException('Service booking sandbox payment failed.')); return response()->json(['message'=>'Sandbox payment was not accepted.','code'=>'sandbox_payment_failed'],502); }
-        DB::transaction(function()use($booking,$data,$result){
-            UrbanGoodzPaymentTransaction::updateOrCreate(['idempotency_key'=>$data['idempotency_key']],['payable_type'=>UrbanGoodzServiceRequest::class,'payable_id'=>$booking->id,'provider'=>'configured_sandbox','environment'=>'sandbox','transaction_type'=>'deposit','internal_status'=>'succeeded','provider_status'=>$result['status'],'amount_minor'=>$booking->deposit_amount_minor?:$booking->quoted_amount_minor,'currency'=>$booking->currency,'provider_payment_id'=>$result['id'],'processed_at'=>now()]);
+        try { $result=$gateway->charge($booking,$data['payment_token'],$data['idempotency_key']); }
+        catch(Throwable $e){ report(new \RuntimeException('Service booking payment failed: '.$e->getMessage())); return response()->json(['message'=>'Payment was not accepted.','code'=>'payment_failed'],502); }
+        $isSandbox = config('service_bookings.payment.sandbox', true);
+        DB::transaction(function()use($booking,$data,$result,$isSandbox){
+            UrbanGoodzPaymentTransaction::updateOrCreate(['idempotency_key'=>$data['idempotency_key']],['payable_type'=>UrbanGoodzServiceRequest::class,'payable_id'=>$booking->id,'provider'=>'stripe','environment'=>$isSandbox?'sandbox':'live','transaction_type'=>'deposit','internal_status'=>'succeeded','provider_status'=>$result['status'],'amount_minor'=>$booking->deposit_amount_minor?:$booking->quoted_amount_minor,'currency'=>$booking->currency,'provider_payment_id'=>$result['id'],'processed_at'=>now()]);
             $booking->update(['payment_status'=>'paid']);
         });
-        return response()->json(['message'=>'Sandbox payment accepted.','payment_status'=>'paid']);
+        return response()->json(['message'=>'Payment accepted.','payment_status'=>'paid']);
     }
 
     public function cancel(Request $request, UrbanGoodzServiceRequest $booking, ServiceBookingWorkflow $workflow)

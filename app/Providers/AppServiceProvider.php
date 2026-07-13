@@ -25,7 +25,13 @@ class AppServiceProvider extends ServiceProvider
         );
         $this->app->bind(
             \App\Contracts\ServiceBookingPaymentGateway::class,
-            \App\Services\ServiceBookings\HttpSandboxServiceBookingPaymentGateway::class,
+            function () {
+                $provider = config('service_bookings.payment.provider', 'stripe');
+                if ($provider === 'stripe') {
+                    return new \App\Services\ServiceBookings\StripeServiceBookingPaymentGateway();
+                }
+                return new \App\Services\ServiceBookings\HttpSandboxServiceBookingPaymentGateway();
+            },
         );
     }
 

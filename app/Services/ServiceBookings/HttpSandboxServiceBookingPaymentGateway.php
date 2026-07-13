@@ -9,7 +9,7 @@ use RuntimeException;
 
 class HttpSandboxServiceBookingPaymentGateway implements ServiceBookingPaymentGateway
 {
-    public function chargeSandbox(UrbanGoodzServiceRequest $booking, string $paymentToken, string $idempotencyKey): array
+    public function charge(UrbanGoodzServiceRequest $booking, string $paymentToken, string $idempotencyKey): array
     {
         $endpoint = config('service_bookings.payment.endpoint');
         $key = config('service_bookings.payment.secret');
