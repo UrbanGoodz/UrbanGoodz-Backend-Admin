@@ -19,6 +19,9 @@ class DatabaseSeeder extends Seeder
             MeasurementRequestSeeder::class,
             UrbanGoodzBusinessTypeSeeder::class,
             UrbanGoodzAIIntentSeeder::class,
+            UrbanGoodzLoadBoardSeeder::class,
+            UrbanGoodzPermissionRoleSeeder::class,
+            UrbanGoodzIngestionSeeder::class,
         ]);
     }
 }
