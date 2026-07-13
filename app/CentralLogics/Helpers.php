@@ -2619,6 +2619,12 @@ class Helpers
 
     public static function module_permission_check($mod_name)
     {
+        // The primary administrator is authoritative even when a legacy or
+        // partially restored database has no matching admin_roles record.
+        if (auth('admin')->user()->role_id == 1) {
+            return true;
+        }
+
         if (!auth('admin')->user()->role) {
             return false;
         }
@@ -2632,9 +2638,6 @@ class Helpers
             return true;
         }
 
-        if (auth('admin')->user()->role_id == 1) {
-            return true;
-        }
         return false;
     }
 
