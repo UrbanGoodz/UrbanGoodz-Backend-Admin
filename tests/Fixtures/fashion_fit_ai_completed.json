@@ -1,0 +1,12 @@
+{
+  "status": "completed",
+  "model": "contract-test-model",
+  "model_version": "2026-07",
+  "overall_confidence": 0.91,
+  "measurements": [
+    {"name": "shoulder_width", "value": 17.25, "unit": "in", "confidence": 0.93, "requires_confirmation": false},
+    {"name": "chest_bust", "value": 40.1, "unit": "in", "confidence": 0.89, "requires_confirmation": false},
+    {"name": "inseam", "value": 31.75, "unit": "in", "confidence": 0.78, "requires_confirmation": true}
+  ],
+  "retake_requirements": []
+}
