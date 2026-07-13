@@ -19,7 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->app->bind(
+            \App\Contracts\FashionFitMeasurementProvider::class,
+            \App\Services\FashionFit\HttpFashionFitMeasurementProvider::class,
+        );
     }
 
     /**

@@ -30,7 +30,6 @@ class FashionFitFileController extends Controller
             metadata: [
                 'measurement_profile_id' => $ownerId,
                 'height_ref' => $data['height_ref'] ?? null,
-                'client_ip' => $request->ip(),
             ],
         );
 
@@ -40,17 +39,15 @@ class FashionFitFileController extends Controller
             'data' => [
                 'id' => $file->id,
                 'user_id' => $uploadedBy,
-                'photo_url' => $storage->temporaryUrl($file),
                 'orientation' => $data['category'],
                 'height_ref' => $data['height_ref'] ?? null,
                 'uploaded_at' => $file->created_at?->toIso8601String(),
                 'status' => 'uploaded',
                 'file_id' => $file->id,
                 'category' => $data['category'],
-                'stored_path' => $file->stored_path,
                 'file_size' => $file->file_size,
                 'mime_type' => $file->mime_type,
-                'url' => $storage->temporaryUrl($file),
+                'visibility' => 'customer_private',
             ],
         ], 201);
     }

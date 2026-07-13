@@ -31,7 +31,7 @@ class UrbanGoodzFileStorageService
 
         $directory = "urban_goodz/fashion_fit/measurement_profiles/{$userId}/{$category}";
 
-        $storedPath = $file->storeAs($directory, $filename, 'public');
+        $storedPath = $file->storeAs($directory, $filename, 'local');
 
         abort_if($storedPath === false, 500, 'Failed to store file.');
 
@@ -41,7 +41,7 @@ class UrbanGoodzFileStorageService
             'file_category' => "fashion_fit_photo_{$category}",
             'original_name' => $file->getClientOriginalName(),
             'stored_path' => $storedPath,
-            'disk' => 'public',
+            'disk' => 'local',
             'mime_type' => $file->getMimeType(),
             'file_size' => $file->getSize(),
             'metadata' => array_merge($metadata, [
