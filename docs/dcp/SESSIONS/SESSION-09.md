@@ -66,12 +66,45 @@
 - Commit: `e1186a2` — `fix(payments): harden webhooks and order ownership`
 - Push: SUCCESS to `origin/adminpanel-v39-backend-sprint`.
 
+## Milestone 2: Wallets, Earnings, Refunds, Withdrawals, and Reconciliation
+
+### Completed
+
+- Proved settlement credits vendor wallet, driver wallet/earning, and platform admin wallet exactly once.
+- Removed double counting of Order Anywhere splits from driver all-time earnings.
+- Added recipient-level refund reversal splits with vendor-first, then driver, then platform allocation.
+- Added driver negative earning entries for settled refund reversals.
+- Proved a full $50.00 refund returns vendor, driver, and platform wallet deltas to zero.
+- Proved capture splits ($50.00), reversal splits ($50.00), and net ledger ($0.00) reconcile.
+- Made vendor withdrawal validation numeric and method-aware.
+- Locked vendor wallets during withdrawal reservation and cancellation.
+- Rejected insufficient balances without adding a second withdrawal or changing reserved funds.
+- Scoped withdrawal cancellation to the authenticated vendor.
+- Proved driver earnings exclude another driver's records.
+- Proved another business's invoice returns 404.
+
+### Focused Evidence
+
+- Focused money/ownership suites: PASS, 21 tests / 87 assertions.
+- PHP syntax checks on all changed files: PASS.
+- `git diff --check`: PASS.
+
+### Files Changed
+
+- `app/Http/Controllers/Api/UrbanGoodzDriverApiController.php`
+- `app/Http/Controllers/Vendor/WalletController.php`
+- `app/Services/UrbanGoodzPaymentService.php`
+- `tests/Feature/UrbanGoodzBusinessInvoiceOwnershipTest.php`
+- `tests/Feature/UrbanGoodzPaymentAuditTest.php`
+- `tests/Feature/UrbanGoodzWithdrawalSecurityTest.php`
+
+### Commit and Push
+
+- Commit: `60a85ac` — `fix(money): reconcile refunds and secure withdrawals`
+- Push: SUCCESS to `origin/adminpanel-v39-backend-sprint`.
+
 ## Remaining Session 9 P0 Work
 
-- Vendor wallet, driver earnings, and platform fee settlement proof.
-- Refund/reversal and ledger reconciliation proof.
-- Withdrawal validation, insufficient-balance rejection, and actor ownership proof.
-- Business invoice ownership proof.
 - SMTP, customer/vendor/driver Firebase dispatch, persistence, queue, scheduler, retry, and failure logging proof.
 - Final focused suites and full regression suite.
 
@@ -84,6 +117,6 @@
 ```powershell
 cd "C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39"
 git status --short --branch
-rg -n "settleSplits|refundOrderAnywhere|requestPayout|withdraw" app tests routes
-php artisan test tests/Feature/UrbanGoodzPaymentAuditTest.php
+rg -n "send_push|firebase|notification|retry|failed_jobs|schedule" app routes tests
+php artisan test tests/Unit/MailRuntimeConfigurationTest.php tests/Unit/SmtpSecuritySourceTest.php
 ```
