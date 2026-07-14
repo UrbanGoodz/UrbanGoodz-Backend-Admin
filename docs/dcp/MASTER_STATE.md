@@ -130,7 +130,7 @@
 | 7 | 2026-07-12 | Mock APIs wired, Community/ActivityLog/6 model UIs, relationships | `9d8e16f` |
 | 8 | 2026-07-14 | DB fixes, security patches, 100% tests passing, FCM service worker | `0ba06f2`..`c0052bb` |
 | 9 | 2026-07-14 | Money, webhook idempotency, reconciliation, ownership, SMTP, queued Firebase proof | `e1186a2`..`d38dd88` |
-| 9A | 2026-07-14 | Driver registration unblock, purchase-card contract, guard standardization | `<source-sha>`..`<dcp-sha>` |
+| 9A | 2026-07-14 | Driver registration unblock, purchase-card contract, guard standardization | `0493c2f` |
 
 ## Key URLs
 - **Backend:** https://admin.urbangoodzdelivery.com
