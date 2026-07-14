@@ -117,7 +117,9 @@ class ServiceBookingContractTest extends TestCase
         $this->assertStringContainsString('(int)$booking->provider_id===(int)$provider->id',$vendor);
         $this->assertStringContainsString('Illegal service booking transition',$workflow);
         $this->assertStringContainsString('platform_fee_percent',$workflow);
-        $this->assertStringContainsString('UserNotification::create',$workflow);
+        $this->assertStringContainsString('UrbanGoodzNotificationService',$workflow);
+        $this->assertStringContainsString('notifyCustomer',$workflow);
+        $this->assertStringContainsString('notifyVendor',$workflow);
     }
 
     public function test_all_required_categories_are_configured(): void

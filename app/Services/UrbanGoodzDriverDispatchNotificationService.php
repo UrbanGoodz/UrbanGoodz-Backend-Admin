@@ -9,6 +9,10 @@ use App\Models\UrbanGoodzDedicatedRoute;
 
 class UrbanGoodzDriverDispatchNotificationService
 {
+    public function __construct(private UrbanGoodzNotificationService $notifications)
+    {
+    }
+
     private const ALLOWED_PAYLOAD_KEYS = [
         'type',
         'title',
@@ -56,10 +60,12 @@ class UrbanGoodzDriverDispatchNotificationService
             return null;
         }
 
-        return UserNotification::create([
-            'delivery_man_id' => $deliveryManId,
-            'data' => json_encode($clean),
-        ]);
+        return $this->notifications->notifyDriver(
+            $deliveryManId,
+            $title,
+            $description,
+            $clean
+        );
     }
 
     private function allowlist(array $payload): array

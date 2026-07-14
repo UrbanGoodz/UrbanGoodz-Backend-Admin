@@ -5,11 +5,15 @@ namespace App\Services\ServiceBookings;
 use App\Models\UrbanGoodzServiceBookingEvent;
 use App\Models\UrbanGoodzServiceProviderEarning;
 use App\Models\UrbanGoodzServiceRequest;
-use App\Models\UserNotification;
+use App\Services\UrbanGoodzNotificationService;
 use Illuminate\Support\Facades\DB;
 
 class ServiceBookingWorkflow
 {
+    public function __construct(private UrbanGoodzNotificationService $notifications)
+    {
+    }
+
     private const TRANSITIONS = [
         'requested' => ['quoted','accepted','declined','canceled'],
         'quoted' => ['accepted','declined','canceled'],
@@ -50,7 +54,8 @@ class ServiceBookingWorkflow
 
     private function notify(UrbanGoodzServiceRequest $booking, string $status): void
     {
-        UserNotification::create(['user_id'=>$booking->user_id,'title'=>'Service booking updated','description'=>'Your service booking is now '.$status.'.','data'=>json_encode(['type'=>'service_booking','booking_id'=>$booking->id,'status'=>$status])]);
-        UserNotification::create(['vendor_id'=>$booking->assigned_vendor_id,'title'=>'Service booking updated','description'=>'A service booking is now '.$status.'.','data'=>json_encode(['type'=>'service_booking','booking_id'=>$booking->id,'status'=>$status])]);
+        $payload = ['type'=>'service_booking','booking_id'=>$booking->id,'status'=>$status];
+        $this->notifications->notifyCustomer((int) $booking->user_id, 'Service booking updated', 'Your service booking is now '.$status.'.', $payload);
+        $this->notifications->notifyVendor((int) $booking->assigned_vendor_id, 'Service booking updated', 'A service booking is now '.$status.'.', $payload);
     }
 }

@@ -40,9 +40,10 @@ class UrbanGoodzDriverDispatchNotificationProducerTest extends TestCase
     {
         $service = $this->serviceSource();
 
-        $this->assertStringContainsString('UserNotification::create', $service);
+        $this->assertStringContainsString('UrbanGoodzNotificationService', $service);
+        $this->assertStringContainsString('notifyDriver(', $service);
         $this->assertStringContainsString('ALLOWED_PAYLOAD_KEYS', $service);
-        $this->assertStringContainsString("'delivery_man_id' => \$deliveryManId", $service);
+        $this->assertStringContainsString('$deliveryManId', $service);
     }
 
     public function test_service_never_includes_sensitive_fields(): void

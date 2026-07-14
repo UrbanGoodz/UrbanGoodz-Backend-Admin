@@ -28,6 +28,7 @@ use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -101,6 +102,29 @@ return Application::configure(basePath: dirname(__DIR__))
             'dispatcher' => \App\Http\Middleware\DispatcherMiddleware::class,
             'dispatch-territory' => \App\Http\Middleware\DispatchTerritoryScope::class,
         ]);
+    })
+
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('ai-copilot:generate', ['--notify'])
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command('sync-load-board')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn () => config('urban_goodz_load_board.sync.enabled', true));
+
+        $schedule->command('queue:work', [
+            '--queue' => 'notifications',
+            '--stop-when-empty' => true,
+            '--tries' => 3,
+            '--backoff' => 30,
+        ])
+            ->everyMinute()
+            ->withoutOverlapping(5)
+            ->runInBackground();
     })
 
     ->withExceptions(function (Exceptions $exceptions) {

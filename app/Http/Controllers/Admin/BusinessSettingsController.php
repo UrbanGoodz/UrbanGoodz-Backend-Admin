@@ -2401,7 +2401,7 @@ class BusinessSettingsController extends Controller
             return response()->json([
                 'accepted' => true,
                 'stage' => 'provider_acceptance',
-                'message_id' => method_exists($sent, 'getMessageId') ? $sent->getMessageId() : null,
+                'message_id' => $sent && method_exists($sent, 'getMessageId') ? $sent->getMessageId() : null,
             ]);
         } catch (\Throwable $exception) {
             $category = $mailRuntime->classify($exception);
