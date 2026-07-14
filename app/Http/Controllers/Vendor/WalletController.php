@@ -39,7 +39,12 @@ class WalletController extends Controller
     }
     public function w_request(Request $request)
     {
-        $method = WithdrawalMethod::find($request['withdraw_method']);
+        $validated = $request->validate([
+            'withdraw_method' => ['required', 'integer', 'exists:withdrawal_methods,id'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $method = WithdrawalMethod::ofStatus(1)->findOrFail($validated['withdraw_method']);
         $fields = array_column($method->method_fields, 'input_name');
         $values = $request->all();
 
@@ -50,28 +55,38 @@ class WalletController extends Controller
             }
         }
 
-        $w = StoreWallet::where('vendor_id', Helpers::get_vendor_id())->first();
-        if ((string) $w->balance >=  (string)$request['amount'] && (string)$request['amount'] > .01) {
-            $data = [
-                'vendor_id' => Helpers::get_vendor_id(),
-                'amount' => $request['amount'],
+        $vendorId = Helpers::get_vendor_id();
+        $amount = round((float) $validated['amount'], 2);
+
+        $walletTransaction = DB::transaction(function () use ($vendorId, $amount, $method, $method_data) {
+            $wallet = StoreWallet::where('vendor_id', $vendorId)->lockForUpdate()->first();
+
+            if (! $wallet || $amount > (float) $wallet->balance) {
+                return null;
+            }
+
+            $withdrawRequest = WithdrawRequest::create([
+                'vendor_id' => $vendorId,
+                'amount' => $amount,
                 'transaction_note' => null,
-                'withdrawal_method_id' => $request['withdraw_method'],
+                'withdrawal_method_id' => $method->id,
                 'withdrawal_method_fields' => json_encode($method_data),
                 'approved' => 0,
-                'created_at' => now(),
-                'updated_at' => now()
-            ];
-            DB::table('withdraw_requests')->insert($data);
-            StoreWallet::where('vendor_id', Helpers::get_vendor_id())->increment('pending_withdraw', $request['amount']);
+            ]);
+
+            $wallet->increment('pending_withdraw', $amount);
+
+            return $withdrawRequest;
+        });
+
+        if ($walletTransaction) {
             try
             {
                 $admin= Admin::where('role_id', 1)->first();
-                $wallet_transaction = WithdrawRequest::where('vendor_id',Helpers::get_vendor_id())->latest()->first();
                 if( Helpers::get_store_data()?->module?->module_type !== 'rental' && config('mail.status') && Helpers::get_mail_status('withdraw_request_mail_status_admin') == '1' &&   Helpers::getNotificationStatusData('admin','withdraw_request','mail_status')) {
-                    Mail::to($admin?->getRawOriginal('email'))->send(new WithdrawRequestMail('pending',$wallet_transaction));
+                    Mail::to($admin?->getRawOriginal('email'))->send(new WithdrawRequestMail('pending',$walletTransaction));
                 } elseif(Helpers::get_store_data()?->module?->module_type == 'rental' && addon_published_status('Rental') && config('mail.status') && Helpers::get_mail_status('rental_withdraw_request_mail_status_admin') == '1' &&   Helpers::getRentalNotificationStatusData('admin','provider_withdraw_request','mail_status') ){
-                    Mail::to($admin?->getRawOriginal('email'))->send(new ProviderWithdrawRequestMail('pending',$wallet_transaction));
+                    Mail::to($admin?->getRawOriginal('email'))->send(new ProviderWithdrawRequestMail('pending',$walletTransaction));
                  }
             }
             catch(\Exception $e)
@@ -82,17 +97,35 @@ class WalletController extends Controller
             return redirect()->back();
         }
 
-        Toastr::error('invalid request.!');
-        return redirect()->back();
+        Toastr::error('Insufficient available wallet balance.');
+        return redirect()->back()->withErrors([
+            'amount' => 'Requested amount exceeds the available wallet balance.',
+        ]);
     }
 
     public function close_request($id)
     {
-        $wr = WithdrawRequest::find($id);
-        if ($wr->approved == 0) {
-            StoreWallet::where('vendor_id', Helpers::get_vendor_id())->decrement('pending_withdraw', $wr['amount']);
-        }
-        $wr->delete();
+        $vendorId = Helpers::get_vendor_id();
+
+        DB::transaction(function () use ($id, $vendorId) {
+            $withdrawRequest = WithdrawRequest::where('vendor_id', $vendorId)
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($withdrawRequest->approved == 0) {
+                $wallet = StoreWallet::where('vendor_id', $vendorId)->lockForUpdate()->first();
+                if ($wallet) {
+                    $wallet->pending_withdraw = max(
+                        (float) $wallet->pending_withdraw - (float) $withdrawRequest->amount,
+                        0
+                    );
+                    $wallet->save();
+                }
+            }
+
+            $withdrawRequest->delete();
+        });
+
         Toastr::success('request closed!');
         return back();
     }

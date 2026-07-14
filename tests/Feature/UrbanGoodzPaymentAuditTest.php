@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Admin;
+use App\Models\AdminWallet;
 use App\Models\DeliveryMan;
 use App\Models\DeliveryManWallet;
 use App\Models\OrderAnywhereRequest;
@@ -369,6 +370,10 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         ]);
 
         $vendorWallet = StoreWallet::where('vendor_id', $this->vendor->id)->first();
+        $driverWallet = DeliveryManWallet::where('delivery_man_id', $this->driver->id)->first();
+        $platformAdmin = Admin::where('role_id', 1)->firstOrFail();
+        $adminWallet = AdminWallet::firstOrCreate(['admin_id' => $platformAdmin->id]);
+        $adminCommissionBefore = (float) $adminWallet->total_commission_earning;
         $this->assertEquals(0.00, $vendorWallet->total_earning);
 
         // Transition to completed -> should trigger settleSplits()
@@ -377,13 +382,131 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $request->transitionTo('completed');
 
         $vendorWallet->refresh();
+        $driverWallet->refresh();
+        $adminWallet->refresh();
         $this->assertEquals(35.00, $vendorWallet->total_earning);
+        $this->assertEquals(10.00, $driverWallet->total_earning);
+        $this->assertEquals($adminCommissionBefore + 5.00, (float) $adminWallet->total_commission_earning);
+        $this->assertSame(1, UrbanGoodzDriverEarning::where('delivery_man_id', $this->driver->id)
+            ->where('description', "Order Anywhere Delivery - Req #{$request->request_number}")
+            ->count());
+
+        $releasedTotal = UrbanGoodzPaymentSplit::where('payable_id', $request->id)
+            ->where('status', 'released')
+            ->whereIn('split_type', ['platform_fee', 'vendor_earning', 'driver_earning'])
+            ->sum('amount');
+        $this->assertEquals(50.00, $releasedTotal);
 
         // Trigger manual settleSplits to test double-credit prevention
         $this->paymentService->settleSplits($request);
 
         $vendorWallet->refresh();
+        $driverWallet->refresh();
+        $adminWallet->refresh();
         $this->assertEquals(35.00, $vendorWallet->total_earning); // Remains 35.00! No double credit.
+        $this->assertEquals(10.00, $driverWallet->total_earning);
+        $this->assertEquals($adminCommissionBefore + 5.00, (float) $adminWallet->total_commission_earning);
+    }
+
+    public function test_full_refund_reverses_all_wallets_and_reconciles_ledger(): void
+    {
+        $request = OrderAnywhereRequest::create([
+            'request_number' => 'OA-FULL-REFUND-SESSION-9',
+            'customer_id' => 1,
+            'vendor_id' => $this->vendor->id,
+            'assigned_delivery_man_id' => $this->driver->id,
+            'status' => 'shopping',
+            'quote_amount' => 50.00,
+            'payment_status' => 'authorized',
+        ]);
+        $platformAdmin = Admin::where('role_id', 1)->firstOrFail();
+        $adminWallet = AdminWallet::firstOrCreate(['admin_id' => $platformAdmin->id]);
+        $adminCommissionBefore = (float) $adminWallet->total_commission_earning;
+
+        $this->paymentService->captureOrderAnywhere($request, [
+            'captured_amount' => 50.00,
+            'platform_fee' => 5.00,
+            'driver_amount' => 10.00,
+            'vendor_amount' => 35.00,
+            'source' => 'manual',
+        ]);
+        $request->transitionTo('picked_up');
+        $request->transitionTo('out_for_delivery');
+        $request->transitionTo('completed');
+
+        $this->paymentService->refundOrderAnywhere($request->fresh(), [
+            'refund_amount' => 50.00,
+            'reason' => 'Full test reversal',
+        ]);
+
+        $this->assertEquals(0.00, StoreWallet::where('vendor_id', $this->vendor->id)->value('total_earning'));
+        $this->assertEquals(0.00, DeliveryManWallet::where('delivery_man_id', $this->driver->id)->value('total_earning'));
+        $this->assertEquals($adminCommissionBefore, (float) $adminWallet->fresh()->total_commission_earning);
+
+        $captureTotal = UrbanGoodzPaymentSplit::where('payable_id', $request->id)
+            ->whereIn('split_type', ['platform_fee', 'vendor_earning', 'driver_earning'])
+            ->sum('amount');
+        $reversalTotal = UrbanGoodzPaymentSplit::where('payable_id', $request->id)
+            ->whereIn('split_type', [
+                'vendor_refund_reversal',
+                'driver_refund_reversal',
+                'platform_refund_reversal',
+            ])
+            ->sum('amount');
+        $ledgerBalance = UrbanGoodzPaymentLedger::where('payable_id', $request->id)
+            ->selectRaw("SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END) AS balance")
+            ->value('balance');
+
+        $this->assertEquals(50.00, $captureTotal);
+        $this->assertEquals(50.00, $reversalTotal);
+        $this->assertEquals(0.00, $ledgerBalance);
+        $this->assertSame('refunded', $request->fresh()->payment_status);
+    }
+
+    public function test_driver_earnings_are_owner_scoped_and_not_double_counted(): void
+    {
+        $otherDriver = DeliveryMan::firstOrCreate(
+            ['phone' => '9998887766'],
+            [
+                'f_name' => 'Other',
+                'l_name' => 'Driver',
+                'email' => 'other-driver-session9@urbangoodz.test',
+                'password' => bcrypt('password'),
+                'active' => 1,
+                'application_status' => 'approved',
+                'zone_id' => $this->driver->zone_id,
+            ]
+        );
+        $this->driver->update(['auth_token' => 'driver-session-9-owner-token']);
+
+        UrbanGoodzDriverEarning::create([
+            'delivery_man_id' => $this->driver->id,
+            'earning_type' => 'per_package',
+            'amount' => 12.00,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'description' => 'Session 9 owner earning',
+        ]);
+        UrbanGoodzDriverEarning::create([
+            'delivery_man_id' => $otherDriver->id,
+            'earning_type' => 'per_package',
+            'amount' => 99.00,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'description' => 'Session 9 other driver earning',
+        ]);
+
+        $response = $this->getJson('/api/v1/urban-goodz/driver/earnings?token=driver-session-9-owner-token')
+            ->assertOk();
+
+        $this->assertSame(
+            (float) $response->json('totals.total'),
+            (float) $response->json('all_time_total')
+        );
+        $this->assertNotContains(
+            $otherDriver->id,
+            collect($response->json('earnings'))->pluck('delivery_man_id')->all()
+        );
     }
 
     public function test_refund_before_settlement(): void

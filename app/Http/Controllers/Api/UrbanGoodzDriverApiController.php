@@ -499,18 +499,30 @@ class UrbanGoodzDriverApiController extends Controller
         $orderAnywhereSplits = UrbanGoodzPaymentSplit::where('recipient_type', 'driver')
             ->where('recipient_id', $driver->id)
             ->where('feature', 'order_anywhere')
+            ->where('status', 'released')
+            ->where('split_type', 'driver_earning')
             ->latest()
             ->get();
 
         $orderAnywhereTotal = $orderAnywhereSplits->sum('amount');
+        $orderAnywhereReversals = UrbanGoodzPaymentSplit::where('recipient_type', 'driver')
+            ->where('recipient_id', $driver->id)
+            ->where('feature', 'order_anywhere')
+            ->where('status', 'reversed')
+            ->where('split_type', 'driver_refund_reversal')
+            ->sum('amount');
+        $orderAnywhereTotal = max($orderAnywhereTotal - $orderAnywhereReversals, 0);
 
-        $allTimeTotal = $totals['total'] + $orderAnywhereTotal;
+        // Order Anywhere settlement creates an UrbanGoodzDriverEarning record,
+        // so adding released splits again would double-count the same money.
+        $allTimeTotal = $totals['total'];
 
         return response()->json([
             'earnings' => $earnings->items(),
             'totals' => $totals,
             'order_anywhere' => [
                 'total' => $orderAnywhereTotal,
+                'reversal_total' => $orderAnywhereReversals,
                 'splits' => $orderAnywhereSplits->toArray(),
             ],
             'all_time_total' => $allTimeTotal,

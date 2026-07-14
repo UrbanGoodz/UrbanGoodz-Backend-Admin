@@ -442,18 +442,7 @@ class UrbanGoodzPaymentService
             ]);
 
             $this->reversalSplits($ledger, $request, $amount);
-
-            $releasedVendorSplit = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
-                ->where('payable_id', $request->id)
-                ->where('recipient_type', 'vendor')
-                ->where('status', 'released')
-                ->first();
-            if ($releasedVendorSplit) {
-                $vendorWallet = \App\Models\StoreWallet::where('vendor_id', $releasedVendorSplit->recipient_id)->first();
-                if ($vendorWallet) {
-                    $vendorWallet->decrement('total_earning', $amount);
-                }
-            }
+            $this->applyReleasedReversals($ledger, $request);
 
             $request->logPaymentEvent('refund', $amount, $request->refund_reference, [
                 'reason' => $data['reason'] ?? null,
@@ -580,10 +569,13 @@ class UrbanGoodzPaymentService
                     continue;
                 }
 
-                $finalAmount = $amount;
-                if ($split->recipient_type === 'vendor' && $request->refunded_amount > 0) {
-                    $finalAmount = max($amount - (float) $request->refunded_amount, 0);
-                }
+                $reversedAmount = (float) UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                    ->where('payable_id', $request->id)
+                    ->where('recipient_type', $split->recipient_type)
+                    ->where('recipient_id', $split->recipient_id)
+                    ->where('split_type', "{$split->recipient_type}_refund_reversal")
+                    ->sum('amount');
+                $finalAmount = max($amount - $reversedAmount, 0);
 
                 if ($finalAmount <= 0) {
                     $split->update(['status' => 'cancelled']);
@@ -627,8 +619,11 @@ class UrbanGoodzPaymentService
                 }
 
                 $split->update([
-                    'amount' => $finalAmount,
                     'status' => 'released',
+                    'metadata' => array_merge($split->metadata ?? [], [
+                        'released_amount' => $finalAmount,
+                        'reversed_amount' => $reversedAmount,
+                    ]),
                 ]);
             }
         });
@@ -695,6 +690,102 @@ class UrbanGoodzPaymentService
     private function reversalSplits(UrbanGoodzPaymentLedger $ledger, OrderAnywhereRequest $request, float $amount): void
     {
         $this->split($ledger, $request, 'customer', $request->customer_id, 'refund', $amount, 'reversed');
+
+        $remaining = $amount;
+        $priority = ['vendor' => 0, 'driver' => 1, 'platform' => 2];
+        $originalSplits = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+            ->where('payable_id', $request->id)
+            ->whereIn('split_type', ['vendor_earning', 'driver_earning', 'platform_fee'])
+            ->get()
+            ->sortBy(fn (UrbanGoodzPaymentSplit $split) => $priority[$split->recipient_type] ?? 99);
+
+        foreach ($originalSplits as $originalSplit) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $alreadyReversed = (float) UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $request->id)
+                ->where('recipient_type', $originalSplit->recipient_type)
+                ->where('recipient_id', $originalSplit->recipient_id)
+                ->where('split_type', "{$originalSplit->recipient_type}_refund_reversal")
+                ->sum('amount');
+            $available = max((float) $originalSplit->amount - $alreadyReversed, 0);
+            $allocation = min($available, $remaining);
+
+            if ($allocation <= 0) {
+                continue;
+            }
+
+            $this->split(
+                $ledger,
+                $request,
+                $originalSplit->recipient_type,
+                $originalSplit->recipient_id,
+                "{$originalSplit->recipient_type}_refund_reversal",
+                $allocation,
+                'reversed'
+            );
+            $remaining -= $allocation;
+        }
+
+        if ($remaining > 0.01) {
+            throw new \LogicException('Refund reversal allocations do not reconcile to the refund amount.');
+        }
+    }
+
+    private function applyReleasedReversals(UrbanGoodzPaymentLedger $ledger, OrderAnywhereRequest $request): void
+    {
+        $reversals = UrbanGoodzPaymentSplit::where('ledger_id', $ledger->id)
+            ->whereIn('split_type', [
+                'vendor_refund_reversal',
+                'driver_refund_reversal',
+                'platform_refund_reversal',
+            ])
+            ->get();
+
+        foreach ($reversals as $reversal) {
+            $wasReleased = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $request->id)
+                ->where('recipient_type', $reversal->recipient_type)
+                ->where('recipient_id', $reversal->recipient_id)
+                ->whereIn('split_type', ['vendor_earning', 'driver_earning', 'platform_fee'])
+                ->where('status', 'released')
+                ->exists();
+
+            if (! $wasReleased) {
+                continue;
+            }
+
+            $amount = (float) $reversal->amount;
+
+            if ($reversal->recipient_type === 'vendor' && $reversal->recipient_id) {
+                \App\Models\StoreWallet::where('vendor_id', $reversal->recipient_id)
+                    ->decrement('total_earning', $amount);
+            } elseif ($reversal->recipient_type === 'driver' && $reversal->recipient_id) {
+                \App\Models\DeliveryManWallet::where('delivery_man_id', $reversal->recipient_id)
+                    ->decrement('total_earning', $amount);
+
+                \App\Models\UrbanGoodzDriverEarning::firstOrCreate(
+                    [
+                        'delivery_man_id' => $reversal->recipient_id,
+                        'earning_type' => 'refund_reversal',
+                        'amount' => -$amount,
+                        'description' => "Order Anywhere Refund Reversal - Req #{$request->request_number} - Ledger #{$ledger->id}",
+                    ],
+                    [
+                        'currency' => $reversal->currency ?? 'USD',
+                        'status' => 'pending',
+                    ]
+                );
+            } elseif ($reversal->recipient_type === 'platform') {
+                $admin = \App\Models\Admin::where('role_id', 1)->first();
+                if ($admin) {
+                    \App\Models\AdminWallet::where('admin_id', $admin->id)
+                        ->decrement('total_commission_earning', $amount);
+                }
+            }
+        }
     }
 
     private function split(UrbanGoodzPaymentLedger $ledger, OrderAnywhereRequest $request, string $recipientType, ?int $recipientId, string $splitType, float $amount, string $status = 'pending'): void
