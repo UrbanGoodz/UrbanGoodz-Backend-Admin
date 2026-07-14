@@ -1,10 +1,10 @@
 # Urban Goodz -- Master State
 
-**Last updated:** 2026-07-14 | **Branch:** `adminpanel-v39-backend-sprint` | **Latest commit:** `f026801`
+**Last updated:** 2026-07-14 | **Branch:** `adminpanel-v39-backend-sprint` | **Latest checkpoint:** `d38dd88` | **Latest implementation:** `f026801`
 
 ---
 
-## Completion: 98%
+## Completion: 99%
 
 | Area | Status | % | Notes |
 |------|--------|---|-------|
@@ -14,7 +14,7 @@
 | Business Portal (51 routes, 28 views) | FUNCTIONAL | 85 | Permission guards added |
 | Customer API (390 routes) | FUNCTIONAL | 90 | |
 | Driver API (122 routes) | FUNCTIONAL | 85 | |
-| Payment (Stripe, PayPal, Bkash, staged_test) | FUNCTIONAL | 90 | Adyen stub removed |
+| Payment (Stripe, PayPal, Bkash, staged_test) | FUNCTIONAL | 98 | Sandbox lifecycle, webhook idempotency, settlement and refunds proven |
 | Order Anywhere (69-col model, 13 admin, 18 API) | COMPLETE | 95 | Real DB, Stripe/Adyen coded |
 | AI Ops Copilot (accept/rollback/cron/notifications) | COMPLETE | 95 | Risk-rule CRUD added |
 | AI Concierge (NLU + API + admin CRUD) | COMPLETE | 90 | View bugs fixed |
@@ -31,7 +31,7 @@
 | Sidebar | COMPLETE | 100 | Dynamic module visibility + badges |
 | Branding (6amMart -> Urban Goodz) | COMPLETE | 98 | |
 | TOTP/2FA | COMPLETE | 100 | |
-| Tests (139 pass / 0 fail) | COMPLETE | 100 | All tests pass, local DB config resolved |
+| Tests (153 pass / 0 fail) | COMPLETE | 100 | 568 assertions; money, ownership, SMTP and queued FCM proof added |
 | Mobile Apps (separate repos) | FUNCTIONAL | 85 | Driver+Vendor pushed with CI/CD |
 
 ## Model Completeness (62 models)
@@ -129,7 +129,7 @@
 | 6 | 2026-07-12 | Other session: Load Board adapters, Medical Courier, Sidebar | `bae50f6` |
 | 7 | 2026-07-12 | Mock APIs wired, Community/ActivityLog/6 model UIs, relationships | `9d8e16f` |
 | 8 | 2026-07-14 | DB fixes, security patches, 100% tests passing, FCM service worker | `0ba06f2`..`c0052bb` |
-| 9 | 2026-07-14 | IN PROGRESS: sandbox payments, money reconciliation, ownership, queued notifications, SMTP | `e1186a2`..`f026801` |
+| 9 | 2026-07-14 | Money, webhook idempotency, reconciliation, ownership, SMTP, queued Firebase proof | `e1186a2`..`d38dd88` |
 
 ## Key URLs
 - **Backend:** https://admin.urbangoodzdelivery.com
