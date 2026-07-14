@@ -50,6 +50,7 @@ class ItemController extends Controller
             ],
             'price' => 'required|numeric|between:' . $minimumPrice . ',999999999999.999',
             'discount' => 'nullable|numeric|min:0',
+            'current_stock' => 'required|integer|min:0',
             'translations'=>'required',
         ], $this->productVideoValidationRules()), [
             'category_id.required' => translate('messages.category_required'),
@@ -448,17 +449,19 @@ class ItemController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $product = Item::find($request->id);
+        $product = Item::where('store_id', $request['vendor']->stores[0]->id)
+            ->findOrFail($request->id);
         $product->status = $request->status;
         $product->save();
 
         return response()->json(['message' => translate('messages.product_status_updated')], 200);
     }
 
-    public function get_item($id)
+    public function get_item(Request $request, $id)
     {
         try {
-            $item = Item::withoutGlobalScope('translate')->with(['tags','taxVats'])->where('id',$id)
+            $item = Item::withoutGlobalScope('translate')->with(['tags','taxVats'])
+            ->where('store_id', $request['vendor']->stores[0]->id)->where('id',$id)
             ->first();
             $item = Helpers::product_data_formatting_translate($item, false, false, app()->getLocale());
             return response()->json($item, 200);
@@ -487,6 +490,7 @@ class ItemController extends Controller
             'category_id' => 'required',
             'price' => 'required|numeric|between:' . $minimumPrice . ',999999999999.999',
             'discount' => 'nullable|numeric|min:0',
+            'current_stock' => 'required|integer|min:0',
         ], $this->productVideoValidationRules()), [
             'category_id.required' => translate('messages.category_required'),
         ]);
@@ -560,7 +564,13 @@ class ItemController extends Controller
         }
 
 
-        $p = Item::findOrFail($request->id);
+        $storeId = $request['vendor']->stores[0]->id;
+        $p = Item::where('store_id', $storeId)->find($request->id);
+        if (! $p) {
+            return response()->json([
+                'errors' => [['code' => 'id', 'message' => translate('messages.product_not_found')]],
+            ], 404);
+        }
         $oldVideo = $p->video;
 
         $p->name = $data[0]['value'];
@@ -824,10 +834,12 @@ class ItemController extends Controller
 
 
         if($request?->temp_product){
-            $product = TempProduct::findOrFail($request->id);
+            $product = TempProduct::where('store_id', $request['vendor']->stores[0]->id)
+                ->findOrFail($request->id);
         }
         else{
-            $product = Item::findOrFail($request->id);
+            $product = Item::where('store_id', $request['vendor']->stores[0]->id)
+                ->findOrFail($request->id);
             if ($product?->temp_product?->video) {
                 Helpers::check_and_delete('product/', $product->temp_product->video);
             }
@@ -977,7 +989,8 @@ class ItemController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $product = Item::find($request->id);
+        $product = Item::where('store_id', $request['vendor']->stores[0]->id)
+            ->findOrFail($request->id);
         $product->organic = $request->organic??0;
         $product->save();
 
@@ -1005,7 +1018,8 @@ class ItemController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $product = Item::find($request->id);
+        $product = Item::where('store_id', $request['vendor']->stores[0]->id)
+            ->findOrFail($request->id);
         $product->recommended = $request->status;
         $product->save();
 
@@ -1478,8 +1492,8 @@ class ItemController extends Controller
     public function stock_update(Request $request)
     {
       $validator = Validator::make($request->all(), [
-            'product_id' => 'required',
-            'current_stock' => 'required',
+            'product_id' => 'required|integer',
+            'current_stock' => 'required|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -1503,10 +1517,18 @@ class ItemController extends Controller
         $stock_count = $request['current_stock'];
         if ($request->has('type')) {
             foreach (json_decode($request['type'],true) ?? [] as $key => $str) {
+                $fieldSuffix = $key.'_'.str_replace('.', '_', $str);
+                $variationValidator = Validator::make($request->all(), [
+                    'price_'.$fieldSuffix => 'required|numeric|min:0',
+                    'stock_'.$fieldSuffix => 'required|integer|min:0',
+                ]);
+                if ($variationValidator->fails()) {
+                    return response()->json(['errors' => Helpers::error_processor($variationValidator)], 403);
+                }
                 $item = [];
                 $item['type'] = $str;
-                $item['price'] = abs($request[ 'price_'.$key.'_'. str_replace('.', '_', $str)]);
-                $item['stock'] = abs($request['stock_'.$key.'_'. str_replace('.', '_', $str)]);
+                $item['price'] = $request['price_'.$fieldSuffix];
+                $item['stock'] = $request['stock_'.$fieldSuffix];
                 array_push($variations, $item);
             }
         }

@@ -28,6 +28,11 @@ class VendorApiSecuritySourceTest extends TestCase
         $controller = file_get_contents(__DIR__.'/../../app/Http/Controllers/Api/V1/Vendor/ItemController.php');
 
         $this->assertStringContainsString("Item::where('store_id', \$storeId)->find", $controller);
+        $this->assertStringContainsString("->where('store_id', \$request['vendor']->stores[0]->id)", $controller);
+        $this->assertStringNotContainsString('Item::findOrFail($request->id)', $controller);
+        $this->assertStringNotContainsString('Item::find($request->id)', $controller);
+        $this->assertStringContainsString("'current_stock' => 'required|integer|min:0'", $controller);
+        $this->assertStringContainsString("'stock_'.\$fieldSuffix => 'required|integer|min:0'", $controller);
     }
 
     public function test_fashion_fit_queries_fail_closed_and_redact_unapproved_photos(): void
