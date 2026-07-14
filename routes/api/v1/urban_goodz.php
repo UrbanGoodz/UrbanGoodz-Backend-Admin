@@ -75,16 +75,25 @@ Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'thrott
     Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereTesterController@authorizePayment');
     Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereTesterController@uploadReceipt');
     Route::get('customer/requests', 'Api\V1\OrderAnywhereTesterController@customerRequests');
-    Route::get('admin/requests', 'Api\V1\OrderAnywhereTesterController@adminRequests');
-    Route::post('admin/requests/{record}/status', 'Api\V1\OrderAnywhereTesterController@updateStatus');
-    Route::post('admin/requests/{record}/notes', 'Api\V1\OrderAnywhereTesterController@addNotes');
-    Route::post('admin/requests/{record}/assign-driver', 'Api\V1\OrderAnywhereTesterController@assignDriver');
-    Route::post('admin/requests/{record}/payment-link', 'Api\V1\OrderAnywhereTesterController@createPaymentLink');
-    Route::post('vendor/requests/{record}/update', 'Api\V1\OrderAnywhereTesterController@vendorUpdate');
-    Route::get('driver/available', 'Api\V1\OrderAnywhereTesterController@driverAvailable');
-    Route::post('driver/{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
-    Route::post('driver/{record}/status', 'Api\V1\OrderAnywhereTesterController@driverStatus');
-    Route::post('driver/{record}/issue', 'Api\V1\OrderAnywhereTesterController@driverIssue');
+});
+
+Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+    Route::get('requests', 'Api\V1\OrderAnywhereTesterController@adminRequests');
+    Route::post('requests/{record}/status', 'Api\V1\OrderAnywhereTesterController@updateStatus');
+    Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereTesterController@addNotes');
+    Route::post('requests/{record}/assign-driver', 'Api\V1\OrderAnywhereTesterController@assignDriver');
+    Route::post('requests/{record}/payment-link', 'Api\V1\OrderAnywhereTesterController@createPaymentLink');
+});
+
+Route::group(['prefix' => 'order-anywhere/vendor', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
+    Route::post('requests/{record}/update', 'Api\V1\OrderAnywhereTesterController@vendorUpdate');
+});
+
+Route::group(['prefix' => 'order-anywhere/driver', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
+    Route::get('available', 'Api\V1\OrderAnywhereTesterController@driverAvailable');
+    Route::post('{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
+    Route::post('{record}/status', 'Api\V1\OrderAnywhereTesterController@driverStatus');
+    Route::post('{record}/issue', 'Api\V1\OrderAnywhereTesterController@driverIssue');
 });
 
 Route::group(['prefix' => 'urban-goodz/fashion-fit'], function () {

@@ -325,9 +325,9 @@ class StripePaymentGateway implements PaymentGatewayInterface
     public function validateWebhook(array|string $payload, array $headers = []): bool
     {
         if (empty($this->webhookSecret)) {
-            Log::warning('Stripe webhook secret not configured, skipping webhook validation');
+            Log::warning('Stripe webhook secret not configured; webhook rejected');
 
-            return true;
+            return false;
         }
 
         $sigHeader = $headers['stripe-signature'] ?? $headers['HTTP_STRIPE_SIGNATURE'] ?? '';

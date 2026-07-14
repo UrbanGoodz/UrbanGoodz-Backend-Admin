@@ -79,7 +79,7 @@ class PaymentWebhookController extends Controller
             }
 
             // Webhook idempotency protection: check if event has already been recorded in payment ledgers
-            $eventType = $this->mapWebhookEventToLedgerType($eventCode, $provider);
+            $eventType = $this->mapWebhookEventToLedgerType($eventCode, $provider, (bool) ($event['success'] ?? false));
             if ($eventType) {
                 $existingLedger = \App\Models\UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
                     ->where('payable_id', $requestModel->id)
@@ -112,13 +112,16 @@ class PaymentWebhookController extends Controller
         return response('OK', 200);
     }
 
-    private function mapWebhookEventToLedgerType(string $eventCode, string $provider): ?string
+    private function mapWebhookEventToLedgerType(string $eventCode, string $provider, bool $success): ?string
     {
         if ($provider === 'adyen' || $provider === 'staged_test') {
             return match ($eventCode) {
-                'AUTHORISATION' => 'authorize',
-                'CAPTURE' => 'capture',
-                'REFUND', 'CANCEL_OR_REFUND' => 'refund',
+                'AUTHORISATION' => $success ? 'authorization' : 'authorization_failed',
+                'CAPTURE' => $success ? 'capture' : 'capture_failed',
+                'REFUND' => $success ? 'refund' : 'refund_failed',
+                'CANCEL_OR_REFUND' => $success ? 'refund' : null,
+                'CAPTURE_FAILED' => 'capture_failed',
+                'REFUND_FAILED' => 'refund_failed',
                 default => null,
             };
         }
@@ -127,9 +130,12 @@ class PaymentWebhookController extends Controller
             return match ($eventCode) {
                 'checkout.session.completed',
                 'payment_intent.succeeded',
-                'charge.succeeded' => 'capture',
+                'charge.succeeded' => $success ? 'capture' : 'payment_failed',
                 'charge.refunded',
                 'refund.succeeded' => 'refund',
+                'payment_intent.payment_failed',
+                'charge.failed' => 'payment_failed',
+                'refund.failed' => 'refund_failed',
                 default => null,
             };
         }
@@ -171,13 +177,13 @@ class PaymentWebhookController extends Controller
             'success' => $success,
         ]);
 
-        match ($provider) {
-            'adyen', 'staged_test' => $this->processAdyenEvent($eventCode, $success, $providerReference, $amount, $currency, $requestModel, $payments),
+        $handled = match ($provider) {
+            'adyen', 'staged_test' => $this->processAdyenEvent($eventCode, $success, $providerReference, $amount, $currency, $provider, $requestModel, $payments),
             'stripe' => $this->processStripeEvent($eventCode, $success, $providerReference, $amount, $currency, $requestModel, $payments),
-            default => null,
+            default => false,
         };
 
-        return 'handled';
+        return $handled ? 'handled' : 'unhandled';
     }
 
     private function processAdyenEvent(
@@ -186,48 +192,49 @@ class PaymentWebhookController extends Controller
         ?string $pspReference,
         float $amount,
         string $currency,
+        string $provider,
         OrderAnywhereRequest $request,
         UrbanGoodzPaymentService $payments
-    ): void {
-        match ($eventCode) {
+    ): bool {
+        return match ($eventCode) {
             'AUTHORISATION' => $success
-                ? $payments->authorizeOrderAnywhere($request, [
+                ? (bool) $payments->authorizeOrderAnywhere($request, [
                     'authorized_amount' => $amount,
                     'authorization_reference' => $pspReference,
                     'psp_reference' => $pspReference,
                     'source' => 'webhook',
                 ])
-                : $this->markFailed($request, 'authorization_failed', $pspReference, $amount),
+                : $this->markFailed($request, $payments, 'authorization_failed', $pspReference, $amount, $provider),
             'CAPTURE' => $success
-                ? $payments->captureOrderAnywhere($request, [
+                ? (bool) $payments->captureOrderAnywhere($request, [
                     'captured_amount' => $amount,
                     'capture_reference' => $pspReference,
                     'psp_reference' => $pspReference,
                     'source' => 'webhook',
                 ])
-                : $this->markFailed($request, 'capture_failed', $pspReference, $amount),
-            'CAPTURE_FAILED' => $this->markFailed($request, 'capture_failed', $pspReference, $amount),
+                : $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
+            'CAPTURE_FAILED' => $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'REFUND' => $success
-                ? $payments->refundOrderAnywhere($request, [
+                ? (bool) $payments->refundOrderAnywhere($request, [
                     'refund_amount' => $amount,
                     'refund_reference' => $pspReference,
                     'psp_reference' => $pspReference,
                     'source' => 'webhook',
                 ])
-                : $this->markFailed($request, 'refund_failed', $pspReference, $amount),
-            'REFUND_FAILED' => $this->markFailed($request, 'refund_failed', $pspReference, $amount),
+                : $this->markFailed($request, $payments, 'refund_failed', $pspReference, $amount, $provider),
+            'REFUND_FAILED' => $this->markFailed($request, $payments, 'refund_failed', $pspReference, $amount, $provider),
             'CANCELLATION' => $success && in_array($request->status, ['pending_review', 'reviewing', 'quote_needed'])
-                ? $request->transitionTo('cancelled')
-                : null,
+                ? (bool) $request->transitionTo('cancelled')
+                : false,
             'CANCEL_OR_REFUND' => $success && $request->payment_status === 'captured'
-                ? $payments->refundOrderAnywhere($request, [
+                ? (bool) $payments->refundOrderAnywhere($request, [
                     'refund_amount' => $amount,
                     'refund_reference' => $pspReference,
                     'psp_reference' => $pspReference,
                     'source' => 'webhook',
                 ])
-                : ($success ? $request->transitionTo('cancelled') : null),
-            default => null,
+                : ($success ? (bool) $request->transitionTo('cancelled') : false),
+            default => false,
         };
     }
 
@@ -239,45 +246,47 @@ class PaymentWebhookController extends Controller
         string $currency,
         OrderAnywhereRequest $request,
         UrbanGoodzPaymentService $payments
-    ): void {
-        match ($eventCode) {
+    ): bool {
+        return match ($eventCode) {
             'checkout.session.completed',
             'payment_intent.succeeded',
-            'charge.succeeded' => $payments->captureOrderAnywhere($request, [
+            'charge.succeeded' => (bool) $payments->captureOrderAnywhere($request, [
                 'captured_amount' => $amount,
                 'capture_reference' => $providerReference,
                 'psp_reference' => $providerReference,
                 'source' => 'webhook',
             ]),
             'payment_intent.payment_failed',
-            'charge.failed' => $this->markFailed($request, 'payment_failed', $providerReference, $amount),
+            'charge.failed' => $this->markFailed($request, $payments, 'payment_failed', $providerReference, $amount, 'stripe'),
             'payment_intent.canceled' => in_array($request->status, ['pending_review', 'reviewing', 'quote_needed'])
-                ? $request->transitionTo('cancelled')
-                : null,
+                ? (bool) $request->transitionTo('cancelled')
+                : false,
             'charge.refunded',
-            'refund.succeeded' => $payments->refundOrderAnywhere($request, [
+            'refund.succeeded' => (bool) $payments->refundOrderAnywhere($request, [
                 'refund_amount' => $amount,
                 'refund_reference' => $providerReference,
                 'psp_reference' => $providerReference,
                 'source' => 'webhook',
             ]),
-            'refund.failed' => $this->markFailed($request, 'refund_failed', $providerReference, $amount),
-            'charge.dispute.created' => $request->update([
+            'refund.failed' => $this->markFailed($request, $payments, 'refund_failed', $providerReference, $amount, 'stripe'),
+            'charge.dispute.created' => (bool) $request->update([
                 'payment_status' => 'disputed',
             ]),
-            default => null,
+            default => false,
         };
     }
 
-    private function markFailed(OrderAnywhereRequest $request, string $status, ?string $reference, float $amount): void
+    private function markFailed(
+        OrderAnywhereRequest $request,
+        UrbanGoodzPaymentService $payments,
+        string $status,
+        ?string $reference,
+        float $amount,
+        string $provider
+    ): bool
     {
-        $request->update([
-            'payment_status' => $status,
-        ]);
-
-        $request->logPaymentEvent($status, $amount, $reference, [
-            'source' => 'webhook',
-            'failed' => true,
+        return $payments->recordWebhookFailure($request, $status, $reference, $amount, [
+            'provider' => $provider,
         ]);
     }
 

@@ -21,6 +21,10 @@ yarn-error.log
 *.tar.gz
 *.tar.bz2
 
+# OAuth keys
+storage/oauth-private.key
+storage/oauth-public.key
+
 # Scratch / temp scripts
 _check_*.php
 check_*.php

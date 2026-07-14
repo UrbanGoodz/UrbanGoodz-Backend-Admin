@@ -12,8 +12,10 @@ class OrderAnywhereTesterController extends Controller
 {
     public function customerRequests(Request $request)
     {
+        $customerId = $this->customerId($request);
+
         $records = OrderAnywhereRequest::query()
-            ->when($request->input('customer_id'), fn ($query, $customerId) => $query->where('customer_id', $customerId))
+            ->where('customer_id', $customerId)
             ->when($request->input('vendor_id'), fn ($query, $vendorId) => $query->where('vendor_id', $vendorId))
             ->latest()
             ->paginate(25);
@@ -26,13 +28,21 @@ class OrderAnywhereTesterController extends Controller
 
     public function adminRequests(Request $request)
     {
-        return $this->customerRequests($request);
+        $records = OrderAnywhereRequest::query()
+            ->when($request->input('customer_id'), fn ($query, $customerId) => $query->where('customer_id', $customerId))
+            ->when($request->input('vendor_id'), fn ($query, $vendorId) => $query->where('vendor_id', $vendorId))
+            ->latest()
+            ->paginate(25);
+
+        return response()->json([
+            'success' => true,
+            'data' => $records,
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'customer_id' => ['nullable', 'integer'],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:255'],
             'customer_email' => ['nullable', 'email', 'max:255'],
@@ -47,6 +57,7 @@ class OrderAnywhereTesterController extends Controller
         ]);
 
         $record = OrderAnywhereRequest::create(array_merge($data, [
+            'customer_id' => $this->customerId($request),
             'request_number' => OrderAnywhereRequest::nextRequestNumber(),
             'status' => 'pending_review',
             'metadata' => $request->all(),
@@ -59,11 +70,11 @@ class OrderAnywhereTesterController extends Controller
         ], 201);
     }
 
-    public function show($record)
+    public function show(Request $request, $record)
     {
         return response()->json([
             'success' => true,
-            'data' => $this->findRecord($record),
+            'data' => $this->findCustomerRecord($request, $record),
         ]);
     }
 
@@ -100,7 +111,7 @@ class OrderAnywhereTesterController extends Controller
             'vendor_quote_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $model = $this->findRecord($record);
+        $model = $this->findVendorRecord($request, $record);
         $model->vendor_status = $data['vendor_status'] ?? $model->vendor_status;
         $model->vendor_notes = $data['vendor_notes'] ?? $model->vendor_notes;
         $model->vendor_quote_amount = $data['vendor_quote_amount'] ?? $model->vendor_quote_amount;
@@ -122,7 +133,7 @@ class OrderAnywhereTesterController extends Controller
             'authorization_reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $model = $payments->authorizeOrderAnywhere($this->findRecord($record), array_merge($data, [
+        $model = $payments->authorizeOrderAnywhere($this->findCustomerRecord($request, $record), array_merge($data, [
             'source' => 'customer_api',
         ]));
 
@@ -148,7 +159,7 @@ class OrderAnywhereTesterController extends Controller
 
         abort_if(! $path, 422, 'Receipt file or receipt_path is required.');
 
-        $model = $payments->storeReceipt($this->findRecord($record), $path);
+        $model = $payments->storeReceipt($this->findCustomerRecord($request, $record), $path);
 
         return response()->json([
             'success' => true,
@@ -206,10 +217,10 @@ class OrderAnywhereTesterController extends Controller
         return $this->updated($model, 'Driver assigned to Order Anywhere request.');
     }
 
-    public function driverAvailable()
+    public function driverAvailable(Request $request)
     {
         $records = OrderAnywhereRequest::query()
-            ->whereNotNull('assigned_delivery_man_id')
+            ->where('assigned_delivery_man_id', $this->driverId())
             ->whereNotIn('status', ['completed', 'cancelled', 'rejected'])
             ->latest()
             ->paginate(25);
@@ -217,9 +228,11 @@ class OrderAnywhereTesterController extends Controller
         return response()->json(['success' => true, 'data' => $records]);
     }
 
-    public function driverAccept($record)
+    public function driverAccept(Request $request, $record)
     {
-        return $this->driverStatus(new Request(['driver_task_status' => 'accepted']), $record);
+        $request->merge(['driver_task_status' => 'accepted']);
+
+        return $this->driverStatus($request, $record);
     }
 
     public function driverStatus(Request $request, $record)
@@ -239,7 +252,7 @@ class OrderAnywhereTesterController extends Controller
             default => 'shopping',
         };
 
-        $model = $this->findRecord($record);
+        $model = $this->findDriverRecord($record);
         $model->driver_task_status = $driverStatus;
         $model->status = $status;
         $model->driver_notes = $data['driver_notes'] ?? $model->driver_notes;
@@ -255,7 +268,7 @@ class OrderAnywhereTesterController extends Controller
             'issue' => ['nullable', 'string'],
         ]);
 
-        $model = $this->findRecord($record);
+        $model = $this->findDriverRecord($record);
         $model->driver_task_status = 'issue_reported';
         $model->status = 'reviewing';
         $model->driver_notes = $data['driver_notes'] ?? $data['issue'] ?? $model->driver_notes;
@@ -270,6 +283,58 @@ class OrderAnywhereTesterController extends Controller
             ->where('id', $record)
             ->orWhere('request_number', $record)
             ->firstOrFail();
+    }
+
+    private function findCustomerRecord(Request $request, $record): OrderAnywhereRequest
+    {
+        return OrderAnywhereRequest::query()
+            ->where('customer_id', $this->customerId($request))
+            ->where(function ($query) use ($record) {
+                $query->where('id', $record)
+                    ->orWhere('request_number', $record);
+            })
+            ->firstOrFail();
+    }
+
+    private function findVendorRecord(Request $request, $record): OrderAnywhereRequest
+    {
+        $vendor = $request->get('vendor');
+        abort_unless($vendor, 401, 'Unauthorized.');
+
+        return OrderAnywhereRequest::query()
+            ->where('vendor_id', $vendor->id)
+            ->where(function ($query) use ($record) {
+                $query->where('id', $record)
+                    ->orWhere('request_number', $record);
+            })
+            ->firstOrFail();
+    }
+
+    private function findDriverRecord($record): OrderAnywhereRequest
+    {
+        return OrderAnywhereRequest::query()
+            ->where('assigned_delivery_man_id', $this->driverId())
+            ->where(function ($query) use ($record) {
+                $query->where('id', $record)
+                    ->orWhere('request_number', $record);
+            })
+            ->firstOrFail();
+    }
+
+    private function customerId(Request $request): int
+    {
+        $customer = $request->user('api') ?? $request->user();
+        abort_unless($customer, 401, 'Unauthorized.');
+
+        return (int) $customer->id;
+    }
+
+    private function driverId(): int
+    {
+        $driverId = auth('delivery_men')->id();
+        abort_unless($driverId, 401, 'Unauthorized.');
+
+        return (int) $driverId;
     }
 
     private function updated(OrderAnywhereRequest $record, string $message)

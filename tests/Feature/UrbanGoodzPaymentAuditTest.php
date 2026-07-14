@@ -12,10 +12,12 @@ use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzPaymentSplit;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
+use Laravel\Passport\Passport;
 use Tests\TestCase;
 
 class UrbanGoodzPaymentAuditTest extends TestCase
@@ -154,6 +156,123 @@ class UrbanGoodzPaymentAuditTest extends TestCase
 
         $this->assertEquals(10.00, $driverSplit->amount);
         $this->assertEquals('manual_pending', $driverSplit->status);
+    }
+
+    public function test_sandbox_payment_link_creation_is_persistent_and_idempotent(): void
+    {
+        $request = OrderAnywhereRequest::create([
+            'request_number' => 'OA-LINK-SESSION-9',
+            'customer_id' => 1,
+            'vendor_id' => $this->vendor->id,
+            'status' => 'quote_needed',
+            'quote_amount' => 42.50,
+            'final_amount' => 42.50,
+            'payment_status' => 'quoted',
+        ]);
+
+        $created = $this->paymentService->createPaymentLink($request);
+        $replayed = $this->paymentService->createPaymentLink($request->fresh());
+
+        $this->assertTrue($created['success']);
+        $this->assertTrue($created['staged_test']);
+        $this->assertSame('staged_test', $created['provider']);
+        $this->assertStringStartsWith('/admin/urban-goodz/order-anywhere?', $created['payment_url']);
+        $this->assertTrue($replayed['idempotent_replay']);
+        $this->assertSame($created['provider_reference'], $replayed['provider_reference']);
+        $this->assertSame(1, UrbanGoodzPaymentLedger::where('payable_id', $request->id)
+            ->where('event_type', 'payment_link_created')
+            ->count());
+    }
+
+    public function test_failed_webhook_is_persisted_and_idempotent(): void
+    {
+        $request = OrderAnywhereRequest::create([
+            'request_number' => 'OA-WEBHOOK-FAILED-SESSION-9',
+            'customer_id' => 1,
+            'vendor_id' => $this->vendor->id,
+            'status' => 'shopping',
+            'quote_amount' => 50.00,
+            'payment_status' => 'authorized',
+            'psp_reference' => 'PSP_FAILED_SESSION_9',
+        ]);
+
+        $payload = [
+            'event_code' => 'CAPTURE',
+            'merchant_reference' => $request->request_number,
+            'provider_reference' => 'PSP_FAILED_SESSION_9',
+            'amount_minor' => 5000,
+            'currency' => 'USD',
+            'success' => false,
+        ];
+
+        $this->post('/api/v1/payments/webhooks/staged_test', $payload)->assertOk();
+        $this->post('/api/v1/payments/webhooks/staged_test', $payload)->assertOk();
+
+        $request->refresh();
+        $this->assertSame('capture_failed', $request->payment_status);
+
+        $ledger = UrbanGoodzPaymentLedger::where('payable_id', $request->id)
+            ->where('event_type', 'capture_failed')
+            ->sole();
+        $this->assertSame('0.00', $ledger->amount);
+        $this->assertSame(50.0, (float) $ledger->metadata['attempted_amount']);
+        $this->assertSame(1, UrbanGoodzPaymentLedger::where('payable_id', $request->id)
+            ->where('event_type', 'capture_failed')
+            ->count());
+    }
+
+    public function test_stripe_webhook_fails_closed_without_signing_secret(): void
+    {
+        Config::set('urban_goodz_payments.stripe.enabled', true);
+        Config::set('urban_goodz_payments.stripe.secret_key', 'sk_test_session_9_not_real');
+        Config::set('urban_goodz_payments.stripe.webhook_secret', '');
+
+        $gateway = new \App\Services\Payments\StripePaymentGateway();
+
+        $this->assertFalse($gateway->validateWebhook('{"type":"charge.succeeded"}', []));
+    }
+
+    public function test_customer_cannot_access_or_authorize_another_customers_payment(): void
+    {
+        $owner = User::firstOrCreate(
+            ['email' => 'session9-payment-owner@urbangoodz.test'],
+            [
+                'f_name' => 'Payment',
+                'l_name' => 'Owner',
+                'phone' => '3125551901',
+                'password' => bcrypt('password'),
+                'status' => 1,
+            ]
+        );
+        $other = User::firstOrCreate(
+            ['email' => 'session9-payment-other@urbangoodz.test'],
+            [
+                'f_name' => 'Other',
+                'l_name' => 'Customer',
+                'phone' => '3125551902',
+                'password' => bcrypt('password'),
+                'status' => 1,
+            ]
+        );
+
+        $request = OrderAnywhereRequest::create([
+            'request_number' => 'OA-OWNER-SESSION-9',
+            'customer_id' => $owner->id,
+            'vendor_id' => $this->vendor->id,
+            'status' => 'quote_needed',
+            'quote_amount' => 25.00,
+            'final_amount' => 25.00,
+            'payment_status' => 'quoted',
+        ]);
+
+        Passport::actingAs($other);
+
+        $this->getJson("/api/v1/order-anywhere/requests/{$request->id}")->assertNotFound();
+        $this->postJson("/api/v1/order-anywhere/requests/{$request->id}/authorize-payment", [
+            'authorized_amount' => 25.00,
+        ])->assertNotFound();
+
+        $this->assertSame('quoted', $request->fresh()->payment_status);
     }
 
     public function test_invalid_webhook_signature(): void

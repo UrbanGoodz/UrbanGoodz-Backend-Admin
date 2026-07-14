@@ -467,6 +467,50 @@ class UrbanGoodzPaymentService
 
     // ─── Receipt ──────────────────────────────────────────────────────────
 
+    public function recordWebhookFailure(
+        OrderAnywhereRequest $request,
+        string $status,
+        ?string $reference,
+        float $attemptedAmount,
+        array $metadata = []
+    ): bool {
+        return DB::transaction(function () use ($request, $status, $reference, $attemptedAmount, $metadata) {
+            $provider = $metadata['provider'] ?? $this->gateway->providerName();
+            $idempotencyKey = implode(':', [
+                'webhook_failure',
+                $provider,
+                $request->id,
+                $status,
+                $reference ?: 'no-reference',
+            ]);
+
+            if (UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->exists()) {
+                return false;
+            }
+
+            $request->update(['payment_status' => $status]);
+
+            $this->ledger($request, $status, 'debit', 0.0, $status, [
+                'reference' => $reference,
+                'idempotency_key' => $idempotencyKey,
+                'metadata' => array_merge($metadata, [
+                    'source' => 'webhook',
+                    'failed' => true,
+                    'attempted_amount' => $attemptedAmount,
+                    'provider' => $provider,
+                ]),
+            ]);
+
+            $request->logPaymentEvent($status, $attemptedAmount, $reference, [
+                'source' => 'webhook',
+                'failed' => true,
+                'provider' => $provider,
+            ]);
+
+            return true;
+        });
+    }
+
     public function storeReceipt(OrderAnywhereRequest $request, string $path): OrderAnywhereRequest
     {
         $request->receipt_path = $path;
