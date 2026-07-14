@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('delivery_man_vehicles', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('delivery_man_id')->constrained('delivery_man')->cascadeOnDelete();
+            $table->foreignId('delivery_man_id')->constrained('delivery_men')->cascadeOnDelete();
             $table->string('make')->nullable();
             $table->string('model')->nullable();
             $table->integer('year')->nullable();

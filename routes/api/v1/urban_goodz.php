@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'urban-goodz', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
-    Route::get('driver/vehicle-options', 'Api\UrbanGoodzDriverCapabilityController@vehicleOptionsEndpoint');
 });
+Route::get('urban-goodz/driver/vehicle-options', 'Api\UrbanGoodzDriverCapabilityController@vehicleOptionsEndpoint')->middleware('throttle:60,1');
 Route::group(['prefix' => 'urban-goodz/discovery', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('search-capture', 'Api\V1\UrbanGoodzDiscoveryController@searchCapture');
     Route::get('entities', 'Api\V1\UrbanGoodzDiscoveryController@entities');

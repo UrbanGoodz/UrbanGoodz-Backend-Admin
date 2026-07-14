@@ -44,6 +44,51 @@ class CustomerAuthController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
+        // Enforce brute-force temporary block check before checking correctness
+        if ($request->verification_type == 'phone') {
+            $verification_data = DB::table('phone_verifications')->where('phone', $request['phone'])->first();
+            if (isset($verification_data) && $verification_data->is_temp_blocked == 1) {
+                $temp_block_time = 600; // seconds
+                if (Carbon::parse($verification_data->temp_block_time)->DiffInSeconds() <= $temp_block_time) {
+                    $time = $temp_block_time - Carbon::parse($verification_data->temp_block_time)->DiffInSeconds();
+                    $errors = [];
+                    array_push($errors, [
+                        'code' => 'otp_block_time',
+                        'message' => translate('messages.please_try_again_after_') . CarbonInterval::seconds($time)->cascade()->forHumans()
+                    ]);
+                    return response()->json(['errors' => $errors], 405);
+                } else {
+                    DB::table('phone_verifications')->updateOrInsert(['phone' => $request['phone']], [
+                        'otp_hit_count' => 0,
+                        'is_temp_blocked' => 0,
+                        'temp_block_time' => null,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        } elseif ($request->verification_type == 'email') {
+            $verification_data = DB::table('email_verifications')->where('email', $request['email'])->first();
+            if (isset($verification_data) && $verification_data->is_temp_blocked == 1) {
+                $temp_block_time = 600; // seconds
+                if (Carbon::parse($verification_data->temp_block_time)->DiffInSeconds() <= $temp_block_time) {
+                    $time = $temp_block_time - Carbon::parse($verification_data->temp_block_time)->DiffInSeconds();
+                    $errors = [];
+                    array_push($errors, [
+                        'code' => 'otp_block_time',
+                        'message' => translate('messages.please_try_again_after_') . CarbonInterval::seconds($time)->cascade()->forHumans()
+                    ]);
+                    return response()->json(['errors' => $errors], 405);
+                } else {
+                    DB::table('email_verifications')->updateOrInsert(['email' => $request['email']], [
+                        'otp_hit_count' => 0,
+                        'is_temp_blocked' => 0,
+                        'temp_block_time' => null,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+
         if($request->phone){
             $user = User::where('phone', $request->phone)->first();
         }

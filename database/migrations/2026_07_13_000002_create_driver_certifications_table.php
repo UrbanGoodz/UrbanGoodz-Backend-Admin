@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('driver_certifications', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('delivery_man_id')->constrained('delivery_man')->cascadeOnDelete();
+            $table->foreignId('delivery_man_id')->constrained('delivery_men')->cascadeOnDelete();
             $table->string('name');
             $table->string('issuing_authority')->nullable();
             $table->date('issue_date')->nullable();
