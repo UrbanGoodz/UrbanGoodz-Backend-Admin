@@ -103,9 +103,52 @@
 - Commit: `60a85ac` — `fix(money): reconcile refunds and secure withdrawals`
 - Push: SUCCESS to `origin/adminpanel-v39-backend-sprint`.
 
+## Milestone 3: SMTP, Firebase, Persistence, Queue, Scheduler, and Retry
+
+### Completed
+
+- Added a shared notification service that persists in-app notifications and queues FCM delivery.
+- Wired service-booking customer/vendor notifications and driver-dispatch notifications through the shared service.
+- Added customer, vendor, and driver token resolution at job execution time so tokens are not serialized into queued payloads.
+- Added a dedicated `notifications` queue job with 3 attempts and 30/120/300-second backoff.
+- Added terminal failure logging containing notification/recipient IDs and exception class, but no recipient token.
+- Added an injectable Firebase transport over the existing FCM HTTP helper.
+- Fixed SMTP test-mail acceptance when the mail transport returns no message object (including Laravel mail fakes).
+- Registered schedules in the active Laravel 12 `bootstrap/app.php` configuration; the legacy console kernel alone was not active.
+- Registered a one-shot notification queue worker every minute with overlap protection.
+
+### Focused Evidence
+
+- Notification/SMTP/service-booking/driver suites: PASS, 40 tests / 163 assertions.
+- Safe SMTP recipient: `session9-safe-recipient@urbangoodz.test`, with `Mail::fake`; no real email sent.
+- Customer/vendor/driver Firebase tokens were test-only fixtures with `Queue::fake`; no real push sent.
+- Queue job transport execution: PASS with mocked transport.
+- Retry/backoff and terminal failure logging: PASS.
+- `php artisan schedule:list`: PASS; 3 tasks registered.
+- `php artisan queue:work database --queue=notifications --stop-when-empty --tries=3 --backoff=30`: PASS, clean exit.
+- PHP syntax checks and `git diff --check`: PASS.
+
+### Files Changed
+
+- `app/Http/Controllers/Admin/BusinessSettingsController.php`
+- `app/Jobs/SendFirebaseNotification.php`
+- `app/Services/FirebaseNotificationTransport.php`
+- `app/Services/ServiceBookings/ServiceBookingWorkflow.php`
+- `app/Services/UrbanGoodzDriverDispatchNotificationService.php`
+- `app/Services/UrbanGoodzNotificationService.php`
+- `bootstrap/app.php`
+- `tests/Feature/UrbanGoodzDriverDispatchNotificationProducerTest.php`
+- `tests/Feature/UrbanGoodzNotificationDeliveryTest.php`
+- `tests/Feature/UrbanGoodzSmtpDispatchTest.php`
+- `tests/Unit/ServiceBookingContractTest.php`
+
+### Commit and Push
+
+- Commit: `f026801` — `feat(notifications): queue Firebase delivery with retries`
+- Push: SUCCESS to `origin/adminpanel-v39-backend-sprint`.
+
 ## Remaining Session 9 P0 Work
 
-- SMTP, customer/vendor/driver Firebase dispatch, persistence, queue, scheduler, retry, and failure logging proof.
 - Final focused suites and full regression suite.
 
 ## Current Blockers
@@ -117,6 +160,6 @@
 ```powershell
 cd "C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39"
 git status --short --branch
-rg -n "send_push|firebase|notification|retry|failed_jobs|schedule" app routes tests
-php artisan test tests/Unit/MailRuntimeConfigurationTest.php tests/Unit/SmtpSecuritySourceTest.php
+php artisan route:list
+php artisan test
 ```
