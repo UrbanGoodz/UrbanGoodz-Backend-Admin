@@ -161,6 +161,18 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     // Active jobs overview
     Route::get('active-jobs', 'Api\UrbanGoodzDriverApiController@activeJobs');
 
+    // Load sourcing — AI recommendations
+    Route::get('load-sourcing/recommendations', 'Api\UrbanGoodzDriverApiController@loadSourcingRecommendations');
+    Route::get('load-sourcing/recommendations/{recommendationId}', 'Api\UrbanGoodzDriverApiController@loadSourcingDetail');
+    Route::post('load-sourcing/recommendations/{recommendationId}/save', 'Api\UrbanGoodzDriverApiController@loadSourcingSave');
+    Route::post('load-sourcing/recommendations/{recommendationId}/hide', 'Api\UrbanGoodzDriverApiController@loadSourcingHide');
+    Route::post('load-sourcing/recommendations/{recommendationId}/interest', 'Api\UrbanGoodzDriverApiController@loadSourcingExpressInterest');
+    Route::post('load-sourcing/recommendations/{recommendationId}/handoff', 'Api\UrbanGoodzDriverApiController@loadSourcingHandoff');
+    Route::post('load-sourcing/confirm-booking/{referralId}', 'Api\UrbanGoodzDriverApiController@loadSourcingConfirmBooking');
+    Route::put('load-sourcing/preferences', 'Api\UrbanGoodzDriverApiController@loadSourcingUpdatePreferences');
+    Route::get('load-sourcing/available-external', 'Api\UrbanGoodzDriverApiController@loadSourcingAvailableExternal');
+    Route::post('load-sourcing/share-external', 'Api\UrbanGoodzDriverApiController@loadSourcingShareExternal');
+
     // Driver Order Anywhere purchase card
     Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
     Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');

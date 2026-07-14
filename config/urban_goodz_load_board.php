@@ -2,16 +2,6 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Load Board Provider Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configure API credentials for external load board providers.
-    | Set enabled to true and fill in credentials for each active provider.
-    |
-    */
-
     'enabled' => env('LOAD_BOARD_ENABLED', true),
 
     'providers' => [
@@ -24,9 +14,7 @@ return [
             'timeout' => env('DAT_API_TIMEOUT', 30),
             'max_per_sync' => env('DAT_MAX_PER_SYNC', 250),
             'sync_interval_minutes' => env('DAT_SYNC_INTERVAL', 30),
-            'default_filters' => [
-                'equipment_type' => 'van',
-            ],
+            'default_filters' => ['equipment_type' => 'van'],
         ],
 
         'truckstop' => [
@@ -38,18 +26,53 @@ return [
             'timeout' => env('TRUCKSTOP_API_TIMEOUT', 30),
             'max_per_sync' => env('TRUCKSTOP_MAX_PER_SYNC', 250),
             'sync_interval_minutes' => env('TRUCKSTOP_SYNC_INTERVAL', 30),
-            'default_filters' => [
-                'equipment_type' => 'van',
-            ],
+            'default_filters' => ['equipment_type' => 'van'],
         ],
 
+        'trulos' => [
+            'enabled' => env('TRULOS_LOAD_BOARD_ENABLED', false),
+            'api_key' => env('TRULOS_API_KEY', ''),
+            'base_url' => env('TRULOS_API_BASE_URL', ''),
+            'timeout' => 30,
+        ],
+
+        'tb_load' => [
+            'enabled' => env('TBLOAD_LOAD_BOARD_ENABLED', false),
+            'api_key' => env('TBLOAD_API_KEY', ''),
+            'base_url' => env('TBLOAD_API_BASE_URL', ''),
+            'timeout' => 30,
+        ],
+
+        'direct_freight' => [
+            'enabled' => env('DIRECT_FREIGHT_ENABLED', false),
+            'api_key' => env('DIRECT_FREIGHT_API_KEY', ''),
+            'base_url' => env('DIRECT_FREIGHT_API_BASE_URL', ''),
+            'timeout' => 30,
+        ],
+
+        'trucker_path' => [
+            'enabled' => env('TRUCKER_PATH_ENABLED', false),
+            'api_key' => env('TRUCKER_PATH_API_KEY', ''),
+            'base_url' => env('TRUCKER_PATH_API_BASE_URL', ''),
+            'timeout' => 30,
+        ],
+
+        'trucksmarter' => [
+            'enabled' => env('TRUCKSMARTER_ENABLED', false),
+            'api_key' => env('TRUCKSMARTER_API_KEY', ''),
+            'base_url' => env('TRUCKSMARTER_API_BASE_URL', ''),
+            'timeout' => 30,
+        ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Global Sync Settings
-    |--------------------------------------------------------------------------
-    */
+    'sourcing' => [
+        'platform_fee_percent' => (float) env('SOURCING_PLATFORM_FEE_PERCENT', 12.0),
+        'fuel_cost_per_mile' => (float) env('SOURCING_FUEL_COST_PER_MILE', 0.75),
+        'toll_estimation_per_mile' => (float) env('SOURCING_TOLL_ESTIMATION_PER_MILE', 0.05),
+        'default_max_deadhead_miles' => (int) env('SOURCING_MAX_DEADHEAD', 100),
+        'minimum_confidence_threshold' => (int) env('SOURCING_MIN_CONFIDENCE', 30),
+        'auto_alert_threshold' => (int) env('SOURCING_AUTO_ALERT_THRESHOLD', 70),
+    ],
 
     'sync' => [
         'enabled' => env('LOAD_BOARD_SYNC_ENABLED', true),

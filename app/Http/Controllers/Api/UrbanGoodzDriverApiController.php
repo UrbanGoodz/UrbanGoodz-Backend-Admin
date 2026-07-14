@@ -985,4 +985,359 @@ class UrbanGoodzDriverApiController extends Controller
             'loads' => $assignedLoads,
         ]);
     }
+
+    public function loadSourcingRecommendations(Request $request)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $service = new \App\Services\UrbanGoodz\LoadSource\LoadSourcingService();
+        $limit = min((int) $request->get('limit', 20), 50);
+        $result = $service->generateRecommendations($driver->id, $limit);
+
+        $recommendations = array_map(function ($rec) {
+            $load = $rec->externalLoad;
+            return [
+                'id' => $rec->id,
+                'score' => $rec->score,
+                'confidence' => $rec->confidence_level,
+                'estimated_driver_net' => $rec->estimated_driver_net,
+                'net_per_total_mile' => $rec->net_per_total_mile,
+                'deadhead_miles' => $rec->deadhead_miles,
+                'equipment_match' => $rec->equipment_match,
+                'certification_match' => $rec->certification_match,
+                'schedule_feasible' => $rec->schedule_feasible,
+                'broker_risk' => $rec->broker_risk,
+                'reasons_recommended' => $rec->reasons_recommended,
+                'reasons_penalized' => $rec->reasons_penalized,
+                'status' => $rec->status,
+                'expires_at' => $rec->expires_at?->toIso8601String(),
+                'load' => $load ? [
+                    'id' => $load->id,
+                    'source' => $load->source?->name,
+                    'origin_city' => $load->origin_city,
+                    'origin_state' => $load->origin_state,
+                    'destination_city' => $load->destination_city,
+                    'destination_state' => $load->destination_state,
+                    'equipment_type' => $load->equipment_type,
+                    'weight' => $load->weight,
+                    'gross_rate' => $load->gross_rate,
+                    'distance_loaded' => $load->distance_loaded,
+                    'pickup_start' => $load->pickup_start?->toIso8601String(),
+                    'pickup_end' => $load->pickup_end?->toIso8601String(),
+                    'commodity' => $load->commodity,
+                    'broker_name' => $load->broker_name,
+                    'source_url' => $load->source_url,
+                ] : null,
+            ];
+        }, $result['recommendations'] ?? []);
+
+        return response()->json([
+            'success' => true,
+            'recommendations' => $recommendations,
+            'count' => count($recommendations),
+        ]);
+    }
+
+    public function loadSourcingDetail(Request $request, int $recommendationId)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $rec = \App\Models\LoadRecommendation::with(['externalLoad.source'])
+            ->where('delivery_man_id', $driver->id)
+            ->where('id', $recommendationId)
+            ->first();
+
+        if (!$rec) return response()->json(['error' => 'Recommendation not found'], 404);
+
+        if ($rec->status === 'pending') {
+            $rec->update(['status' => 'viewed', 'viewed_at' => now()]);
+        }
+
+        $load = $rec->externalLoad;
+        $sourceUrl = $load?->source_url ?? $load?->source?->deep_link_template;
+
+        return response()->json([
+            'success' => true,
+            'recommendation' => [
+                'id' => $rec->id,
+                'score' => $rec->score,
+                'confidence' => $rec->confidence_level,
+                'estimated_driver_net' => $rec->estimated_driver_net,
+                'net_per_total_mile' => $rec->net_per_total_mile,
+                'deadhead_miles' => $rec->deadhead_miles,
+                'equipment_match' => $rec->equipment_match,
+                'certification_match' => $rec->certification_match,
+                'schedule_feasible' => $rec->schedule_feasible,
+                'broker_risk' => $rec->broker_risk,
+                'reasons_recommended' => $rec->reasons_recommended,
+                'reasons_penalized' => $rec->reasons_penalized,
+                'status' => $rec->status,
+                'expires_at' => $rec->expires_at?->toIso8601String(),
+            ],
+            'load' => $load ? [
+                'id' => $load->id,
+                'source' => $load->source?->name,
+                'source_key' => $load->source?->source_key,
+                'compliance_status' => $load->compliance_status,
+                'origin_address' => $load->origin_address,
+                'origin_city' => $load->origin_city,
+                'origin_state' => $load->origin_state,
+                'origin_zip' => $load->origin_zip,
+                'destination_address' => $load->destination_address,
+                'destination_city' => $load->destination_city,
+                'destination_state' => $load->destination_state,
+                'destination_zip' => $load->destination_zip,
+                'equipment_type' => $load->equipment_type,
+                'trailer_type' => $load->trailer_type,
+                'weight' => $load->weight,
+                'commodity' => $load->commodity,
+                'gross_rate' => $load->gross_rate,
+                'rate_per_loaded_mile' => $load->rate_per_loaded_mile,
+                'distance_loaded' => $load->distance_loaded,
+                'distance_deadhead' => $load->distance_deadhead,
+                'estimated_fuel_cost' => $load->estimated_fuel_cost,
+                'estimated_tolls' => $load->estimated_tolls,
+                'estimated_platform_fee' => $load->estimated_platform_fee,
+                'estimated_driver_net' => $load->estimated_driver_net,
+                'pickup_start' => $load->pickup_start?->toIso8601String(),
+                'pickup_end' => $load->pickup_end?->toIso8601String(),
+                'delivery_start' => $load->delivery_start?->toIso8601String(),
+                'delivery_end' => $load->delivery_end?->toIso8601String(),
+                'broker_name' => $load->broker_name,
+                'broker_reference' => $load->broker_reference,
+                'broker_rating' => $load->broker_rating,
+                'source_url' => $sourceUrl,
+                'has_external_link' => !empty($sourceUrl),
+                'supports_bidding' => $load->source?->supports_bidding ?? false,
+            ] : null,
+        ]);
+    }
+
+    public function loadSourcingSave(Request $request, int $recommendationId)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $rec = \App\Models\LoadRecommendation::where('delivery_man_id', $driver->id)
+            ->where('id', $recommendationId)
+            ->first();
+
+        if (!$rec) return response()->json(['error' => 'Recommendation not found'], 404);
+
+        $rec->update(['status' => 'saved', 'saved_at' => now()]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function loadSourcingHide(Request $request, int $recommendationId)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $rec = \App\Models\LoadRecommendation::where('delivery_man_id', $driver->id)
+            ->where('id', $recommendationId)
+            ->first();
+
+        if (!$rec) return response()->json(['error' => 'Recommendation not found'], 404);
+
+        $rec->update(['status' => 'hidden', 'hidden_at' => now()]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function loadSourcingExpressInterest(Request $request, int $recommendationId)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $rec = \App\Models\LoadRecommendation::where('delivery_man_id', $driver->id)
+            ->where('id', $recommendationId)
+            ->first();
+
+        if (!$rec) return response()->json(['error' => 'Recommendation not found'], 404);
+
+        $rec->update(['status' => 'interested']);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function loadSourcingHandoff(Request $request, int $recommendationId)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $rec = \App\Models\LoadRecommendation::with('externalLoad.source')
+            ->where('delivery_man_id', $driver->id)
+            ->where('id', $recommendationId)
+            ->first();
+
+        if (!$rec) return response()->json(['error' => 'Recommendation not found'], 404);
+
+        $load = $rec->externalLoad;
+        $sourceUrl = $load->source_url ?? $load->source?->deep_link_template;
+
+        if (!$sourceUrl) {
+            return response()->json(['error' => 'No external URL available'], 404);
+        }
+
+        $service = new \App\Services\UrbanGoodz\LoadSource\LoadSourcingService();
+        $result = $service->recordExternalHandoff(
+            $load->id,
+            $load->source_id,
+            $driver->id,
+            'driver',
+            'open_source',
+            $sourceUrl
+        );
+
+        return response()->json([
+            'success' => true,
+            'external_url' => $sourceUrl,
+            'source_name' => $load->source?->name,
+            'referral_id' => $result['referral']->id ?? null,
+            'message' => 'Please complete booking on the source platform, then confirm back here.',
+        ]);
+    }
+
+    public function loadSourcingConfirmBooking(Request $request, int $referralId)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $validated = $request->validate([
+            'booked' => 'required|boolean',
+            'rate_confirmation_url' => 'sometimes|nullable|string',
+            'notes' => 'sometimes|nullable|string',
+        ]);
+
+        $referral = \App\Models\LoadPartnerReferral::where('referred_by', $driver->id)
+            ->where('referred_by_type', 'driver')
+            ->where('id', $referralId)
+            ->first();
+
+        if (!$referral) return response()->json(['error' => 'Referral not found'], 404);
+
+        $service = new \App\Services\UrbanGoodz\LoadSource\LoadSourcingService();
+        $result = $service->recordBookingConfirmation(
+            $referralId,
+            $validated['booked'],
+            $validated['notes'] ?? null
+        );
+
+        return response()->json($result);
+    }
+
+    public function loadSourcingUpdatePreferences(Request $request)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $validated = $request->validate([
+            'min_rate_per_mile' => 'sometimes|nullable|numeric',
+            'max_deadhead_miles' => 'sometimes|nullable|numeric',
+            'max_total_distance' => 'sometimes|nullable|numeric',
+            'preferred_origins' => 'sometimes|nullable|array',
+            'preferred_destinations' => 'sometimes|nullable|array',
+            'excluded_origins' => 'sometimes|nullable|array',
+            'excluded_destinations' => 'sometimes|nullable|array',
+            'preferred_equipment' => 'sometimes|nullable|array',
+            'excluded_commodities' => 'sometimes|nullable|array',
+            'prefer_home_routes' => 'sometimes|boolean',
+            'prefer_high_value' => 'sometimes|boolean',
+            'prefer_short_haul' => 'sometimes|boolean',
+            'prefer_long_haul' => 'sometimes|boolean',
+            'open_to_hazmat' => 'sometimes|boolean',
+            'open_to_temperature_controlled' => 'sometimes|boolean',
+            'max_hours_per_day' => 'sometimes|nullable|integer',
+        ]);
+
+        $prefs = \App\Models\DriverLoadPreference::updateOrCreate(
+            ['delivery_man_id' => $driver->id],
+            $validated
+        );
+
+        return response()->json(['success' => true, 'preferences' => $prefs]);
+    }
+
+    public function loadSourcingAvailableExternal(Request $request)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $query = \App\Models\ExternalLoad::where('status', 'available')
+            ->where('is_duplicate', false)
+            ->with('source');
+
+        if ($request->has('equipment_type')) {
+            $query->where('equipment_type', $request->equipment_type);
+        }
+        if ($request->has('origin_state')) {
+            $query->where('origin_state', $request->origin_state);
+        }
+        if ($request->has('destination_state')) {
+            $query->where('destination_state', $request->destination_state);
+        }
+
+        $loads = $query->orderByDesc('gross_rate')->limit(50)->get();
+
+        $result = $loads->map(function ($load) {
+            $sourceUrl = $load->source_url ?? $load->source?->deep_link_template;
+            return [
+                'id' => $load->id,
+                'source' => $load->source?->name,
+                'source_key' => $load->source?->source_key,
+                'compliance_status' => $load->compliance_status,
+                'origin_city' => $load->origin_city,
+                'origin_state' => $load->origin_state,
+                'destination_city' => $load->destination_city,
+                'destination_state' => $load->destination_state,
+                'equipment_type' => $load->equipment_type,
+                'weight' => $load->weight,
+                'gross_rate' => $load->gross_rate,
+                'distance_loaded' => $load->distance_loaded,
+                'distance_deadhead' => $load->distance_deadhead,
+                'estimated_driver_net' => $load->estimated_driver_net,
+                'pickup_start' => $load->pickup_start?->toIso8601String(),
+                'pickup_end' => $load->pickup_end?->toIso8601String(),
+                'commodity' => $load->commodity,
+                'broker_name' => $load->broker_name,
+                'source_url' => $sourceUrl,
+                'has_external_link' => !empty($sourceUrl),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'loads' => $result,
+            'count' => $result->count(),
+        ]);
+    }
+
+    public function loadSourcingShareExternal(Request $request)
+    {
+        $driver = $this->authDriver($request);
+        if (!$driver) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $validated = $request->validate([
+            'source_url' => 'required|url',
+            'origin_city' => 'sometimes|nullable|string',
+            'origin_state' => 'sometimes|nullable|string|max:2',
+            'destination_city' => 'sometimes|nullable|string',
+            'destination_state' => 'sometimes|nullable|string|max:2',
+            'equipment_type' => 'sometimes|nullable|string',
+            'weight' => 'sometimes|nullable|numeric',
+            'gross_rate' => 'sometimes|nullable|numeric',
+            'commodity' => 'sometimes|nullable|string',
+            'broker_name' => 'sometimes|nullable|string',
+            'broker_contact' => 'sometimes|nullable|string',
+            'notes' => 'sometimes|nullable|string',
+        ]);
+
+        $service = new \App\Services\UrbanGoodz\LoadSource\LoadManualImportService();
+        $result = $service->shareToUrbanGoodz($validated, $driver->id, 'driver');
+
+        return response()->json($result);
+    }
 }
