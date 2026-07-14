@@ -29,8 +29,9 @@ class ActivationCheckMiddleware
             }
 
             return response()->json([
-                'code' => 503,
-                'message' => 'Please check activation for '. str_replace('_', ' ', $area),
+                'errors' => [
+                    ['code' => 'activation-invalid', 'message' => 'Please check activation for '. str_replace('_', ' ', $area)]
+                ]
             ], 503);
         }
         return $next($request);

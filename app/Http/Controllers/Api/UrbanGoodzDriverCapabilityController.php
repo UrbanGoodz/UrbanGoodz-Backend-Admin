@@ -102,7 +102,7 @@ class UrbanGoodzDriverCapabilityController extends Controller
 
     private function authDriver(Request $request): DeliveryMan
     {
-        $driver = $request->user('delivery_man');
+        $driver = $request->user('delivery_men');
         if (!$driver) {
             abort(401, 'Unauthenticated driver');
         }

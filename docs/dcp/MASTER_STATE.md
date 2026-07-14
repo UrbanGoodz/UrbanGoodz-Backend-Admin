@@ -1,6 +1,6 @@
 # Urban Goodz -- Master State
 
-**Last updated:** 2026-07-14 | **Branch:** `adminpanel-v39-backend-sprint` | **Latest checkpoint:** `d38dd88` | **Latest implementation:** `f026801`
+**Last updated:** 2026-07-14 | **Branch:** `adminpanel-v39-backend-sprint` | **Latest checkpoint:** `d38dd88` | **Latest implementation:** `f026801` | **Session 9A:** driver unblock
 
 ---
 
@@ -76,15 +76,14 @@
 - Driver App + Vendor App pushed with CI/CD pipelines
 - Sidebar dynamic module visibility + record count badges
 - Order Anywhere fully audited (13 admin methods, 18 API endpoints, all real DB)
-- **Session 7 (this session):**
-  - Wired 4 mock API sections (Earn Money, Logistics, BookAnything, Events) to real Eloquent models
-  - Created UrbanGoodzBookAnythingRequest model + migration
-  - Created UrbanGoodzCommunityController + 7 admin views (dashboard, posts, comments, marketplace)
-  - Created UrbanGoodzActivityLogController + 2 admin views (index with filters, show with diff)
-  - Created 6 admin controllers + 22 views (Appointments, PlusMembership, ServiceProviders, ServiceRequests, SpotlightBusinesses, ImportBatches)
-  - Added relationships to 7 models (Community, Appointment, ServiceProvider, ServiceRequest, EarnMoney)
-  - Created UrbanGoodzPaymentTransaction model for orphan table
-  - 62 models audited: 55 complete, 4 partial, 0 missing
+- **Session 9A (this session):**
+  - Fixed driver registration 503: activation middleware returns structured JSON for API, allows local/testing without external license call
+  - Added `toggle_dm_registration` check in `DeliveryManLoginController@store` — returns 403 JSON when disabled, creates pending driver when enabled
+  - Standardized all Driver API controllers on `delivery_men` guard (was mixed `delivery_man` / `delivery_men`)
+  - Fixed purchase-card endpoints: sandbox-only enforce, status checks (completed/rejected/cancelled blocked), idempotent authorize/complete with ledger entries
+  - Masked sensitive card fields in responses (last4 only, no PAN/CVV/secret)
+  - Updated 6 controller auth methods + 3 security tests to match `delivery_men` guard
+  - Route cache verified; all 153 tests pass (568 assertions)
 
 ## What's Needed (Prioritized)
 
@@ -116,6 +115,7 @@
 ## Blockers
 | Blocker | Severity | Status |
 |---------|----------|--------|
+| Driver registration 503 / purchase-card 405/422 | P0 | RESOLVED (Session 9A) |
 | None | - | RESOLVED |
 
 ## Session History
@@ -130,6 +130,7 @@
 | 7 | 2026-07-12 | Mock APIs wired, Community/ActivityLog/6 model UIs, relationships | `9d8e16f` |
 | 8 | 2026-07-14 | DB fixes, security patches, 100% tests passing, FCM service worker | `0ba06f2`..`c0052bb` |
 | 9 | 2026-07-14 | Money, webhook idempotency, reconciliation, ownership, SMTP, queued Firebase proof | `e1186a2`..`d38dd88` |
+| 9A | 2026-07-14 | Driver registration unblock, purchase-card contract, guard standardization | `<source-sha>`..`<dcp-sha>` |
 
 ## Key URLs
 - **Backend:** https://admin.urbangoodzdelivery.com

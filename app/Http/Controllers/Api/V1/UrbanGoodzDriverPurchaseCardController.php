@@ -13,7 +13,7 @@ class UrbanGoodzDriverPurchaseCardController extends Controller
 {
     public function getCard(Request $request, int $requestId, OrderAnywhereCardService $cardService): JsonResponse
     {
-        $driverId = auth('delivery_man')->id();
+        $driverId = auth('delivery_men')->id();
 
         if (! $driverId) {
             return response()->json([
@@ -31,6 +31,13 @@ class UrbanGoodzDriverPurchaseCardController extends Controller
                 'success' => false,
                 'message' => 'Order not found or you are not assigned to this order.',
             ], 404);
+        }
+
+        if (in_array($orderRequest->status, ['completed', 'rejected', 'cancelled'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Order is in [{$orderRequest->status}] status and cannot perform card actions.",
+            ], 422);
         }
 
         $cardRequest = $cardService->getCardForDriver($driverId, $requestId);
@@ -65,7 +72,14 @@ class UrbanGoodzDriverPurchaseCardController extends Controller
 
     public function authorizePurchase(Request $request, int $requestId, OrderAnywhereCardService $cardService): JsonResponse
     {
-        $driverId = auth('delivery_man')->id();
+        if ($cardService->getManager()->isLiveMode()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Manual authorization is only allowed in staged/sandbox mode.',
+            ], 403);
+        }
+
+        $driverId = auth('delivery_men')->id();
 
         if (! $driverId) {
             return response()->json([
@@ -83,6 +97,13 @@ class UrbanGoodzDriverPurchaseCardController extends Controller
                 'success' => false,
                 'message' => 'Order not found or you are not assigned to this order.',
             ], 404);
+        }
+
+        if (in_array($orderRequest->status, ['completed', 'rejected', 'cancelled'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Order is in [{$orderRequest->status}] status and cannot perform card actions.",
+            ], 422);
         }
 
         $cardRequest = UrbanGoodzOrderAnywhereCardRequest::findUsableForDriver($driverId, $requestId);
@@ -122,7 +143,14 @@ class UrbanGoodzDriverPurchaseCardController extends Controller
 
     public function completePurchase(Request $request, int $requestId, OrderAnywhereCardService $cardService): JsonResponse
     {
-        $driverId = auth('delivery_man')->id();
+        if ($cardService->getManager()->isLiveMode()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Manual completion is only allowed in staged/sandbox mode.',
+            ], 403);
+        }
+
+        $driverId = auth('delivery_men')->id();
 
         if (! $driverId) {
             return response()->json([
@@ -140,6 +168,13 @@ class UrbanGoodzDriverPurchaseCardController extends Controller
                 'success' => false,
                 'message' => 'Order not found or you are not assigned to this order.',
             ], 404);
+        }
+
+        if (in_array($orderRequest->status, ['completed', 'rejected', 'cancelled'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Order is in [{$orderRequest->status}] status and cannot perform card actions.",
+            ], 422);
         }
 
         $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('delivery_man_id', $driverId)

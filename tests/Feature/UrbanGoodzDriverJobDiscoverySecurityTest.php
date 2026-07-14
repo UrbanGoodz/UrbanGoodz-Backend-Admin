@@ -34,7 +34,7 @@ class UrbanGoodzDriverJobDiscoverySecurityTest extends TestCase
     {
         $controller = $this->controllerSource();
 
-        $this->assertStringContainsString("\$request->user('delivery_man')", $controller);
+        $this->assertStringContainsString("\$request->user('delivery_men')", $controller);
         $this->assertStringContainsString("abort(401, 'Unauthenticated driver')", $controller);
         $this->assertStringNotContainsString('DeliveryMan::find(', $controller);
         $this->assertStringNotContainsString('whereKey($request', $controller);

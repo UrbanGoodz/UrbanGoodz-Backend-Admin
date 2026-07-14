@@ -249,11 +249,18 @@ class OrderAnywhereCardService
 
     public function authorizeCardPurchase(UrbanGoodzOrderAnywhereCardRequest $cardRequest, array $data): UrbanGoodzOrderAnywhereCardRequest
     {
+        $amount = (float) ($data['amount'] ?? 0);
+
+        if ($cardRequest->card_status === 'authorized') {
+            if (abs((float)$cardRequest->authorized_amount - $amount) < 0.01) {
+                return $cardRequest;
+            }
+            abort(422, 'This card is already authorized with a different amount.');
+        }
+
         if (! $cardRequest->isUsable()) {
             abort(422, 'Card is not usable for purchases.');
         }
-
-        $amount = (float) ($data['amount'] ?? 0);
 
         if ($amount <= 0) {
             abort(422, 'Purchase amount must be greater than zero.');
@@ -291,16 +298,41 @@ class OrderAnywhereCardService
                 ]),
             ]);
 
-            $cardRequest->orderAnywhereRequest()->first()?->logActivity(
-                'driver_card_purchase_authorized',
-                "Driver card purchase authorized: \${$amount}",
-                ['card_status' => 'active'],
-                ['card_status' => 'authorized', 'authorized_amount' => $amount],
-                [
-                    'card_request_id' => $cardRequest->id,
-                    'merchant_name' => $data['merchant_name'] ?? null,
-                ]
-            );
+            $orderRequest = $cardRequest->orderAnywhereRequest()->first();
+            if ($orderRequest) {
+                $orderRequest->logActivity(
+                    'driver_card_purchase_authorized',
+                    "Driver card purchase authorized: \${$amount}",
+                    ['card_status' => 'active'],
+                    ['card_status' => 'authorized', 'authorized_amount' => $amount],
+                    [
+                        'card_request_id' => $cardRequest->id,
+                        'merchant_name' => $data['merchant_name'] ?? null,
+                    ]
+                );
+
+                \App\Models\UrbanGoodzPaymentLedger::firstOrCreate(
+                    ['idempotency_key' => 'driver_card_authorize:' . $cardRequest->id],
+                    [
+                        'ledger_number' => \App\Models\UrbanGoodzPaymentLedger::nextLedgerNumber(),
+                        'feature' => 'order_anywhere',
+                        'payable_type' => OrderAnywhereRequest::class,
+                        'payable_id' => $cardRequest->order_anywhere_request_id,
+                        'event_type' => 'driver_card_authorization',
+                        'direction' => 'debit',
+                        'amount' => $amount,
+                        'currency' => $cardRequest->currency ?? 'USD',
+                        'payment_method' => 'purchase_card',
+                        'payment_status' => 'authorized',
+                        'reference' => $cardRequest->provider_card_id,
+                        'customer_id' => $orderRequest->customer_id ?? null,
+                        'vendor_id' => $orderRequest->vendor_id ?? null,
+                        'delivery_man_id' => $cardRequest->delivery_man_id,
+                        'created_by_admin_id' => null,
+                        'metadata' => ['merchant' => $data['merchant_name'] ?? null],
+                    ]
+                );
+            }
 
             return $cardRequest->fresh();
         });
@@ -308,8 +340,19 @@ class OrderAnywhereCardService
 
     public function completeCardPurchase(UrbanGoodzOrderAnywhereCardRequest $cardRequest, float $capturedAmount): UrbanGoodzOrderAnywhereCardRequest
     {
+        if (in_array($cardRequest->card_status, ['used', 'reconciled'], true)) {
+            if (abs((float)$cardRequest->captured_amount - $capturedAmount) < 0.01) {
+                return $cardRequest;
+            }
+            abort(422, 'This card purchase is already completed with a different amount.');
+        }
+
         if ($cardRequest->card_status !== 'authorized') {
             abort(422, 'Card must be authorized before completing purchase.');
+        }
+
+        if ($capturedAmount > (float) $cardRequest->authorized_amount) {
+            abort(422, "Captured amount \${$capturedAmount} cannot exceed authorized amount of \${$cardRequest->authorized_amount}.");
         }
 
         return DB::transaction(function () use ($cardRequest, $capturedAmount) {
@@ -325,13 +368,38 @@ class OrderAnywhereCardService
                 $this->issuing->freezeCard($cardRequest->provider_card_id ?? '');
             }
 
-            $cardRequest->orderAnywhereRequest()->first()?->logActivity(
-                'driver_card_purchase_completed',
-                "Driver card purchase completed: \${$capturedAmount}",
-                ['card_status' => 'authorized'],
-                ['card_status' => $newStatus, 'captured_amount' => $capturedAmount],
-                ['card_request_id' => $cardRequest->id]
-            );
+            $orderRequest = $cardRequest->orderAnywhereRequest()->first();
+            if ($orderRequest) {
+                $orderRequest->logActivity(
+                    'driver_card_purchase_completed',
+                    "Driver card purchase completed: \${$capturedAmount}",
+                    ['card_status' => 'authorized'],
+                    ['card_status' => $newStatus, 'captured_amount' => $capturedAmount],
+                    ['card_request_id' => $cardRequest->id]
+                );
+
+                \App\Models\UrbanGoodzPaymentLedger::firstOrCreate(
+                    ['idempotency_key' => 'driver_card_complete:' . $cardRequest->id],
+                    [
+                        'ledger_number' => \App\Models\UrbanGoodzPaymentLedger::nextLedgerNumber(),
+                        'feature' => 'order_anywhere',
+                        'payable_type' => OrderAnywhereRequest::class,
+                        'payable_id' => $cardRequest->order_anywhere_request_id,
+                        'event_type' => 'driver_card_capture',
+                        'direction' => 'debit',
+                        'amount' => $capturedAmount,
+                        'currency' => $cardRequest->currency ?? 'USD',
+                        'payment_method' => 'purchase_card',
+                        'payment_status' => 'completed',
+                        'reference' => $cardRequest->provider_card_id,
+                        'customer_id' => $orderRequest->customer_id ?? null,
+                        'vendor_id' => $orderRequest->vendor_id ?? null,
+                        'delivery_man_id' => $cardRequest->delivery_man_id,
+                        'created_by_admin_id' => null,
+                        'metadata' => [],
+                    ]
+                );
+            }
 
             return $cardRequest->fresh();
         });

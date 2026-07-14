@@ -100,6 +100,15 @@ class DeliveryManLoginController extends Controller
 
     public function store(Request $request)
     {
+        $status = \App\CentralLogics\Helpers::get_business_settings('toggle_dm_registration');
+        if (is_null($status) || (int)$status === 0) {
+            return response()->json([
+                'errors' => [
+                    ['code' => 'registration-closed', 'message' => translate('messages.driver_self_registration_is_closed')]
+                ]
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'f_name' => 'required',
             'identity_type' => 'required|in:passport,driving_license,nid',
