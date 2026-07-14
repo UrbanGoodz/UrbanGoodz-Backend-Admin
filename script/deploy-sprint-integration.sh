@@ -2,12 +2,12 @@
 # =====================================================
 # Urban Goodz — Sprint Integration Deployment Script
 # Branch: adminpanel-v39-backend-sprint
-# Locked SHA: 4940fd0e7cd3fc9abd7813be0be7658f4386b411
-# Date: 2026-07-12
+# Locked SHA: 087cf2c020b793610f9fff0cf4136b333c541ce4
+# Date: 2026-07-13
 # =====================================================
 set -euo pipefail
 
-DEPLOY_SHA="4940fd0e7cd3fc9abd7813be0be7658f4386b411"
+DEPLOY_SHA="087cf2c020b793610f9fff0cf4136b333c541ce4"
 BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
 PUBLIC_DIR="public_html"
 APP_DIR="."
@@ -85,6 +85,10 @@ echo "    - 2026_07_12_100000_create_fashion_fit_ai_workflow_tables"
 echo "    - 2026_07_12_120000_complete_creator_reel_commerce"
 echo "    - 2026_07_12_130000_complete_service_booking_workflow"
 echo "    - 2026_07_12_150000_add_soft_deletes_to_urban_goodz_medical_courier_jobs"
+echo "    - 2026_07_13_000001_create_delivery_man_vehicles_table"
+echo "    - 2026_07_13_000002_create_driver_certifications_table"
+echo "    - 2026_07_13_000003_create_vendor_notifications_table"
+echo "    - 2026_07_13_000004_add_delivery_man_id_and_applied_at_to_earn_money_applications_table"
 echo ""
 read -p "  Apply pending migrations? (yes/no): " CONFIRM_MIGRATE
 if [ "$CONFIRM_MIGRATE" = "yes" ]; then
