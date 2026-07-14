@@ -122,6 +122,21 @@ class UrbanGoodzLoadBoardLoad extends Model
         return $this->hasMany(UrbanGoodzLoadBoardAuditLog::class, 'load_id');
     }
 
+    public function bids(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzLoadBoardBid::class, 'load_id');
+    }
+
+    public function driverEarnings(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzDriverEarning::class, 'load_id');
+    }
+
+    public function dispatchAuditLogs(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzDispatchAuditLog::class, 'load_id');
+    }
+
     public function scopeForDispatchCompany($query, int $companyId)
     {
         return $query->where('dispatch_company_id', $companyId);

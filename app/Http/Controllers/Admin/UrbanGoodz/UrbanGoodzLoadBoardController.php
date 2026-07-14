@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\UrbanGoodzLoadBoardBid;
+use App\Models\UrbanGoodzDispatchAuditLog;
 use App\Models\DeliveryMan;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Brian2694\Toastr\Facades\Toastr;
@@ -42,14 +44,13 @@ class UrbanGoodzLoadBoardController extends Controller
             abort(404);
         }
 
-        $eligibleDrivers = DeliveryMan::where('active', 1)
-            ->where('application_status', 'approved')
-            ->where('load_board_eligible', true)
-            ->get();
+        $eligibleDrivers = $this->loadBoardService->getEligibleDriversForLoad($load);
+        $bids = $this->loadBoardService->getBidsForLoad($id);
 
         return view('admin-views.urban-goodz.load-board.show', [
             'load' => $load,
             'eligibleDrivers' => $eligibleDrivers,
+            'bids' => $bids,
         ]);
     }
 
@@ -198,13 +199,21 @@ class UrbanGoodzLoadBoardController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $result = $this->loadBoardService->updateStatus(
-            $id,
-            $request->status,
-            auth('admin')->id(),
-            'admin',
-            $request->notes
-        );
+        if ($request->status === 'completed') {
+            $result = $this->loadBoardService->completeWithEarnings(
+                $id,
+                auth('admin')->id(),
+                'admin'
+            );
+        } else {
+            $result = $this->loadBoardService->updateStatus(
+                $id,
+                $request->status,
+                auth('admin')->id(),
+                'admin',
+                $request->notes
+            );
+        }
 
         if (!$result) {
             Toastr::error(translate('Invalid status transition'));
@@ -332,5 +341,44 @@ class UrbanGoodzLoadBoardController extends Controller
 
         Toastr::success("Purged {$purged} stale loads older than {$days} days");
         return redirect()->route('admin.urban-goodz.load-board.index');
+    }
+
+    public function acceptBid(Request $request, $loadId, $bidId)
+    {
+        $result = $this->loadBoardService->acceptBid($bidId, auth('admin')->id());
+        if (!$result) {
+            Toastr::error(translate('Unable to accept bid'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Bid accepted and driver assigned'));
+        return redirect()->route('admin.urban-goodz.load-board.show', $loadId);
+    }
+
+    public function rejectBid(Request $request, $loadId, $bidId)
+    {
+        $result = $this->loadBoardService->rejectBid($bidId, auth('admin')->id());
+        if (!$result) {
+            Toastr::error(translate('Unable to reject bid'));
+            return redirect()->back();
+        }
+
+        Toastr::success(translate('Bid rejected'));
+        return redirect()->route('admin.urban-goodz.load-board.show', $loadId);
+    }
+
+    public function bids($id)
+    {
+        $load = $this->loadBoardService->getById($id);
+        if (!$load) {
+            abort(404);
+        }
+
+        $bids = $this->loadBoardService->getBidsForLoad($id);
+
+        return view('admin-views.urban-goodz.load-board.bids', [
+            'load' => $load,
+            'bids' => $bids,
+        ]);
     }
 }

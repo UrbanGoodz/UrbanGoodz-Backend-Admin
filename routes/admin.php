@@ -169,10 +169,14 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('{routeId}/packages/{packageId}/scans', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageScans')->name('package-scans');
                 Route::get('{id}/report', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@report')->name('report');
                 Route::get('{id}/export-report', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@exportReport')->name('export-report');
+                Route::post('{id}/complete', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@completeRoute')->name('complete');
+                Route::post('{routeId}/packages/{packageId}/mark-missing', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@markMissing')->name('package-mark-missing');
+                Route::post('{routeId}/packages/{packageId}/initiate-return', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@initiateReturn')->name('package-initiate-return');
             });
 
             Route::group(['prefix' => 'manifests', 'as' => 'manifests.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzManifestController@index')->name('index');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzManifestController@store')->name('store');
                 Route::get('{id}', 'UrbanGoodz\UrbanGoodzManifestController@show')->name('show');
             });
 
@@ -280,6 +284,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy');
                 Route::post('sync', 'UrbanGoodz\UrbanGoodzLoadBoardController@syncProviders')->name('sync');
                 Route::post('purge', 'UrbanGoodz\UrbanGoodzLoadBoardController@purgeStale')->name('purge');
+                Route::get('{id}/bids', 'UrbanGoodz\UrbanGoodzLoadBoardController@bids')->name('bids');
+                Route::post('{loadId}/bids/{bidId}/accept', 'UrbanGoodz\UrbanGoodzLoadBoardController@acceptBid')->name('bid-accept');
+                Route::post('{loadId}/bids/{bidId}/reject', 'UrbanGoodz\UrbanGoodzLoadBoardController@rejectBid')->name('bid-reject');
             });
 
             Route::group(['prefix' => 'medical-courier', 'as' => 'medical-courier.'], function () {

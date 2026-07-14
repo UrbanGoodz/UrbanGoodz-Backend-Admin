@@ -12,13 +12,14 @@ class UrbanGoodzDriverEarning extends Model
     const EARNING_TYPES = [
         'per_package', 'pickup_bonus', 'completion_bonus',
         'priority_bonus', 'partial_pay', 'return_pay',
-        'business_courier_delivery',
+        'business_courier_delivery', 'load_board_delivery',
     ];
 
     const STATUSES = ['pending', 'approved', 'paid', 'held', 'disputed'];
 
     protected $fillable = [
         'delivery_man_id', 'business_client_job_id', 'package_id', 'dedicated_route_id',
+        'load_id',
         'earning_type', 'amount', 'currency', 'status',
         'description', 'approved_by', 'approved_at', 'paid_at',
     ];
@@ -47,6 +48,11 @@ class UrbanGoodzDriverEarning extends Model
     public function route()
     {
         return $this->belongsTo(UrbanGoodzDedicatedRoute::class, 'dedicated_route_id');
+    }
+
+    public function loadBoardLoad()
+    {
+        return $this->belongsTo(UrbanGoodzLoadBoardLoad::class, 'load_id');
     }
 
     public function approver()

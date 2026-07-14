@@ -9,6 +9,10 @@ class UrbanGoodzLoadBoardSeeder extends Seeder
 {
     public function run(): void
     {
+        if (UrbanGoodzLoadBoardLoad::count() > 0) {
+            return;
+        }
+
         $loads = [
             [
                 'load_number' => 'LB-2026-0001',

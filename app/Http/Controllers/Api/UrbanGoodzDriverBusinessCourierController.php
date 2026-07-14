@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzBusinessClientJob;
 use App\Models\UrbanGoodzDriverEarning;
+use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\DeliveryMan;
 use App\Services\UrbanGoodzDriverDispatchNotificationService;
 use Illuminate\Http\Request;
@@ -279,6 +280,33 @@ class UrbanGoodzDriverBusinessCourierController extends Controller
                 'status' => 'pending',
                 'description' => 'Business courier delivery — Job #' . $job->job_number,
             ]);
+
+            if ($job->business_client_id && $job->rate_offered > 0) {
+                $idempotencyKey = "courier_delivery_{$job->id}";
+                $existingLedger = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
+                if (!$existingLedger) {
+                    UrbanGoodzPaymentLedger::create([
+                        'ledger_number' => UrbanGoodzPaymentLedger::nextLedgerNumber(),
+                        'feature' => 'business_courier',
+                        'payable_type' => UrbanGoodzBusinessClientJob::class,
+                        'payable_id' => $job->id,
+                        'event_type' => 'delivery_completed',
+                        'direction' => 'inbound',
+                        'amount' => $job->rate_offered,
+                        'currency' => $job->currency ?? 'USD',
+                        'payment_method' => 'platform',
+                        'payment_status' => 'pending',
+                        'idempotency_key' => $idempotencyKey,
+                        'customer_id' => $job->business_client_id,
+                        'delivery_man_id' => $driver->id,
+                        'metadata' => [
+                            'job_id' => $job->id,
+                            'job_number' => $job->job_number,
+                            'driver_earning_id' => $earning->id,
+                        ],
+                    ]);
+                }
+            }
 
             DB::commit();
 

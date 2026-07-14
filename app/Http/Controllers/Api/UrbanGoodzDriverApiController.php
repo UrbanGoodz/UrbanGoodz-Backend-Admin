@@ -10,6 +10,9 @@ use App\Models\UrbanGoodzRoutePackage;
 use App\Models\UrbanGoodzPackageScan;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
+use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\UrbanGoodzLoadBoardBid;
+use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzMedicalCustodyLog;
 use App\Models\UrbanGoodzAgeVerification;
 use App\Models\UrbanGoodzPaymentSplit;
@@ -441,8 +444,18 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('assigned_driver_id', $driver->id)
             ->firstOrFail();
 
+        if (!in_array($route->status, ['active', 'in_progress'])) {
+            return response()->json(['error' => 'Route is not in an active state'], 400);
+        }
+
         $pendingPackages = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->whereIn('status', ['pending', 'picked_up', 'in_transit'])
+            ->count();
+
+        $completedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->delivered()->count();
+        $failedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->failed()->count();
+        $returningCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
+            ->whereIn('status', ['return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business'])
             ->count();
 
         $route->status = 'completed';
@@ -474,8 +487,9 @@ class UrbanGoodzDriverApiController extends Controller
         return response()->json([
             'message' => 'Route completed',
             'completed_at' => $route->route_completed_at->toDateTimeString(),
-            'completed_packages' => $route->completed_packages,
-            'failed_packages' => $route->failed_packages,
+            'completed_packages' => $completedCount,
+            'failed_packages' => $failedCount,
+            'returning_packages' => $returningCount,
             'pending_packages_remaining' => $pendingPackages,
             'completion_bonus' => $route->route_completion_bonus,
         ]);
@@ -763,6 +777,212 @@ class UrbanGoodzDriverApiController extends Controller
             'is_delivery_locked' => $package->isDeliveryLocked(),
             'requires_id_verification' => $package->requires_id_verification,
             'no_contactless_delivery' => $package->no_contactless_delivery,
+        ]);
+    }
+
+    public function loadBoardAvailable(Request $request)
+    {
+        $driver = $this->authDriver($request);
+
+        $query = UrbanGoodzLoadBoardLoad::where('status', 'available')
+            ->with(['businessClient:company_name,id']);
+
+        if ($request->filled('origin_state')) {
+            $query->where('origin_state', $request->origin_state);
+        }
+        if ($request->filled('destination_state')) {
+            $query->where('destination_state', $request->destination_state);
+        }
+        if ($request->filled('equipment_type')) {
+            $query->where('equipment_type', $request->equipment_type);
+        }
+
+        $loads = $query->latest()->paginate(25);
+
+        return response()->json([
+            'loads' => $loads->items(),
+            'current_page' => $loads->currentPage(),
+            'last_page' => $loads->lastPage(),
+            'total' => $loads->total(),
+        ]);
+    }
+
+    public function loadBoardDetail(Request $request, $loadId)
+    {
+        $driver = $this->authDriver($request);
+
+        $load = UrbanGoodzLoadBoardLoad::with(['businessClient:company_name,id'])
+            ->find($loadId);
+
+        if (!$load) {
+            return response()->json(['error' => 'Load not found'], 404);
+        }
+
+        $existingBid = UrbanGoodzLoadBoardBid::where('load_id', $loadId)
+            ->where('driver_id', $driver->id)
+            ->first();
+
+        return response()->json([
+            'load' => [
+                'id' => $load->id,
+                'load_number' => $load->load_number,
+                'origin_city' => $load->origin_city,
+                'origin_state' => $load->origin_state,
+                'destination_city' => $load->destination_city,
+                'destination_state' => $load->destination_state,
+                'distance_miles' => $load->distance_miles,
+                'payout_amount' => $load->payout_amount,
+                'driver_payout_amount' => $load->effective_driver_payout,
+                'load_type' => $load->load_type,
+                'equipment_type' => $load->equipment_type,
+                'weight_lbs' => $load->weight_lbs,
+                'pieces' => $load->pieces,
+                'commodity_description' => $load->commodity_description,
+                'is_hazmat' => $load->is_hazmat,
+                'is_temperature_controlled' => $load->is_temperature_controlled,
+                'requires_liftgate' => $load->requires_liftgate,
+                'is_expedited' => $load->is_expedited,
+                'origin_ready_at' => $load->origin_ready_at?->toDateTimeString(),
+                'destination_due_at' => $load->destination_due_at?->toDateTimeString(),
+                'bid_count' => $load->bids()->count(),
+                'my_bid' => $existingBid ? [
+                    'id' => $existingBid->id,
+                    'bid_amount' => $existingBid->bid_amount,
+                    'status' => $existingBid->status,
+                ] : null,
+            ],
+        ]);
+    }
+
+    public function loadBoardPlaceBid(Request $request, $loadId)
+    {
+        $driver = $this->authDriver($request);
+
+        $validator = Validator::make($request->all(), [
+            'bid_amount' => ['required', 'numeric', 'min:0.01'],
+            'message' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $load = UrbanGoodzLoadBoardLoad::where('status', 'available')->find($loadId);
+        if (!$load) {
+            return response()->json(['error' => 'Load not available for bidding'], 404);
+        }
+
+        $existingBid = UrbanGoodzLoadBoardBid::where('load_id', $loadId)
+            ->where('driver_id', $driver->id)
+            ->where('status', 'pending')
+            ->first();
+        if ($existingBid) {
+            return response()->json(['error' => 'You already have a pending bid on this load'], 400);
+        }
+
+        $bid = UrbanGoodzLoadBoardBid::create([
+            'load_id' => $loadId,
+            'driver_id' => $driver->id,
+            'bid_amount' => $request->bid_amount,
+            'bid_message' => $request->message,
+            'status' => 'pending',
+        ]);
+
+        $load->logEvent('bid_placed', null, (string) $request->bid_amount, [
+            'bid_id' => $bid->id,
+            'driver_id' => $driver->id,
+        ], 'driver', $driver->id, "Bid placed: \${$request->bid_amount}");
+
+        return response()->json([
+            'message' => 'Bid placed successfully',
+            'bid' => $bid,
+        ], 201);
+    }
+
+    public function loadBoardMyBids(Request $request)
+    {
+        $driver = $this->authDriver($request);
+
+        $bids = UrbanGoodzLoadBoardBid::with(['load'])
+            ->where('driver_id', $driver->id)
+            ->latest()
+            ->paginate(25);
+
+        return response()->json([
+            'bids' => $bids->items(),
+            'current_page' => $bids->currentPage(),
+            'last_page' => $bids->lastPage(),
+        ]);
+    }
+
+    public function loadBoardWithdrawBid(Request $request, $bidId)
+    {
+        $driver = $this->authDriver($request);
+
+        $bid = UrbanGoodzLoadBoardBid::where('id', $bidId)
+            ->where('driver_id', $driver->id)
+            ->pending()
+            ->first();
+
+        if (!$bid) {
+            return response()->json(['error' => 'Bid not found or not withdrawable'], 404);
+        }
+
+        $bid->update(['status' => 'withdrawn']);
+
+        if ($bid->load) {
+            $bid->load->logEvent('bid_withdrawn', null, (string) $bid->bid_amount, [
+                'bid_id' => $bid->id,
+                'driver_id' => $driver->id,
+            ], 'driver', $driver->id, 'Bid withdrawn');
+        }
+
+        return response()->json(['message' => 'Bid withdrawn']);
+    }
+
+    public function activeJobs(Request $request)
+    {
+        $driver = $this->authDriver($request);
+
+        $assignedRoutes = UrbanGoodzDedicatedRoute::with(['client:company_name,id', 'batches'])
+            ->where('assigned_driver_id', $driver->id)
+            ->whereIn('status', ['active', 'in_progress'])
+            ->latest()
+            ->get()
+            ->map(function ($route) {
+                return [
+                    'type' => 'dedicated_route',
+                    'id' => $route->id,
+                    'name' => $route->route_name,
+                    'status' => $route->status,
+                    'total_packages' => $route->total_packages,
+                    'completed_packages' => $route->completed_packages,
+                    'client' => $route->client?->company_name,
+                    'scheduled_date' => $route->scheduled_date?->toDateString(),
+                ];
+            });
+
+        $assignedLoads = UrbanGoodzLoadBoardLoad::with(['businessClient:company_name,id'])
+            ->where('assigned_driver_id', $driver->id)
+            ->whereIn('status', ['assigned', 'in_transit', 'picked_up'])
+            ->latest()
+            ->get()
+            ->map(function ($load) {
+                return [
+                    'type' => 'load_board',
+                    'id' => $load->id,
+                    'name' => $load->load_number,
+                    'status' => $load->status,
+                    'origin' => $load->origin_full,
+                    'destination' => $load->destination_full,
+                    'payout' => $load->effective_driver_payout,
+                    'client' => $load->businessClient?->company_name,
+                ];
+            });
+
+        return response()->json([
+            'routes' => $assignedRoutes,
+            'loads' => $assignedLoads,
         ]);
     }
 }

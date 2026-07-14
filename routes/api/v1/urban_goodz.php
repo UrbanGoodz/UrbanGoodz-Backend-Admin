@@ -151,6 +151,16 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::post('business-jobs/{jobId}/proof-delivery', 'Api\UrbanGoodzDriverBusinessCourierController@submitDeliveryProof');
     Route::post('business-jobs/{jobId}/exception', 'Api\UrbanGoodzDriverBusinessCourierController@reportException');
 
+    // Driver load board browsing and bidding
+    Route::get('load-board', 'Api\UrbanGoodzDriverApiController@loadBoardAvailable');
+    Route::get('load-board/{loadId}', 'Api\UrbanGoodzDriverApiController@loadBoardDetail');
+    Route::post('load-board/{loadId}/bid', 'Api\UrbanGoodzDriverApiController@loadBoardPlaceBid');
+    Route::get('my-bids', 'Api\UrbanGoodzDriverApiController@loadBoardMyBids');
+    Route::post('my-bids/{bidId}/withdraw', 'Api\UrbanGoodzDriverApiController@loadBoardWithdrawBid');
+
+    // Active jobs overview
+    Route::get('active-jobs', 'Api\UrbanGoodzDriverApiController@activeJobs');
+
     // Driver Order Anywhere purchase card
     Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
     Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');

@@ -4,6 +4,9 @@ namespace App\Services\UrbanGoodz;
 
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\UrbanGoodzLoadBoardAuditLog;
+use App\Models\UrbanGoodzLoadBoardBid;
+use App\Models\UrbanGoodzDriverEarning;
+use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\DeliveryMan;
 use App\Models\Order;
 use App\Services\UrbanGoodz\LoadBoard\DatAdapter;
@@ -467,5 +470,241 @@ class UrbanGoodzLoadBoardService
             ->where('provider', '!=', 'internal')
             ->where('updated_at', '<', now()->subDays($days))
             ->delete();
+    }
+
+    public function placeBid(int $loadId, int $driverId, float $bidAmount, ?string $message = null): ?UrbanGoodzLoadBoardBid
+    {
+        $load = UrbanGoodzLoadBoardLoad::where('status', 'available')->find($loadId);
+        if (!$load) {
+            return null;
+        }
+
+        $driver = DeliveryMan::where('id', $driverId)
+            ->where('active', 1)
+            ->where('application_status', 'approved')
+            ->where('load_board_eligible', true)
+            ->first();
+        if (!$driver) {
+            return null;
+        }
+
+        $existingBid = UrbanGoodzLoadBoardBid::where('load_id', $loadId)
+            ->where('driver_id', $driverId)
+            ->where('status', 'pending')
+            ->first();
+        if ($existingBid) {
+            return null;
+        }
+
+        $bid = UrbanGoodzLoadBoardBid::create([
+            'load_id' => $loadId,
+            'driver_id' => $driverId,
+            'bid_amount' => $bidAmount,
+            'bid_message' => $message,
+            'status' => 'pending',
+        ]);
+
+        $load->logEvent('bid_placed', null, (string) $bidAmount, [
+            'bid_id' => $bid->id,
+            'driver_id' => $driverId,
+        ], 'driver', $driverId, "Bid placed: \${$bidAmount}");
+
+        return $bid;
+    }
+
+    public function acceptBid(int $bidId, int $actorId): ?UrbanGoodzLoadBoardLoad
+    {
+        $bid = UrbanGoodzLoadBoardBid::with('load')->pending()->find($bidId);
+        if (!$bid) {
+            return null;
+        }
+
+        $load = $bid->load;
+        if (!$load || $load->status !== 'available') {
+            return null;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $bid->update([
+                'status' => 'accepted',
+                'responded_at' => now(),
+                'responded_by' => $actorId,
+            ]);
+
+            UrbanGoodzLoadBoardBid::where('load_id', $load->id)
+                ->where('id', '!=', $bidId)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'rejected',
+                    'responded_at' => now(),
+                    'responded_by' => $actorId,
+                    'notes' => 'Rejected: another bid accepted',
+                ]);
+
+            $result = $this->acceptLoad($load->id, $bid->driver_id, $actorId);
+            if (!$result) {
+                DB::rollBack();
+                return null;
+            }
+
+            $load->logEvent('bid_accepted', null, (string) $bid->bid_amount, [
+                'bid_id' => $bid->id,
+                'driver_id' => $bid->driver_id,
+            ], 'admin', $actorId, "Bid accepted from driver #{$bid->driver_id}");
+
+            DB::commit();
+            return $load->fresh();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Load board bid accept failed', ['bid_id' => $bidId, 'error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function rejectBid(int $bidId, int $actorId): bool
+    {
+        $bid = UrbanGoodzLoadBoardBid::pending()->find($bidId);
+        if (!$bid) {
+            return false;
+        }
+
+        $bid->update([
+            'status' => 'rejected',
+            'responded_at' => now(),
+            'responded_by' => $actorId,
+        ]);
+
+        if ($bid->load) {
+            $bid->load->logEvent('bid_rejected', null, (string) $bid->bid_amount, [
+                'bid_id' => $bid->id,
+                'driver_id' => $bid->driver_id,
+            ], 'admin', $actorId, "Bid rejected from driver #{$bid->driver_id}");
+        }
+
+        return true;
+    }
+
+    public function withdrawBid(int $bidId, int $driverId): bool
+    {
+        $bid = UrbanGoodzLoadBoardBid::pending()->find($bidId);
+        if (!$bid || $bid->driver_id !== $driverId) {
+            return false;
+        }
+
+        $bid->update(['status' => 'withdrawn']);
+
+        if ($bid->load) {
+            $bid->load->logEvent('bid_withdrawn', null, (string) $bid->bid_amount, [
+                'bid_id' => $bid->id,
+                'driver_id' => $driverId,
+            ], 'driver', $driverId, 'Bid withdrawn');
+        }
+
+        return true;
+    }
+
+    public function getBidsForLoad(int $loadId): \Illuminate\Support\Collection
+    {
+        return UrbanGoodzLoadBoardBid::with(['driver'])
+            ->where('load_id', $loadId)
+            ->latest()
+            ->get();
+    }
+
+    public function getBidsForDriver(int $driverId): \Illuminate\Support\Collection
+    {
+        return UrbanGoodzLoadBoardBid::with(['load'])
+            ->where('driver_id', $driverId)
+            ->latest()
+            ->get();
+    }
+
+    public function getEligibleDriversForLoad(UrbanGoodzLoadBoardLoad $load): \Illuminate\Eloquent\Collection
+    {
+        $query = DeliveryMan::where('active', 1)
+            ->where('application_status', 'approved')
+            ->where('load_board_eligible', true);
+
+        if ($load->equipment_type) {
+            $query->where(function ($q) use ($load) {
+                $q->where('vehicle_type', $load->equipment_type)
+                  ->orWhere('preferred_vehicle_types', 'like', '%' . $load->equipment_type . '%');
+            });
+        }
+
+        if ($load->is_hazmat) {
+            $query->where('has_hazmat_endorsement', true);
+        }
+
+        return $query->get();
+    }
+
+    public function completeWithEarnings(int $loadId, ?int $actorId = null, ?string $actorType = 'admin'): ?UrbanGoodzLoadBoardLoad
+    {
+        $load = UrbanGoodzLoadBoardLoad::find($loadId);
+        if (!$load || $load->status !== 'delivered') {
+            return null;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $result = $this->updateStatus($loadId, 'completed', $actorId, $actorType, 'Load completed with earnings');
+            if (!$result) {
+                DB::rollBack();
+                return null;
+            }
+
+            $load = $result;
+
+            if ($load->assigned_driver_id && $load->effective_driver_payout > 0) {
+                UrbanGoodzDriverEarning::create([
+                    'delivery_man_id' => $load->assigned_driver_id,
+                    'load_id' => $load->id,
+                    'earning_type' => 'load_board_delivery',
+                    'amount' => $load->effective_driver_payout,
+                    'status' => 'pending',
+                    'description' => 'Load board delivery: ' . $load->load_number,
+                ]);
+            }
+
+            if ($load->customer_price > 0 && $load->business_client_id) {
+                $idempotencyKey = "load_board_income_{$load->id}";
+                $existingLedger = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
+                if (!$existingLedger) {
+                    UrbanGoodzPaymentLedger::create([
+                        'ledger_number' => UrbanGoodzPaymentLedger::nextLedgerNumber(),
+                        'feature' => 'load_board',
+                        'payable_type' => UrbanGoodzBusinessClient::class,
+                        'payable_id' => $load->business_client_id,
+                        'event_type' => 'load_completed',
+                        'direction' => 'inbound',
+                        'amount' => $load->customer_price,
+                        'currency' => 'USD',
+                        'payment_method' => 'platform',
+                        'payment_status' => 'pending',
+                        'idempotency_key' => $idempotencyKey,
+                        'customer_id' => $load->business_client_id,
+                        'delivery_man_id' => $load->assigned_driver_id,
+                        'created_by_admin_id' => $actorId,
+                        'metadata' => [
+                            'load_id' => $load->id,
+                            'load_number' => $load->load_number,
+                            'driver_payout' => $load->effective_driver_payout,
+                            'platform_margin' => $load->effective_margin,
+                        ],
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $load->fresh();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Load board complete with earnings failed', ['load_id' => $loadId, 'error' => $e->getMessage()]);
+            return null;
+        }
     }
 }
