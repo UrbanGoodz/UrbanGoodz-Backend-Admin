@@ -19,6 +19,7 @@ use App\Models\UrbanGoodzCreatorCampaign;
 use App\Models\UrbanGoodzEarnMoneyOpportunity;
 use App\Models\UrbanGoodzEvent;
 use App\Models\UrbanGoodzActivityLog;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -27,15 +28,21 @@ class UrbanGoodzAIExecutionService
     private UrbanGoodzAIService $ai;
     private UrbanGoodzModuleRouter $router;
     private UrbanGoodzAIConciergeService $concierge;
+    private AllowedActionRegistry $actionRegistry;
+    private AIActionValidator $actionValidator;
 
     public function __construct(
         UrbanGoodzAIService $ai,
         UrbanGoodzModuleRouter $router,
-        UrbanGoodzAIConciergeService $concierge
+        UrbanGoodzAIConciergeService $concierge,
+        AllowedActionRegistry $actionRegistry,
+        AIActionValidator $actionValidator
     ) {
         $this->ai = $ai;
         $this->router = $router;
         $this->concierge = $concierge;
+        $this->actionRegistry = $actionRegistry;
+        $this->actionValidator = $actionValidator;
     }
 
     // ─── MAIN ENTRY POINT ─────────────────────────────────────────────
@@ -68,49 +75,47 @@ class UrbanGoodzAIExecutionService
             }
 
             $moduleKey = $routeResult['module'];
-            $actionType = $this->determineActionType($entities);
+            $actionName = $routeResult['actions'][0]['action'] ?? null;
             $params = $routeResult['actions'][0]['params'] ?? [];
 
-            $executionResult = match ($moduleKey) {
-                'orderAnywhere'      => $this->executeOrderAnywhere($params),
-                'fashionFit'         => $this->executeFashionFit($params),
-                'bookServices'       => $this->executeBookServices($params),
-                'rentals'            => $this->executeRentals($params),
-                'marketplaceSearch'  => $this->executeMarketplaceSearch($params),
-                'medicalCourier'     => $this->executeMedicalCourier($params),
-                'loadBoard'          => $this->executeLoadBoard($params),
-                'delivery'           => $this->executeDelivery($params),
-                'creatorCommerce'    => $this->executeCreatorCommerce($params),
-                'community'          => $this->executeCommunity($params),
-                'earnMoney'          => $this->executeEarnMoney($params),
-                'events'             => $this->executeEvents($params),
-                default              => $this->buildResult(false, [
-                    'message' => "Module '{$moduleKey}' is not yet available for execution.",
-                ], [], []),
-            };
+            if (!$actionName) {
+                return $this->buildResult(false, [
+                    'message' => 'No action specified for this intent.',
+                    'intent' => $intentSlug,
+                    'confidence' => $confidence,
+                ], [], []);
+            }
 
-            $elapsed = round((microtime(true) - $startTime) * 1000, 1);
+            $validationResult = $this->actionRegistry->validateUserCanExecute($intentSlug, $actionName, $customerId);
+            
+            if (!$validationResult['allowed']) {
+                Log::warning('UrbanGoodzAIExecutionService: Action blocked by authorization', [
+                    'intent' => $intentSlug,
+                    'action' => $actionName,
+                    'customer_id' => $customerId,
+                    'reason' => $validationResult['reason'],
+                ]);
+                
+                return $this->buildResult(false, [
+                    'message' => 'You are not authorized to perform this action.',
+                    'intent' => $intentSlug,
+                    'confidence' => $confidence,
+                    'blocked_reason' => $validationResult['reason'],
+                ], [], []);
+            }
 
-            $this->logAction([
-                'event' => 'intent_executed',
-                'intent_slug' => $intentSlug,
-                'module' => $moduleKey,
-                'action' => $routeResult['actions'][0]['action'] ?? null,
-                'customer_id' => $customerId,
-                'confidence' => $confidence,
-                'success' => $executionResult['success'] ?? false,
-                'execution_time_ms' => $elapsed,
-                'metadata' => [
-                    'query' => $query,
-                    'entities' => $entities,
-                    'params' => $params,
-                ],
-            ]);
-
-            $executionResult['intent'] = $intentSlug;
-            $executionResult['confidence'] = $confidence;
-            $executionResult['entities'] = $entities;
-            $executionResult['execution_time_ms'] = $elapsed;
+            $executionResult = $this->executeWithSafeguards(
+                $moduleKey,
+                $actionName,
+                $params,
+                $validationResult,
+                $query,
+                $entities,
+                $intentSlug,
+                $confidence,
+                $customerId,
+                $startTime
+            );
 
             return $executionResult;
 
@@ -130,6 +135,110 @@ class UrbanGoodzAIExecutionService
                 ['label' => 'Contact support', 'action' => 'contact_support'],
             ]);
         }
+    }
+
+    private function executeWithSafeguards(
+        string $moduleKey,
+        string $actionName,
+        array $params,
+        array $validationResult,
+        string $query,
+        array $entities,
+        string $intentSlug,
+        float $confidence,
+        ?int $customerId,
+        float $startTime
+    ): array {
+        $requiresConfirmation = $validationResult['requires_confirmation'] ?? false;
+        $requiresHumanReview = $validationResult['requires_human_review'] ?? false;
+        $idempotencyKey = $validationResult['idempotency_key'] ?? null;
+
+        $awaitingConfirmation = $requiresConfirmation && ($params['confirmed'] ?? false) !== true;
+        $awaitingReview = $requiresHumanReview && ($params['reviewed'] ?? false) !== true;
+
+        if ($awaitingConfirmation) {
+            return $this->buildResult(true, [
+                'message' => 'This action requires your confirmation before proceeding.',
+                'intent' => $intentSlug,
+                'confidence' => $confidence,
+                'entities' => $entities,
+                'proposed_action' => [
+                    'module' => $moduleKey,
+                    'action' => $actionName,
+                    'params' => $params,
+                ],
+                'awaiting_confirmation' => true,
+                'idempotency_key' => $idempotencyKey,
+            ], [
+                ['label' => 'Confirm', 'action' => 'confirm_action', 'params' => ['idempotency_key' => $idempotencyKey]],
+                ['label' => 'Cancel', 'action' => 'cancel_action'],
+            ], ['show_confirmation_dialog' => true]);
+        }
+
+        if ($awaitingReview) {
+            return $this->buildResult(true, [
+                'message' => 'This action requires human review before proceeding. A team member will review and approve.',
+                'intent' => $intentSlug,
+                'confidence' => $confidence,
+                'entities' => $entities,
+                'proposed_action' => [
+                    'module' => $moduleKey,
+                    'action' => $actionName,
+                    'params' => $params,
+                ],
+                'awaiting_review' => true,
+                'idempotency_key' => $idempotencyKey,
+            ], [
+                ['label' => 'View Status', 'action' => 'view_review_status'],
+            ], ['show_review_pending' => true]);
+        }
+
+        $elapsed = round((microtime(true) - $startTime) * 1000, 1);
+
+        $executionResult = match ($moduleKey) {
+            'orderAnywhere'      => $this->executeOrderAnywhere($params),
+            'fashionFit'         => $this->executeFashionFit($params),
+            'bookServices'       => $this->executeBookServices($params),
+            'rentals'            => $this->executeRentals($params),
+            'marketplaceSearch'  => $this->executeMarketplaceSearch($params),
+            'medicalCourier'     => $this->executeMedicalCourier($params),
+            'loadBoard'          => $this->executeLoadBoard($params),
+            'delivery'           => $this->executeDelivery($params),
+            'creatorCommerce'    => $this->executeCreatorCommerce($params),
+            'community'          => $this->executeCommunity($params),
+            'earnMoney'          => $this->executeEarnMoney($params),
+            'events'             => $this->executeEvents($params),
+            default              => $this->buildResult(false, [
+                'message' => "Module '{$moduleKey}' is not yet available for execution.",
+            ], [], []),
+        };
+
+        $this->logAction([
+            'event' => 'intent_executed',
+            'intent_slug' => $intentSlug,
+            'module' => $moduleKey,
+            'action' => $actionName,
+            'customer_id' => $customerId,
+            'confidence' => $confidence,
+            'success' => $executionResult['success'] ?? false,
+            'execution_time_ms' => $elapsed,
+            'metadata' => [
+                'query' => $query,
+                'entities' => $entities,
+                'params' => $params,
+                'idempotency_key' => $idempotencyKey,
+                'required_confirmation' => $requiresConfirmation,
+                'required_human_review' => $requiresHumanReview,
+            ],
+        ]);
+
+        $executionResult['intent'] = $intentSlug;
+        $executionResult['confidence'] = $confidence;
+        $executionResult['entities'] = $entities;
+        $executionResult['execution_time_ms'] = $elapsed;
+        $executionResult['idempotency_key'] = $idempotencyKey;
+
+        return $executionResult;
     }
 
     // ─── ORDER ANYWHERE ───────────────────────────────────────────────
