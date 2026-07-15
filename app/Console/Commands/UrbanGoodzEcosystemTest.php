@@ -79,7 +79,7 @@ class UrbanGoodzEcosystemTest extends Command
         // ─── SUMMARY ───
         $this->printSummary();
 
-        return $this->fail > 0 ? 1 : 0;
+        return $this->failCount > 0 ? 1 : 0;
     }
 
     // ═══════════════════════════════════════════
@@ -105,37 +105,23 @@ class UrbanGoodzEcosystemTest extends Command
             'zones' => 'Delivery zones',
             'modules' => 'Feature modules',
             // Driver
-            'delivery_man' => 'Driver accounts',
+            'delivery_men' => 'Driver accounts',
             'vehicles' => 'Vehicle types',
-            'driver_earnings' => 'Driver earnings ledger',
-            'driver_withdrawal_request' => 'Driver withdrawals',
-            'driver_location_track' => 'Driver GPS tracking',
-            'driver_notifications' => 'Driver notifications',
             // Orders
             'orders' => 'Orders master',
             'order_details' => 'Order line items',
             'order_transactions' => 'Payment transactions',
-            'order_status_histories' => 'Order status timeline',
             // Vendor
-            'sellers' => 'Vendor/seller accounts',
-            'seller_wallets' => 'Vendor wallets',
-            'seller_earnings' => 'Vendor earnings',
-            'seller_withdrawal_requests' => 'Vendor withdrawals',
+            'vendors' => 'Vendor accounts',
+            'store_wallets' => 'Vendor wallets',
             // Business Portal
             'urban_goodz_business_clients' => 'Business client companies',
             'urban_goodz_business_client_users' => 'Business portal users',
-            // Dispatch
-            'dispatch_companies' => 'Dispatch companies',
-            'dispatch_company_drivers' => 'Dispatch-driver links',
-            // Service Bookings
-            'service_bookings' => 'Service appointments',
-            'service_booking_slots' => 'Booking time slots',
-            // Product Marketplace
-            'product_marketplace_listings' => 'P2B marketplace',
-            'product_marketplace_orders' => 'P2B orders',
-            // Fashion Fit
-            'fashion_fit_body_scans' => 'Body scan data',
-            'fashion_fit_recommendations' => 'Style recommendations',
+            // UrbanGoodz
+            'urban_goodz_service_providers' => 'Service providers',
+            'urban_goodz_service_requests' => 'Service requests',
+            'urban_goodz_driver_earnings' => 'Driver earnings',
+            'urban_goodz_dispatch_companies' => 'Dispatch companies',
         ];
 
         $existing = 0;
@@ -160,15 +146,10 @@ class UrbanGoodzEcosystemTest extends Command
     protected function testForeignKeys()
     {
         $checks = [
-            ['orders', 'delivery_man_id', 'delivery_man'],
-            ['orders', 'seller_id', 'sellers'],
+            ['orders', 'delivery_man_id', 'delivery_men'],
             ['order_details', 'order_id', 'orders'],
             ['order_transactions', 'order_id', 'orders'],
-            ['delivery_man', 'vehicle_id', 'vehicles'],
-            ['delivery_man', 'zone_id', 'zones'],
             ['urban_goodz_business_client_users', 'business_client_id', 'urban_goodz_business_clients'],
-            ['seller_earnings', 'seller_id', 'sellers'],
-            ['driver_earnings', 'dm_id', 'delivery_man'],
         ];
 
         foreach ($checks as [$from, $col, $to]) {
@@ -192,7 +173,6 @@ class UrbanGoodzEcosystemTest extends Command
         $models = [
             \App\Models\DeliveryMan::class => 'DeliveryMan (Driver)',
             \App\Models\User::class => 'User (Customer)',
-            \App\Models\Seller::class => 'Seller (Vendor)',
             \App\Models\Zone::class => 'Zone',
             \App\Models\Order::class => 'Order',
             \App\Models\OrderDetail::class => 'OrderDetail',
@@ -201,9 +181,10 @@ class UrbanGoodzEcosystemTest extends Command
             \App\Models\Admin::class => 'Admin',
             \App\Models\UrbanGoodzBusinessClient::class => 'BusinessClient',
             \App\Models\UrbanGoodzBusinessClientUser::class => 'BusinessClientUser',
-            \App\Models\DispatchCompany::class => 'DispatchCompany',
-            \App\Models\SellerWallet::class => 'SellerWallet',
-            \App\Models\SellerEarning::class => 'SellerEarning',
+            \App\Models\Store::class => 'Store (Vendor)',
+            \App\Models\StoreWallet::class => 'StoreWallet',
+            \App\Models\UrbanGoodzDriverEarning::class => 'DriverEarning',
+            \App\Models\UrbanGoodzServiceRequest::class => 'ServiceRequest',
         ];
 
         foreach ($models as $class => $name) {
