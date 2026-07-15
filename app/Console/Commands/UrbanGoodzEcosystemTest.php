@@ -18,9 +18,9 @@ class UrbanGoodzEcosystemTest extends Command
                             {--verbose-output : Show full details}';
     protected $description = 'Run full ecosystem integration tests across backend, APIs, and portals';
 
-    protected int $pass = 0;
-    protected int $fail = 0;
-    protected int $warn = 0;
+    protected int $passCount = 0;
+    protected int $failCount = 0;
+    protected int $warnCount = 0;
     protected array $results = [];
     protected bool $verbose;
 
@@ -90,9 +90,9 @@ class UrbanGoodzEcosystemTest extends Command
     {
         try {
             DB::connection()->getPdo();
-            $this->pass('Database connection OK');
+            $this->addPass('Database connection OK');
         } catch (\Exception $e) {
-            $this->fail("Database connection FAILED: {$e->getMessage()}");
+            $this->addFail("Database connection FAILED: {$e->getMessage()}");
         }
     }
 
@@ -146,11 +146,11 @@ class UrbanGoodzEcosystemTest extends Command
                 $existing++;
                 if ($this->verbose) {
                     $count = DB::table($table)->count();
-                    $this->pass("  {$table} exists ({$count} rows) — {$desc}");
+                    $this->addPass("  {$table} exists ({$count} rows) — {$desc}");
                 }
             } else {
                 $missing++;
-                $this->warn("  {$table} MISSING — {$desc}");
+                $this->addWarn("  {$table} MISSING — {$desc}");
             }
         }
 
@@ -175,10 +175,10 @@ class UrbanGoodzEcosystemTest extends Command
             $hasCol = DB::getSchemaBuilder()->hasColumn($from, $col);
             if ($hasCol) {
                 if ($this->verbose) {
-                    $this->pass("  {$from}.{$col} → {$to}");
+                    $this->addPass("  {$from}.{$col} → {$to}");
                 }
             } else {
-                $this->warn("  {$from}.{$col} column MISSING");
+                $this->addWarn("  {$from}.{$col} column MISSING");
             }
         }
     }
@@ -212,12 +212,12 @@ class UrbanGoodzEcosystemTest extends Command
                 $table = $model->getTable();
                 $fillable = $model->getFillable();
                 if ($this->verbose) {
-                    $this->pass("  {$name} → table: {$table}, fillable: " . count($fillable));
+                    $this->addPass("  {$name} → table: {$table}, fillable: " . count($fillable));
                 } else {
-                    $this->pass("  {$name}");
+                    $this->addPass("  {$name}");
                 }
             } catch (\Exception $e) {
-                $this->fail("  {$name}: {$e->getMessage()}");
+                $this->addFail("  {$name}: {$e->getMessage()}");
             }
         }
     }
@@ -261,11 +261,11 @@ class UrbanGoodzEcosystemTest extends Command
                 $found++;
                 if ($this->verbose) {
                     $name = $route->getName() ?: '(unnamed)';
-                    $this->pass("  {$method} {$uri} → {$name}");
+                    $this->addPass("  {$method} {$uri} → {$name}");
                 }
             } else {
                 $missing++;
-                $this->fail("  {$method} {$uri} NOT REGISTERED");
+                $this->addFail("  {$method} {$uri} NOT REGISTERED");
             }
         }
 
@@ -291,7 +291,7 @@ class UrbanGoodzEcosystemTest extends Command
                 $found++;
             } else {
                 $missing++;
-                $this->warn("  {$method} {$uri} NOT REGISTERED");
+                $this->addWarn("  {$method} {$uri} NOT REGISTERED");
             }
         }
 
@@ -312,10 +312,10 @@ class UrbanGoodzEcosystemTest extends Command
             if ($route) {
                 $found++;
                 if ($this->verbose) {
-                    $this->pass("  {$method} {$uri}");
+                    $this->addPass("  {$method} {$uri}");
                 }
             } else {
-                $this->fail("  {$method} {$uri} NOT REGISTERED");
+                $this->addFail("  {$method} {$uri} NOT REGISTERED");
             }
         }
 
@@ -365,7 +365,7 @@ class UrbanGoodzEcosystemTest extends Command
                 'ref_code' => 'ECO' . Str::random(8),
             ]
         );
-        $this->pass("  Test driver created (ID: {$driver->id}, token: {$driver->auth_token})");
+        $this->addPass("  Test driver created (ID: {$driver->id}, token: {$driver->auth_token})");
 
         // Test business owner
         $client = \App\Models\UrbanGoodzBusinessClient::updateOrCreate(
@@ -394,7 +394,7 @@ class UrbanGoodzEcosystemTest extends Command
                 'status' => 'active',
             ]
         );
-        $this->pass("  Test business owner created (ID: {$owner->id}, company: {$client->company_name})");
+        $this->addPass("  Test business owner created (ID: {$owner->id}, company: {$client->company_name})");
 
         // Test customer
         $customer = \App\Models\User::updateOrCreate(
@@ -406,7 +406,7 @@ class UrbanGoodzEcosystemTest extends Command
                 'is_active' => 1,
             ]
         );
-        $this->pass("  Test customer created (ID: {$customer->id})");
+        $this->addPass("  Test customer created (ID: {$customer->id})");
 
         $this->newLine();
         $this->info('  ═══ SEED CREDENTIALS ═══');
@@ -432,12 +432,12 @@ class UrbanGoodzEcosystemTest extends Command
             try {
                 $resp = Http::timeout(10)->get($url);
                 if ($resp->successful()) {
-                    $this->pass("  {$label}: HTTP {$resp->status()}");
+                    $this->addPass("  {$label}: HTTP {$resp->status()}");
                 } else {
-                    $this->warn("  {$label}: HTTP {$resp->status()}");
+                    $this->addWarn("  {$label}: HTTP {$resp->status()}");
                 }
             } catch (\Exception $e) {
-                $this->fail("  {$label}: {$e->getMessage()}");
+                $this->addFail("  {$label}: {$e->getMessage()}");
             }
         }
     }
@@ -451,7 +451,7 @@ class UrbanGoodzEcosystemTest extends Command
             ->first();
 
         if (!$driver) {
-            $this->warn('  No test driver found for API test (run --create-seed first)');
+            $this->addWarn('  No test driver found for API test (run --create-seed first)');
             return;
         }
 
@@ -467,14 +467,14 @@ class UrbanGoodzEcosystemTest extends Command
                 $resp = Http::timeout(10)->get($url);
                 $body = $resp->json();
                 if (isset($body['status']) && $body['status'] === 'success') {
-                    $this->pass("  {$label}: OK (HTTP {$resp->status()})");
+                    $this->addPass("  {$label}: OK (HTTP {$resp->status()})");
                 } elseif ($resp->successful()) {
-                    $this->pass("  {$label}: HTTP {$resp->status()} (may need auth)");
+                    $this->addPass("  {$label}: HTTP {$resp->status()} (may need auth)");
                 } else {
-                    $this->warn("  {$label}: HTTP {$resp->status()}");
+                    $this->addWarn("  {$label}: HTTP {$resp->status()}");
                 }
             } catch (\Exception $e) {
-                $this->fail("  {$label}: {$e->getMessage()}");
+                $this->addFail("  {$label}: {$e->getMessage()}");
             }
         }
     }
@@ -489,12 +489,12 @@ class UrbanGoodzEcosystemTest extends Command
             $body = $resp->json();
             // Even a failed login should return a proper JSON response
             if (isset($body['status'])) {
-                $this->pass("  Vendor login endpoint: responsive (status: {$body['status']})");
+                $this->addPass("  Vendor login endpoint: responsive (status: {$body['status']})");
             } else {
-                $this->warn("  Vendor login: unexpected response format");
+                $this->addWarn("  Vendor login: unexpected response format");
             }
         } catch (\Exception $e) {
-            $this->fail("  Vendor login endpoint: {$e->getMessage()}");
+            $this->addFail("  Vendor login endpoint: {$e->getMessage()}");
         }
     }
 
@@ -505,12 +505,12 @@ class UrbanGoodzEcosystemTest extends Command
             if ($resp->successful()) {
                 $body = $resp->json();
                 $keys = array_keys($body);
-                $this->pass("  Customer config: " . count($keys) . " keys returned");
+                $this->addPass("  Customer config: " . count($keys) . " keys returned");
             } else {
-                $this->warn("  Customer config: HTTP {$resp->status()}");
+                $this->addWarn("  Customer config: HTTP {$resp->status()}");
             }
         } catch (\Exception $e) {
-            $this->fail("  Customer config: {$e->getMessage()}");
+            $this->addFail("  Customer config: {$e->getMessage()}");
         }
     }
 
@@ -523,25 +523,25 @@ class UrbanGoodzEcosystemTest extends Command
         // Verify guard config
         $guard = config('auth.guards.business');
         if ($guard && $guard['driver'] === 'session' && $guard['provider'] === 'business_clients') {
-            $this->pass("  Auth guard 'business' configured correctly");
+            $this->addPass("  Auth guard 'business' configured correctly");
         } else {
-            $this->fail("  Auth guard 'business' misconfigured");
+            $this->addFail("  Auth guard 'business' misconfigured");
         }
 
         // Verify provider
         $provider = config('auth.providers.business_clients');
         if ($provider && $provider['driver'] === 'eloquent' && $provider['model'] === \App\Models\UrbanGoodzBusinessClientUser::class) {
-            $this->pass("  Provider 'business_clients' points to UrbanGoodzBusinessClientUser");
+            $this->addPass("  Provider 'business_clients' points to UrbanGoodzBusinessClientUser");
         } else {
-            $this->fail("  Provider 'business_clients' misconfigured");
+            $this->addFail("  Provider 'business_clients' misconfigured");
         }
 
         // Verify password broker
         $broker = config('auth.passwords.business_clients');
         if ($broker && $broker['provider'] === 'business_clients') {
-            $this->pass("  Password broker 'business_clients' configured");
+            $this->addPass("  Password broker 'business_clients' configured");
         } else {
-            $this->fail("  Password broker 'business_clients' missing");
+            $this->addFail("  Password broker 'business_clients' missing");
         }
 
         // Verify views exist
@@ -553,18 +553,18 @@ class UrbanGoodzEcosystemTest extends Command
         ];
         foreach ($views as $view) {
             if (file_exists(base_path($view))) {
-                $this->pass("  View exists: " . basename($view));
+                $this->addPass("  View exists: " . basename($view));
             } else {
-                $this->fail("  View MISSING: {$view}");
+                $this->addFail("  View MISSING: {$view}");
             }
         }
 
         // Verify middleware
         $middlewareFile = app_path('Http/Middleware/BusinessMiddleware.php');
         if (file_exists($middlewareFile)) {
-            $this->pass("  BusinessMiddleware exists");
+            $this->addPass("  BusinessMiddleware exists");
         } else {
-            $this->fail("  BusinessMiddleware MISSING");
+            $this->addFail("  BusinessMiddleware MISSING");
         }
 
         // Verify controllers
@@ -576,9 +576,9 @@ class UrbanGoodzEcosystemTest extends Command
         ];
         foreach ($controllers as $ctrl) {
             if (file_exists(base_path($ctrl))) {
-                $this->pass("  Controller: " . basename($ctrl));
+                $this->addPass("  Controller: " . basename($ctrl));
             } else {
-                $this->fail("  Controller MISSING: {$ctrl}");
+                $this->addFail("  Controller MISSING: {$ctrl}");
             }
         }
     }
@@ -597,11 +597,11 @@ class UrbanGoodzEcosystemTest extends Command
                 ->where('email', 'test@urbangoodzdelivery.com')
                 ->first();
             if ($found) {
-                $this->pass("  Password reset token insert/read OK");
+                $this->addPass("  Password reset token insert/read OK");
                 DB::table('password_resets')->where('email', 'test@urbangoodzdelivery.com')->delete();
             }
         } catch (\Exception $e) {
-            $this->fail("  Password reset flow: {$e->getMessage()}");
+            $this->addFail("  Password reset flow: {$e->getMessage()}");
         }
     }
 
@@ -615,9 +615,9 @@ class UrbanGoodzEcosystemTest extends Command
         $expected = ['web', 'admin', 'seller', 'business', 'dm', 'api'];
         foreach ($expected as $name) {
             if (isset($guards[$name])) {
-                $this->pass("  Guard '{$name}' exists (driver: {$guards[$name]['driver']})");
+                $this->addPass("  Guard '{$name}' exists (driver: {$guards[$name]['driver']})");
             } else {
-                $this->warn("  Guard '{$name}' missing");
+                $this->addWarn("  Guard '{$name}' missing");
             }
         }
     }
@@ -629,16 +629,16 @@ class UrbanGoodzEcosystemTest extends Command
             $config = json_decode(file_get_contents($googleServicesPath), true);
             $project = $config['project_info']['project_id'] ?? 'unknown';
             $clients = count($config['client'] ?? []);
-            $this->pass("  google-services.json found (project: {$project}, clients: {$clients})");
+            $this->addPass("  google-services.json found (project: {$project}, clients: {$clients})");
         } else {
-            $this->warn("  google-services.json not found in backend (expected — lives in Flutter repo)");
+            $this->addWarn("  google-services.json not found in backend (expected — lives in Flutter repo)");
         }
 
         // Check Laravel Firebase config
         if (config('services.firebase.credentials')) {
-            $this->pass("  Firebase credentials path configured");
+            $this->addPass("  Firebase credentials path configured");
         } else {
-            $this->warn("  Firebase credentials not configured in config/services.php");
+            $this->addWarn("  Firebase credentials not configured in config/services.php");
         }
     }
 
@@ -652,24 +652,24 @@ class UrbanGoodzEcosystemTest extends Command
         $this->info("─── {$title} ───");
     }
 
-    protected function pass(string $msg)
+    protected function addPass(string $msg)
     {
         $this->info("  ✅ {$msg}");
-        $this->pass++;
+        $this->passCount++;
         $this->results[] = ['PASS', $msg];
     }
 
-    protected function fail(string $msg)
+    protected function addFail(string $msg)
     {
         $this->error("  ❌ {$msg}");
-        $this->fail++;
+        $this->failCount++;
         $this->results[] = ['FAIL', $msg];
     }
 
-    protected function warn(string $msg)
+    protected function addWarn(string $msg)
     {
-        $this->warn("  ⚠️  {$msg}");
-        $this->warn++;
+        parent::warn("  ⚠️  {$msg}");
+        $this->warnCount++;
         $this->results[] = ['WARN', $msg];
     }
 
@@ -679,12 +679,12 @@ class UrbanGoodzEcosystemTest extends Command
         $this->info('╔══════════════════════════════════════════════════════════╗');
         $this->info('║                    TEST SUMMARY                         ║');
         $this->info('╠══════════════════════════════════════════════════════════╣');
-        $this->info("║  ✅ Passed: {$this->pass}");
-        $this->info("║  ❌ Failed: {$this->fail}");
-        $this->info("║  ⚠️  Warnings: {$this->warn}");
+        $this->info("║  ✅ Passed: {$this->passCount}");
+        $this->info("║  ❌ Failed: {$this->failCount}");
+        $this->info("║  ⚠️  Warnings: {$this->warnCount}");
         $this->info('╚══════════════════════════════════════════════════════════╝');
 
-        if ($this->fail > 0) {
+        if ($this->failCount > 0) {
             $this->newLine();
             $this->error('FAILURES:');
             foreach ($this->results as [$status, $msg]) {
@@ -695,10 +695,10 @@ class UrbanGoodzEcosystemTest extends Command
         }
 
         $this->newLine();
-        if ($this->fail === 0) {
+        if ($this->failCount === 0) {
             $this->info('🎉 All critical tests passed!');
         } else {
-            $this->warn("{$this->fail} failure(s) require attention.");
+            $this->addWarn("{$this->failCount} failure(s) require attention.");
         }
     }
 }
