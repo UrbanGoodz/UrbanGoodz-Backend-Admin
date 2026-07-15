@@ -235,3 +235,38 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         Route::post('damage-report', 'Api\V1\UrbanGoodz\RentalAIController@reportDamage');
         Route::post('return-inspection', 'Api\V1\UrbanGoodz\RentalAIController@inspectReturn');
     });
+
+    // Support AI
+    Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+        Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
+        Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@autoResolve');
+        Route::post('escalate', 'Api\V1\UrbanGoodz\SupportAIController@escalateToHuman');
+        Route::get('knowledge-base', 'Api\V1\UrbanGoodz\SupportAIController@searchKnowledgeBase');
+        Route::post('feedback', 'Api\V1\UrbanGoodz\SupportAIController@submitFeedback');
+    });
+
+    // Fraud Detection AI
+    Route::group(['prefix' => 'urban-goodz/fraud/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+        Route::post('scan-transaction', 'Api\V1\UrbanGoodz\FraudDetectionController@scanTransaction');
+        Route::post('scan-account', 'Api\V1\UrbanGoodz\FraudDetectionController@scanAccount');
+        Route::get('flags', 'Api\V1\UrbanGoodz\FraudDetectionController@getFlags');
+        Route::post('review', 'Api\V1\UrbanGoodz\FraudDetectionController@reviewFlag');
+        Route::get('risk-score/{entity_type}/{entity_id}', 'Api\V1\UrbanGoodz\FraudDetectionController@getRiskScore');
+        Route::get('dashboard', 'Api\V1\UrbanGoodz\FraudDetectionController@getDashboard');
+    });
+
+    // ETA Prediction AI
+    Route::group(['prefix' => 'urban-goodz/eta/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+        Route::post('predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictETA');
+        Route::post('batch-predict', 'Api\V1\UrbanGoodz\ETAPredictionController@batchPredict');
+        Route::get('driver/{driver_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getDriverETA');
+        Route::get('order/{order_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getOrderETA');
+    });
+
+    // Dynamic Pricing AI
+    Route::group(['prefix' => 'urban-goodz/pricing/ai', 'middleware' => ['vendor.api', 'actch:vendor_app', 'throttle:60,1']], function () {
+        Route::post('recommend', 'Api\V1\UrbanGoodz\DynamicPricingController@recommendPrices');
+        Route::post('simulate', 'Api\V1\UrbanGoodz\DynamicPricingController@simulatePriceChange');
+        Route::get('history', 'Api\V1\UrbanGoodz\DynamicPricingController@getPriceHistory');
+        Route::post('rollback', 'Api\V1\UrbanGoodz\DynamicPricingController@rollbackPrice');
+    });
