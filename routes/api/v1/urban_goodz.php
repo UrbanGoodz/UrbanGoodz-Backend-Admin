@@ -278,3 +278,12 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         Route::post('escalate', 'Api\V1\UrbanGoodz\PaymentAIController@escalateToHuman');
         Route::get('readiness', 'Api\V1\UrbanGoodz\PaymentAIController@readiness');
     });
+
+    // Notification AI
+    Route::group(['prefix' => 'urban-goodz/notification/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+        Route::post('send', 'Api\V1\UrbanGoodz\NotificationAIController@sendNotification');
+        Route::post('personalize', 'Api\V1\UrbanGoodz\NotificationAIController@personalizeTemplate');
+        Route::get('templates', 'Api\V1\UrbanGoodz\NotificationAIController@getTemplates');
+        Route::get('history', 'Api\V1\UrbanGoodz\NotificationAIController@getHistory');
+        Route::post('preferences', 'Api\V1\UrbanGoodz\NotificationAIController@updatePreferences');
+    });
