@@ -210,16 +210,16 @@ class UrbanGoodzEcosystemTest extends Command
     protected function testApiRoutes()
     {
         $apiPatterns = [
-            // Customer
-            '/api/v1/customer/login' => 'POST',
-            '/api/v1/customer/register' => 'POST',
+            // Customer (actual routes under /auth prefix)
+            '/api/v1/auth/login' => 'POST',
+            '/api/v1/auth/sign-up' => 'POST',
             '/api/v1/customer/order/place' => 'POST',
             '/api/v1/customer/order/list' => 'GET',
             '/api/v1/customer/cart' => 'GET',
             '/api/v1/customer/address/list' => 'GET',
-            // Vendor
-            '/api/v1/seller/login' => 'POST',
-            '/api/v1/seller/register' => 'POST',
+            // Vendor (actual routes under /auth/vendor prefix)
+            '/api/v1/auth/vendor/login' => 'POST',
+            '/api/v1/auth/vendor/register' => 'POST',
             '/api/v1/seller/order/list' => 'GET',
             '/api/v1/seller/dashboard' => 'GET',
             // Service Bookings
@@ -230,7 +230,6 @@ class UrbanGoodzEcosystemTest extends Command
             '/api/v1/urban-goodz/products/search' => 'GET',
             '/api/v1/urban-goodz/orders' => 'GET',
             // Fashion Fit
-            '/api/v1/urban-goodz/fashion-fit/body-scan' => 'POST',
             '/api/v1/urban-goodz/fashion-fit/recommendations' => 'GET',
         ];
 
@@ -330,9 +329,17 @@ class UrbanGoodzEcosystemTest extends Command
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $driver = DB::table('delivery_man')->updateOrCreate(
-            ['email' => 'ecosystem.test.driver@urbangoodzdelivery.com'],
-            [
+        $existingDriver = DB::table('delivery_men')->where('email', 'ecosystem.test.driver@urbangoodzdelivery.com')->first();
+        if ($existingDriver) {
+            $driverId = $existingDriver->id;
+            DB::table('delivery_men')->where('id', $driverId)->update([
+                'auth_token' => Str::random(120),
+                'updated_at' => now(),
+            ]);
+            $driver = DB::table('delivery_men')->where('id', $driverId)->first();
+            $this->addPass("  Test driver updated (ID: {$driver->id}, token: {$driver->auth_token})");
+        } else {
+            $driverId = DB::table('delivery_men')->insertGetId([
                 'f_name' => 'Test', 'l_name' => 'Driver',
                 'phone' => '+15559990001', 'identity_type' => 'passport',
                 'identity_number' => 'ECO-TEST-DM-001',
@@ -344,9 +351,11 @@ class UrbanGoodzEcosystemTest extends Command
                 'identity_image' => json_encode([]),
                 'auth_token' => Str::random(120),
                 'ref_code' => 'ECO' . Str::random(8),
-            ]
-        );
-        $this->addPass("  Test driver created (ID: {$driver->id}, token: {$driver->auth_token})");
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $driver = DB::table('delivery_men')->where('id', $driverId)->first();
+            $this->addPass("  Test driver created (ID: {$driver->id}, token: {$driver->auth_token})");
+        }
 
         // Test business owner
         $client = \App\Models\UrbanGoodzBusinessClient::updateOrCreate(
