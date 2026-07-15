@@ -177,7 +177,6 @@ class UrbanGoodzEcosystemTest extends Command
             \App\Models\Order::class => 'Order',
             \App\Models\OrderDetail::class => 'OrderDetail',
             \App\Models\OrderTransaction::class => 'OrderTransaction',
-            \App\Models\Vehicle::class => 'Vehicle',
             \App\Models\Admin::class => 'Admin',
             \App\Models\UrbanGoodzBusinessClient::class => 'BusinessClient',
             \App\Models\UrbanGoodzBusinessClientUser::class => 'BusinessClientUser',
@@ -185,6 +184,7 @@ class UrbanGoodzEcosystemTest extends Command
             \App\Models\StoreWallet::class => 'StoreWallet',
             \App\Models\UrbanGoodzDriverEarning::class => 'DriverEarning',
             \App\Models\UrbanGoodzServiceRequest::class => 'ServiceRequest',
+            \App\Models\DMVehicle::class => 'DMVehicle',
         ];
 
         foreach ($models as $class => $name) {
@@ -197,7 +197,7 @@ class UrbanGoodzEcosystemTest extends Command
                 } else {
                     $this->addPass("  {$name}");
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $this->addFail("  {$name}: {$e->getMessage()}");
             }
         }
