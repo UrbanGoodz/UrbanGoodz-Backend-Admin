@@ -330,13 +330,15 @@ class UrbanGoodzEcosystemTest extends Command
         ]);
 
         $existingDriver = DB::table('delivery_men')->where('email', 'ecosystem.test.driver@urbangoodzdelivery.com')->first();
+        if (!$existingDriver) {
+            $existingDriver = DB::table('delivery_men')->where('phone', '+15559990001')->first();
+        }
         if ($existingDriver) {
-            $driverId = $existingDriver->id;
-            DB::table('delivery_men')->where('id', $driverId)->update([
+            DB::table('delivery_men')->where('id', $existingDriver->id)->update([
                 'auth_token' => Str::random(120),
                 'updated_at' => now(),
             ]);
-            $driver = DB::table('delivery_men')->where('id', $driverId)->first();
+            $driver = DB::table('delivery_men')->where('id', $existingDriver->id)->first();
             $this->addPass("  Test driver updated (ID: {$driver->id}, token: {$driver->auth_token})");
         } else {
             $driverId = DB::table('delivery_men')->insertGetId([
