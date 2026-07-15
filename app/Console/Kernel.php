@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\CreateTestDriver::class,
         \App\Console\Commands\CreateBusinessOwner::class,
         \App\Console\Commands\UrbanGoodzEcosystemTest::class,
+        \App\Console\Commands\ToggleRecaptcha::class,
     ];
 
     /**
