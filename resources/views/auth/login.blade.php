@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/theme.minc619.css?v=1.0')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/style.css')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/toastr.css">
+    <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-admin.css')}}">
 </head>
 
 <body>
@@ -337,41 +338,60 @@
 
 @if(isset($recaptcha) && $recaptcha['status'] == 1)
     <script src="https://www.google.com/recaptcha/api.js?render={{$recaptcha['site_key']}}"></script>
-@endif
-@if(isset($recaptcha) && $recaptcha['status'] == 1)
     <script>
         $(document).ready(function () {
+            var _ugRecaptchaReady = false;
+            var _ugRecaptchaFailed = false;
+
+            function _ugSwitchToCustomCaptcha(reason) {
+                if (_ugRecaptchaFailed) return;
+                _ugRecaptchaFailed = true;
+                $('#reload-captcha').show();
+                $('#set_default_captcha_value').val('1');
+                if (reason) {
+                    toastr.warning(reason + ' Using image captcha instead.');
+                }
+            }
+
+            try {
+                if (typeof grecaptcha === 'undefined') {
+                    _ugSwitchToCustomCaptcha('Google reCAPTCHA could not load.');
+                } else {
+                    grecaptcha.ready(function () {
+                        grecaptcha.execute('{{$recaptcha["site_key"]}}', { action: 'ready' }).then(function () {
+                            _ugRecaptchaReady = true;
+                        }).catch(function () {
+                            _ugSwitchToCustomCaptcha('Google reCAPTCHA failed self-test.');
+                        });
+                    });
+                    setTimeout(function () {
+                        if (!_ugRecaptchaReady && !_ugRecaptchaFailed) {
+                            _ugSwitchToCustomCaptcha('Google reCAPTCHA timed out.');
+                        }
+                    }, 5000);
+                }
+            } catch (e) {
+                _ugSwitchToCustomCaptcha('Google reCAPTCHA initialization error.');
+            }
+
             $('#signInBtn').click(function (e) {
                 if ($('#set_default_captcha_value').val() == 1) {
                     $('#form-id').submit();
                     return true;
                 }
                 e.preventDefault();
-                if (typeof grecaptcha === 'undefined') {
-                    toastr.error('Invalid recaptcha key provided. Please check the recaptcha configuration.');
-                    $('#reload-captcha').removeClass('d-none');
-                    $('#set_default_captcha_value').val('1');
-
+                if (_ugRecaptchaFailed || typeof grecaptcha === 'undefined') {
+                    _ugSwitchToCustomCaptcha('');
                     return;
                 }
                 grecaptcha.ready(function () {
-                    grecaptcha.execute('{{$recaptcha['site_key']}}', { action: 'submit' }).then(function (token) {
+                    grecaptcha.execute('{{$recaptcha["site_key"]}}', { action: 'submit' }).then(function (token) {
                         $('#g-recaptcha-response').val(token);
                         $('#form-id').submit();
+                    }).catch(function () {
+                        _ugSwitchToCustomCaptcha('Google reCAPTCHA token request failed.');
                     });
                 });
-                window.onerror = function (message) {
-                    var errorMessage = 'An unexpected error occurred. Please check the recaptcha configuration';
-                    if (message.includes('Invalid site key')) {
-                        errorMessage = 'Invalid site key provided. Please check the recaptcha configuration.';
-                    } else if (message.includes('not loaded in api.js')) {
-                        errorMessage = 'reCAPTCHA API could not be loaded. Please check the recaptcha API configuration.';
-                    }
-                    $('#reload-captcha').removeClass('d-none');
-                    $('#set_default_captcha_value').val('1');
-                    toastr.error(errorMessage)
-                    return true;
-                };
             });
         });
     </script>

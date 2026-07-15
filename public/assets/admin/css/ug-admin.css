@@ -115,16 +115,19 @@
 
 /* ---- Login Page ---- */
 .auth-wrapper {
-  background: var(--ug-canvas) !important;
+  background: var(--ug-white) !important;
 }
 .auth-wrapper-left {
-  background: var(--ug-black) !important;
+  background: linear-gradient(135deg, var(--ug-orange) 0%, var(--ug-canvas) 100%) !important;
 }
-.auth-left-cont .title {
+.auth-wrapper-left .auth-left-cont .title {
   color: var(--ug-white) !important;
 }
-.auth-left-cont .title strong {
-  color: var(--ug-orange) !important;
+.auth-wrapper-left .auth-left-cont .title strong {
+  color: var(--ug-white) !important;
+}
+.auth-wrapper-left .auth-left-cont p {
+  color: rgba(255,255,255,.85) !important;
 }
 
 /* ---- Footer ---- */

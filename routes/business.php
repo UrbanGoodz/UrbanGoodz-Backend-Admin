@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessAuthController;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessPortalController;
+use App\Http\Controllers\Admin\UrbanGoodz\BusinessForgotPasswordController;
+use App\Http\Controllers\Admin\UrbanGoodz\BusinessResetPasswordController;
 use App\Http\Controllers\Admin\UrbanGoodz\DispatcherPortalController;
 
 Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
@@ -10,6 +12,11 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
     Route::get('login', [BusinessAuthController::class, 'showLoginForm'])->name('login');
     Route::post('login', [BusinessAuthController::class, 'login'])->name('login.submit');
     Route::post('logout', [BusinessAuthController::class, 'logout'])->name('logout');
+
+    Route::get('forgot-password', [BusinessForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('forgot-password', [BusinessForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+    Route::get('reset-password/{token}', [BusinessResetPasswordController::class, 'showResetForm'])->name('password.reset');
+    Route::post('reset-password', [BusinessResetPasswordController::class, 'reset'])->name('password.update');
 
     Route::middleware(['business'])->group(function () {
         Route::get('dashboard', [BusinessPortalController::class, 'dashboard'])->name('dashboard');

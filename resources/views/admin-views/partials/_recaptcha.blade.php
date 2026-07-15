@@ -3,10 +3,10 @@
     <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
 
     <input type="hidden" name="set_default_captcha" id="set_default_captcha_value" value="0">
-    <div class="row g-2 py-2 d-none" id="reload-captcha">
+    <div class="row g-2 py-2" id="reload-captcha">
         <div class="col-sm-6 pr-0">
             <input type="text" class="form-control form-control-lg" name="custome_recaptcha" id="custome_recaptcha"
-                placeholder="{{translate('Enter recaptcha value')}}" autocomplete="off"
+                placeholder="{{translate('Enter the code shown above')}}" autocomplete="off"
                 value="{{getEnvMode() == 'dev' ? session('six_captcha') : ''}}">
         </div>
         <div class="col-sm-6 bg-white rounded d-flex">
