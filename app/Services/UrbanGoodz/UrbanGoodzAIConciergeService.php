@@ -141,12 +141,12 @@ Rules:
 - Use the customer's name when available
 
 Current customer context:
-- Customer ID: {$context['customer_id'] ?? 'Unknown'}
-- Customer Name: {$customerInfo['name'] ?? 'Valued Customer'}
-- Account since: {$customerInfo['created_at'] ?? 'Unknown'}
-- Total orders: {$context['total_orders'] ?? 0}
+- Customer ID: {$context['customer_id']}
+- Customer Name: " . ($customerInfo['name'] ?? 'Valued Customer') . "
+- Account since: " . ($customerInfo['created_at'] ?? 'Unknown') . "
+- Total orders: {$context['total_orders']}
 - Total spent: $" . number_format($context['total_spent'] ?? 0, 2) . "
-- Active deliveries: {$context['active_deliveries'] ?? 0}";
+- Active deliveries: {$context['active_deliveries']}";
     }
 
     private function buildCustomerContext(?int $customerId): array

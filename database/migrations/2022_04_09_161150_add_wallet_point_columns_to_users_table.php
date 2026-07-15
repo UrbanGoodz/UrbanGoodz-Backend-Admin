@@ -14,8 +14,12 @@ class AddWalletPointColumnsToUsersTable extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->decimal('wallet_balance', 24, 3)->default(0);
-            $table->decimal('loyalty_point', 24, 3)->default(0);
+            if (!Schema::hasColumn('users', 'wallet_balance')) {
+                $table->decimal('wallet_balance', 24, 3)->default(0);
+            }
+            if (!Schema::hasColumn('users', 'loyalty_point')) {
+                $table->decimal('loyalty_point', 24, 3)->default(0);
+            }
         });
     }
 

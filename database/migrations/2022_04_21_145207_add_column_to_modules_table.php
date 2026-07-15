@@ -6,31 +6,14 @@ use Illuminate\Support\Facades\Schema;
 
 class AddColumnToModulesTable extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
     public function up()
     {
-        Schema::table('modules', function (Blueprint $table) {
-            $table->string('icon',191)->nullable();
-            $table->integer('theme_id')->default(1);
-            $table->text('description')->nullable();
-        });
+        // Already created in 2014_10_12_000001_create_modules_table
+        // No action needed
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
     public function down()
     {
-        Schema::table('modules', function (Blueprint $table) {
-            $table->dropColumn('icon');
-            $table->dropColumn('theme_id');
-            $table->dropColumn('description');
-        });
+        // No action needed
     }
 }
