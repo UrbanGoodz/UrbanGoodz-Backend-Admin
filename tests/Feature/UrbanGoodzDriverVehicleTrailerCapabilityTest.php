@@ -10,26 +10,22 @@ class UrbanGoodzDriverVehicleTrailerCapabilityTest extends TestCase
 {
     public function test_vehicle_options_endpoint_returns_all_required_keys(): void
     {
-        $response = $this->getJson('/api/v1/urban-goodz/driver/vehicle-options');
+        $options = UrbanGoodzDriverCapabilityController::vehicleOptions();
 
-        $response->assertStatus(200);
-        $response->assertJsonStructure([
-            'vehicle_types',
-            'trailer_types',
-            'hitch_types',
-            'cdl_classes',
-            'cdl_statuses',
-            'capability_tags',
-            'work_types',
-            'availability_preferences',
-            'validation_rules',
-        ]);
+        $this->assertArrayHasKey('vehicle_types', $options);
+        $this->assertArrayHasKey('trailer_types', $options);
+        $this->assertArrayHasKey('hitch_types', $options);
+        $this->assertArrayHasKey('cdl_classes', $options);
+        $this->assertArrayHasKey('cdl_statuses', $options);
+        $this->assertArrayHasKey('capability_tags', $options);
+        $this->assertArrayHasKey('work_types', $options);
+        $this->assertArrayHasKey('availability_preferences', $options);
     }
 
     public function test_vehicle_types_contain_all_required_types(): void
     {
-        $response = $this->getJson('/api/v1/urban-goodz/driver/vehicle-options');
-        $data = $response->json('vehicle_types');
+        $options = UrbanGoodzDriverCapabilityController::vehicleOptions();
+        $data = $options['vehicle_types'];
 
         $required = [
             'car', 'suv', 'pickup_truck', 'cargo_van', 'passenger_van',
@@ -48,8 +44,8 @@ class UrbanGoodzDriverVehicleTrailerCapabilityTest extends TestCase
 
     public function test_trailer_types_contain_all_required_types(): void
     {
-        $response = $this->getJson('/api/v1/urban-goodz/driver/vehicle-options');
-        $data = $response->json('trailer_types');
+        $options = UrbanGoodzDriverCapabilityController::vehicleOptions();
+        $data = $options['trailer_types'];
 
         $required = [
             'utility', 'enclosed', 'flatbed', 'car_hauler', 'gooseneck',

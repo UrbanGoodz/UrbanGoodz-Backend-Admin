@@ -17,7 +17,9 @@ return new class extends Migration
             return false;
         }
         $indexes = array_map(
-            fn($i) => $i->getName(),
+            fn($i) => is_array($i)
+                ? ($i['name'] ?? null)
+                : (method_exists($i, 'getName') ? $i->getName() : ($i->name ?? null)),
             Schema::getIndexes($table)
         );
         return in_array($index, $indexes);
@@ -28,9 +30,12 @@ return new class extends Migration
         if (!Schema::hasTable($table)) {
             return false;
         }
-        $tableForeignKey = Schema::getForeignKeys($table);
-        foreach ($tableForeignKey as $fk) {
-            if (in_array($column, $fk->getColumns())) {
+        $tableForeignKeys = Schema::getForeignKeys($table);
+        foreach ($tableForeignKeys as $fk) {
+            $columns = is_array($fk)
+                ? ($fk['columns'] ?? [])
+                : (method_exists($fk, 'getColumns') ? $fk->getColumns() : ($fk->columns ?? []));
+            if (in_array($column, $columns)) {
                 return true;
             }
         }
