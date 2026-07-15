@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UrbanGoodz\BusinessPortalController;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessForgotPasswordController;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessResetPasswordController;
 use App\Http\Controllers\Admin\UrbanGoodz\DispatcherPortalController;
+use App\Http\Controllers\Api\V1\Business\BusinessAIController;
 
 Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
 
@@ -80,6 +81,24 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
         Route::post('load-board', [BusinessPortalController::class, 'loadBoardStore'])->name('load-board.store');
         Route::get('load-board/{id}', [BusinessPortalController::class, 'loadBoardShow'])->name('load-board.show');
         Route::post('load-board/{id}/cancel', [BusinessPortalController::class, 'loadBoardCancel'])->name('load-board.cancel');
+
+        // Business AI
+        Route::prefix('ai')->name('ai.')->group(function () {
+            Route::post('manifest/import', [BusinessAIController::class, 'importManifest'])->name('manifest.import');
+            Route::post('manifest/validate', [BusinessAIController::class, 'validateManifest'])->name('manifest.validate');
+            Route::post('manifest/duplicate-check', [BusinessAIController::class, 'checkDuplicates'])->name('manifest.duplicates');
+            Route::post('packages/group', [BusinessAIController::class, 'groupPackages'])->name('packages.group');
+            Route::post('route/create', [BusinessAIController::class, 'createRoute'])->name('route.create');
+            Route::post('route/optimize', [BusinessAIController::class, 'optimizeRoute'])->name('route.optimize');
+            Route::post('route/dedicated', [BusinessAIController::class, 'recommendDedicatedRoute'])->name('route.dedicated');
+            Route::post('driver/match', [BusinessAIController::class, 'matchDriver'])->name('driver.match');
+            Route::post('route/predict', [BusinessAIController::class, 'predictCompletion'])->name('route.predict');
+            Route::post('route/risk', [BusinessAIController::class, 'exceptionRisk'])->name('route.risk');
+            Route::get('performance', [BusinessAIController::class, 'routePerformance'])->name('performance');
+            Route::get('cost-anomaly', [BusinessAIController::class, 'costAnomalyAlert'])->name('cost-anomaly');
+            Route::post('invoice-support', [BusinessAIController::class, 'generateInvoiceSupport'])->name('invoice-support');
+            Route::post('delivery-proof', [BusinessAIController::class, 'deliveryProofPackage'])->name('delivery-proof');
+        });
     });
 
     Route::middleware(['business', 'dispatcher', 'dispatch-territory'])->group(function () {
