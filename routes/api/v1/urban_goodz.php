@@ -185,5 +185,17 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('vehicles', 'Api\UrbanGoodzDriverActiveJobsController@vehicles');
     Route::get('certifications', 'Api\UrbanGoodzDriverActiveJobsController@certifications');
     Route::post('certifications/{certId}/upload', 'Api\UrbanGoodzDriverActiveJobsController@uploadCertDocument');
-    Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
-});
+Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
+    });
+
+    // Driver AI
+    Route::group(['prefix' => 'ai', 'middleware' => 'dm.api'], function () {
+        Route::get('route-optimization', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@optimizeRoute');
+        Route::get('earnings-comparison', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsComparison');
+        Route::get('load-recommendations', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@loadRecommendations');
+        Route::post('verify-pickup', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@verifyPickup');
+        Route::post('verify-delivery', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@verifyDelivery');
+        Route::post('exception', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@handleException');
+        Route::get('warnings', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@getWarnings');
+        Route::get('earnings-per-hour', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsPerHour');
+    });
