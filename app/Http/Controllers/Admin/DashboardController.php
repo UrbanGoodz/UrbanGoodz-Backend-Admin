@@ -37,6 +37,7 @@ use App\Models\UrbanGoodzDedicatedRoute;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
+use App\Models\UrbanGoodzLoadBoardLoad;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Config;
@@ -363,6 +364,7 @@ class DashboardController extends Controller
                     ? UrbanGoodzPaymentLedger::where('event_type', 'capture')->sum('amount') : 0,
                 'pending_refunds' => Schema::hasTable('urban_goodz_payment_ledgers')
                     ? UrbanGoodzPaymentLedger::where('event_type', 'refund')->where('payment_status', 'pending')->count() : 0,
+                'load_board_count' => Schema::hasTable('urban_goodz_load_board_loads') ? UrbanGoodzLoadBoardLoad::count() : 0,
             ];
         }
 

@@ -170,12 +170,12 @@
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
-                        <div class="order--card h-100">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.load-board.index') }}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="card-subtitle m-0">{{ translate('Load Board') }}</h6>
-                                <span class="badge badge-soft-warning">{{ translate('Workflow Pending') }}</span>
+                                <span class="card-title text-info">{{ $ugData['load_board_count'] ?? 0 }}</span>
                             </div>
-                        </div>
+                        </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
