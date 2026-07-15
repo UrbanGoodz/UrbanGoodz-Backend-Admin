@@ -833,6 +833,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
             Route::get('email-setup/{type}/{tab?}', 'BusinessSettingsController@email_index')->name('email-setup');
             Route::POST('email-setup/{type}/{tab?}', 'BusinessSettingsController@update_email_index')->name('email-setup-update');
+            Route::get('rental-email-setup/{type}/{tab?}', 'BusinessSettingsController@email_index')->name('rental-email-setup');
+            Route::POST('rental-email-setup/{type}/{tab?}', 'BusinessSettingsController@update_email_index')->name('rental-email-setup.update');
             Route::get('email-status/{type}/{tab}/{status}', 'BusinessSettingsController@update_email_status')->name('email-status');
 
             Route::get('toggle-settings/{key}/{value}', 'BusinessSettingsController@toggle_settings')->name('toggle-settings');
