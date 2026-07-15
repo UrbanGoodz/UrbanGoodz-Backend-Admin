@@ -213,3 +213,15 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         Route::get('source-status', 'Api\V1\Dispatcher\DispatcherAIController@sourceStatus');
         Route::post('sync-source', 'Api\V1\Dispatcher\DispatcherAIController@syncSource');
     });
+
+    // Rental AI
+    Route::group(['prefix' => 'urban-goodz/rentals/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+        Route::post('search', 'Api\V1\UrbanGoodz\RentalAIController@searchAssets');
+        Route::post('match', 'Api\V1\UrbanGoodz\RentalAIController@matchAssets');
+        Route::post('availability', 'Api\V1\UrbanGoodz\RentalAIController@checkAvailability');
+        Route::post('quote', 'Api\V1\UrbanGoodz\RentalAIController@getQuote');
+        Route::post('extension', 'Api\V1\UrbanGoodz\RentalAIController@extendRental');
+        Route::post('late-return', 'Api\V1\UrbanGoodz\RentalAIController@handleLateReturn');
+        Route::post('damage-report', 'Api\V1\UrbanGoodz\RentalAIController@reportDamage');
+        Route::post('return-inspection', 'Api\V1\UrbanGoodz\RentalAIController@inspectReturn');
+    });
