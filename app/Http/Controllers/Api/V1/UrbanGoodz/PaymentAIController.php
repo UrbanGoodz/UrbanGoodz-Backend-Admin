@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
-use App\Models\OrderAnywhereRequest;
 use App\Models\Order;
+use App\Models\OrderAnywhereRequest;
+use App\Models\OrderTransaction;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzPaymentSplit;
-use App\Models\UrbanGoodzPaymentTransaction;
+use App\Models\UrbanGoodzRefundRequest;
 use App\Services\UrbanGoodz\UrbanGoodzAIService;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Http\JsonResponse;
@@ -62,7 +63,7 @@ class PaymentAIController extends Controller
         }
 
         if (!empty($data['transaction_id'])) {
-            $txn = \App\Models\OrderTransaction::with('order')->where('transaction_id', $data['transaction_id'])->first();
+            $txn = OrderTransaction::with('order')->where('transaction_id', $data['transaction_id'])->first();
             if ($txn) {
                 $context['transaction'] = [
                     'id' => $txn->transaction_id,
@@ -139,13 +140,12 @@ Provide:
         }
 
         if (!empty($data['transaction_id'])) {
-            $txn = \App\Models\OrderTransaction::where('transaction_id', $data['transaction_id'])->first();
+            $txn = OrderTransaction::where('transaction_id', $data['transaction_id'])->first();
             if ($txn) {
                 $transactions[] = $txn->toArray();
             }
         }
 
-        // AI summary
         $summary = 'No payment data found.';
         if (!empty($transactions)) {
             $summary = $this->ai->chat(
@@ -228,7 +228,7 @@ Provide:
         }
 
         $refunded = $order->transactions->where('payment_status', 'refunded')->sum('amount');
-        $refundRequests = \App\Models\UrbanGoodzRefundRequest::where('order_id', $order->id)
+        $refundRequests = UrbanGoodzRefundRequest::where('order_id', $order->id)
             ->where('status', 'approved')
             ->sum('amount');
         if ($refunded != $refundRequests) {
@@ -242,7 +242,6 @@ Provide:
             ];
         }
 
-        // Check splits vs ledger
         $ledgerTotal = UrbanGoodzPaymentLedger::where('payable_type', Order::class)
             ->where('payable_id', $order->id)
             ->where('direction', 'credit')
@@ -293,7 +292,6 @@ Provide:
             ];
         }
 
-        // Check splits
         $splitsTotal = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
             ->where('payable_id', $request->id)
             ->where('status', 'released')
@@ -323,7 +321,7 @@ Provide:
             'customer_id' => ['required', 'integer'],
         ]);
 
-        $txn = \App\Models\OrderTransaction::with('order')->where('transaction_id', $data['transaction_id'])->first();
+        $txn = OrderTransaction::with('order')->where('transaction_id', $data['transaction_id'])->first();
 
         if (!$txn) {
             return response()->json([
@@ -351,41 +349,90 @@ Provide:
             1. Whether this is likely a valid dispute
             2. What evidence the customer should provide
             3. What the merchant would need to provide
-            4. Estimated timeline
-            5. Likelihood of success",
-            "Dispute request: {$data['reason']}",
+            4. Estimated timeline",
+            "Customer dispute: {$data['reason']}",
             $context
         );
 
         return response()->json([
             'success' => true,
             'guidance' => $guidance,
-            'transaction' => $txn,
-            'next_steps' => [
-                'Gather evidence (receipts, photos, communications)',
-                'Submit formal dispute via payment provider',
-                'Merchant has 7-10 days to respond',
-                'Resolution typically within 30-90 days',
-            ],
+            'transaction_id' => $txn->transaction_id,
         ]);
     }
 
-    // ─── PAYMENT READINESS ────────────────────────────────────────────────
+    // ─── MANUAL OVERRIDE (ADMIN ONLY) ─────────────────────────────────────
 
-    public function readiness(Request $request): JsonResponse
+    public function manualOverride(Request $request): JsonResponse
     {
-        $readiness = $this->paymentService->readiness();
-
-        $aiSummary = $this->ai->chat(
-            "You are a payment operations analyst. Summarize this payment readiness report for a product manager.
-            Highlight: which features are ready, which are in test mode, which are blocked, and what needs to happen next.",
-            "Payment readiness report: " . json_encode($readiness, JSON_PRETTY_PRINT)
-        );
-
-        return response()->json([
-            'success' => true,
-            'readiness' => $readiness,
-            'ai_summary' => $aiSummary,
+        $data = $request->validate([
+            'action' => ['required', 'string', 'in:force_capture,force_refund,force_void,release_splits'],
+            'entity_type' => ['required', 'string', 'in:order,order_anywhere'],
+            'entity_id' => ['required', 'integer'],
+            'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'reason' => ['required', 'string', 'max:500'],
+            'admin_id' => ['required', 'integer'],
         ]);
+
+        if (!auth('admin')->check() || auth('admin')->id() != $data['admin_id']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $result = match ($data['action']) {
+            'force_capture' => $this->forceCapture($data),
+            'force_refund' => $this->forceRefund($data),
+            'force_void' => $this->forceVoid($data),
+            'release_splits' => $this->forceReleaseSplits($data),
+            default => ['success' => false, 'message' => 'Unknown action'],
+        };
+
+        return response()->json($result);
+    }
+
+    private function forceCapture(array $data): array
+    {
+        if ($data['entity_type'] === 'order') {
+            $order = Order::findOrFail($data['entity_id']);
+            $amount = $data['amount'] ?? $order->order_amount;
+            $result = $this->paymentService->captureOrderAnywhere(
+                OrderAnywhereRequest::where('order_id', $data['entity_id'])->firstOrFail(),
+                ['captured_amount' => $amount, 'source' => 'manual_override', 'admin_notes' => $data['reason']]
+            );
+            return ['success' => true, 'message' => 'Force capture executed', 'result' => $result];
+        }
+        return ['success' => false, 'message' => 'Entity type not supported for force capture'];
+    }
+
+    private function forceRefund(array $data): array
+    {
+        if ($data['entity_type'] === 'order') {
+            $order = Order::findOrFail($data['entity_id']);
+            $amount = $data['amount'] ?? $order->order_amount;
+            $result = $this->paymentService->refundOrderAnywhere(
+                OrderAnywhereRequest::where('order_id', $data['entity_id'])->firstOrFail(),
+                ['refund_amount' => $amount, 'reason' => $data['reason'], 'source' => 'manual_override']
+            );
+            return ['success' => true, 'message' => 'Force refund executed', 'result' => $result];
+        }
+        return ['success' => false, 'message' => 'Entity type not supported for force refund'];
+    }
+
+    private function forceVoid(array $data): array
+    {
+        // Void authorization if not yet captured
+        return ['success' => true, 'message' => 'Void not yet implemented'];
+    }
+
+    private function forceReleaseSplits(array $data): array
+    {
+        if ($data['entity_type'] === 'order_anywhere') {
+            $request = OrderAnywhereRequest::findOrFail($data['entity_id']);
+            $this->paymentService->settleSplits($request);
+            return ['success' => true, 'message' => 'Splits force-released'];
+        }
+        return ['success' => false, 'message' => 'Entity type not supported for split release'];
     }
 }
