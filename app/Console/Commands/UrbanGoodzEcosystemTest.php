@@ -456,7 +456,7 @@ class UrbanGoodzEcosystemTest extends Command
 
         foreach ($endpoints as [$url, $label]) {
             try {
-                $resp = Http::timeout(10)->get($url);
+                $resp = Http::timeout(10)->withoutRedirecting()->get($url);
                 $body = $resp->json();
                 if (isset($body['status']) && $body['status'] === 'success') {
                     $this->addPass("  {$label}: OK (HTTP {$resp->status()})");
@@ -474,7 +474,7 @@ class UrbanGoodzEcosystemTest extends Command
     protected function testVendorApi(string $baseUrl)
     {
         try {
-            $resp = Http::timeout(10)->post($baseUrl . '/api/v1/seller/login', [
+            $resp = Http::timeout(10)->withoutRedirecting()->post($baseUrl . '/api/v1/seller/login', [
                 'email' => 'nonexistent@test.com',
                 'password' => 'test',
             ]);
@@ -493,7 +493,7 @@ class UrbanGoodzEcosystemTest extends Command
     protected function testCustomerApi(string $baseUrl)
     {
         try {
-            $resp = Http::timeout(10)->get($baseUrl . '/api/v1/customer/config');
+            $resp = Http::timeout(10)->withoutRedirecting()->get($baseUrl . '/api/v1/customer/config');
             if ($resp->successful()) {
                 $body = $resp->json();
                 $keys = array_keys($body);
