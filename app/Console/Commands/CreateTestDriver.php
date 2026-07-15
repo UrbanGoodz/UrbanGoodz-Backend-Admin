@@ -5,15 +5,15 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use App\Models\DeliveryMan;
-use App\Models\Vendor\Vehicle;
 
 class CreateTestDriver extends Command
 {
     protected $signature = 'urban-goods:create-test-driver
                             {--email= : Override test driver email}
                             {--password= : Override test driver password}
-                            {--zone= : Zone ID (default: 1)}';
+                            {--zone= : Zone ID (default: 2)}';
     protected $description = 'Create a test driver for UrbanGoodz Driver App acceptance testing';
 
     public function handle()
@@ -21,29 +21,31 @@ class CreateTestDriver extends Command
         $this->info('=== UrbanGoodz Driver Test Setup ===');
         $this->newLine();
 
-        // Defaults
         $email = $this->option('email') ?: 'test.driver001@urbangoodzdelivery.com';
         $password = $this->option('password') ?: 'TestDriver2026!$';
-        $zoneId = (int)($this->option('zone') ?: 1);
+        $zoneId = (int)($this->option('zone') ?: 2);
 
-        // Step 1: Vehicle
+        // Step 1: Vehicle — use DB facade to avoid model dependency issues
         $this->info('Step 1: Checking vehicles...');
-        $vehicle = Vehicle::where('type', 'car')->first();
+        $vehicle = DB::table('vehicles')->where('type', 'car')->where('status', 1)->first();
         if (!$vehicle) {
-            $vehicle = Vehicle::create([
+            $vehicleId = DB::table('vehicles')->insertGetId([
                 'type' => 'car',
                 'capacity' => 4,
                 'min_cap' => 1,
                 'avg_cap' => 4,
                 'max_cap' => 6,
                 'status' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
-            $this->info("  Created vehicle: car (ID: {$vehicle->id})");
+            $this->info("  Created vehicle: car (ID: {$vehicleId})");
         } else {
-            $this->info("  Found vehicle: {$vehicle->type} (ID: {$vehicle->id})");
+            $vehicleId = $vehicle->id;
+            $this->info("  Found vehicle: {$vehicle->type} (ID: {$vehicleId})");
         }
 
-        // Step 2: Driver
+        // Step 2: Driver — use DeliveryMan model (always available)
         $this->info('Step 2: Creating test driver...');
         $dm = DeliveryMan::updateOrCreate(
             ['email' => $email],
@@ -56,7 +58,7 @@ class CreateTestDriver extends Command
                 'password' => Hash::make($password),
                 'zone_id' => $zoneId,
                 'earning' => 15.00,
-                'vehicle_id' => $vehicle->id,
+                'vehicle_id' => $vehicleId,
                 'type' => 'zone_wise',
                 'application_status' => 'approved',
                 'status' => 1,
@@ -99,8 +101,7 @@ class CreateTestDriver extends Command
         $this->newLine();
 
         $this->info('To test API endpoints:');
-        $this->info("  POST /api/v1/urban-goodz/driver/business-jobs");
-        $this->info("  Body: {\"token\": \"{$dm->auth_token}\"}");
+        $this->info("  GET /api/v1/urban-goodz/driver/business-jobs?token={$dm->auth_token}");
 
         return 0;
     }
