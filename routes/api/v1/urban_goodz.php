@@ -270,3 +270,11 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         Route::get('history', 'Api\V1\UrbanGoodz\DynamicPricingController@getPriceHistory');
         Route::post('rollback', 'Api\V1\UrbanGoodz\DynamicPricingController@rollbackPrice');
     });
+
+    // Payment AI
+    Route::group(['prefix' => 'urban-goodz/payment/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+        Route::post('classify', 'Api\V1\UrbanGoodz\PaymentAIController@classifyDispute');
+        Route::post('auto-resolve', 'Api\V1\UrbanGoodz\PaymentAIController@autoResolve');
+        Route::post('escalate', 'Api\V1\UrbanGoodz\PaymentAIController@escalateToHuman');
+        Route::get('readiness', 'Api\V1\UrbanGoodz\PaymentAIController@readiness');
+    });
