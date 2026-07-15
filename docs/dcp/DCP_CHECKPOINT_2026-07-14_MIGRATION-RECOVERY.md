@@ -4,8 +4,9 @@ DCP COMPRESSED CHECKPOINT — MIGRATION RECOVERY + DRIVER ACCEPTANCE — P0 PASS
 Timestamp:       2026-07-14_MIGRATION-RECOVERY-PLUS-ACCEPTANCE
 Repository:      C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39
 Branch:          adminpanel-v39-backend-sprint
-Local HEAD:      40741a3 (+ uncommitted: CreateTestDriver.php, deploy scripts)
-Remote HEAD:     40741a3
+Local HEAD:      9caa5cd
+Remote HEAD:     9caa5cd
+Sync Status:     IN SYNC ✓
 Sync Status:     IN SYNC ✓
 Production:      PASS (confirmed by owner)
 
@@ -16,6 +17,9 @@ e990440  fix(migration): production-compatible Schema::getIndexes array handling
 0f69286  fix: rename rental-email-setup POST route to prevent route:cache collision
 90c43fe  revert: remove rental-email-setup routes from core repo
 b7a0117  fix(rental): add Rental module with corrected POST route name for route:cache
+40741a3  docs: update DCP checkpoint with Rental module source fix and core revert
+ff75e58  feat(driver): add test driver creation tooling and live route audit
+9caa5cd  fix(driver): register CreateTestDriver in Kernel for explicit artisan discovery
 
 --- PRODUCTION EVIDENCE ---
 Production Laravel root: /home/urbakkej/admin.urbangoodzdelivery.com
