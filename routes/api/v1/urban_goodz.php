@@ -199,3 +199,17 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         Route::get('warnings', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@getWarnings');
         Route::get('earnings-per-hour', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsPerHour');
     });
+
+    // Dispatcher AI
+    Route::group(['prefix' => 'urban-goodz/dispatcher/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+        Route::post('load-ranking', 'Api\V1\Dispatcher\DispatcherAIController@rankLoads');
+        Route::post('driver-match', 'Api\V1\Dispatcher\DispatcherAIController@matchDriver');
+        Route::post('rate-estimate', 'Api\V1\Dispatcher\DispatcherAIController@estimateRate');
+        Route::post('duplicate-check', 'Api\V1\Dispatcher\DispatcherAIController@checkDuplicates');
+        Route::get('ops-summary', 'Api\V1\Dispatcher\DispatcherAIController@opsSummary');
+        Route::post('parse-load', 'Api\V1\Dispatcher\DispatcherAIController@parseLoad');
+        Route::post('parse-email', 'Api\V1\Dispatcher\DispatcherAIController@parseEmail');
+        Route::post('parse-batch', 'Api\V1\Dispatcher\DispatcherAIController@parseBatch');
+        Route::get('source-status', 'Api\V1\Dispatcher\DispatcherAIController@sourceStatus');
+        Route::post('sync-source', 'Api\V1\Dispatcher\DispatcherAIController@syncSource');
+    });
