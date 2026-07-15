@@ -4,8 +4,8 @@ DCP COMPRESSED CHECKPOINT — MIGRATION RECOVERY + DRIVER ACCEPTANCE — P0 PASS
 Timestamp:       2026-07-14_MIGRATION-RECOVERY-PLUS-ACCEPTANCE
 Repository:      C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39
 Branch:          adminpanel-v39-backend-sprint
-Local HEAD:      0f69286
-Remote HEAD:     0f69286
+Local HEAD:      b7a0117
+Remote HEAD:     b7a0117
 Sync Status:     IN SYNC ✓
 Production:      PASS (confirmed by owner)
 
@@ -14,6 +14,8 @@ df30393  fix(migration): make service booking workflow safely idempotent
 e990440  fix(migration): production-compatible Schema::getIndexes array handling
 1582194  fix(deps): update production compatibility shims
 0f69286  fix: rename rental-email-setup POST route to prevent route:cache collision
+90c43fe  revert: remove rental-email-setup routes from core repo
+b7a0117  fix(rental): add Rental module with corrected POST route name for route:cache
 
 --- PRODUCTION EVIDENCE ---
 Production Laravel root: /home/urbakkej/admin.urbangoodzdelivery.com
@@ -36,7 +38,7 @@ Migration 2026_07_12_130000 was not idempotent. Two production failures:
 Additional production issue:
 3. Schema::getIndexes() returns arrays on production MySQL, not objects
 
---- FILES CHANGED (9 files, 4 commits) ---
+--- FILES CHANGED (10 files + Modules/Rental/, 6 commits) ---
 database/migrations/2026_07_12_130000_complete_service_booking_workflow.php
   FULLY REWRITTEN:
   - hasTable/hasColumn/index guards for every operation
@@ -67,11 +69,14 @@ scripts/deploy-migration-recovery.sh
 docs/dcp/DCP_CHECKPOINT_2026-07-14_MIGRATION-RECOVERY.md
   NEW: Initial DCP checkpoint
 routes/admin.php
-  ADDED: rental-email-setup GET and POST routes with distinct names
-  Resolves route:cache collision (both methods shared same name)
+  REVERTED: rental-email-setup routes removed (belong in Rental module, not core)
+Modules/Rental/
+  NEW: 422 files added from CodeCanyon 6amMart Car Rental addon
+  POST route name corrected: rental-email-setup-update → rental-email-setup.update
+  19 blade views updated to reference new route name
 
 --- TEST RESULTS (FINAL) ---
-php -l: 9/9 files pass (0 errors)
+php -l: 9/9 core files pass (0 errors)
 ServiceBookingMigrationSafetyTest: 12/12 pass (51 assertions)
 UrbanGoodzDriver* tests: 45/45 pass (291 assertions) ← ZERO FAILURES
   - Including vehicle-options: 3 previously failing tests now pass
@@ -80,8 +85,15 @@ UrbanGoodzDriver* tests: 45/45 pass (291 assertions) ← ZERO FAILURES
 Route verification:
   - purchase-card routes: 3 ✓
   - admin rental routes: 25 ✓
-  - rental-email-setup routes: 2 (GET + POST with distinct names) ✓
+  - rental-email-setup routes: 2 (GET + POST with distinct names in Rental module) ✓
   - php artisan route:cache: succeeds ✓
+
+Rental module verification:
+  - 422 files committed to Modules/Rental/
+  - GET: admin.business-settings.rental-email-setup (unchanged)
+  - POST: admin.business-settings.rental-email-setup.update (fixed from -update to .update)
+  - 19 blade views updated to reference new route name
+  - Zero old rental-email-setup-update references remain
 
 --- DRIVER LIVE ACCEPTANCE ---
 Activation status: OWNER BLOCKED
@@ -128,7 +140,7 @@ Rental provider status route:
    domain, software_type = "addon")
 2. After activation: create approved tester driver, staged Order
    Anywhere request, and sandbox card config for live acceptance
-3. Deploy commit 0f69286 to production and run:
+3. Deploy commits 90c43fe + b7a0117 to production and run:
    php artisan route:cache && php artisan config:cache && php artisan view:cache
 
 --- REMAINING BLOCKERS ---
