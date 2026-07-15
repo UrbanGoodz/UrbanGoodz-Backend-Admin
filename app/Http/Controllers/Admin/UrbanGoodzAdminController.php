@@ -489,7 +489,7 @@ class UrbanGoodzAdminController extends Controller
             'logistics' => [
                 'title' => 'Logistics',
                 'url' => route('admin.urban-goodz.section', 'logistics'),
-                'status' => 'Admin Workflow Pending',
+                'status' => 'Live',
                 'table' => 'urban_goodz_logistics_jobs',
                 'revenue' => true,
                 'reportable' => true,
@@ -498,7 +498,7 @@ class UrbanGoodzAdminController extends Controller
             'medical-courier' => [
                 'title' => 'Medical Courier',
                 'url' => route('admin.urban-goodz.section', 'medical-courier'),
-                'status' => 'Admin Workflow Pending',
+                'status' => 'Live',
                 'table' => 'urban_goodz_medical_courier_jobs',
                 'revenue' => true,
                 'reportable' => true,
@@ -507,7 +507,7 @@ class UrbanGoodzAdminController extends Controller
             'events' => [
                 'title' => 'Events',
                 'url' => route('admin.urban-goodz.section', 'events'),
-                'status' => 'Admin Workflow Pending',
+                'status' => 'Live',
                 'table' => 'urban_goodz_events',
                 'revenue' => true,
                 'reportable' => true,
@@ -533,7 +533,7 @@ class UrbanGoodzAdminController extends Controller
             'discovery' => [
                 'title' => 'Business Discovery',
                 'url' => route('admin.urban-goodz.section', 'discovery'),
-                'status' => 'API Connected, Admin Workflow Pending',
+                'status' => 'Live',
                 'table' => 'urban_goodz_discovery_searches',
                 'revenue' => true,
                 'reportable' => true,

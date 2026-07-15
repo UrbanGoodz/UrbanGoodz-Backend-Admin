@@ -1522,4 +1522,117 @@ class AiCopilotService
 
         return AiCopilotRecommendation::create($data);
     }
+
+    public function generateAIOpsSummary(): string
+    {
+        $ai = app(UrbanGoodz\UrbanGoodzAIService::class);
+        if (!$ai->isConfigured()) {
+            return $this->generateRuleBasedSummary();
+        }
+
+        $data = [
+            'date' => now()->format('Y-m-d H:i'),
+            'unassigned_orders' => Order::whereNull('delivery_man_id')->whereIn('order_status', ['pending', 'confirmed'])->count(),
+            'active_drivers' => DeliveryMan::where('active', 1)->where('application_status', 'approved')->count(),
+            'stuck_orders' => Order::whereIn('order_status', ['confirmed', 'processing'])->where('created_at', '<', now()->subHours(self::STUCK_THRESHOLD_HOURS))->count(),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'today_revenue' => (float) Order::whereDate('created_at', today())->sum('order_amount'),
+            'pending_refunds' => \App\Models\UrbanGoodzPaymentLedger::where('event_type', 'refund')->where('payment_status', 'pending')->count(),
+            'available_loads' => UrbanGoodzLoadBoardLoad::where('status', 'available')->count(),
+            'pending_order_anywhere' => OrderAnywhereRequest::where('status', 'pending')->count(),
+            'pending_medical_jobs' => UrbanGoodzMedicalCourierJob::where('status', 'pending')->count(),
+        ];
+
+        return $ai->generateOpsSummary($data);
+    }
+
+    public function aiAnalyzeLoadBoard(): array
+    {
+        $ai = app(UrbanGoodz\UrbanGoodzAIService::class);
+        if (!$ai->isConfigured()) {
+            return ['summary' => 'AI not configured', 'recommendations' => []];
+        }
+
+        $loads = UrbanGoodzLoadBoardLoad::where('status', 'available')
+            ->orderByDesc('payout_amount')
+            ->limit(20)
+            ->get()
+            ->map(fn($l) => [
+                'id' => $l->id,
+                'origin' => $l->origin_city . ', ' . $l->origin_state,
+                'destination' => $l->destination_city . ', ' . $l->destination_state,
+                'payout' => $l->payout_amount,
+                'distance' => $l->distance_miles,
+                'type' => $l->load_type,
+                'equipment' => $l->equipment_type,
+                'posted' => $l->created_at?->diffForHumans(),
+            ])->toArray();
+
+        $drivers = DeliveryMan::where('active', 1)
+            ->where('application_status', 'approved')
+            ->limit(10)
+            ->get()
+            ->map(fn($d) => [
+                'id' => $d->id,
+                'name' => $d->f_name . ' ' . $d->l_name,
+                'current_orders' => $d->current_orders ?? 0,
+            ])->toArray();
+
+        $prompt = "You are Urban Goodz AI Load Board Analyst. Analyze the available loads and driver availability.
+Provide:
+1. Top load opportunities (best value per mile)
+2. Driver assignment suggestions
+3. Pricing intelligence (any underpriced or overpriced loads)
+4. Route optimization suggestions (loads that can be combined)
+Return JSON: {\"summary\": string, \"top_opportunities\": [{\"load_id\": number, \"reason\": string, \"priority\": \"high\"|\"medium\"|\"low\"}], \"driver_suggestions\": [{\"driver_id\": number, \"load_id\": number, \"reason\": string}], \"market_insights\": string}";
+
+        $result = $ai->chat($prompt, "Analyze current load board and driver availability.", ['loads' => $loads, 'drivers' => $drivers]);
+        return json_decode(trim($result), true) ?? ['summary' => $result, 'recommendations' => []];
+    }
+
+    public function aiAnalyzeOrder(any $order): array
+    {
+        $ai = app(UrbanGoodz\UrbanGoodzAIService::class);
+        if (!$ai->isConfigured()) {
+            return ['risk_level' => 'unknown', 'recommendation' => 'AI not configured'];
+        }
+
+        $orderData = [
+            'id' => $order->id,
+            'status' => $order->order_status,
+            'amount' => $order->order_amount,
+            'payment_status' => $order->payment_status ?? 'unknown',
+            'created' => $order->created_at?->format('Y-m-d H:i'),
+            'age_hours' => $order->created_at ? now()->diffInHours($order->created_at) : 0,
+            'delivery_type' => $order->order_type ?? 'standard',
+        ];
+
+        $prompt = "Analyze this order for operational risks and suggest actions. Return JSON:
+{
+  \"risk_level\": \"low\"|\"medium\"|\"high\",
+  \"is_stuck\": boolean,
+  \"suggested_action\": string,
+  \"auto_action_possible\": boolean,
+  \"notes\": string
+}";
+
+        $result = $ai->chat($prompt, "Analyze this order for issues.", ['order' => $orderData]);
+        return json_decode(trim($result), true) ?? ['risk_level' => 'unknown', 'recommendation' => $result];
+    }
+
+    private function generateRuleBasedSummary(): string
+    {
+        $unassigned = Order::whereNull('delivery_man_id')->whereIn('order_status', ['pending', 'confirmed'])->count();
+        $stuck = Order::whereIn('order_status', ['confirmed', 'processing'])->where('created_at', '<', now()->subHours(self::STUCK_THRESHOLD_HOURS))->count();
+        $todayOrders = Order::whereDate('created_at', today())->count();
+        $todayRevenue = Order::whereDate('created_at', today())->sum('order_amount');
+        $availableLoads = UrbanGoodzLoadBoardLoad::where('status', 'available')->count();
+
+        return "Daily Ops Briefing:\n"
+            . "- Today's orders: {$todayOrders} (\$" . number_format($todayRevenue, 2) . ")\n"
+            . "- Unassigned orders: {$unassigned}\n"
+            . "- Stuck orders (>4h): {$stuck}\n"
+            . "- Available loads: {$availableLoads}\n"
+            . "- Active drivers: " . DeliveryMan::where('active', 1)->count();
+    }
 }
