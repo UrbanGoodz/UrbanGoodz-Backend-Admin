@@ -420,7 +420,7 @@ class UrbanGoodzEcosystemTest extends Command
 
         foreach ($endpoints as $url => $label) {
             try {
-                $resp = Http::timeout(10)->get($url);
+                $resp = Http::timeout(10)->withoutRedirecting()->get($url);
                 if ($resp->successful()) {
                     $this->addPass("  {$label}: HTTP {$resp->status()}");
                 } else {
@@ -435,7 +435,7 @@ class UrbanGoodzEcosystemTest extends Command
     protected function testDriverApi(string $baseUrl)
     {
         // Get a test driver token
-        $driver = DB::table('delivery_man')
+        $driver = DB::table('delivery_men')
             ->where('email', 'ecosystem.test.driver@urbangoodzdelivery.com')
             ->orWhere('email', 'test.driver001@urbangoodzdelivery.com')
             ->first();
