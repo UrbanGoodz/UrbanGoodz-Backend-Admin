@@ -90,7 +90,7 @@ trait ActivationClass
 
     public function checkActivationCache(string|null $app)
     {
-        if ($this->is_local() || is_null($app) || env('DEVELOPMENT_ENVIRONMENT', false) || app()->environment('testing')) {
+        if ($this->is_local() || is_null($app) || config('app.development_environment', false) || app()->environment('testing')) {
             return true;
         }
 
