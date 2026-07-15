@@ -4,18 +4,20 @@ DCP COMPRESSED CHECKPOINT — MIGRATION RECOVERY + DRIVER ACCEPTANCE — P0 PASS
 Timestamp:       2026-07-14_MIGRATION-RECOVERY-PLUS-ACCEPTANCE
 Repository:      C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39
 Branch:          adminpanel-v39-backend-sprint
-Local HEAD:      e990440
-Remote HEAD:     e990440
+Local HEAD:      0f69286
+Remote HEAD:     0f69286
 Sync Status:     IN SYNC ✓
 Production:      PASS (confirmed by owner)
 
 --- COMMITS ---
 df30393  fix(migration): make service booking workflow safely idempotent
 e990440  fix(migration): production-compatible Schema::getIndexes array handling
+1582194  fix(deps): update production compatibility shims
+0f69286  fix: rename rental-email-setup POST route to prevent route:cache collision
 
 --- PRODUCTION EVIDENCE ---
 Production Laravel root: /home/urbakkej/admin.urbangoodzdelivery.com
-Deployed source commit: eb57992 (source) → df30393 → e990440 (latest)
+Deployed source commit: eb57992 (source) → df30393 → e990440 → 0f69286 (latest)
 
 Confirmed by owner:
   ✓ 2026_07_12_130000_complete_service_booking_workflow: Ran
@@ -24,6 +26,7 @@ Confirmed by owner:
   ✓ admin.rental.provider.status: exactly 1
   ✓ Application is up
   ✓ Config and Blade caches rebuilt
+  ✓ php artisan route:cache: succeeds (after route name collision fix)
 
 --- ROOT CAUSE (RESOLVED) ---
 Migration 2026_07_12_130000 was not idempotent. Two production failures:
@@ -33,7 +36,7 @@ Migration 2026_07_12_130000 was not idempotent. Two production failures:
 Additional production issue:
 3. Schema::getIndexes() returns arrays on production MySQL, not objects
 
---- FILES CHANGED (8 files, 2 commits) ---
+--- FILES CHANGED (9 files, 4 commits) ---
 database/migrations/2026_07_12_130000_complete_service_booking_workflow.php
   FULLY REWRITTEN:
   - hasTable/hasColumn/index guards for every operation
@@ -63,9 +66,12 @@ scripts/deploy-migration-recovery.sh
   NEW: Production deployment script
 docs/dcp/DCP_CHECKPOINT_2026-07-14_MIGRATION-RECOVERY.md
   NEW: Initial DCP checkpoint
+routes/admin.php
+  ADDED: rental-email-setup GET and POST routes with distinct names
+  Resolves route:cache collision (both methods shared same name)
 
 --- TEST RESULTS (FINAL) ---
-php -l: 8/8 files pass (0 errors)
+php -l: 9/9 files pass (0 errors)
 ServiceBookingMigrationSafetyTest: 12/12 pass (51 assertions)
 UrbanGoodzDriver* tests: 45/45 pass (291 assertions) ← ZERO FAILURES
   - Including vehicle-options: 3 previously failing tests now pass
@@ -74,6 +80,8 @@ UrbanGoodzDriver* tests: 45/45 pass (291 assertions) ← ZERO FAILURES
 Route verification:
   - purchase-card routes: 3 ✓
   - admin rental routes: 25 ✓
+  - rental-email-setup routes: 2 (GET + POST with distinct names) ✓
+  - php artisan route:cache: succeeds ✓
 
 --- DRIVER LIVE ACCEPTANCE ---
 Activation status: OWNER BLOCKED
@@ -120,15 +128,19 @@ Rental provider status route:
    domain, software_type = "addon")
 2. After activation: create approved tester driver, staged Order
    Anywhere request, and sandbox card config for live acceptance
+3. Deploy commit 0f69286 to production and run:
+   php artisan route:cache && php artisan config:cache && php artisan view:cache
 
 --- REMAINING BLOCKERS ---
 None in scope. All 45 driver tests pass. Migration is production-safe.
 
 --- VERIFICATION CHECKLIST ---
-- [x] All modified files pass php -l (8/8)
+- [x] All modified files pass php -l (9/9)
 - [x] 12 migration safety tests pass
 - [x] 45 driver tests pass (ZERO failures)
 - [x] 3 purchase-card routes present
+- [x] 2 rental-email-setup routes (GET + POST distinct names)
+- [x] php artisan route:cache succeeds
 - [x] No ->after() fragile anchoring
 - [x] All CREATE statements guarded with hasTable()
 - [x] All ALTER statements guard each column with hasColumn()
