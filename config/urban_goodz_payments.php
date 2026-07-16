@@ -101,6 +101,7 @@ return [
     */
     'currency' => env('URBAN_GOODZ_CURRENCY', 'USD'),
     'default_platform_fee_percent' => (float) env('URBAN_GOODZ_PLATFORM_FEE_PERCENT', 10),
+    'default_dispatcher_commission_rate' => (float) env('URBAN_GOODZ_DISPATCHER_COMMISSION_RATE', 0),
 
     /*
     |--------------------------------------------------------------------------

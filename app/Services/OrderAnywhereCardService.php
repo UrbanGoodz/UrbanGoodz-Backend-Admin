@@ -20,6 +20,11 @@ class OrderAnywhereCardService
         $this->issuing = $this->manager->activeProvider();
     }
 
+    /**
+     * Issue a controlled virtual purchase card for the assigned shopper/driver.
+     * This is SEPARATE from customer payment acceptance.
+     * The card is used at external merchants to purchase items on behalf of the customer.
+     */
     public function createCardRequest(OrderAnywhereRequest $request, array $data = []): UrbanGoodzOrderAnywhereCardRequest
     {
         if (! $this->manager->isAvailable()) {
@@ -30,16 +35,23 @@ class OrderAnywhereCardService
             abort(403, 'Payments are currently disabled.');
         }
 
-        if (! in_array($request->status, ['approved', 'shopping', 'picked_up', 'out_for_delivery'], true)) {
-            abort(422, 'Order must be approved or in-progress to request a driver card.');
+        // Card issuing is only for external merchant orders
+        if (! $request->isExternalMerchant()) {
+            abort(422, 'Purchase card issuing is only available for external merchant orders.');
+        }
+
+        // Card can only be issued after customer payment is authorized
+        if (! in_array($request->payment_status, ['authorized', 'captured'], true)) {
+            abort(422, 'Customer payment must be authorized before issuing a purchase card.');
+        }
+
+        // Card can only be issued after approval and shopper assignment
+        if (! in_array($request->status, ['approved', 'shopper_assigned', 'shopping', 'picked_up', 'out_for_delivery'], true)) {
+            abort(422, 'Order must be approved and shopper assigned before issuing a card.');
         }
 
         if (! $request->assigned_delivery_man_id) {
-            abort(422, 'A driver must be assigned before requesting a card.');
-        }
-
-        if ($request->payment_status !== 'captured' && $request->payment_status !== 'authorized') {
-            abort(422, 'Order must be paid or authorized before requesting a driver card.');
+            abort(422, 'A shopper/driver must be assigned before requesting a card.');
         }
 
         $existing = UrbanGoodzOrderAnywhereCardRequest::activeForRequest($request->id);
@@ -418,22 +430,6 @@ class OrderAnywhereCardService
                         'metadata' => [],
                     ]
                 );
-
-                // Create splits for the associated order if one exists
-                if ($cardRequest->order_anywhere_request_id) {
-                    $orderRequest = \App\Models\OrderAnywhereRequest::find($cardRequest->order_anywhere_request_id);
-                    if ($orderRequest && $orderRequest->payment_status !== 'captured') {
-                        // Update the order's captured amount and create splits
-                        $orderRequest->captured_amount = $orderRequest->captured_amount + (float) $cardRequest->captured_amount;
-                        $orderRequest->payment_status = 'captured';
-                        $orderRequest->save();
-
-                        app(\App\Services\UrbanGoodzPaymentService::class)->captureOrderAnywhere($orderRequest, [
-                            'amount' => $cardRequest->captured_amount,
-                            'driver_amount' => $cardRequest->captured_amount,
-                        ]);
-                    }
-                }
             }
 
             return $cardRequest->fresh();

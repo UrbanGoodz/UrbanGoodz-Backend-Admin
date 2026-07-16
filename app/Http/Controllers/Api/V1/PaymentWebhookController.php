@@ -198,7 +198,7 @@ class PaymentWebhookController extends Controller
     ): bool {
         return match ($eventCode) {
             'AUTHORISATION' => $success
-                ? (bool) $payments->authorizeOrderAnywhere($request, [
+                ? (bool) $payments->authorizeCustomerPayment($request, [
                     'authorized_amount' => $amount,
                     'authorization_reference' => $pspReference,
                     'psp_reference' => $pspReference,
@@ -206,7 +206,7 @@ class PaymentWebhookController extends Controller
                 ])
                 : $this->markFailed($request, $payments, 'authorization_failed', $pspReference, $amount, $provider),
             'CAPTURE' => $success
-                ? (bool) $payments->captureOrderAnywhere($request, [
+                ? (bool) $payments->captureCustomerPayment($request, [
                     'captured_amount' => $amount,
                     'capture_reference' => $pspReference,
                     'psp_reference' => $pspReference,
@@ -215,7 +215,7 @@ class PaymentWebhookController extends Controller
                 : $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'CAPTURE_FAILED' => $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'REFUND' => $success
-                ? (bool) $payments->refundOrderAnywhere($request, [
+                ? (bool) $payments->refundCustomerPayment($request, [
                     'refund_amount' => $amount,
                     'refund_reference' => $pspReference,
                     'psp_reference' => $pspReference,
@@ -227,7 +227,7 @@ class PaymentWebhookController extends Controller
                 ? (bool) $request->transitionTo('cancelled')
                 : false,
             'CANCEL_OR_REFUND' => $success && $request->payment_status === 'captured'
-                ? (bool) $payments->refundOrderAnywhere($request, [
+                ? (bool) $payments->refundCustomerPayment($request, [
                     'refund_amount' => $amount,
                     'refund_reference' => $pspReference,
                     'psp_reference' => $pspReference,
@@ -250,7 +250,7 @@ class PaymentWebhookController extends Controller
         return match ($eventCode) {
             'checkout.session.completed',
             'payment_intent.succeeded',
-            'charge.succeeded' => (bool) $payments->captureOrderAnywhere($request, [
+            'charge.succeeded' => (bool) $payments->captureCustomerPayment($request, [
                 'captured_amount' => $amount,
                 'capture_reference' => $providerReference,
                 'psp_reference' => $providerReference,
@@ -262,7 +262,7 @@ class PaymentWebhookController extends Controller
                 ? (bool) $request->transitionTo('cancelled')
                 : false,
             'charge.refunded',
-            'refund.succeeded' => (bool) $payments->refundOrderAnywhere($request, [
+            'refund.succeeded' => (bool) $payments->refundCustomerPayment($request, [
                 'refund_amount' => $amount,
                 'refund_reference' => $providerReference,
                 'psp_reference' => $providerReference,
@@ -283,11 +283,14 @@ class PaymentWebhookController extends Controller
         ?string $reference,
         float $amount,
         string $provider
-    ): bool
-    {
-        return $payments->recordWebhookFailure($request, $status, $reference, $amount, [
+    ): bool {
+        $payments->recordWebhookFailure($request, $status, [
             'provider' => $provider,
+            'reference' => $reference,
+            'amount' => $amount,
         ]);
+
+        return true;
     }
 
     private function findRequestByReference(?string $merchantReference, ?string $providerReference): ?OrderAnywhereRequest

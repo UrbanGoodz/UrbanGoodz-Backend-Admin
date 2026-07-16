@@ -195,7 +195,7 @@ class UrbanGoodzAdminController extends Controller
             'driver_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $payments->captureOrderAnywhere(OrderAnywhereRequest::findOrFail($id), $data);
+        $payments->captureCustomerPayment(OrderAnywhereRequest::findOrFail($id), $data);
 
         return back()->with('success', translate('Order Anywhere payment captured and split successfully.'));
     }
@@ -213,7 +213,7 @@ class UrbanGoodzAdminController extends Controller
             'reason' => ['nullable', 'string'],
         ]);
 
-        $payments->refundOrderAnywhere(OrderAnywhereRequest::findOrFail($id), $data);
+        $payments->refundCustomerPayment(OrderAnywhereRequest::findOrFail($id), $data);
 
         return back()->with('success', translate('Order Anywhere refund ledger created successfully.'));
     }
@@ -227,7 +227,7 @@ class UrbanGoodzAdminController extends Controller
 
         $record = OrderAnywhereRequest::findOrFail($id);
 
-        $result = $payments->createPaymentLink($record, [
+        $result = $payments->createPaymentSession($record, [
             'amount' => $request->input('amount'),
             'description' => $request->input('description'),
         ]);

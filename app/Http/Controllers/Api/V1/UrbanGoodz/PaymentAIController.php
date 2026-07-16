@@ -367,7 +367,7 @@ Provide:
     {
         $data = $request->validate([
             'action' => ['required', 'string', 'in:force_capture,force_refund,force_void,release_splits'],
-            'entity_type' => ['required', 'string', 'in:order,order_anywhere'],
+            'entity_type' => ['required', 'string', 'in:order_anywhere,order'],
             'entity_id' => ['required', 'integer'],
             'amount' => ['nullable', 'numeric', 'min:0.01'],
             'reason' => ['required', 'string', 'max:500'],
@@ -394,11 +394,12 @@ Provide:
 
     private function forceCapture(array $data): array
     {
-        if ($data['entity_type'] === 'order') {
-            $order = Order::findOrFail($data['entity_id']);
-            $amount = $data['amount'] ?? $order->order_amount;
-            $result = $this->paymentService->captureOrderAnywhere(
-                OrderAnywhereRequest::where('order_id', $data['entity_id'])->firstOrFail(),
+        $entityType = $data['entity_type'];
+        if ($entityType === 'order_anywhere' || $entityType === 'order') {
+            $request = OrderAnywhereRequest::findOrFail($data['entity_id']);
+            $amount = $data['amount'] ?? $request->authorized_amount;
+            $result = $this->paymentService->captureCustomerPayment(
+                $request,
                 ['captured_amount' => $amount, 'source' => 'manual_override', 'admin_notes' => $data['reason']]
             );
             return ['success' => true, 'message' => 'Force capture executed', 'result' => $result];
@@ -408,11 +409,12 @@ Provide:
 
     private function forceRefund(array $data): array
     {
-        if ($data['entity_type'] === 'order') {
-            $order = Order::findOrFail($data['entity_id']);
-            $amount = $data['amount'] ?? $order->order_amount;
-            $result = $this->paymentService->refundOrderAnywhere(
-                OrderAnywhereRequest::where('order_id', $data['entity_id'])->firstOrFail(),
+        $entityType = $data['entity_type'];
+        if ($entityType === 'order_anywhere' || $entityType === 'order') {
+            $request = OrderAnywhereRequest::findOrFail($data['entity_id']);
+            $amount = $data['amount'] ?? $request->captured_amount;
+            $result = $this->paymentService->refundCustomerPayment(
+                $request,
                 ['refund_amount' => $amount, 'reason' => $data['reason'], 'source' => 'manual_override']
             );
             return ['success' => true, 'message' => 'Force refund executed', 'result' => $result];

@@ -128,7 +128,7 @@ class AdyenWebhookController extends Controller
             return;
         }
 
-        $payments->authorizeOrderAnywhere($request, [
+        $payments->authorizeCustomerPayment($request, [
             'authorized_amount' => $amount,
             'authorization_reference' => $pspReference,
             'psp_reference' => $pspReference,
@@ -151,7 +151,7 @@ class AdyenWebhookController extends Controller
             return;
         }
 
-        $payments->captureOrderAnywhere($request, [
+        $payments->captureCustomerPayment($request, [
             'captured_amount' => $amount,
             'capture_reference' => $pspReference,
             'psp_reference' => $pspReference,
@@ -193,7 +193,7 @@ class AdyenWebhookController extends Controller
             return;
         }
 
-        $payments->refundOrderAnywhere($request, [
+        $payments->refundCustomerPayment($request, [
             'refund_amount' => $amount,
             'refund_reference' => $pspReference,
             'psp_reference' => $pspReference,

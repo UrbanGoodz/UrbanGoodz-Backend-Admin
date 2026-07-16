@@ -135,7 +135,7 @@ class OrderAnywhereTesterController extends Controller
             'authorization_reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $model = $payments->authorizeOrderAnywhere($this->findCustomerRecord($request, $record), array_merge($data, [
+        $model = $payments->authorizeCustomerPayment($this->findCustomerRecord($request, $record), array_merge($data, [
             'source' => 'customer_api',
         ]));
 
@@ -192,7 +192,7 @@ class OrderAnywhereTesterController extends Controller
         ]);
 
         $model = $this->findRecord($record);
-        $result = $payments->createPaymentLink($model, $data);
+        $result = $payments->createPaymentSession($model, $data);
 
         return response()->json([
             'success' => true,

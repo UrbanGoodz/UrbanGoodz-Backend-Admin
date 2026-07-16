@@ -124,7 +124,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'payment_status' => 'authorized',
         ]);
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
             'platform_fee' => 5.00,
             'driver_amount' => 10.00,
@@ -171,8 +171,8 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'payment_status' => 'quoted',
         ]);
 
-        $created = $this->paymentService->createPaymentLink($request);
-        $replayed = $this->paymentService->createPaymentLink($request->fresh());
+        $created = $this->paymentService->createPaymentSession($request);
+        $replayed = $this->paymentService->createPaymentSession($request->fresh());
 
         $this->assertTrue($created['success']);
         $this->assertTrue($created['staged_test']);
@@ -340,7 +340,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->expectExceptionMessage('Ledger split mismatch');
 
         // Mismatched splits: 5 + 10 + 30 = 45 !== 50
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
             'platform_fee' => 5.00,
             'driver_amount' => 10.00,
@@ -361,7 +361,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'payment_status' => 'authorized',
         ]);
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
             'platform_fee' => 5.00,
             'driver_amount' => 10.00,
@@ -423,7 +423,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $adminWallet = AdminWallet::firstOrCreate(['admin_id' => $platformAdmin->id]);
         $adminCommissionBefore = (float) $adminWallet->total_commission_earning;
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
             'platform_fee' => 5.00,
             'driver_amount' => 10.00,
@@ -434,7 +434,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $request->transitionTo('out_for_delivery');
         $request->transitionTo('completed');
 
-        $this->paymentService->refundOrderAnywhere($request->fresh(), [
+        $this->paymentService->refundCustomerPayment($request->fresh(), [
             'refund_amount' => 50.00,
             'reason' => 'Full test reversal',
         ]);
@@ -521,7 +521,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'payment_status' => 'authorized',
         ]);
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
             'platform_fee' => 5.00,
             'driver_amount' => 10.00,
@@ -530,7 +530,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         ]);
 
         // Refund 20.00 before request is completed (still in shopping status)
-        $this->paymentService->refundOrderAnywhere($request, [
+        $this->paymentService->refundCustomerPayment($request, [
             'refund_amount' => 20.00,
             'reason' => 'Partial return',
         ]);
@@ -557,7 +557,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'payment_status' => 'authorized',
         ]);
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
             'platform_fee' => 5.00,
             'driver_amount' => 10.00,
@@ -574,7 +574,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->assertEquals(35.00, $vendorWallet->total_earning);
 
         // Refund 20.00 after settlement
-        $this->paymentService->refundOrderAnywhere($request, [
+        $this->paymentService->refundCustomerPayment($request, [
             'refund_amount' => 20.00,
             'reason' => 'Post-delivery refund',
         ]);
@@ -639,7 +639,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $this->expectExceptionMessage('Payments are currently disabled.');
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 50.00,
         ]);
     }
@@ -661,7 +661,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $this->expectExceptionMessage('exceeds maximum allowed cap');
 
-        $this->paymentService->captureOrderAnywhere($request, [
+        $this->paymentService->captureCustomerPayment($request, [
             'captured_amount' => 60.00,
         ]);
     }
