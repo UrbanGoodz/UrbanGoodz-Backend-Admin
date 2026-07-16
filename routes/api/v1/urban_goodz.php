@@ -116,6 +116,7 @@ Route::group(['prefix' => 'urban-goodz/files', 'middleware' => ['auth:api', 'thr
 
 Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
+    Route::post('chat', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
 });
 
