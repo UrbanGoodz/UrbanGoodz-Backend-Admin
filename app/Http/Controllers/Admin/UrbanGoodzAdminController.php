@@ -483,7 +483,7 @@ class UrbanGoodzAdminController extends Controller
             'earn-money' => [
                 'title' => 'Earn Money',
                 'url' => route('admin.urban-goodz.section', 'earn-money'),
-                'status' => 'DB-Backed',
+                'status' => 'Live',
                 'table' => 'urban_goodz_earn_money_opportunities',
                 'revenue' => true,
                 'reportable' => true,
@@ -527,7 +527,7 @@ class UrbanGoodzAdminController extends Controller
             'community' => [
                 'title' => 'Community Marketplace',
                 'url' => route('admin.urban-goodz.section', 'community'),
-                'status' => 'DB-Backed',
+                'status' => 'Live',
                 'table' => 'urban_goodz_community_posts',
                 'revenue' => false,
                 'reportable' => false,
@@ -540,7 +540,7 @@ class UrbanGoodzAdminController extends Controller
                 'table' => 'urban_goodz_discovery_searches',
                 'revenue' => true,
                 'reportable' => true,
-                'admin_workflow' => 'Search captures, business leads, demand signals. API: search-capture, entities, opportunities. Needs admin management UI.',
+                'admin_workflow' => 'Search captures, business leads, demand signals. API: search-capture, entities, opportunities.',
             ],
             'business-clients' => [
                 'title' => 'Business Clients',

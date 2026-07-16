@@ -16,8 +16,16 @@
 
 @section('content')
     <div class="content container-fluid">
-        <div class="page-header">
+        <div class="page-header d-flex flex-wrap justify-content-between align-items-center">
             <h1 class="page-header-title">{{ translate('Urban Goodz Command Center') }}</h1>
+            <div class="d-flex flex-wrap" style="gap: .5rem;">
+                <a href="{{ route('admin.urban-goodz.ai-operations.index') }}" class="btn btn--primary">
+                    <i class="tio-auto-flash mr-1"></i>{{ translate('AI Operations') }}
+                </a>
+                <a href="{{ url('/business/login') }}" target="_blank" rel="noopener" class="btn btn-outline-primary">
+                    <i class="tio-business-bag mr-1"></i>{{ translate('Business Portal') }}
+                </a>
+            </div>
         </div>
 
         <div class="row g-3 mb-3">
@@ -103,31 +111,31 @@
                 </div>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.section', 'logistics') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Logistics Jobs') }}</h6>
                         <h3>{{ $counts['logistics_jobs'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-warning">{{ translate('Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.section', 'medical-courier') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Medical Courier Jobs') }}</h6>
                         <h3>{{ $counts['medical_courier_jobs'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-warning">{{ translate('Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.section', 'events') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Events') }}</h6>
                         <h3>{{ $counts['events'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-warning">{{ translate('Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
                 <div class="card h-100">
@@ -157,13 +165,13 @@
                 </div>
             </div>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100">
+                <a class="card h-100" href="{{ route('admin.urban-goodz.section', 'discovery') }}" style="text-decoration:none;color:inherit;">
                     <div class="card-body">
                         <h6>{{ translate('Discovery Searches') }}</h6>
                         <h3>{{ $counts['discovery_searches'] ?? 0 }}</h3>
-                        <span class="badge badge-soft-primary">{{ translate('API Connected, Admin Workflow Pending') }}</span>
+                        <span class="badge badge-soft-success">{{ translate('Live') }}</span>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-md-6 col-xl-3">
                 <a class="card h-100" href="{{ route('admin.urban-goodz.business-clients.index') }}" style="text-decoration:none;color:inherit;">
