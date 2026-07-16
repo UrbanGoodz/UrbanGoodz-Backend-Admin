@@ -252,7 +252,7 @@ class UrbanGoodzOpportunityController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Load board loads retrieved successfully',
-            'data' => $result['loads'],
+            'data' => $result['loads']->items(),
             'meta' => $result['meta'],
         ]);
     }

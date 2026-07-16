@@ -46,10 +46,12 @@ class UrbanGoodzLoadBoardService
             $query->where('is_expedited', true);
         }
 
-        $loads = $query->paginate($filters['per_page'] ?? self::PER_PAGE);
+        $loads = $query
+            ->paginate($filters['per_page'] ?? self::PER_PAGE)
+            ->withQueryString();
 
         return [
-            'loads' => $loads->items(),
+            'loads' => $loads,
             'meta' => [
                 'current_page' => $loads->currentPage(),
                 'last_page' => $loads->lastPage(),
