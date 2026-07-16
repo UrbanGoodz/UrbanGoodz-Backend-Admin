@@ -390,7 +390,7 @@ You MUST return ONLY a valid JSON object with this structure, no markdown, no co
   \"concerns\": [string],
   \"strategic_recommendations\": [
     {
-      \"priority\": \"high\"|\"medium\"|\"low",
+      \"priority\": \"high\"|\"medium\"|\"low\",
       \"recommendation\": string,
       \"expected_impact\": string,
       \"timeline\": string

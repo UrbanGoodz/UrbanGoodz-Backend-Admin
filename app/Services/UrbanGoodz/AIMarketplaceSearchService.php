@@ -461,7 +461,8 @@ PROMPT;
     private function buildRecommendationPrompt(array $history, string $context): string
     {
         $historySummary = array_map(function ($h) {
-            return "{$h->item_name} ({$h->category_name ?? 'N/A'}) from {$h->store_name} - \${$h->price} x{$h->quantity}";
+            $categoryName = $h->category_name ?? 'N/A';
+            return "{$h->item_name} ({$categoryName}) from {$h->store_name} - \${$h->price} x{$h->quantity}";
         }, $history);
 
         $historyList = implode("\n", $historySummary);

@@ -258,11 +258,12 @@ PROMPT;
             ];
         }
 
+        $styleNotesDisplay = !empty($styleNotes) ? $styleNotes : 'None provided';
         $systemPrompt = <<<PROMPT
 You are a master tailor at Urban Goodz. Based on the customer's measurements and the garment type, suggest specific tailoring adjustments.
 
 Garment type: {$garmentType}
-Style notes: {$styleNotes ?: 'None provided'}
+Style notes: {$styleNotesDisplay}
 
 Analyze the measurements for:
 1. Asymmetries or imbalances between left/right proportions
