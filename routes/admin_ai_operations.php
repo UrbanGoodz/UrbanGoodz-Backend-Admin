@@ -5,7 +5,7 @@ use App\Http\Controllers\Admin\AiOperationsController;
 
 Route::group([
     'prefix' => 'urban-goodz/ai-operations',
-    'as' => 'urban-goodz.ai-operations.',
+    'as' => 'admin.urban-goodz.ai-operations.',
 ], function () {
     Route::get('/', [AiOperationsController::class, 'index'])->name('index');
     Route::get('feature-controls', [AiOperationsController::class, 'featureControls'])->name('feature-controls');

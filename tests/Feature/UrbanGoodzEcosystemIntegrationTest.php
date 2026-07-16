@@ -5,10 +5,17 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class UrbanGoodzEcosystemIntegrationTest extends TestCase
 {
+    public function test_ai_operations_admin_route_uses_the_canonical_name(): void
+    {
+        $this->assertTrue(Route::has('admin.urban-goodz.ai-operations.index'));
+        $this->assertFalse(Route::has('urban-goodz.ai-operations.index'));
+    }
+
     // ═══════════════════════════════════════════
     // DATABASE INTEGRITY
     // ═══════════════════════════════════════════
