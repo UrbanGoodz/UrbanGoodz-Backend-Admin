@@ -20,6 +20,11 @@ class UrbanGoodzAIService
         $this->maxTokens = (int) config('urban_goodz.ai_max_tokens', 1500);
     }
 
+    public function getBaseUrl(): string
+    {
+        return config('openai.base_url', 'https://api.openai.com/v1');
+    }
+
     public function isConfigured(): bool
     {
         return !empty($this->apiKey) && strlen($this->apiKey) > 10;
@@ -47,7 +52,7 @@ class UrbanGoodzAIService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(60)->post('https://api.openai.com/v1/chat/completions', [
+            ])->timeout(60)->post($this->getBaseUrl() . '/chat/completions', [
                 'model' => $this->model,
                 'messages' => $messages,
                 'temperature' => $this->temperature,
