@@ -80,30 +80,30 @@ Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@han
     ->where('provider', 'adyen|stripe|staged_test');
 
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-    Route::post('requests', 'Api\V1\OrderAnywhereTesterController@store');
-    Route::get('requests/{record}', 'Api\V1\OrderAnywhereTesterController@show');
-    Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereTesterController@authorizePayment');
-    Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereTesterController@uploadReceipt');
-    Route::get('customer/requests', 'Api\V1\OrderAnywhereTesterController@customerRequests');
+    Route::post('requests', 'Api\V1\OrderAnywhereController@store');
+    Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');
+    Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereController@authorizePayment');
+    Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereController@uploadReceipt');
+    Route::get('customer/requests', 'Api\V1\OrderAnywhereController@customerRequests');
 });
 
 Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
-    Route::get('requests', 'Api\V1\OrderAnywhereTesterController@adminRequests');
-    Route::post('requests/{record}/status', 'Api\V1\OrderAnywhereTesterController@updateStatus');
-    Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereTesterController@addNotes');
-    Route::post('requests/{record}/assign-driver', 'Api\V1\OrderAnywhereTesterController@assignDriver');
-    Route::post('requests/{record}/payment-link', 'Api\V1\OrderAnywhereTesterController@createPaymentLink');
+    Route::get('requests', 'Api\V1\OrderAnywhereController@adminRequests');
+    Route::post('requests/{record}/status', 'Api\V1\OrderAnywhereController@updateStatus');
+    Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereController@addNotes');
+    Route::post('requests/{record}/assign-driver', 'Api\V1\OrderAnywhereController@assignDriver');
+    Route::post('requests/{record}/payment-link', 'Api\V1\OrderAnywhereController@createPaymentLink');
 });
 
 Route::group(['prefix' => 'order-anywhere/vendor', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
-    Route::post('requests/{record}/update', 'Api\V1\OrderAnywhereTesterController@vendorUpdate');
+    Route::post('requests/{record}/update', 'Api\V1\OrderAnywhereController@vendorUpdate');
 });
 
 Route::group(['prefix' => 'order-anywhere/driver', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
-    Route::get('available', 'Api\V1\OrderAnywhereTesterController@driverAvailable');
-    Route::post('{record}/accept', 'Api\V1\OrderAnywhereTesterController@driverAccept');
-    Route::post('{record}/status', 'Api\V1\OrderAnywhereTesterController@driverStatus');
-    Route::post('{record}/issue', 'Api\V1\OrderAnywhereTesterController@driverIssue');
+    Route::get('available', 'Api\V1\OrderAnywhereController@driverAvailable');
+    Route::post('{record}/accept', 'Api\V1\OrderAnywhereController@driverAccept');
+    Route::post('{record}/status', 'Api\V1\OrderAnywhereController@driverStatus');
+    Route::post('{record}/issue', 'Api\V1\OrderAnywhereController@driverIssue');
 });
 
 Route::group(['prefix' => 'urban-goodz/fashion-fit'], function () {
