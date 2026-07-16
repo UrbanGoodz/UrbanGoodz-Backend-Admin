@@ -1,0 +1,318 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\AiActionLog;
+use App\Models\AiCopilotRecommendation;
+use App\Models\AiCopilotSetting;
+use App\Models\AiModuleAutomationSetting;
+use App\Models\AiRiskRule;
+use App\Models\UrbanGoodzAIConversation;
+use App\Models\UrbanGoodzAIIntent;
+use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Services\UrbanGoodz\UrbanGoodzAIConciergeService;
+use App\Services\UrbanGoodz\UrbanGoodzAIService;
+use Brian2694\Toastr\Facades\Toastr;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class AiOperationsController extends Controller
+{
+    public function __construct(
+        protected UrbanGoodzAIConciergeService $conciergeService,
+        protected UrbanGoodzAIService $aiService,
+    ) {}
+
+    public function index()
+    {
+        $providerConfigured = $this->aiService->isConfigured();
+
+        $copilotMode = AiCopilotSetting::where('key', 'ai_ops_enabled')->value('value') ?? 'off';
+
+        $conversationsToday = UrbanGoodzAIConversation::whereDate('created_at', today())->count();
+        $conversationsTotal = UrbanGoodzAIConversation::count();
+        $intentsActive = UrbanGoodzAIIntent::where('is_active', true)->count();
+        $actionsToday = AiActionLog::whereDate('created_at', today())->count();
+
+        $recommendationsPending = AiCopilotRecommendation::where('status', 'pending')->count();
+        $recommendationsAccepted = AiCopilotRecommendation::where('status', 'accepted')->count();
+        $recommendationsDismissed = AiCopilotRecommendation::where('status', 'dismissed')->count();
+
+        $modulesEnabled = AiModuleAutomationSetting::where('enabled', true)->count();
+        $modulesTotal = AiModuleAutomationSetting::count();
+
+        $riskRulesActive = AiRiskRule::where('enabled', true)->count();
+        $riskRulesTotal = AiRiskRule::count();
+
+        $providerStatus = [
+            'openai_configured' => $providerConfigured,
+            'model' => config('urban_goodz.ai_model', 'gpt-4o'),
+            'base_url' => $this->maskUrl(config('openai.base_url', 'https://api.openai.com/v1')),
+            'timeout' => config('openai.request_timeout', 60),
+        ];
+
+        $featureToggles = AiCopilotSetting::whereIn('key', [
+            'ai_ops_enabled',
+            'ai_auto_dispatch_enabled',
+            'ai_auto_customer_support_enabled',
+            'ai_auto_driver_support_enabled',
+            'ai_auto_vendor_support_enabled',
+            'ai_auto_order_anywhere_triage_enabled',
+            'ai_auto_package_route_assignment_enabled',
+            'ai_auto_business_courier_assignment_enabled',
+            'ai_escalate_high_risk_to_admin',
+            'ai_audit_log_enabled',
+        ])->pluck('value', 'key')->toArray();
+
+        $loadStats = [
+            'total' => UrbanGoodzLoadBoardLoad::count(),
+            'available' => UrbanGoodzLoadBoardLoad::where('status', 'available')->count(),
+            'assigned' => UrbanGoodzLoadBoardLoad::where('status', 'assigned')->count(),
+            'in_transit' => UrbanGoodzLoadBoardLoad::whereIn('status', ['in_transit', 'picked_up'])->count(),
+            'delivered' => UrbanGoodzLoadBoardLoad::where('status', 'delivered')->count(),
+        ];
+
+        return view('admin-views.urban-goodz.ai-operations.index', compact(
+            'providerConfigured',
+            'copilotMode',
+            'conversationsToday',
+            'conversationsTotal',
+            'intentsActive',
+            'actionsToday',
+            'recommendationsPending',
+            'recommendationsAccepted',
+            'recommendationsDismissed',
+            'modulesEnabled',
+            'modulesTotal',
+            'riskRulesActive',
+            'riskRulesTotal',
+            'providerStatus',
+            'featureToggles',
+            'loadStats',
+        ));
+    }
+
+    public function featureControls()
+    {
+        if (request()->isMethod('post')) {
+            $validated = request()->validate([
+                'ai_auto_dispatch_enabled' => 'boolean',
+                'ai_auto_customer_support_enabled' => 'boolean',
+                'ai_auto_driver_support_enabled' => 'boolean',
+                'ai_auto_vendor_support_enabled' => 'boolean',
+                'ai_auto_order_anywhere_triage_enabled' => 'boolean',
+                'ai_auto_package_route_assignment_enabled' => 'boolean',
+                'ai_auto_business_courier_assignment_enabled' => 'boolean',
+                'ai_escalate_high_risk_to_admin' => 'boolean',
+                'ai_audit_log_enabled' => 'boolean',
+            ]);
+
+            foreach ($validated as $key => $value) {
+                AiCopilotSetting::updateOrCreate(
+                    ['key' => $key],
+                    ['value' => $value ? '1' : '0']
+                );
+            }
+
+            Toastr::success(translate('Feature toggles updated successfully.'));
+            return redirect()->route('admin.urban-goodz.ai-operations.feature-controls');
+        }
+
+        $featureToggles = AiCopilotSetting::whereIn('key', [
+            'ai_auto_dispatch_enabled',
+            'ai_auto_customer_support_enabled',
+            'ai_auto_driver_support_enabled',
+            'ai_auto_vendor_support_enabled',
+            'ai_auto_order_anywhere_triage_enabled',
+            'ai_auto_package_route_assignment_enabled',
+            'ai_auto_business_courier_assignment_enabled',
+            'ai_escalate_high_risk_to_admin',
+            'ai_audit_log_enabled',
+        ])->pluck('value', 'key')->toArray();
+
+        return view('admin-views.urban-goodz.ai-operations.feature-controls', compact('featureToggles'));
+    }
+
+    public function logs(Request $request)
+    {
+        $query = AiActionLog::with('recommendation', 'approver')->latest();
+
+        if ($request->filled('module')) {
+            $query->where('module', $request->module);
+        }
+        if ($request->filled('action_taken')) {
+            $query->where('action_taken', 'like', "%{$request->action_taken}%");
+        }
+
+        $logs = $query->paginate(50);
+        $modules = AiModuleAutomationSetting::pluck('module')->toArray();
+
+        return view('admin-views.urban-goodz.ai-operations.logs', compact('logs', 'modules'));
+    }
+
+    public function usage()
+    {
+        $conversationStats = [
+            'total' => UrbanGoodzAIConversation::count(),
+            'today' => UrbanGoodzAIConversation::whereDate('created_at', today())->count(),
+            'this_week' => UrbanGoodzAIConversation::where('created_at', '>=', now()->startOfWeek())->count(),
+            'this_month' => UrbanGoodzAIConversation::where('created_at', '>=', now()->startOfMonth())->count(),
+            'resolved' => UrbanGoodzAIConversation::where('status', 'resolved')->count(),
+            'pending' => UrbanGoodzAIConversation::where('status', 'pending')->count(),
+            'escalated' => UrbanGoodzAIConversation::where('status', 'escalated')->count(),
+        ];
+
+        $actionStats = [
+            'total' => AiActionLog::count(),
+            'today' => AiActionLog::whereDate('created_at', today())->count(),
+            'this_week' => AiActionLog::where('created_at', '>=', now()->startOfWeek())->count(),
+            'this_month' => AiActionLog::where('created_at', '>=', now()->startOfMonth())->count(),
+            'auto_executed' => AiCopilotRecommendation::where('metadata->auto_executed', true)->count(),
+            'human_approved' => AiCopilotRecommendation::where('status', 'accepted')
+                ->whereNull('metadata->auto_executed')->count(),
+        ];
+
+        $recommendationStats = [
+            'total' => AiCopilotRecommendation::count(),
+            'pending' => AiCopilotRecommendation::where('status', 'pending')->count(),
+            'accepted' => AiCopilotRecommendation::where('status', 'accepted')->count(),
+            'dismissed' => AiCopilotRecommendation::where('status', 'dismissed')->count(),
+            'by_type' => AiCopilotRecommendation::selectRaw('recommendation_type, COUNT(*) as count')
+                ->groupBy('recommendation_type')
+                ->pluck('count', 'recommendation_type')
+                ->toArray(),
+        ];
+
+        $dailyConversations = UrbanGoodzAIConversation::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        $dailyActions = AiActionLog::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        return view('admin-views.urban-goodz.ai-operations.usage', compact(
+            'conversationStats',
+            'actionStats',
+            'recommendationStats',
+            'dailyConversations',
+            'dailyActions',
+        ));
+    }
+
+    public function testEndpoint(Request $request)
+    {
+        if (request()->isMethod('post')) {
+            $validated = $request->validate([
+                'query' => 'required|string|max:2000',
+            ]);
+
+            try {
+                $start = microtime(true);
+                $conversation = $this->conciergeService->processQuery(
+                    $validated['query'],
+                    null,
+                    'admin_test'
+                );
+                $elapsed = round((microtime(true) - $start) * 1000);
+
+                $result = [
+                    'success' => true,
+                    'response' => $conversation->response_text,
+                    'intent' => $conversation->detectedIntent?->name ?? 'Unknown',
+                    'confidence' => $conversation->confidence_score,
+                    'status' => $conversation->status,
+                    'elapsed_ms' => $elapsed,
+                ];
+            } catch (\Throwable $e) {
+                $result = [
+                    'success' => false,
+                    'response' => 'Test failed: ' . $e->getMessage(),
+                    'intent' => null,
+                    'confidence' => null,
+                    'status' => null,
+                    'elapsed_ms' => null,
+                ];
+            }
+
+            return view('admin-views.urban-goodz.ai-operations.test', [
+                'result' => $result,
+                'lastQuery' => $validated['query'],
+            ]);
+        }
+
+        return view('admin-views.urban-goodz.ai-operations.test', [
+            'result' => null,
+            'lastQuery' => null,
+        ]);
+    }
+
+    public function getLoadSourcingStatus()
+    {
+        $stats = [
+            'total_loads' => UrbanGoodzLoadBoardLoad::count(),
+            'available' => UrbanGoodzLoadBoardLoad::where('status', 'available')->count(),
+            'assigned' => UrbanGoodzLoadBoardLoad::where('status', 'assigned')->count(),
+            'in_transit' => UrbanGoodzLoadBoardLoad::whereIn('status', ['in_transit', 'picked_up'])->count(),
+            'delivered' => UrbanGoodzLoadBoardLoad::where('status', 'delivered')->count(),
+            'cancelled' => UrbanGoodzLoadBoardLoad::where('status', 'cancelled')->count(),
+            'avg_rate_per_mile' => UrbanGoodzLoadBoardLoad::where('rate_per_mile', '>', 0)->avg('rate_per_mile'),
+            'total_payout' => UrbanGoodzLoadBoardLoad::sum('payout_amount'),
+            'unassigned_count' => UrbanGoodzLoadBoardLoad::whereNull('assigned_driver_id')
+                ->where('status', 'available')->count(),
+            'by_state' => UrbanGoodzLoadBoardLoad::selectRaw('origin_state, COUNT(*) as count')
+                ->whereNotNull('origin_state')
+                ->groupBy('origin_state')
+                ->orderByDesc('count')
+                ->limit(10)
+                ->pluck('count', 'origin_state')
+                ->toArray(),
+            'by_equipment' => UrbanGoodzLoadBoardLoad::selectRaw('equipment_type, COUNT(*) as count')
+                ->whereNotNull('equipment_type')
+                ->groupBy('equipment_type')
+                ->orderByDesc('count')
+                ->pluck('count', 'equipment_type')
+                ->toArray(),
+        ];
+
+        $pendingRecommendations = AiCopilotRecommendation::where('recommendation_type', 'like', 'load_board%')
+            ->where('status', 'pending')
+            ->count();
+
+        $recentRecommendations = AiCopilotRecommendation::where('recommendation_type', 'like', 'load_board%')
+            ->with('reviewer')
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json(compact('stats', 'pendingRecommendations', 'recentRecommendations'));
+        }
+
+        return view('admin-views.urban-goodz.ai-operations.load-sourcing', compact(
+            'stats',
+            'pendingRecommendations',
+            'recentRecommendations',
+        ));
+    }
+
+    private function maskUrl(string $url): string
+    {
+        if (empty($url)) {
+            return '(not set)';
+        }
+
+        $parsed = parse_url($url);
+        if (!isset($parsed['host'])) {
+            return '(not set)';
+        }
+
+        $scheme = $parsed['scheme'] ?? 'https';
+        return $scheme . '://' . $parsed['host'] . (isset($parsed['port']) ? ':' . $parsed['port'] : '') . '/***';
+    }
+}
