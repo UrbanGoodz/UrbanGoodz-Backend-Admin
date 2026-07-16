@@ -101,6 +101,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'business' => \App\Http\Middleware\BusinessMiddleware::class,
             'dispatcher' => \App\Http\Middleware\DispatcherMiddleware::class,
             'dispatch-territory' => \App\Http\Middleware\DispatchTerritoryScope::class,
+            'business.portal.role' => \App\Http\Middleware\BusinessPortalRoleMiddleware::class,
+            'admin.impersonation' => \App\Http\Middleware\AdminImpersonationMiddleware::class,
+            'impersonation.audit' => \App\Http\Middleware\ImpersonationAuditMiddleware::class,
         ]);
     })
 

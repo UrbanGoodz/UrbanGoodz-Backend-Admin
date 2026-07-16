@@ -55,6 +55,26 @@
     @stack('css_or_js')
 </head>
 <body class="footer-offset">
+    @if(Session::get('impersonation_active'))
+    <div style="background: #dc3545; color: white; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600;">
+        <div>
+            <i class="tio-shield-warning mr-1"></i>
+            Admin Viewing Business: {{ App\Models\UrbanGoodzBusinessClient::find(Session::get('impersonation_client_id'))->name ?? 'Unknown' }}
+            <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 8px; font-size: 12px;">
+                {{ ucfirst(str_replace('_', ' ', Session::get('impersonation_mode', 'read_only'))) }} Mode
+            </span>
+        </div>
+        <div>
+            <a href="{{ route('business.dashboard') }}" style="color: white; margin-right: 12px;">Return to Admin</a>
+            <form action="{{ route('admin.urban-goodz.business-clients.impersonation.exit') }}" method="POST" style="display:inline;">
+                @csrf
+                <button type="submit" style="background: white; color: #dc3545; border: none; padding: 4px 12px; border-radius: 4px; font-weight: 600; cursor: pointer;">
+                    Exit Business View
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
     <div class="container">
         <div class="row">
             <div class="col-md-12">

@@ -70,6 +70,13 @@
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Control Center</span>
                         </a>
                     </li>
+                    <li class="navbar-vertical-aside-has-menu">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ url('/business/login') }}" target="_blank" title="Open Business Vendor Portal">
+                            <i class="tio-business-bag nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Business Portal</span>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate" style="font-size:0.6rem;display:block;color:rgba(255,255,255,0.6);margin-top:-2px;">Opens in new tab</span>
+                        </a>
+                    </li>
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_business_types_view'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/business-types*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.business-types.index') }}" title="Business Types">
@@ -262,6 +269,12 @@
                         </a>
                     </li>
                     @endif
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-operations*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-operations.index') }}" title="AI Operations">
+                            <i class="tio-auto-flash nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">AI Operations</span>
+                        </a>
+                    </li>
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view') && ($ugModules['ai-copilot']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-copilot*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-copilot.index') }}" title="AI Ops Copilot">

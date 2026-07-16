@@ -514,9 +514,9 @@ class UrbanGoodzPaymentService
 
     public function readiness(): array
     {
-        $mode = OrderAnywhereRequest::paymentMode();
         $provider = config('urban_goodz_payments.provider', 'staged_test');
         $providerEnabled = $this->gateway->isEnabled();
+        $hasGateway = in_array($provider, ['stripe', 'paystack', 'paypal', 'razorpay', 'mercadopago', 'flutterwave'], true);
 
         $orderAnywhereStatus = match ($provider) {
             'disabled' => 'payment_disabled',
@@ -524,23 +524,59 @@ class UrbanGoodzPaymentService
             default => $providerEnabled ? 'payment_ready' : 'staged_test',
         };
 
-        return [
-            'order_anywhere' => $orderAnywhereStatus,
-            'fashion_fit' => 'payment_partial',
-            'earn_money' => 'payment_pending',
-            'logistics' => 'payment_pending',
-            'load_board' => 'payment_pending',
-            'medical_courier' => 'payment_pending',
-            'book_anything' => 'payment_pending',
-            'rentals' => 'payment_partial',
-            'events' => 'payment_pending',
-            'creator_commerce' => 'payment_pending',
-            'community_marketplace' => 'no_payment_needed',
-            'discovery' => 'no_payment_needed',
-            'ask_urban_goodz' => 'payment_pending',
-            'urban_goodz_plus' => 'payment_pending',
-            'spotlight' => 'payment_pending',
+        $modules = [
+            'order_anywhere'       => $orderAnywhereStatus,
+            'fashion_fit'          => 'payment_pending',
+            'earn_money'           => 'payment_pending',
+            'logistics'            => 'payment_pending',
+            'load_board'           => 'payment_pending',
+            'medical_courier'      => 'payment_pending',
+            'book_anything'        => 'payment_pending',
+            'rentals'              => 'payment_pending',
+            'events'               => 'payment_pending',
+            'creator_commerce'     => 'payment_pending',
+            'community_marketplace'=> 'no_payment_needed',
+            'discovery'            => 'no_payment_needed',
+            'ask_urban_goodz'      => 'no_payment_needed',
+            'urban_goodz_plus'     => 'payment_pending',
+            'spotlight'            => 'no_payment_needed',
         ];
+
+        if ($hasGateway && $providerEnabled) {
+            $ledgerTable = \Illuminate\Support\Facades\Schema::hasTable('urban_goodz_payment_ledgers');
+            $tableMap = [
+                'fashion_fit'    => 'urban_goodz_measurement_requests',
+                'earn_money'     => 'urban_goodz_earn_money_opportunities',
+                'logistics'      => 'urban_goodz_logistics_jobs',
+                'load_board'     => 'urban_goodz_logistics_jobs',
+                'medical_courier'=> 'urban_goodz_medical_courier_jobs',
+                'book_anything'  => 'urban_goodz_service_requests',
+                'rentals'        => 'urban_goodz_rentals',
+                'events'         => 'urban_goodz_events',
+                'creator_commerce'=> 'urban_goodz_creator_earnings',
+            ];
+
+            foreach ($tableMap as $feature => $table) {
+                if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                    $modules[$feature] = 'payment_pending';
+                    continue;
+                }
+                $hasRecords = \Illuminate\Support\Facades\DB::table($table)->count() > 0;
+                $hasLedger = $ledgerTable
+                    ? UrbanGoodzPaymentLedger::where('feature', $feature)->where('payment_status', 'completed')->exists()
+                    : false;
+
+                if ($hasLedger) {
+                    $modules[$feature] = 'payment_ready';
+                } elseif ($hasRecords) {
+                    $modules[$feature] = 'payment_partial';
+                } else {
+                    $modules[$feature] = 'payment_pending';
+                }
+            }
+        }
+
+        return $modules;
     }
 
     public function settleSplits(OrderAnywhereRequest $request): void

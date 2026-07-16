@@ -5,9 +5,26 @@
 @section('content')
     <div class="content container-fluid">
         <div class="page-header">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <h1 class="page-header-title">{{ $client->company_name }}</h1>
                 <div>
+                    @if(auth('admin')->user()->role_id == 1)
+                    <form action="{{ route('admin.urban-goodz.business-clients.impersonate', $client->id) }}" method="POST" style="display:inline;">
+                        @csrf
+                        <input type="hidden" name="mode" value="read_only">
+                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Open Business Portal (Read-Only)">
+                            <i class="tio-open-in-new mr-1"></i> Open Business Portal
+                        </button>
+                    </form>
+                    <form action="{{ route('admin.urban-goodz.business-clients.impersonate', $client->id) }}" method="POST" style="display:inline;">
+                        @csrf
+                        <input type="hidden" name="mode" value="manage">
+                        <button type="submit" class="btn btn-sm btn-outline-warning ml-1" title="Manage as Business (Writes Logged)"
+                            onclick="return confirm('This will let you perform write actions as this business. All actions are logged. Continue?')">
+                            <i class="tio-settings mr-1"></i> Manage as Business
+                        </button>
+                    </form>
+                    @endif
                     <a href="{{ route('admin.urban-goodz.business-clients.edit', $client->id) }}" class="btn btn--primary">
                         <i class="tio-edit"></i> {{ translate('Edit') }}
                     </a>

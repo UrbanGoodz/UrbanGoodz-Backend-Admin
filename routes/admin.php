@@ -150,7 +150,16 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                     Route::get('{documentId}/download', 'UrbanGoodz\UrbanGoodzBusinessClientController@documentDownload')->name('download');
                     Route::delete('{documentId}', 'UrbanGoodz\UrbanGoodzBusinessClientController@documentDestroy')->name('destroy');
                 });
+
             });
+
+            // Business Portal Impersonation
+            Route::post('business-clients/{id}/impersonate', 'UrbanGoodz\AdminImpersonationController@startImpersonation')
+                ->name('business-clients.impersonate');
+            Route::post('business-clients/impersonation/exit', 'UrbanGoodz\AdminImpersonationController@exitImpersonation')
+                ->name('business-clients.impersonation.exit');
+            Route::get('business-clients/impersonation/audit-log', 'UrbanGoodz\AdminImpersonationController@auditLog')
+                ->name('business-clients.impersonation.audit-log');
 
             Route::group(['prefix' => 'dedicated-routes', 'as' => 'dedicated-routes.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@index')->name('index');
