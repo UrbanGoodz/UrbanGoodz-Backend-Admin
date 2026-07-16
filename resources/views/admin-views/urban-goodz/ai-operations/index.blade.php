@@ -264,7 +264,7 @@
                             <a href="{{ route('admin.urban-goodz.ai-copilot.load-board-analytics') }}" class="btn btn-outline--primary btn-sm">
                                 <i class="tio-chart-bar"></i> {{ translate('Load Board Analytics') }}
                             </a>
-                            <a href="{{ route('admin.business-settings.business-settings.openAI') }}" class="btn btn-outline--primary btn-sm">
+                            <a href="{{ route('admin.business-settings.openAI') }}" class="btn btn-outline--primary btn-sm">
                                 <i class="tio-key"></i> {{ translate('OpenAI Config') }}
                             </a>
                         </div>
