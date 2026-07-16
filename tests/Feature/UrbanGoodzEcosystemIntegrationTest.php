@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Http\Request;
 use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +15,9 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
     {
         $this->assertTrue(Route::has('admin.urban-goodz.ai-operations.index'));
         $this->assertFalse(Route::has('urban-goodz.ai-operations.index'));
+
+        $matchedRoute = Route::getRoutes()->match(Request::create('/admin/urban-goodz/ai-operations', 'GET'));
+        $this->assertSame('admin.urban-goodz.ai-operations.index', $matchedRoute->getName());
     }
 
     // ═══════════════════════════════════════════

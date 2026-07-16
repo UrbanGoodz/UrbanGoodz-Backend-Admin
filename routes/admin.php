@@ -376,7 +376,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('{section}/{id}/status/{status}', 'UrbanGoodz\UrbanGoodzModuleController@status')->name('status');
             });
 
-            Route::get('{section}', 'UrbanGoodzAdminController@section')->name('section');
+            Route::get('{section}', 'UrbanGoodzAdminController@section')
+                ->where('section', 'order-anywhere|payments|fashion-fit|rentals|vehicle-rentals|ai-concierge|business-types|capabilities|files|earn-money|logistics|medical-courier|events|creators|community|discovery|business-clients')
+                ->name('section');
 
             Route::group(['prefix' => 'sourced-businesses', 'as' => 'sourced-businesses.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@index')->name('index');
