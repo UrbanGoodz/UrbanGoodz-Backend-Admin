@@ -170,7 +170,7 @@ Current customer context:
                     'name' => $customer->name ?? $customer->f_name . ' ' . $customer->l_name,
                     'email' => $customer->email,
                     'phone' => $customer->phone ?? null,
-                    'created_at' => $customer->created_at?->format('M Y') ?? 'Unknown',
+                    'created_at' => $customer->created_at instanceof \Carbon\Carbon ? $customer->created_at->format('M Y') : ($customer->created_at ?? 'Unknown'),
                 ];
 
                 $context['total_orders'] = Order::where('user_id', $customerId)->count();
@@ -184,7 +184,7 @@ Current customer context:
                         'id' => $o->id,
                         'status' => $o->order_status,
                         'amount' => number_format($o->order_amount, 2),
-                        'date' => $o->created_at->format('M d, Y'),
+                        'date' => $o->created_at instanceof \Carbon\Carbon ? $o->created_at->format('M d, Y') : ($o->created_at ?? 'Unknown'),
                         'address' => $o->delivery_address,
                     ])->toArray();
 
@@ -192,7 +192,7 @@ Current customer context:
                     ->whereIn('order_status', ['confirmed', 'processing', 'picked_up', 'on_the_way'])
                     ->count();
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Graceful fallback — return empty context
         }
 
