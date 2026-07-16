@@ -50,6 +50,12 @@ class LoginController extends Controller
         }
         $data = array_column(DataSetting::whereIn('key', ['store_employee_login_url', 'store_login_url', 'admin_employee_login_url', 'admin_login_url'
         ])->get(['key', 'value'])->toArray(), 'value', 'key');
+        $data += [
+            'admin_login_url' => 'admin',
+            'admin_employee_login_url' => 'admin-employee',
+            'store_login_url' => 'vendor',
+            'store_employee_login_url' => 'vendor-employee',
+        ];
 
         $loginTypes = [
             'admin' => 'admin_login_url',

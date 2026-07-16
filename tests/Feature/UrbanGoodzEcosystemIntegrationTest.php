@@ -22,12 +22,12 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
     public function test_core_tables_exist()
     {
         $required = [
-            'admins', 'users', 'zones', 'modules', 'delivery_man', 'vehicles',
+            'admins', 'users', 'zones', 'modules', 'delivery_men', 'vehicles',
             'orders', 'order_details', 'order_transactions',
-            'sellers', 'seller_wallets', 'seller_earnings',
+            'vendors', 'stores',
             'urban_goodz_business_clients', 'urban_goodz_business_client_users',
-            'dispatch_companies', 'service_bookings', 'product_marketplace_listings',
-            'fashion_fit_body_scans',
+            'urban_goodz_load_board_loads', 'urban_goodz_service_requests',
+            'urban_goodz_community_marketplace_items', 'fashion_fit_profiles',
         ];
 
         foreach ($required as $table) {
@@ -40,33 +40,33 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
 
     public function test_driver_earnings_table_has_required_columns()
     {
-        $cols = ['id', 'dm_id', 'order_id', 'amount', 'tips', 'cash_in_hand', 'created_at'];
+        $cols = ['id', 'delivery_man_id', 'earning_type', 'amount', 'currency', 'status', 'created_at'];
         foreach ($cols as $col) {
             $this->assertTrue(
-                DB::getSchemaBuilder()->hasColumn('driver_earnings', $col),
-                "driver_earnings.{$col} must exist"
+                DB::getSchemaBuilder()->hasColumn('urban_goodz_driver_earnings', $col),
+                "urban_goodz_driver_earnings.{$col} must exist"
             );
         }
     }
 
-    public function test_order_status_histories_table_has_required_columns()
+    public function test_route_packages_table_has_required_status_columns()
     {
-        $cols = ['id', 'order_id', 'status', 'driver_id', 'created_at'];
+        $cols = ['id', 'tracking_id', 'business_client_id', 'status', 'dropoff_address', 'created_at'];
         foreach ($cols as $col) {
             $this->assertTrue(
-                DB::getSchemaBuilder()->hasColumn('order_status_histories', $col),
-                "order_status_histories.{$col} must exist"
+                DB::getSchemaBuilder()->hasColumn('urban_goodz_route_packages', $col),
+                "urban_goodz_route_packages.{$col} must exist"
             );
         }
     }
 
-    public function test_driver_location_track_table_has_required_columns()
+    public function test_package_scans_table_has_required_location_columns()
     {
-        $cols = ['id', 'dm_id', 'latitude', 'longitude', 'created_at'];
+        $cols = ['id', 'package_id', 'scan_type', 'scanned_by', 'latitude', 'longitude', 'created_at'];
         foreach ($cols as $col) {
             $this->assertTrue(
-                DB::getSchemaBuilder()->hasColumn('driver_location_track', $col),
-                "driver_location_track.{$col} must exist"
+                DB::getSchemaBuilder()->hasColumn('urban_goodz_package_scans', $col),
+                "urban_goodz_package_scans.{$col} must exist"
             );
         }
     }
@@ -103,15 +103,17 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
 
     public function test_driver_guard_configured()
     {
-        $guard = config('auth.guards.dm');
-        $this->assertNotNull($guard, 'dm guard must exist');
+        $guard = config('auth.guards.delivery_men');
+        $this->assertNotNull($guard, 'delivery_men guard must exist');
         $this->assertEquals('session', $guard['driver']);
+        $this->assertEquals('delivery_men', $guard['provider']);
     }
 
-    public function test_seller_guard_configured()
+    public function test_vendor_guard_configured()
     {
-        $guard = config('auth.guards.seller');
-        $this->assertNotNull($guard, 'seller guard must exist');
+        $guard = config('auth.guards.vendor');
+        $this->assertNotNull($guard, 'vendor guard must exist');
+        $this->assertEquals('vendors', $guard['provider']);
     }
 
     // ═══════════════════════════════════════════
@@ -134,7 +136,7 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
     {
         $protected = [
             '/business/dashboard',
-            '/business/orders',
+            '/business/routes',
             '/business/users',
         ];
         foreach ($protected as $uri) {
@@ -145,13 +147,15 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
 
     public function test_admin_login_route_exists()
     {
-        $response = $this->get('/login');
+        $loginSlug = \App\CentralLogics\Helpers::get_login_url('admin_login_url');
+        $this->assertNotEmpty($loginSlug, 'admin login URL must be configured');
+        $response = $this->get('/login/' . $loginSlug);
         $response->assertStatus(200);
     }
 
     public function test_admin_unauthenticated_redirects_to_login()
     {
-        $response = $this->get('/dashboard');
+        $response = $this->get('/admin');
         $response->assertRedirect();
     }
 
@@ -161,50 +165,50 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
 
     public function test_customer_config_api_responds()
     {
-        $response = $this->getJson('/api/v1/customer/config');
+        $response = $this->getJson('/api/v1/config');
         $response->assertOk();
     }
 
-    public function test_seller_config_api_responds()
+    public function test_external_config_api_responds()
     {
-        $response = $this->getJson('/api/v1/seller/config');
+        $response = $this->getJson('/api/v1/configurations');
         $response->assertOk();
     }
 
     public function test_customer_login_rejects_empty_credentials()
     {
-        $response = $this->postJson('/api/v1/customer/login', []);
-        $response->assertJson(['status' => false]);
+        $response = $this->postJson('/api/v1/auth/login', []);
+        $response->assertForbidden()->assertJsonPath('errors.0.code', 'login_type');
     }
 
-    public function test_seller_login_rejects_empty_credentials()
+    public function test_vendor_login_rejects_empty_credentials()
     {
-        $response = $this->postJson('/api/v1/seller/login', []);
-        $response->assertJson(['status' => false]);
+        $response = $this->postJson('/api/v1/auth/vendor/login', []);
+        $response->assertForbidden()->assertJsonPath('errors.0.code', 'email');
     }
 
     public function test_driver_api_rejects_no_token()
     {
-        $response = $this->getJson('/api/v1/urban-goodz/driver/busy-list');
-        $response->assertJson(['status' => false]);
+        $response = $this->getJson('/api/v1/delivery-man/profile');
+        $response->assertUnauthorized();
     }
 
     public function test_service_bookings_api_requires_auth()
     {
-        $response = $this->getJson('/api/v1/urban-goodz/service-bookings');
-        $response->assertJson(['status' => false]);
+        $response = $this->getJson('/api/v1/customer/service-bookings');
+        $response->assertUnauthorized();
     }
 
-    public function test_product_marketplace_api_requires_auth()
+    public function test_urban_goodz_app_config_requires_auth()
     {
-        $response = $this->getJson('/api/v1/urban-goodz/products');
-        $response->assertJson(['status' => false]);
+        $response = $this->getJson('/api/v1/urban-goodz/app-config');
+        $response->assertUnauthorized();
     }
 
     public function test_fashion_fit_scan_api_requires_auth()
     {
-        $response = $this->postJson('/api/v1/urban-goodz/fashion-fit/body-scan', []);
-        $response->assertJson(['status' => false]);
+        $response = $this->getJson('/api/v1/fashion-fit/profiles');
+        $response->assertUnauthorized();
     }
 
     // ═══════════════════════════════════════════
@@ -236,25 +240,26 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
     public function test_delivery_man_model_has_required_fillable()
     {
         $model = new \App\Models\DeliveryMan();
-        $fillable = $model->getFillable();
         $required = ['f_name', 'l_name', 'email', 'phone', 'password', 'zone_id'];
         foreach ($required as $field) {
-            $this->assertContains($field, $fillable, "DeliveryMan must fillable {$field}");
+            $this->assertTrue($model->isFillable($field), "DeliveryMan must allow {$field}");
         }
     }
 
     public function test_order_model_has_required_fillable()
     {
         $model = new \App\Models\Order();
-        $fillable = $model->getFillable();
-        $this->assertNotEmpty($fillable, 'Order must have fillable fields');
+        $casts = $model->getCasts();
+        $this->assertArrayHasKey('order_amount', $casts);
+        $this->assertArrayHasKey('delivery_man_id', $casts);
+        $this->assertArrayHasKey('store_id', $casts);
     }
 
-    public function test_seller_model_has_required_fillable()
+    public function test_vendor_model_has_required_mass_assignment_policy()
     {
-        $model = new \App\Models\Seller();
-        $fillable = $model->getFillable();
-        $this->assertNotEmpty($fillable, 'Seller must have fillable fields');
+        $model = new \App\Models\Vendor();
+        $this->assertContains('id', $model->getGuarded());
+        $this->assertTrue($model->isFillable('email'));
     }
 
     public function test_business_client_user_has_roles()

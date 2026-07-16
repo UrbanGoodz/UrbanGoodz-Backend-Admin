@@ -300,13 +300,14 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         
         // Verify activity log was created (check database)
         $log = \App\Models\UrbanGoodzActivityLog::where('event', 'intent_executed')
-            ->where('customer_id', $this->customer->id)
+            ->where('causer_type', \App\Models\User::class)
+            ->where('causer_id', $this->customer->id)
             ->latest()
             ->first();
         
         $this->assertNotNull($log);
         $this->assertEquals('intent_executed', $log->event);
-        $this->assertEquals($this->customer->id, $log->customer_id);
+        $this->assertEquals($this->customer->id, $log->causer_id);
         $this->assertArrayHasKey('query', $log->metadata);
     }
 

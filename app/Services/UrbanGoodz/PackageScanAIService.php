@@ -14,7 +14,7 @@ class PackageScanAIService
     public function __construct(UrbanGoodzAIService $aiService)
     {
         $this->aiService = $aiService;
-        $this->apiKey = config('openai.api_key', env('OPENAI_API_KEY', ''));
+        $this->apiKey = (string) (config('openai.api_key', env('OPENAI_API_KEY')) ?? '');
         $this->model = config('urban_goodz.ai_model', 'gpt-4o');
     }
 

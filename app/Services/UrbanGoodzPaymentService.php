@@ -399,7 +399,7 @@ class UrbanGoodzPaymentService
         $platformFee = (float) ($data['platform_fee'] ?? round($totalAmount * ($feePercent / 100), 2));
 
         // ─── Driver payout ──────────────────────────────────────────────
-        $driverAmount = (float) ($data['driver_amount'] ?? 0);
+        $driverAmount = (float) ($data['driver_amount'] ?? $request->delivery_fee ?? 0);
 
         // ─── Dispatcher commission (deterministic resolution) ────────────
         $dispatcherCommission = 0.0;
@@ -444,7 +444,7 @@ class UrbanGoodzPaymentService
         // ─── Vendor payout (participating vendor only) ──────────────────
         $vendorAmount = 0.0;
         if ($request->isParticipatingVendor()) {
-            $vendorAmount = max($totalAmount - $platformFee - $driverAmount - $dispatcherCommission - $processingReserve, 0);
+            $vendorAmount = max($totalAmount - $platformFee - $serviceFee - $driverAmount - $dispatcherCommission - $processingReserve, 0);
         }
 
         // ─── Urban Goodz revenue ────────────────────────────────────────
@@ -477,7 +477,7 @@ class UrbanGoodzPaymentService
             'dispatcher_commission_amount' => $dispatcherCommission,
             'dispatcher_rule_source' => $dispatcherRuleSource,
             'dispatcher_id' => $dispatcherId,
-            'vendor_amount_formula' => 'total - platformFee - driverPayout - dispatcherCommission - processingReserve',
+            'vendor_amount_formula' => 'total - platformFee - serviceFee - driverPayout - dispatcherCommission - processingReserve',
             'urban_goodz_revenue_formula' => $request->isParticipatingVendor()
                 ? 'platformFee + serviceFee'
                 : 'total - merchantPurchase - driverPayout - dispatcherCommission - processingReserve',
@@ -504,6 +504,10 @@ class UrbanGoodzPaymentService
         // ─── Create split records ───────────────────────────────────────
         if ($platformFee > 0) {
             $this->split($ledger, $request, 'platform', null, 'platform_fee', $platformFee, 'calculated');
+        }
+        $additionalPlatformRevenue = max($urbanGoodzRevenue - $platformFee, 0);
+        if ($additionalPlatformRevenue > 0) {
+            $this->split($ledger, $request, 'platform', null, 'service_revenue', $additionalPlatformRevenue, 'calculated');
         }
         if ($vendorAmount > 0 && $request->vendor_id) {
             $this->split($ledger, $request, 'vendor', $request->vendor_id, 'vendor_earning', $vendorAmount, 'calculated');
@@ -559,7 +563,7 @@ class UrbanGoodzPaymentService
                 UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                     ->where('payable_id', $request->id)
                     ->where('split_type', 'platform_fee')
-                    ->where('status', 'accrued')
+                    ->whereIn('status', ['reserved', 'accrued'])
                     ->update(['amount' => $actualAmounts['platform_fee']]);
             }
 
@@ -567,7 +571,7 @@ class UrbanGoodzPaymentService
                 UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                     ->where('payable_id', $request->id)
                     ->where('split_type', 'vendor_earning')
-                    ->where('status', 'accrued')
+                    ->whereIn('status', ['reserved', 'accrued'])
                     ->update(['amount' => $actualAmounts['vendor_amount']]);
             }
 
@@ -575,13 +579,13 @@ class UrbanGoodzPaymentService
                 UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                     ->where('payable_id', $request->id)
                     ->where('split_type', 'driver_earning')
-                    ->where('status', 'accrued')
+                    ->whereIn('status', ['reserved', 'accrued'])
                     ->update(['amount' => $actualAmounts['driver_amount']]);
             }
 
             UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                 ->where('payable_id', $request->id)
-                ->where('status', 'accrued')
+                ->whereIn('status', ['reserved', 'accrued'])
                 ->update(['status' => 'finalized']);
 
             $request->logPaymentEvent('splits_finalized', (float) $request->captured_amount ?? (float) $request->authorized_amount, null);
@@ -716,7 +720,7 @@ class UrbanGoodzPaymentService
 
             $originalSplits = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                 ->where('payable_id', $request->id)
-                ->whereIn('split_type', ['vendor_earning', 'driver_earning', 'platform_fee', 'dispatcher_commission'])
+                ->whereIn('split_type', ['vendor_earning', 'driver_earning', 'platform_fee', 'service_revenue', 'dispatcher_commission'])
                 ->where('status', 'released')
                 ->get()
                 ->sortBy(fn ($split) => $priority[$split->recipient_type] ?? 99);
@@ -731,6 +735,7 @@ class UrbanGoodzPaymentService
                     ->where('recipient_type', $originalSplit->recipient_type)
                     ->where('recipient_id', $originalSplit->recipient_id)
                     ->where('split_type', "{$originalSplit->recipient_type}_refund_reversal")
+                    ->where('metadata->original_split_id', $originalSplit->id)
                     ->sum('amount');
                 $available = max((float) $originalSplit->amount - $alreadyReversed, 0);
                 $allocation = min($available, $remaining);
@@ -785,14 +790,14 @@ class UrbanGoodzPaymentService
 
                 // Create reversal split
                 $ledger = UrbanGoodzPaymentLedger::firstOrCreate(
-                    ['idempotency_key' => "refund_reversal:{$request->id}:{$originalSplit->recipient_type}:{$originalSplit->recipient_id}:" . md5($allocation . $refundAmount)],
+                    ['idempotency_key' => "refund_reversal:{$request->id}:{$originalSplit->id}:" . md5($allocation . $refundAmount)],
                     [
                         'ledger_number' => UrbanGoodzPaymentLedger::nextLedgerNumber(),
                         'feature' => 'order_anywhere',
                         'payable_type' => OrderAnywhereRequest::class,
                         'payable_id' => $request->id,
                         'event_type' => 'split_reversal',
-                        'direction' => 'debit',
+                        'direction' => 'neutral',
                         'amount' => $allocation,
                         'currency' => $originalSplit->currency ?? 'USD',
                         'payment_method' => 'refund',
@@ -810,7 +815,8 @@ class UrbanGoodzPaymentService
                     $originalSplit->recipient_id,
                     "{$originalSplit->recipient_type}_refund_reversal",
                     $allocation,
-                    'reversed'
+                    'reversed',
+                    ['original_split_id' => $originalSplit->id]
                 );
 
                 $remaining -= $allocation;
@@ -840,11 +846,32 @@ class UrbanGoodzPaymentService
 
         $amount = (float) ($data['captured_amount'] ?? $request->authorized_amount);
 
+        if (isset($data['platform_fee'], $data['vendor_amount'], $data['driver_amount'])) {
+            $manualTotal = (float) $data['platform_fee']
+                + (float) $data['vendor_amount']
+                + (float) $data['driver_amount']
+                + (float) ($data['dispatcher_commission'] ?? 0)
+                + (float) ($data['processing_reserve'] ?? 0);
+            if (abs($amount - $manualTotal) > 0.01) {
+                throw new \InvalidArgumentException('Ledger split mismatch: manual allocations must equal the captured amount.');
+            }
+        }
+
         if (($data['source'] ?? null) !== 'webhook') {
             $this->assertLiveAmountWithinCap($amount, $request->customer_id);
         }
 
         return DB::transaction(function () use ($request, $data, $amount) {
+            if (! UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $request->id)
+                ->exists()) {
+                if ($request->vendor_id && ! $request->isParticipatingVendor()) {
+                    $request->update(['fulfillment_type' => OrderAnywhereRequest::FULFILLMENT_PARTICIPATING_VENDOR]);
+                }
+                $this->calculateSplits($request, $amount, $data);
+                $this->reservePendingSplits($request);
+            }
+
             $reference = $data['capture_reference'] ?? 'manual-capture-' . Str::uuid();
             $idempotencyKey = $data['capture_idempotency_key'] ?? "capture:{$this->gateway->providerName()}:{$request->id}:" . md5($amount . $reference);
 
@@ -898,15 +925,8 @@ class UrbanGoodzPaymentService
             $this->finalizeSplits($request, $data);
             $this->settleSplits($request);
 
-            // Reconciliation: fail-safe validation (logged but does not block capture in sandbox)
-            try {
-                $this->reconcileSplits($request);
-            } catch (\LogicException $e) {
-                Log::warning('RECONCILIATION WARNING at capture time', [
-                    'request_id' => $request->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            // Reconciliation is a hard gate in every environment.
+            $this->reconcileSplits($request->fresh());
 
             $request->logPaymentEvent('capture', $amount, $request->capture_reference);
 
@@ -929,6 +949,7 @@ class UrbanGoodzPaymentService
             // Before authorization: simple cancel
             if (in_array($paymentStatus, ['unpaid', 'awaiting_quote', 'quoted', 'awaiting_payment', 'payment_session_created'], true)) {
                 $request->update(['payment_status' => 'cancelled']);
+                $this->reversePendingSplits($request);
                 return $request->transitionTo('cancelled');
             }
 
@@ -965,6 +986,7 @@ class UrbanGoodzPaymentService
 
             // Default: simple cancel
             $request->update(['payment_status' => 'cancelled']);
+            $this->reversePendingSplits($request);
             return $request->transitionTo('cancelled');
         });
     }
@@ -988,6 +1010,10 @@ class UrbanGoodzPaymentService
             $currentRefunded = (float) $fresh->refunded_amount;
             $amount = (float) ($data['refund_amount'] ?? $capturedAmount - $currentRefunded);
 
+            if (! in_array($fresh->payment_status, ['captured', 'partially_captured'], true)) {
+                throw new \InvalidArgumentException('Cannot refund: payment status is ' . $fresh->payment_status . '. Must be captured.');
+            }
+
             if ($amount <= 0) {
                 throw new \InvalidArgumentException('Refund amount must be positive.');
             }
@@ -998,13 +1024,12 @@ class UrbanGoodzPaymentService
                 $remaining = $capturedAmount - $currentRefunded;
                 throw new \InvalidArgumentException("Refund amount \${$amount} exceeds remaining capturable amount of \${$remaining}.");
             }
-            if (! in_array($fresh->payment_status, ['captured', 'partially_captured'], true)) {
-                throw new \InvalidArgumentException('Cannot refund: payment status is ' . $fresh->payment_status . '. Must be captured.');
-            }
-
             // Provider-correct refund: use the same provider that authorized/captured
             $provider = $fresh->payment_provider;
             $idempotencyKey = $data['refund_idempotency_key'] ?? "refund:{$provider}:{$fresh->id}:" . md5($amount . now()->timestamp);
+            $refundReference = (string) ($data['refund_reference']
+                ?? $fresh->refund_reference
+                ?? ('refund-' . $fresh->id . '-' . Str::uuid()));
 
             // Idempotency check
             $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
@@ -1014,7 +1039,7 @@ class UrbanGoodzPaymentService
 
             // Call gateway
             if ($this->gateway->isEnabled()) {
-                $gatewayResult = $this->gateway->refund($fresh, $amount, config('urban_goodz_payments.currency', 'USD'), $data['refund_reference'] ?? null);
+                $gatewayResult = $this->gateway->refund($fresh, $amount, config('urban_goodz_payments.currency', 'USD'), $refundReference);
 
                 if (! $gatewayResult['success']) {
                     Log::critical('REFUND FAILED', [
@@ -1033,7 +1058,7 @@ class UrbanGoodzPaymentService
                 'refunded_amount' => $newRefundedAmount,
                 'payment_status' => $newPaymentStatus,
                 'payment_refunded_at' => now(),
-                'refund_reference' => $data['refund_reference'] ?? $fresh->refund_reference,
+                'refund_reference' => $gatewayResult['provider_reference'] ?? $refundReference,
                 'refund_idempotency_key' => $idempotencyKey,
             ]);
 
@@ -1046,8 +1071,16 @@ class UrbanGoodzPaymentService
                 ],
             ]);
 
-            // Reverse settled splits for the refunded amount
-            $this->reverseSettledSplits($fresh, $amount);
+            // Reverse released earnings when present; otherwise cancel pending allocations.
+            $hasReleasedSplits = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $fresh->id)
+                ->where('status', 'released')
+                ->exists();
+            if ($hasReleasedSplits) {
+                $this->reverseSettledSplits($fresh, $amount);
+            } else {
+                $this->reversePendingSplits($fresh);
+            }
 
             $fresh->logPaymentEvent('refund', $amount, $fresh->refund_reference);
 
@@ -1064,8 +1097,14 @@ class UrbanGoodzPaymentService
      */
     public function recordWebhookFailure(OrderAnywhereRequest $request, string $eventType, array $metadata = []): void
     {
+        $request->update(['payment_status' => $eventType]);
+
         $this->ledger($request, $eventType, 'debit', 0, 'webhook_failure', [
-            'metadata' => array_merge($metadata, ['failed' => true]),
+            'reference' => $metadata['reference'] ?? null,
+            'metadata' => array_merge($metadata, [
+                'attempted_amount' => $metadata['amount'] ?? 0,
+                'failed' => true,
+            ]),
         ]);
 
         $request->logPaymentEvent($eventType, 0, null, ['failed' => true]);
@@ -1229,7 +1268,7 @@ class UrbanGoodzPaymentService
         );
     }
 
-    private function split(UrbanGoodzPaymentLedger $ledger, OrderAnywhereRequest $request, string $recipientType, ?int $recipientId, string $splitType, float $amount, string $status = 'pending'): void
+    private function split(UrbanGoodzPaymentLedger $ledger, OrderAnywhereRequest $request, string $recipientType, ?int $recipientId, string $splitType, float $amount, string $status = 'pending', array $metadata = []): void
     {
         if ($amount <= 0) {
             return;
@@ -1248,7 +1287,7 @@ class UrbanGoodzPaymentService
                 'amount' => $amount,
                 'currency' => config('urban_goodz_payments.currency', 'USD'),
                 'status' => $status,
-                'metadata' => [],
+                'metadata' => $metadata,
             ]
         );
     }

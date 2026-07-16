@@ -3474,7 +3474,13 @@ class Helpers
             'admin_login_url'
         ])->pluck('key', 'value')->toArray();
 
-        return array_search($type, $data);
+        return array_search($type, $data) ?: match ($type) {
+            'admin_login_url' => 'admin',
+            'admin_employee_login_url' => 'admin-employee',
+            'store_login_url' => 'vendor',
+            'store_employee_login_url' => 'vendor-employee',
+            default => false,
+        };
     }
 
     public static function react_activation_check($react_domain, $react_license_code)

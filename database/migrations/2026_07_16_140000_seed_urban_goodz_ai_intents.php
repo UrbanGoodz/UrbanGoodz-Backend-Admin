@@ -99,6 +99,8 @@ return new class extends Migration
         ];
 
         foreach ($intents as $intent) {
+            $intent['keywords'] = json_encode($intent['keywords'], JSON_THROW_ON_ERROR);
+
             DB::table('urban_goodz_ai_intents')->updateOrInsert(
                 ['slug' => $intent['slug']],
                 array_merge($intent, ['created_at' => now(), 'updated_at' => now()])

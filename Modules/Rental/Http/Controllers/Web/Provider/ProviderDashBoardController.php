@@ -17,7 +17,9 @@ class ProviderDashBoardController extends Controller
 {
     public function __construct()
     {
-        DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+        }
     }
 
 

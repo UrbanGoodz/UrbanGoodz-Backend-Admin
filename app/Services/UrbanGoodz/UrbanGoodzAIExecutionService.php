@@ -97,7 +97,9 @@ class UrbanGoodzAIExecutionService
                 ]);
                 
                 return $this->buildResult(false, [
-                    'message' => 'You are not authorized to perform this action.',
+                    'message' => ($validationResult['duplicate'] ?? false)
+                        ? $validationResult['reason']
+                        : 'You are not authorized to perform this action.',
                     'intent' => $intentSlug,
                     'confidence' => $confidence,
                     'blocked_reason' => $validationResult['reason'],
@@ -149,14 +151,44 @@ class UrbanGoodzAIExecutionService
         ?int $customerId,
         float $startTime
     ): array {
+        $validationResult = $this->actionRegistry->validateUserCanExecute($intentSlug, $actionName, $customerId);
+        if (! ($validationResult['allowed'] ?? false)) {
+            return $this->buildResult(false, [
+                'message' => ($validationResult['duplicate'] ?? false)
+                    ? $validationResult['reason']
+                    : 'You are not authorized to perform this action.',
+                'intent' => $intentSlug,
+                'confidence' => $confidence,
+                'entities' => $entities,
+                'blocked_reason' => $validationResult['reason'] ?? 'Authorization failed',
+            ]);
+        }
+
         $requiresConfirmation = $validationResult['requires_confirmation'] ?? false;
         $requiresHumanReview = $validationResult['requires_human_review'] ?? false;
         $idempotencyKey = $validationResult['idempotency_key'] ?? null;
 
         $awaitingConfirmation = $requiresConfirmation && ($params['confirmed'] ?? false) !== true;
         $awaitingReview = $requiresHumanReview && ($params['reviewed'] ?? false) !== true;
+        $elapsed = round((microtime(true) - $startTime) * 1000, 1);
+
+        if ($idempotencyKey && ($awaitingConfirmation || $awaitingReview)) {
+            $this->actionRegistry->markIdempotencyKeyUsed($idempotencyKey);
+        }
 
         if ($awaitingConfirmation) {
+            $this->logAction([
+                'event' => 'intent_executed',
+                'intent_slug' => $intentSlug,
+                'module' => $moduleKey,
+                'action' => $actionName,
+                'customer_id' => $customerId,
+                'confidence' => $confidence,
+                'success' => true,
+                'execution_time_ms' => $elapsed,
+                'metadata' => ['query' => $query, 'entities' => $entities, 'idempotency_key' => $idempotencyKey],
+            ]);
+
             return $this->buildResult(true, [
                 'message' => 'This action requires your confirmation before proceeding.',
                 'intent' => $intentSlug,
@@ -169,6 +201,7 @@ class UrbanGoodzAIExecutionService
                 ],
                 'awaiting_confirmation' => true,
                 'idempotency_key' => $idempotencyKey,
+                'execution_time_ms' => $elapsed,
             ], [
                 ['label' => 'Confirm', 'action' => 'confirm_action', 'params' => ['idempotency_key' => $idempotencyKey]],
                 ['label' => 'Cancel', 'action' => 'cancel_action'],
@@ -192,8 +225,6 @@ class UrbanGoodzAIExecutionService
                 ['label' => 'View Status', 'action' => 'view_review_status'],
             ], ['show_review_pending' => true]);
         }
-
-        $elapsed = round((microtime(true) - $startTime) * 1000, 1);
 
         $executionResult = match ($moduleKey) {
             'orderAnywhere'      => $this->executeOrderAnywhere($params),
@@ -1352,13 +1383,17 @@ class UrbanGoodzAIExecutionService
         array $nextSteps = [],
         array $uiHints = []
     ): array {
-        return [
+        $payload = array_merge([
+            'explanation' => $data['explanation'] ?? $data['message'] ?? ($success ? 'Request processed.' : 'Request could not be processed.'),
+        ], $data);
+
+        return array_merge([
             'success' => $success,
             'data' => $data,
             'next_steps' => $nextSteps,
             'ui_hints' => $uiHints,
             'actions_available' => array_map(fn($s) => $s['action'] ?? null, $nextSteps),
-        ];
+        ], $payload);
     }
 
     private function determineActionType(array $entities): string
@@ -1410,20 +1445,19 @@ class UrbanGoodzAIExecutionService
     {
         try {
             UrbanGoodzActivityLog::create([
-                'loggable_type' => 'App\\Models\\UrbanGoodzAIConversation',
-                'loggable_id' => null,
+                'loggable_type' => 'App\\Models\\User',
+                'loggable_id' => $data['customer_id'],
                 'event' => $data['event'] ?? 'action_executed',
                 'description' => $data['action'] ?? null,
                 'causer_type' => $data['customer_id'] ? 'App\\Models\\User' : null,
                 'causer_id' => $data['customer_id'] ?? null,
-                'metadata' => array_filter([
+                'metadata' => array_filter(array_merge([
                     'intent_slug' => $data['intent_slug'] ?? null,
                     'module' => $data['module'] ?? null,
                     'confidence' => $data['confidence'] ?? null,
                     'success' => $data['success'] ?? null,
                     'execution_time_ms' => $data['execution_time_ms'] ?? null,
-                    'metadata' => $data['metadata'] ?? null,
-                ], fn($v) => $v !== null),
+                ], $data['metadata'] ?? []), fn($v) => $v !== null),
             ]);
         } catch (\Exception $e) {
             Log::warning('UrbanGoodzAIExecutionService: Failed to log action', [

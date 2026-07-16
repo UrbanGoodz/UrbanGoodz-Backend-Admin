@@ -60,7 +60,7 @@ class FashionFitAIService
 
     public function __construct()
     {
-        $this->apiKey = config('openai.api_key', env('OPENAI_API_KEY', ''));
+        $this->apiKey = (string) (config('openai.api_key', env('OPENAI_API_KEY')) ?? '');
         $this->temperature = (float) config('urban_goodz.ai_temperature', 0.3);
         $this->maxTokens = (int) config('urban_goodz.ai_max_tokens', 2000);
     }

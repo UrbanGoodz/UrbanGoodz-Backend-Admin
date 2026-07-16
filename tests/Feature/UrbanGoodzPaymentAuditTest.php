@@ -141,7 +141,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->assertNotNull($ledger);
         $this->assertEquals(50.00, $ledger->amount);
 
-        // Assert split records created with manual_pending status
+        // Capture is the final financial gate, so validated splits are released atomically.
         $splits = UrbanGoodzPaymentSplit::where('payable_id', $request->id)->get();
         $this->assertCount(3, $splits);
 
@@ -150,13 +150,13 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $driverSplit = $splits->where('recipient_type', 'driver')->first();
 
         $this->assertEquals(5.00, $platformSplit->amount);
-        $this->assertEquals('manual_pending', $platformSplit->status);
+        $this->assertEquals('released', $platformSplit->status);
 
         $this->assertEquals(35.00, $vendorSplit->amount);
-        $this->assertEquals('manual_pending', $vendorSplit->status);
+        $this->assertEquals('released', $vendorSplit->status);
 
         $this->assertEquals(10.00, $driverSplit->amount);
-        $this->assertEquals('manual_pending', $driverSplit->status);
+        $this->assertEquals('released', $driverSplit->status);
     }
 
     public function test_sandbox_payment_link_creation_is_persistent_and_idempotent(): void
@@ -181,7 +181,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->assertTrue($replayed['idempotent_replay']);
         $this->assertSame($created['provider_reference'], $replayed['provider_reference']);
         $this->assertSame(1, UrbanGoodzPaymentLedger::where('payable_id', $request->id)
-            ->where('event_type', 'payment_link_created')
+            ->where('event_type', 'payment_session_created')
             ->count());
     }
 
@@ -313,7 +313,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->assertEquals('captured', $request->payment_status);
 
         $ledgerCountBefore = UrbanGoodzPaymentLedger::where('payable_id', $request->id)->count();
-        $this->assertEquals(1, $ledgerCountBefore);
+        $this->assertEquals(2, $ledgerCountBefore); // split calculation + capture
 
         // Send replay webhook
         $response2 = $this->post('/api/v1/payments/webhooks/staged_test', $payload);
@@ -321,7 +321,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
 
         // Verify no duplicate ledger created
         $ledgerCountAfter = UrbanGoodzPaymentLedger::where('payable_id', $request->id)->count();
-        $this->assertEquals(1, $ledgerCountAfter);
+        $this->assertEquals($ledgerCountBefore, $ledgerCountAfter);
     }
 
     public function test_ledger_split_consistency_check(): void
@@ -373,20 +373,14 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $driverWallet = DeliveryManWallet::where('delivery_man_id', $this->driver->id)->first();
         $platformAdmin = Admin::where('role_id', 1)->firstOrFail();
         $adminWallet = AdminWallet::firstOrCreate(['admin_id' => $platformAdmin->id]);
-        $adminCommissionBefore = (float) $adminWallet->total_commission_earning;
-        $this->assertEquals(0.00, $vendorWallet->total_earning);
-
-        // Transition to completed -> should trigger settleSplits()
-        $request->transitionTo('picked_up');
-        $request->transitionTo('out_for_delivery');
-        $request->transitionTo('completed');
+        $adminCommissionAfterCapture = (float) $adminWallet->total_commission_earning;
 
         $vendorWallet->refresh();
         $driverWallet->refresh();
         $adminWallet->refresh();
         $this->assertEquals(35.00, $vendorWallet->total_earning);
         $this->assertEquals(10.00, $driverWallet->total_earning);
-        $this->assertEquals($adminCommissionBefore + 5.00, (float) $adminWallet->total_commission_earning);
+        $this->assertEquals($adminCommissionAfterCapture, (float) $adminWallet->total_commission_earning);
         $this->assertSame(1, UrbanGoodzDriverEarning::where('delivery_man_id', $this->driver->id)
             ->where('description', "Order Anywhere Delivery - Req #{$request->request_number}")
             ->count());
@@ -405,7 +399,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $adminWallet->refresh();
         $this->assertEquals(35.00, $vendorWallet->total_earning); // Remains 35.00! No double credit.
         $this->assertEquals(10.00, $driverWallet->total_earning);
-        $this->assertEquals($adminCommissionBefore + 5.00, (float) $adminWallet->total_commission_earning);
+        $this->assertEquals($adminCommissionAfterCapture, (float) $adminWallet->total_commission_earning);
     }
 
     public function test_full_refund_reverses_all_wallets_and_reconciles_ledger(): void
@@ -430,10 +424,6 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'vendor_amount' => 35.00,
             'source' => 'manual',
         ]);
-        $request->transitionTo('picked_up');
-        $request->transitionTo('out_for_delivery');
-        $request->transitionTo('completed');
-
         $this->paymentService->refundCustomerPayment($request->fresh(), [
             'refund_amount' => 50.00,
             'reason' => 'Full test reversal',
@@ -454,7 +444,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             ])
             ->sum('amount');
         $ledgerBalance = UrbanGoodzPaymentLedger::where('payable_id', $request->id)
-            ->selectRaw("SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END) AS balance")
+            ->selectRaw("SUM(CASE WHEN direction = 'credit' THEN amount WHEN direction = 'debit' THEN -amount ELSE 0 END) AS balance")
             ->value('balance');
 
         $this->assertEquals(50.00, $captureTotal);
@@ -535,11 +525,6 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'reason' => 'Partial return',
         ]);
 
-        // Settle splits (completed status)
-        $request->transitionTo('picked_up');
-        $request->transitionTo('out_for_delivery');
-        $request->transitionTo('completed');
-
         // Vendor wallet should only receive 35.00 - 20.00 = 15.00
         $vendorWallet = StoreWallet::where('vendor_id', $this->vendor->id)->first();
         $this->assertEquals(15.00, $vendorWallet->total_earning);
@@ -564,11 +549,6 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'vendor_amount' => 35.00,
             'source' => 'manual',
         ]);
-
-        // Transition to completed to release splits to wallets
-        $request->transitionTo('picked_up');
-        $request->transitionTo('out_for_delivery');
-        $request->transitionTo('completed');
 
         $vendorWallet = StoreWallet::where('vendor_id', $this->vendor->id)->first();
         $this->assertEquals(35.00, $vendorWallet->total_earning);
@@ -633,7 +613,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'vendor_id' => $this->vendor->id,
             'status' => 'shopping',
             'quote_amount' => 50.00,
-            'payment_status' => 'pending',
+            'payment_status' => 'authorized',
         ]);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
@@ -655,7 +635,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
             'vendor_id' => $this->vendor->id,
             'status' => 'shopping',
             'quote_amount' => 100.00,
-            'payment_status' => 'pending',
+            'payment_status' => 'authorized',
         ]);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);

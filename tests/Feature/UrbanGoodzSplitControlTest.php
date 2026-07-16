@@ -97,12 +97,12 @@ class UrbanGoodzSplitControlTest extends TestCase
         $request->refresh();
         $this->assertEquals(10.00, (float) $request->platform_fee); // 10% of 100
         $this->assertEquals(10.00, (float) $request->driver_payout_amount);
-        $this->assertEquals(80.00, (float) $request->vendor_payout_amount); // 100 - 10 platform - 10 driver
+        $this->assertEquals(65.00, (float) $request->vendor_payout_amount); // 100 - 10 platform - 15 service - 10 driver
         $this->assertEquals(25.00, (float) $request->urban_goodz_revenue); // 10 platform + 15 service_fee
 
         $splits = UrbanGoodzPaymentSplit::where('payable_id', $request->id)->get();
-        $this->assertCount(3, $splits); // platform, vendor, driver
-        $this->assertEquals(3, $splits->where('status', 'calculated')->count());
+        $this->assertCount(4, $splits); // platform fee, service revenue, vendor, driver
+        $this->assertEquals(4, $splits->where('status', 'calculated')->count());
     }
 
     public function test_external_merchant_split_calculation(): void
@@ -129,10 +129,10 @@ class UrbanGoodzSplitControlTest extends TestCase
         $this->assertEquals(15.00, (float) $request->driver_payout_amount);
         $this->assertEquals(0.00, (float) $request->vendor_payout_amount); // no vendor for external
         $this->assertEquals(60.00, (float) $request->merchant_purchase_amount);
-        $this->assertEquals(15.00, (float) $request->urban_goodz_revenue); // 100 - 60 merchant - 15 driver - 0 dispatcher - 0 reserve
+        $this->assertEquals(25.00, (float) $request->urban_goodz_revenue); // 100 - 60 merchant - 15 driver - 0 dispatcher - 0 reserve
 
         $splits = UrbanGoodzPaymentSplit::where('payable_id', $request->id)->get();
-        $this->assertCount(2, $splits); // platform + driver (no vendor)
+        $this->assertCount(3, $splits); // platform fee + residual revenue + driver (no vendor)
     }
 
     public function test_no_dispatcher_commission_when_no_dispatcher(): void
@@ -481,7 +481,7 @@ class UrbanGoodzSplitControlTest extends TestCase
             'final_amount' => 100.00,
             'captured_amount' => 100.00,
             'platform_fee' => 10.00,
-            'vendor_payout_amount' => 80.00,
+            'vendor_payout_amount' => 65.00,
             'driver_payout_amount' => 10.00,
             'dispatcher_commission' => 0.00,
             'urban_goodz_revenue' => 25.00, // 10 platform + 15 service_fee (using default 10%)
@@ -518,7 +518,7 @@ class UrbanGoodzSplitControlTest extends TestCase
             'payment_status' => 'captured',
             'captured_amount' => 100.00,
             'platform_fee' => 10.00,
-            'vendor_payout_amount' => 80.00,
+            'vendor_payout_amount' => 70.00,
             'driver_payout_amount' => 10.00,
             'dispatcher_commission' => 0.00,
             'urban_goodz_revenue' => 10.00,

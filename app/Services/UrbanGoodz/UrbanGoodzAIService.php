@@ -14,7 +14,7 @@ class UrbanGoodzAIService
 
     public function __construct()
     {
-        $this->apiKey = config('openai.api_key', env('OPENAI_API_KEY', ''));
+        $this->apiKey = (string) (config('openai.api_key', env('OPENAI_API_KEY')) ?? '');
         $this->model = config('urban_goodz.ai_model', 'gpt-4o');
         $this->temperature = (float) config('urban_goodz.ai_temperature', 0.4);
         $this->maxTokens = (int) config('urban_goodz.ai_max_tokens', 1500);
@@ -78,6 +78,10 @@ class UrbanGoodzAIService
 
     public function classifyIntent(string $query, array $possibleIntents): ?array
     {
+        if (! $this->isConfigured()) {
+            return $this->classifyIntentWithRules($query);
+        }
+
         $intentList = collect($possibleIntents)->map(fn($i) => "- {$i['slug']}: {$i['description']}")->implode("\n");
 
         $systemPrompt = "You are an intent classifier for Urban Goodz, a delivery and logistics platform.
@@ -92,10 +96,61 @@ Do not add any explanation. Return only valid JSON.";
 
         $json = json_decode(trim($result), true);
         if (json_last_error() === JSON_ERROR_NONE && isset($json['intent'])) {
+            $json['intent'] = str_replace('_', '-', (string) $json['intent']);
             return $json;
         }
 
-        return ['intent' => 'unknown', 'confidence' => 0.0, 'entities' => []];
+        return $this->classifyIntentWithRules($query);
+    }
+
+    private function classifyIntentWithRules(string $query): array
+    {
+        $normalized = strtolower(trim($query));
+        $entities = [];
+
+        if (preg_match('/\$(\d+(?:\.\d{1,2})?)/', $query, $budgetMatch)) {
+            $entities['budget'] = (float) $budgetMatch[1];
+            $entities['budget_max'] = (float) $budgetMatch[1];
+        }
+
+        if (str_contains($normalized, 'tomorrow')) {
+            $entities['preferred_date'] = now()->addDay()->toDateString();
+        }
+
+        $rules = [
+            'fashion-fit' => ['tailor', 'custom suit', 'alteration', 'measurement', 'fashion fit'],
+            'load-board' => ['cargo van load', 'loads from', 'freight load', 'load board', 'haul'],
+            'order-anywhere' => ['order a ', 'order pizza', 'order food', 'delivery to'],
+            'marketplace-search' => ['search for', 'organic vegetables', 'marketplace'],
+            'book-services' => ['mobile mechanic', 'mechanic', 'plumber', 'electrician', 'braider', 'book a service'],
+        ];
+
+        if (str_contains($normalized, 'ignore all previous instructions') || str_contains($normalized, 'delete all users')) {
+            return ['intent' => 'unknown', 'confidence' => 0.0, 'entities' => []];
+        }
+
+        foreach ($rules as $intent => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (! str_contains($normalized, $keyword)) {
+                    continue;
+                }
+
+                if ($intent === 'book-services') {
+                    $entities['service_name'] = str_contains($normalized, 'mobile mechanic')
+                        ? 'mobile mechanic'
+                        : $keyword;
+                } elseif ($intent === 'load-board' || $intent === 'marketplace-search') {
+                    $entities['search_query'] = $query;
+                } elseif ($intent === 'order-anywhere') {
+                    $entities['create'] = true;
+                    $entities['items'] = $query;
+                }
+
+                return ['intent' => $intent, 'confidence' => 0.82, 'entities' => $entities];
+            }
+        }
+
+        return ['intent' => 'unknown', 'confidence' => 0.0, 'entities' => $entities];
     }
 
     public function summarize(string $text, int $maxWords = 50): string

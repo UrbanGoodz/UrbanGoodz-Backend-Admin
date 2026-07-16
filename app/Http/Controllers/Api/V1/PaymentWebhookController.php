@@ -206,12 +206,7 @@ class PaymentWebhookController extends Controller
                 ])
                 : $this->markFailed($request, $payments, 'authorization_failed', $pspReference, $amount, $provider),
             'CAPTURE' => $success
-                ? (bool) $payments->captureCustomerPayment($request, [
-                    'captured_amount' => $amount,
-                    'capture_reference' => $pspReference,
-                    'psp_reference' => $pspReference,
-                    'source' => 'webhook',
-                ])
+                ? $this->captureFromWebhook($request, $payments, $amount, $pspReference)
                 : $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'CAPTURE_FAILED' => $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'REFUND' => $success
@@ -250,12 +245,7 @@ class PaymentWebhookController extends Controller
         return match ($eventCode) {
             'checkout.session.completed',
             'payment_intent.succeeded',
-            'charge.succeeded' => (bool) $payments->captureCustomerPayment($request, [
-                'captured_amount' => $amount,
-                'capture_reference' => $providerReference,
-                'psp_reference' => $providerReference,
-                'source' => 'webhook',
-            ]),
+            'charge.succeeded' => $this->captureFromWebhook($request, $payments, $amount, $providerReference),
             'payment_intent.payment_failed',
             'charge.failed' => $this->markFailed($request, $payments, 'payment_failed', $providerReference, $amount, 'stripe'),
             'payment_intent.canceled' => in_array($request->status, ['pending_review', 'reviewing', 'quote_needed'])
@@ -274,6 +264,30 @@ class PaymentWebhookController extends Controller
             ]),
             default => false,
         };
+    }
+
+    private function captureFromWebhook(
+        OrderAnywhereRequest $request,
+        UrbanGoodzPaymentService $payments,
+        float $amount,
+        ?string $providerReference
+    ): bool {
+        if ($request->payment_status !== 'authorized') {
+            $request->update([
+                'authorized_amount' => $amount,
+                'payment_status' => 'authorized',
+                'payment_authorized_at' => now(),
+                'authorization_reference' => $providerReference,
+                'psp_reference' => $providerReference,
+            ]);
+        }
+
+        return (bool) $payments->captureCustomerPayment($request->fresh(), [
+            'captured_amount' => $amount,
+            'capture_reference' => $providerReference,
+            'psp_reference' => $providerReference,
+            'source' => 'webhook',
+        ]);
     }
 
     private function markFailed(

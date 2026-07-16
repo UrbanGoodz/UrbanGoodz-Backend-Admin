@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Vendor\ItemController;
-use App\Http\Controllers\Vendor\VendorAIController;
+use App\Http\Controllers\Api\V1\Vendor\VendorAIController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Vendor\SubscriptionController;
 
@@ -46,16 +46,16 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
 
         // Vendor AI routes
         Route::group(['prefix' => 'ai', 'as' => 'ai.', 'middleware' => ['vendor', 'actch:admin_panel']], function () {
-            Route::get('daily-brief', 'VendorAIController@dailyBrief')->name('daily-brief');
-            Route::post('order-summary/{orderId}', 'VendorAIController@orderSummary')->name('order-summary');
-            Route::post('prep-time', 'VendorAIController@prepTimeEstimate')->name('prep-time');
-            Route::get('alerts', 'VendorAIController@alerts')->name('alerts');
-            Route::get('performance', 'VendorAIController@performanceAnalysis')->name('performance');
-            Route::get('promotions', 'VendorAIController@promotionSuggestions')->name('promotions');
-            Route::get('dynamic-pricing', 'VendorAIController@dynamicPricing')->name('dynamic-pricing');
-            Route::get('review-sentiment', 'VendorAIController@reviewSentiment')->name('review-sentiment');
-            Route::post('inventory-forecast', 'VendorAIController@inventoryForecast')->name('inventory-forecast');
-            Route::post('photo-quality', 'VendorAIController@photoQualityCheck')->name('photo-quality');
+            Route::get('daily-brief', [VendorAIController::class, 'dailyBrief'])->name('daily-brief');
+            Route::post('order-summary/{orderId}', [VendorAIController::class, 'orderSummary'])->name('order-summary');
+            Route::post('prep-time', [VendorAIController::class, 'prepTimeEstimate'])->name('prep-time');
+            Route::get('alerts', [VendorAIController::class, 'alerts'])->name('alerts');
+            Route::get('performance', [VendorAIController::class, 'performanceAnalysis'])->name('performance');
+            Route::get('promotions', [VendorAIController::class, 'promotionSuggestions'])->name('promotions');
+            Route::get('dynamic-pricing', [VendorAIController::class, 'dynamicPricing'])->name('dynamic-pricing');
+            Route::get('review-sentiment', [VendorAIController::class, 'reviewSentiment'])->name('review-sentiment');
+            Route::post('inventory-forecast', [VendorAIController::class, 'inventoryForecast'])->name('inventory-forecast');
+            Route::post('photo-quality', [VendorAIController::class, 'photoQualityCheck'])->name('photo-quality');
         });
 
 

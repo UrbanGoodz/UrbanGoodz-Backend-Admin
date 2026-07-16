@@ -219,7 +219,7 @@ class UrbanGoodzModuleRouter
             return 'search';
         }
 
-        if (isset($entities['create']) || $entities['create'] ?? false) {
+        if (($entities['create'] ?? false) === true) {
             return 'create';
         }
 

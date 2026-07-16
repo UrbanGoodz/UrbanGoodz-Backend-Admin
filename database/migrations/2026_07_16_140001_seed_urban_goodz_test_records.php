@@ -9,8 +9,9 @@ return new class extends Migration
     {
         $now = now();
 
-        DB::table('urban_goodz_logistics_jobs')->insert([
-            'job_number' => 'LG-' . date('Ymd') . '-001',
+        DB::table('urban_goodz_logistics_jobs')->updateOrInsert(
+            ['job_number' => 'LG-' . date('Ymd') . '-001'],
+            [
             'pickup_location' => '1200 McKinney St, Houston, TX 77010',
             'delivery_location' => '4500 San Jacinto St, Houston, TX 77004',
             'pickup_by' => $now->copy()->addDays(2),
@@ -22,10 +23,12 @@ return new class extends Migration
             'admin_notes' => 'Test seed record — verify admin DB Records shows 1',
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+            ]
+        );
 
-        DB::table('urban_goodz_medical_courier_jobs')->insert([
-            'job_number' => 'MC-' . date('Ymd') . '-001',
+        DB::table('urban_goodz_medical_courier_jobs')->updateOrInsert(
+            ['job_number' => 'MC-' . date('Ymd') . '-001'],
+            [
             'pickup_location' => '7000 Fannin St, Houston, TX 77030',
             'pickup_facility_name' => 'Houston Medical Center Lab',
             'pickup_contact_name' => 'Dr. Sarah Chen',
@@ -52,21 +55,23 @@ return new class extends Migration
             'admin_notes' => 'Test seed record — verify admin DB Records shows 1',
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+            ]
+        );
 
-        DB::table('urban_goodz_creator_applications')->insert([
-            'customer_id' => null,
-            'creator_name' => 'Test Creator Seed',
+        DB::table('urban_goodz_creator_applications')->updateOrInsert(
+            ['creator_name' => 'Test Creator Seed'],
+            [
             'niche' => 'Fashion & Lifestyle',
-            'social_media' => '@testcreator_seed',
+            'platform' => 'Instagram',
+            'username' => '@testcreator_seed',
             'city' => 'Houston',
             'bio' => 'Test seed record for creator commerce verification. This record confirms backend persistence and admin visibility.',
-            'sell_or_promote' => 'promote',
             'status' => 'submitted',
             'admin_notes' => 'Test seed record — verify admin visibility',
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+            ]
+        );
     }
 
     public function down(): void

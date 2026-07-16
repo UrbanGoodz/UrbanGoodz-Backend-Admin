@@ -112,7 +112,7 @@ PROMPT;
         $result = $this->ai->chat($systemPrompt, $query, $context);
         $parsed = $this->parseJsonResponse($result);
 
-        return array_filter($parsed, fn($v) => $v !== null && $v !== '' && $v !== []);
+        return array_filter($parsed ?? [], fn($v) => $v !== null && $v !== '' && $v !== []);
     }
 
     private function queryDatabase(array $filters, bool $broad = false): Collection

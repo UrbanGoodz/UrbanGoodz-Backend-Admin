@@ -97,10 +97,10 @@ class ConfigController extends Controller
 
 
         $currency_symbol = Cache::rememberForever('business_settings_currency_symbol', function () {
-            return Currency::where(['currency_code' => Helpers::currency_code()])->first()->currency_symbol;
+            return Currency::where(['currency_code' => Helpers::currency_code()])->first()?->currency_symbol ?? '$';
         });
-        $cod = json_decode($settings['cash_on_delivery'], true);
-        $digital_payment = json_decode($settings['digital_payment'], true);
+        $cod = json_decode($settings['cash_on_delivery'] ?? '{}', true) ?? [];
+        $digital_payment = json_decode($settings['digital_payment'] ?? '{}', true) ?? [];
         $default_location = isset($settings['default_location']) ? json_decode($settings['default_location'], true) : 0;
 
         $admin_free_delivery = [
@@ -113,7 +113,7 @@ class ConfigController extends Controller
         $module = Cache::rememberForever('module_config', function () {
             return Module::active()->count() == 1 ? Module::active()->first() : null;
         });
-        $languages = Helpers::get_business_settings('language');
+        $languages = Helpers::get_business_settings('language') ?? [];
         $lang_array = [];
         foreach ($languages as $language) {
             array_push($lang_array, [
@@ -121,7 +121,7 @@ class ConfigController extends Controller
                 'value' => Helpers::get_language_name($language),
             ]);
         }
-        $system_languages = Helpers::get_business_settings('system_language');
+        $system_languages = Helpers::get_business_settings('system_language') ?? [];
         $sys_lang_array = [];
         foreach ($system_languages as $language) {
             array_push($sys_lang_array, [
@@ -132,7 +132,7 @@ class ConfigController extends Controller
             ]);
         }
         $social_login = [];
-        foreach (Helpers::get_business_settings('social_login') as $social) {
+        foreach (Helpers::get_business_settings('social_login') ?? [] as $social) {
             $config = [
                 'login_medium' => $social['login_medium'],
                 'status' => (bool)$social['status'],
@@ -165,7 +165,7 @@ class ConfigController extends Controller
         $active_addon_payment_lists = Helpers::getActivePaymentGateways();
 
         $digital_payment_infos = [
-            'digital_payment' => (bool)($digital_payment['status'] == 1 ? true : false),
+            'digital_payment' => (bool)(($digital_payment['status'] ?? 0) == 1),
             'plugin_payment_gateways' => (bool)($published_status ? true : false),
             'default_payment_gateways' => (bool)($published_status ? false : true),
         ];
@@ -211,22 +211,22 @@ class ConfigController extends Controller
         }
 
         $data = [
-            'business_name' => $settings['business_name'],
-            'logo' => $settings['logo'],
-            'logo_full_url' => Helpers::get_full_url('business', $settings['logo'], $data['logo_storage'] ?? 'public'),
-            'address' => $settings['address'],
-            'phone' => $settings['phone'],
-            'email' => $settings['email_address'],
+            'business_name' => $settings['business_name'] ?? 'Urban Goodz',
+            'logo' => $settings['logo'] ?? null,
+            'logo_full_url' => Helpers::get_full_url('business', $settings['logo'] ?? null, $data['logo_storage'] ?? 'public'),
+            'address' => $settings['address'] ?? null,
+            'phone' => $settings['phone'] ?? null,
+            'email' => $settings['email_address'] ?? null,
 
-            'country' => $settings['country'],
+            'country' => $settings['country'] ?? null,
             'default_location' => ['lat' => $default_location ? $default_location['lat'] : '29.7604', 'lng' => $default_location ? $default_location['lng'] : '-95.3698'],
             'currency_symbol' => $currency_symbol,
-            'currency_symbol_direction' => $settings['currency_symbol_position'],
+            'currency_symbol_direction' => $settings['currency_symbol_position'] ?? 'right',
 
-            'app_minimum_version_android' => (float)$settings['app_minimum_version_android'],
-            'app_url_android' => $settings['app_url_android'],
-            'app_url_ios' => $settings['app_url_ios'],
-            'app_minimum_version_ios' => (float)$settings['app_minimum_version_ios'],
+            'app_minimum_version_android' => (float)($settings['app_minimum_version_android'] ?? 0),
+            'app_url_android' => $settings['app_url_android'] ?? null,
+            'app_url_ios' => $settings['app_url_ios'] ?? null,
+            'app_minimum_version_ios' => (float)($settings['app_minimum_version_ios'] ?? 0),
 
             'app_minimum_version_android_store' => (float)(isset($settings['app_minimum_version_android_store']) ? $settings['app_minimum_version_android_store'] : 0),
             'app_url_android_store' => (isset($settings['app_url_android_store']) ? $settings['app_url_android_store'] : null),
@@ -239,37 +239,37 @@ class ConfigController extends Controller
             'app_url_ios_deliveryman' => (isset($settings['app_url_ios_deliveryman']) ? $settings['app_url_ios_deliveryman'] : null),
 
             'prescription_order_status' => isset($settings['prescription_order_status']) ? (bool)$settings['prescription_order_status'] : false,
-            'schedule_order' => (bool)$settings['schedule_order'],
-            'order_delivery_verification' => (bool)$settings['order_delivery_verification'],
-            'cash_on_delivery' => (bool)($cod['status'] == 1 ? true : false),
-            'digital_payment' => (bool)($digital_payment['status'] == 1 ? true : false),
+            'schedule_order' => (bool)($settings['schedule_order'] ?? false),
+            'order_delivery_verification' => (bool)($settings['order_delivery_verification'] ?? false),
+            'cash_on_delivery' => (bool)(($cod['status'] ?? 0) == 1),
+            'digital_payment' => (bool)(($digital_payment['status'] ?? 0) == 1),
             'digital_payment_info' => $digital_payment_infos,
             'demo' => (bool)(getEnvMode() == 'demo' ? true : false),
             'maintenance_mode' => (bool)Helpers::get_business_settings('maintenance_mode') ?? 0,
             'order_confirmation_model' => config('order_confirmation_model'),
-            'show_dm_earning' => (bool)$settings['show_dm_earning'],
-            'canceled_by_deliveryman' => (bool)$settings['canceled_by_deliveryman'],
-            'canceled_by_store' => (bool)$settings['canceled_by_store'],
-            'timeformat' => (string)$settings['timeformat'],
+            'show_dm_earning' => (bool)($settings['show_dm_earning'] ?? false),
+            'canceled_by_deliveryman' => (bool)($settings['canceled_by_deliveryman'] ?? false),
+            'canceled_by_store' => (bool)($settings['canceled_by_store'] ?? false),
+            'timeformat' => (string)($settings['timeformat'] ?? '24'),
             'language' => $lang_array,
             'sys_language' => $sys_lang_array,
             'social_login' => $social_login,
             'apple_login' => $apple_login,
-            'toggle_veg_non_veg' => (bool)$settings['toggle_veg_non_veg'],
-            'toggle_dm_registration' => (bool)$settings['toggle_dm_registration'],
-            'toggle_store_registration' => (bool)$settings['toggle_store_registration'],
-            'refund_active_status' => (bool)$settings['refund_active_status'],
-            'schedule_order_slot_duration' => (int)$settings['schedule_order_slot_duration'],
+            'toggle_veg_non_veg' => (bool)($settings['toggle_veg_non_veg'] ?? false),
+            'toggle_dm_registration' => (bool)($settings['toggle_dm_registration'] ?? false),
+            'toggle_store_registration' => (bool)($settings['toggle_store_registration'] ?? false),
+            'refund_active_status' => (bool)($settings['refund_active_status'] ?? false),
+            'schedule_order_slot_duration' => (int)($settings['schedule_order_slot_duration'] ?? 0),
             'digit_after_decimal_point' => (int)config('round_up_to_digit'),
             'module_config' => config('module'),
             'module' => $module,
-            'parcel_per_km_shipping_charge' => (float)$settings['parcel_per_km_shipping_charge'],
-            'parcel_minimum_shipping_charge' => (float)$settings['parcel_minimum_shipping_charge'],
+            'parcel_per_km_shipping_charge' => (float)($settings['parcel_per_km_shipping_charge'] ?? 0),
+            'parcel_minimum_shipping_charge' => (float)($settings['parcel_minimum_shipping_charge'] ?? 0),
             'social_media' => SocialMedia::active()->get()->toArray(),
             'footer_text' => isset($settings['footer_text']) ? $settings['footer_text'] : '',
             'cookies_text' => isset($settings['cookies_text']) ? $settings['cookies_text'] : '',
-            'fav_icon' => $settings['icon'],
-            'fav_icon_full_url' => Helpers::get_full_url('business', $settings['icon'], $data['icon_storage'] ?? 'public'),
+            'fav_icon' => $settings['icon'] ?? null,
+            'fav_icon_full_url' => Helpers::get_full_url('business', $settings['icon'] ?? null, $data['icon_storage'] ?? 'public'),
             // Added Business Setting
             'dm_tips_status' => (int)(isset($settings['dm_tips_status']) ? $settings['dm_tips_status'] : 0),
             'loyalty_point_exchange_rate' => (int)(isset($settings['loyalty_point_item_purchase_point']) ? $settings['loyalty_point_exchange_rate'] : 0),

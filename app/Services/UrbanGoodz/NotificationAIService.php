@@ -53,7 +53,8 @@ class NotificationAIService
      */
     public function generateDigest(array $notifications, array $recipientContext): array
     {
-        $prompt = "Summarize these notifications into a concise digest for a {$recipientContext['role'] ?? 'user'}. "
+        $recipientRole = $recipientContext['role'] ?? 'user';
+        $prompt = "Summarize these notifications into a concise digest for a {$recipientRole}. "
             . "Prioritize by urgency and relevance. Group related items.\n\n"
             . "Notifications: " . json_encode($notifications) . "\n"
             . "Recipient context: " . json_encode($recipientContext) . "\n\n"
