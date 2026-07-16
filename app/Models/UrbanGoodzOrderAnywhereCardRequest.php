@@ -108,7 +108,7 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
 
     public function remainingBalance(): float
     {
-        return (float) $this->spending_limit - (float) $this->captured_amount;
+        return (float) $this->spending_limit - (float) $this->captured_amount - (float) ($this->authorized_amount ?? 0);
     }
 
     public function statusLabel(): string

@@ -117,10 +117,12 @@ class OrderAnywhereTesterController extends Controller
         $model->vendor_quote_amount = $data['vendor_quote_amount'] ?? $model->vendor_quote_amount;
 
         if (($data['vendor_status'] ?? null) === 'accepted') {
-            $model->status = 'vendor_accepted';
+            $model->transitionTo('vendor_accepted');
+        } elseif (($data['vendor_status'] ?? null) === 'rejected') {
+            $model->transitionTo('rejected');
+        } else {
+            $model->save();
         }
-
-        $model->save();
 
         return $this->updated($model, 'Order Anywhere vendor response updated.');
     }
@@ -208,11 +210,10 @@ class OrderAnywhereTesterController extends Controller
 
         $model = $this->findRecord($record);
         $model->assigned_delivery_man_id = $data['driver_id'];
-        $model->status = 'approved';
         $model->driver_task_status = 'assigned';
         $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
         $model->reviewed_at = now();
-        $model->save();
+        $model->transitionTo('approved');
 
         return $this->updated($model, 'Driver assigned to Order Anywhere request.');
     }
@@ -254,9 +255,8 @@ class OrderAnywhereTesterController extends Controller
 
         $model = $this->findDriverRecord($record);
         $model->driver_task_status = $driverStatus;
-        $model->status = $status;
         $model->driver_notes = $data['driver_notes'] ?? $model->driver_notes;
-        $model->save();
+        $model->transitionTo($status);
 
         return $this->updated($model, 'Driver task status updated.');
     }
@@ -270,9 +270,8 @@ class OrderAnywhereTesterController extends Controller
 
         $model = $this->findDriverRecord($record);
         $model->driver_task_status = 'issue_reported';
-        $model->status = 'reviewing';
         $model->driver_notes = $data['driver_notes'] ?? $data['issue'] ?? $model->driver_notes;
-        $model->save();
+        $model->transitionTo('reviewing');
 
         return $this->updated($model, 'Driver issue reported.');
     }

@@ -99,6 +99,10 @@ class UrbanGoodzPaymentService
     {
         $this->assertPaymentsEnabled();
 
+        if (in_array($request->status, ['cancelled', 'completed', 'rejected'], true)) {
+            throw new \InvalidArgumentException('Cannot create payment link for ' . $request->status . ' request.');
+        }
+
         $amount = (float) ($data['amount'] ?? $request->final_amount ?? $request->quote_amount ?? 0);
         $currency = $data['currency'] ?? config('urban_goodz_payments.currency', 'USD');
         $reference = $request->request_number;
@@ -218,6 +222,11 @@ class UrbanGoodzPaymentService
     public function authorizeOrderAnywhere(OrderAnywhereRequest $request, array $data): OrderAnywhereRequest
     {
         $this->assertPaymentsEnabled();
+
+        if (!in_array($request->payment_status, ['quoted', 'payment_link_created', 'pending'], true)) {
+            throw new \InvalidArgumentException('Cannot authorize payment in status: ' . $request->payment_status);
+        }
+
         $amount = (float) ($data['authorized_amount'] ?? $request->final_amount ?? $request->quote_amount);
 
         if (($data['source'] ?? null) !== 'webhook') {
@@ -291,6 +300,11 @@ class UrbanGoodzPaymentService
     public function captureOrderAnywhere(OrderAnywhereRequest $request, array $data): OrderAnywhereRequest
     {
         $this->assertPaymentsEnabled();
+
+        if ($request->payment_status !== 'authorized') {
+            throw new \InvalidArgumentException('Cannot capture payment in status: ' . $request->payment_status . '. Must be authorized.');
+        }
+
         $amount = (float) ($data['captured_amount'] ?? $request->authorized_amount ?? $request->final_amount);
 
         if (($data['source'] ?? null) !== 'webhook') {
@@ -367,90 +381,95 @@ class UrbanGoodzPaymentService
     public function refundOrderAnywhere(OrderAnywhereRequest $request, array $data): OrderAnywhereRequest
     {
         $this->assertPaymentsEnabled();
-        $amount = (float) ($data['refund_amount'] ?? 0);
-
-        if ($amount <= 0) {
-            throw new \InvalidArgumentException('Refund amount must be greater than zero.');
-        }
-
-        $currentRefunded = (float) $request->refunded_amount;
-        $capturedAmount = (float) $request->captured_amount;
-
-        if ($capturedAmount <= 0) {
-            throw new \InvalidArgumentException('Cannot refund: no captured amount exists. Payment must be captured first.');
-        }
-
-        if ($currentRefunded + $amount > $capturedAmount) {
-            throw new \InvalidArgumentException(
-                "Refund of \${$amount} would exceed captured amount. Already refunded: \${$currentRefunded}, Captured: \${$capturedAmount}."
-            );
-        }
-
-        if (($data['source'] ?? null) !== 'webhook') {
-            $this->assertLiveAmountWithinCap($amount, $request->customer_id);
-
-            if (OrderAnywhereRequest::isLiveMode()) {
-                $this->logLivePaymentAttempt('refund', $amount, $request->id, $request->request_number);
+        
+        return DB::transaction(function () use ($request, $data) {
+            // Fresh lock to prevent race condition
+            $fresh = OrderAnywhereRequest::lockForUpdate()->find($request->id);
+            
+            $capturedAmount = (float) $fresh->captured_amount;
+            $currentRefunded = (float) $fresh->refunded_amount;
+            $amount = (float) ($data['refund_amount'] ?? $capturedAmount - $currentRefunded);
+            
+            if ($amount <= 0) {
+                throw new \InvalidArgumentException('Refund amount must be positive.');
             }
-        }
+            if ($capturedAmount <= 0) {
+                throw new \InvalidArgumentException('Cannot refund: no captured amount exists. Payment must be captured first.');
+            }
+            if ($currentRefunded + $amount > $capturedAmount) {
+                throw new \InvalidArgumentException(
+                    "Refund of \${$amount} would exceed captured amount. Already refunded: \${$currentRefunded}, Captured: \${$capturedAmount}."
+                );
+            }
 
-        return DB::transaction(function () use ($request, $data, $amount) {
+            if (($data['source'] ?? null) !== 'webhook') {
+                $this->assertLiveAmountWithinCap($amount, $fresh->customer_id);
+
+                if (OrderAnywhereRequest::isLiveMode()) {
+                    $this->logLivePaymentAttempt('refund', $amount, $fresh->id, $fresh->request_number);
+                }
+            }
+
             $reference = $data['refund_reference'] ?? 'manual-refund-' . Str::uuid();
 
-            $idempotencyKey = "refund:{$this->gateway->providerName()}:{$request->id}:" . md5($amount . $reference);
+            $idempotencyKey = "refund:{$this->gateway->providerName()}:{$fresh->id}:" . md5($amount . $reference);
 
             $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
             if ($existing) {
-                return $request->fresh();
+                return $fresh->fresh();
+            }
+
+            if (!in_array($fresh->payment_status, ['captured', 'partially_captured'], true)) {
+                throw new \InvalidArgumentException('Cannot refund payment in status: ' . $fresh->payment_status);
             }
 
             if ($this->gateway->isEnabled() && ($data['source'] ?? null) !== 'webhook') {
-                $gatewayResult = $this->gateway->refund($request, $amount, config('urban_goodz_payments.currency', 'USD'), $reference, $data['reason'] ?? null);
+                $gatewayResult = $this->gateway->refund($fresh, $amount, config('urban_goodz_payments.currency', 'USD'), $reference, $data['reason'] ?? null);
 
                 if (! $gatewayResult['success']) {
                     Log::critical('REFUND FAILED: provider returned failure', [
                         'provider' => $this->gateway->providerName(),
-                        'request_id' => $request->id,
+                        'request_id' => $fresh->id,
                         'reference' => $reference,
                     ]);
                     abort(500, 'Refund failed. Please try again.');
                 }
 
-                $request->psp_reference = $gatewayResult['provider_reference'] ?? $request->psp_reference;
-                $request->refund_reference = $gatewayResult['provider_reference'] ?? $reference;
+                $fresh->psp_reference = $gatewayResult['provider_reference'] ?? $fresh->psp_reference;
+                $fresh->refund_reference = $gatewayResult['provider_reference'] ?? $reference;
             } elseif (($data['psp_reference'] ?? null) && ($data['source'] ?? null) === 'webhook') {
-                $request->psp_reference = $data['psp_reference'];
-                $request->refund_reference = $data['psp_reference'];
+                $fresh->psp_reference = $data['psp_reference'];
+                $fresh->refund_reference = $data['psp_reference'];
             } else {
-                $request->refund_reference = $reference;
+                $fresh->refund_reference = $reference;
             }
 
-            $request->refunded_amount = (float) $request->refunded_amount + $amount;
-            $request->payment_status = 'refunded';
-            $request->payment_refunded_at = now();
-            $request->save();
+            $fresh->refunded_amount = (float) $fresh->refunded_amount + $amount;
+            $fresh->payment_status = 'refunded';
+            $fresh->payment_refunded_at = now();
+            $fresh->save();
 
-            $ledger = $this->ledger($request, 'refund', 'debit', $amount, 'refunded', [
-                'reference' => $request->refund_reference,
+            $ledger = $this->ledger($fresh, 'refund', 'debit', $amount, 'refunded', [
+                'reference' => $fresh->refund_reference,
                 'idempotency_key' => $idempotencyKey,
-                'payment_method' => $request->payment_method,
+                'payment_method' => $fresh->payment_method,
                 'metadata' => [
                     'reason' => $data['reason'] ?? null,
-                    'psp_reference' => $request->psp_reference,
+                    'psp_reference' => $fresh->psp_reference,
                     'provider' => $this->gateway->providerName(),
                 ],
             ]);
 
-            $this->reversalSplits($ledger, $request, $amount);
-            $this->applyReleasedReversals($ledger, $request);
+            $this->reversalSplits($ledger, $fresh, $amount);
+            $this->applyReleasedReversals($ledger, $fresh);
 
-            $request->logPaymentEvent('refund', $amount, $request->refund_reference, [
+            $fresh->logPaymentEvent('refund', $amount, $fresh->refund_reference, [
                 'reason' => $data['reason'] ?? null,
                 'source' => $data['source'] ?? 'manual',
                 'provider' => $this->gateway->providerName(),
             ]);
 
-            return $request->fresh();
+            return $fresh->fresh();
         });
     }
 
@@ -713,6 +732,12 @@ class UrbanGoodzPaymentService
             }
         } else {
             $vendorAmount = max($amount - $platformFee - $driverAmount, 0);
+
+            // Ensure splits account for full captured amount
+            $totalSplits = $platformFee + $driverAmount + $vendorAmount;
+            if ($totalSplits < $amount) {
+                $vendorAmount += ($amount - $totalSplits); // Add remainder to vendor
+            }
         }
 
         $this->split($ledger, $request, 'platform', null, 'platform_fee', $platformFee, 'manual_pending');

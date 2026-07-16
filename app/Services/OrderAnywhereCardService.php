@@ -143,6 +143,10 @@ class OrderAnywhereCardService
         return DB::transaction(function () use ($cardRequest) {
             $result = $this->issuing->freezeCard($cardRequest->provider_card_id ?? '');
 
+            if (isset($result['success']) && $result['success'] === false) {
+                throw new \RuntimeException('Card freeze failed at provider: ' . ($result['error'] ?? 'Unknown'));
+            }
+
             $cardRequest->update([
                 'card_status' => 'frozen',
                 'frozen_at' => now(),
@@ -171,6 +175,10 @@ class OrderAnywhereCardService
 
         return DB::transaction(function () use ($cardRequest) {
             $result = $this->issuing->closeCard($cardRequest->provider_card_id ?? '');
+
+            if (isset($result['success']) && $result['success'] === false) {
+                throw new \RuntimeException('Card cancel failed at provider: ' . ($result['error'] ?? 'Unknown'));
+            }
 
             $cardRequest->update([
                 'card_status' => 'cancelled',
@@ -288,6 +296,10 @@ class OrderAnywhereCardService
                 'mcc' => $data['merchant_category_code'] ?? null,
             ]);
 
+            if (isset($result['success']) && $result['success'] === false) {
+                throw new \RuntimeException('Card authorization failed at provider: ' . ($result['error'] ?? 'Unknown'));
+            }
+
             $cardRequest->update([
                 'card_status' => 'authorized',
                 'authorized_amount' => $amount,
@@ -361,11 +373,18 @@ class OrderAnywhereCardService
             $cardRequest->update([
                 'card_status' => $newStatus,
                 'captured_amount' => $capturedAmount,
+                'authorized_amount' => 0,
                 'used_at' => $newStatus === 'used' ? now() : null,
             ]);
 
             if ($newStatus === 'used' && $this->issuing->isEnabled()) {
-                $this->issuing->freezeCard($cardRequest->provider_card_id ?? '');
+                $freezeResult = $this->issuing->freezeCard($cardRequest->provider_card_id ?? '');
+                if (isset($freezeResult['success']) && $freezeResult['success'] === false) {
+                    Log::warning('Card freeze after completion failed at provider', [
+                        'card_request_id' => $cardRequest->id,
+                        'error' => $freezeResult['error'] ?? 'Unknown',
+                    ]);
+                }
             }
 
             $orderRequest = $cardRequest->orderAnywhereRequest()->first();
@@ -399,6 +418,22 @@ class OrderAnywhereCardService
                         'metadata' => [],
                     ]
                 );
+
+                // Create splits for the associated order if one exists
+                if ($cardRequest->order_anywhere_request_id) {
+                    $orderRequest = \App\Models\OrderAnywhereRequest::find($cardRequest->order_anywhere_request_id);
+                    if ($orderRequest && $orderRequest->payment_status !== 'captured') {
+                        // Update the order's captured amount and create splits
+                        $orderRequest->captured_amount = $orderRequest->captured_amount + (float) $cardRequest->captured_amount;
+                        $orderRequest->payment_status = 'captured';
+                        $orderRequest->save();
+
+                        app(\App\Services\UrbanGoodzPaymentService::class)->captureOrderAnywhere($orderRequest, [
+                            'amount' => $cardRequest->captured_amount,
+                            'driver_amount' => $cardRequest->captured_amount,
+                        ]);
+                    }
+                }
             }
 
             return $cardRequest->fresh();

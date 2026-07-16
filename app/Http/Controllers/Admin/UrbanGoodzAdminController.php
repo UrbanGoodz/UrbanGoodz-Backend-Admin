@@ -107,12 +107,10 @@ class UrbanGoodzAdminController extends Controller
         ]);
 
         $record = OrderAnywhereRequest::findOrFail($id);
-        $oldStatus = $record->status;
-        $record->transitionTo($data['status']);
         $record->reviewed_by = auth('admin')->id();
         $record->reviewed_at = now();
         $record->save();
-        $record->logStatusTransition($oldStatus, $data['status'], $request->input('reason'));
+        $record->transitionTo($data['status']);
 
         return back()->with('success', translate('Order Anywhere status updated successfully.'));
     }
@@ -222,6 +220,11 @@ class UrbanGoodzAdminController extends Controller
 
     public function orderAnywherePaymentLink($id, Request $request, UrbanGoodzPaymentService $payments)
     {
+        if (!Helpers::module_permission_check('urban_goodz_order_anywhere_view')) {
+            Toastr::error(translate('messages.access_denied'));
+            return back();
+        }
+
         $record = OrderAnywhereRequest::findOrFail($id);
 
         $result = $payments->createPaymentLink($record, [

@@ -299,16 +299,20 @@ class PaymentWebhookController extends Controller
         $query = OrderAnywhereRequest::query();
 
         if ($merchantReference) {
-            $query->where('request_number', $merchantReference)
-                ->orWhere('merchant_reference', $merchantReference);
+            $query->where(function ($q) use ($merchantReference) {
+                $q->where('request_number', $merchantReference)
+                  ->orWhere('merchant_reference', $merchantReference);
+            });
         }
 
         if ($providerReference) {
-            $query->orWhere('psp_reference', $providerReference)
-                ->orWhere('payment_link_id', $providerReference)
-                ->orWhere('authorization_reference', $providerReference)
-                ->orWhere('capture_reference', $providerReference)
-                ->orWhere('refund_reference', $providerReference);
+            $query->orWhere(function ($q) use ($providerReference) {
+                $q->where('psp_reference', $providerReference)
+                  ->orWhere('payment_link_id', $providerReference)
+                  ->orWhere('authorization_reference', $providerReference)
+                  ->orWhere('capture_reference', $providerReference)
+                  ->orWhere('refund_reference', $providerReference);
+            });
         }
 
         return $query->first();

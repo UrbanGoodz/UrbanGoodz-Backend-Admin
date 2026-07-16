@@ -120,6 +120,10 @@ class AdyenWebhookController extends Controller
                 ]),
             ]);
             $request->logPaymentEvent('authorization_failed', $amount, $pspReference, ['source' => 'webhook']);
+            $payments->recordWebhookFailure($request, 'adyen_authorization_failed', [
+                'provider_reference' => $pspReference,
+                'amount' => $amount,
+            ]);
 
             return;
         }
@@ -169,6 +173,10 @@ class AdyenWebhookController extends Controller
             'source' => 'webhook',
             'reason' => $notification['reason'] ?? null,
         ]);
+        app(UrbanGoodzPaymentService::class)->recordWebhookFailure($request, 'adyen_capture_failed', [
+            'provider_reference' => $pspReference,
+            'reason' => $notification['reason'] ?? null,
+        ]);
     }
 
     private function handleRefund(OrderAnywhereRequest $request, bool $success, ?string $pspReference, float $amount, UrbanGoodzPaymentService $payments): void
@@ -198,7 +206,7 @@ class AdyenWebhookController extends Controller
         $request->update([
             'metadata' => array_merge($request->metadata ?? [], [
                 'refund_failed_at' => now()->toISOString(),
-                'refund_failure_reason' => $notification['reason'] ?? null,
+                'failure_reason' => $notification['reason'] ?? null,
                 'psp_reference' => $pspReference,
             ]),
         ]);
@@ -206,14 +214,16 @@ class AdyenWebhookController extends Controller
             'source' => 'webhook',
             'reason' => $notification['reason'] ?? null,
         ]);
+        app(UrbanGoodzPaymentService::class)->recordWebhookFailure($request, 'adyen_refund_failed', [
+            'provider_reference' => $pspReference,
+            'reason' => $notification['reason'] ?? null,
+        ]);
     }
 
     private function handleCancellation(OrderAnywhereRequest $request, bool $success, ?string $pspReference): void
     {
         if ($success && in_array($request->status, ['pending_review', 'reviewing', 'quote_needed'])) {
-            $oldStatus = $request->status;
-            $request->update(['status' => 'cancelled']);
-            $request->logStatusTransition($oldStatus, 'cancelled', 'Adyen webhook cancellation');
+            $request->transitionTo('cancelled');
         }
     }
 

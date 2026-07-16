@@ -178,10 +178,14 @@ class OrderAnywhereRequest extends Model
         }
 
         $this->status = $newStatus;
-        $this->save();
 
         if (in_array($newStatus, ['completed', 'cancelled', 'failed'], true)) {
-            app(\App\Services\UrbanGoodzPaymentService::class)->settleSplits($this);
+            \Illuminate\Support\Facades\DB::transaction(function () use ($newStatus) {
+                $this->save();
+                app(\App\Services\UrbanGoodzPaymentService::class)->settleSplits($this);
+            });
+        } else {
+            $this->save();
         }
 
         return $this->fresh();
@@ -216,7 +220,9 @@ class OrderAnywhereRequest extends Model
 
     public static function isStagedTest(): bool
     {
-        return config('urban_goodz_payments.staged_test.enabled', true) && ! config('urban_goodz_payments.adyen.enabled', false);
+        return config('urban_goodz_payments.staged_test.enabled', true)
+            && ! config('urban_goodz_payments.adyen.enabled', false)
+            && ! config('urban_goodz_payments.stripe.enabled', false);
     }
 
     public static function liveMaxAmount(): float
@@ -228,7 +234,7 @@ class OrderAnywhereRequest extends Model
     {
         $allowed = config('urban_goodz_payments.live_controlled.allowed_admins', []);
         if (empty($allowed)) {
-            return true;
+            return false;
         }
         $adminId = (string) auth('admin')->id();
         return in_array($adminId, $allowed, true);
@@ -238,7 +244,7 @@ class OrderAnywhereRequest extends Model
     {
         $allowed = config('urban_goodz_payments.live_controlled.allowed_customers', []);
         if (empty($allowed)) {
-            return true;
+            return false;
         }
         return in_array((string) $customerId, $allowed, true);
     }
