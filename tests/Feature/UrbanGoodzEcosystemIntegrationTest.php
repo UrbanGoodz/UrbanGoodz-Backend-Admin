@@ -18,6 +18,8 @@ class UrbanGoodzEcosystemIntegrationTest extends TestCase
 
         $matchedRoute = Route::getRoutes()->match(Request::create('/admin/urban-goodz/ai-operations', 'GET'));
         $this->assertSame('admin.urban-goodz.ai-operations.index', $matchedRoute->getName());
+        $this->assertContains('web', $matchedRoute->gatherMiddleware());
+        $this->assertContains('admin', $matchedRoute->gatherMiddleware());
     }
 
     // ═══════════════════════════════════════════
