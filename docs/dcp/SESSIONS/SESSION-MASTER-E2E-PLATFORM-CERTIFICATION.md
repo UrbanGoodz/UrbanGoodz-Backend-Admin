@@ -359,3 +359,50 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 - `app/Services/UrbanGoodz/DynamicPricingService.php`
 - `app/Services/UrbanGoodz/FraudDetectionService.php`
 - `app/Services/UrbanGoodz/NotificationAIService.php`
+
+---
+
+## PHASE 39: AI SERVICE CONTRACT ALIGNMENT (2026-07-17)
+
+**Repository:** `AdminPanel_Update_V39`
+**Branch:** `adminpanel-v39-backend-sprint`
+**HEAD (pre-commit):** `d9df2a1`
+**Origin HEAD (pre-commit):** `d9df2a1`
+
+### Scope
+- Align Dynamic Pricing, Fraud Detection, and Notification AI service usage with canonical `UrbanGoodzAIService::chat(string $systemPrompt, string $userMessage, array $context = [])` contract.
+- Harden parsing and fallback behavior for malformed/non-JSON AI responses.
+
+### Completed Work
+- `app/Services/UrbanGoodz/DynamicPricingService.php`
+  - Standardized chat invocation inputs through `encodeContext(...)`.
+  - Added defensive `decodeResponse(...)` and numeric coercion helper `toFloat(...)`.
+  - Added deterministic `fallbackSimulation()` path when AI payload is invalid or unavailable.
+- `app/Services/UrbanGoodz/FraudDetectionService.php`
+  - Standardized chat invocation inputs through `encodeContext(...)`.
+  - Added defensive `decodeResponse(...)`, `toFloat(...)`, and centralized `fallbackReceiptAnalysis()`.
+  - Ensured invalid AI payloads route to fallback for transaction/account/receipt analyses.
+- `app/Services/UrbanGoodz/NotificationAIService.php`
+  - Standardized chat invocation inputs through `encodeContext(...)`.
+  - Added defensive `decodeResponse(...)`, `toBool(...)`, plus centralized `fallbackDigest()` and `fallbackPrioritization()`.
+  - Ensured invalid AI payloads fall back safely for smart notifications, digests, and prioritization.
+
+### Focused Verification
+- `php -l app/Services/UrbanGoodz/DynamicPricingService.php` PASS
+- `php -l app/Services/UrbanGoodz/FraudDetectionService.php` PASS
+- `php -l app/Services/UrbanGoodz/NotificationAIService.php` PASS
+- `php artisan test tests/Unit/DynamicPricingServiceTest.php tests/Unit/FraudDetectionServiceTest.php tests/Unit/NotificationAIServiceTest.php` PASS (21 tests, 116 assertions)
+
+### Deployment State
+- No deployment executed in this phase.
+
+### Blockers
+- No blocker for contract alignment milestone.
+- Existing local MySQL baseline blocker remains for specific feature suites requiring `zones` table during migration chain.
+
+### Exact Next Command
+- `git commit -m "fix(ai-contract): align dynamic pricing fraud and notification services with canonical chat signature" && git push origin adminpanel-v39-backend-sprint`
+
+### Exact Next File/Test to Inspect
+- `tests/Feature/UrbanGoodzLoadSourcingTest.php`
+- `tests/Feature/UrbanGoodzLoadBoardWorkflowTest.php`

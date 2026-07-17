@@ -19,26 +19,22 @@ class FraudDetectionService
         $prompt = $this->buildAnalysisPrompt($transactionData);
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'model' => config('urban_goodz.ai_model', 'gpt-4o'),
-                'temperature' => 0.2,
-                'max_tokens' => 800,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($transactionData));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
-
-            if (! is_array($parsed)) {
+            if ($parsed === null) {
                 return $this->fallbackAnalysis($transactionData);
             }
 
+            $riskScore = $this->toFloat($parsed['risk_score'] ?? null, 0.0);
+
             return [
-                'risk_score' => (float) ($parsed['risk_score'] ?? 0.0),
-                'risk_level' => $this->classifyRisk((float) ($parsed['risk_score'] ?? 0.0)),
+                'risk_score' => $riskScore,
+                'risk_level' => $this->classifyRisk($riskScore),
                 'flags' => $parsed['flags'] ?? [],
                 'recommended_action' => $parsed['recommended_action'] ?? 'review',
                 'explanation' => $parsed['explanation'] ?? null,
-                'confidence' => (float) ($parsed['confidence'] ?? 0.5),
+                'confidence' => $this->toFloat($parsed['confidence'] ?? null, 0.5),
                 'source' => 'ai_analysis',
             ];
         } catch (\Exception $e) {
@@ -55,27 +51,23 @@ class FraudDetectionService
         $prompt = $this->buildAccountPrompt($accountData);
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'model' => config('urban_goodz.ai_model', 'gpt-4o'),
-                'temperature' => 0.2,
-                'max_tokens' => 800,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($accountData));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
-
-            if (! is_array($parsed)) {
+            if ($parsed === null) {
                 return $this->fallbackAccountAnalysis($accountData);
             }
 
+            $riskScore = $this->toFloat($parsed['risk_score'] ?? null, 0.0);
+
             return [
-                'risk_score' => (float) ($parsed['risk_score'] ?? 0.0),
-                'risk_level' => $this->classifyRisk((float) ($parsed['risk_score'] ?? 0.0)),
+                'risk_score' => $riskScore,
+                'risk_level' => $this->classifyRisk($riskScore),
                 'flags' => $parsed['flags'] ?? [],
                 'recommended_action' => $parsed['recommended_action'] ?? 'review',
                 'patterns' => $parsed['patterns'] ?? [],
                 'explanation' => $parsed['explanation'] ?? null,
-                'confidence' => (float) ($parsed['confidence'] ?? 0.5),
+                'confidence' => $this->toFloat($parsed['confidence'] ?? null, 0.5),
                 'source' => 'ai_analysis',
             ];
         } catch (\Exception $e) {
@@ -100,24 +92,23 @@ class FraudDetectionService
             . "Return JSON: {\"manipulation_score\": 0-100, \"flags\": [...], \"explanation\": \"...\", \"confidence\": 0-1}";
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'temperature' => 0.2,
-                'max_tokens' => 600,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($receiptData));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
+            if ($parsed === null) {
+                return $this->fallbackReceiptAnalysis();
+            }
 
             return [
-                'manipulation_score' => (float) ($parsed['manipulation_score'] ?? 0),
+                'manipulation_score' => $this->toFloat($parsed['manipulation_score'] ?? null, 0.0),
                 'flags' => $parsed['flags'] ?? [],
                 'explanation' => $parsed['explanation'] ?? null,
-                'confidence' => (float) ($parsed['confidence'] ?? 0.5),
+                'confidence' => $this->toFloat($parsed['confidence'] ?? null, 0.5),
                 'source' => 'ai_receipt_analysis',
             ];
         } catch (\Exception $e) {
             Log::warning('FraudDetectionService receipt analysis failed', ['error' => $e->getMessage()]);
-            return ['manipulation_score' => 0, 'flags' => [], 'explanation' => 'Analysis unavailable', 'confidence' => 0, 'source' => 'fallback'];
+            return $this->fallbackReceiptAnalysis();
         }
     }
 
@@ -174,7 +165,7 @@ class FraudDetectionService
             'risk_score' => min($score, 100),
             'risk_level' => $this->classifyRisk($score),
             'flags' => $flags,
-            'recommended_action' => $score >= 60 ? 'review' : 'approve',
+            'recommended_action' => $score > 0 ? 'review' : 'approve',
             'explanation' => 'AI analysis unavailable — using rule-based fallback',
             'confidence' => 0.3,
             'source' => 'fallback',
@@ -193,5 +184,41 @@ class FraudDetectionService
             'confidence' => 0.0,
             'source' => 'fallback',
         ];
+    }
+
+    private function fallbackReceiptAnalysis(): array
+    {
+        return [
+            'manipulation_score' => 0.0,
+            'flags' => [],
+            'explanation' => 'Analysis unavailable',
+            'confidence' => 0.0,
+            'source' => 'fallback',
+        ];
+    }
+
+    private function encodeContext(array $data): string
+    {
+        $encoded = json_encode($data);
+        return is_string($encoded) ? $encoded : '{}';
+    }
+
+    private function decodeResponse(mixed $response): ?array
+    {
+        if (is_array($response)) {
+            return $response;
+        }
+
+        if (! is_string($response)) {
+            return null;
+        }
+
+        $decoded = json_decode($response, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function toFloat(mixed $value, float $default): float
+    {
+        return is_numeric($value) ? (float) $value : $default;
     }
 }

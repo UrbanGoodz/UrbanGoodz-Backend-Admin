@@ -19,16 +19,10 @@ class NotificationAIService
         $prompt = $this->buildNotificationPrompt($context);
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'model' => config('urban_goodz.ai_model', 'gpt-4o'),
-                'temperature' => 0.4,
-                'max_tokens' => 500,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($context));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
-
-            if (! is_array($parsed)) {
+            if ($parsed === null) {
                 return $this->fallbackNotification($context);
             }
 
@@ -61,13 +55,12 @@ class NotificationAIService
             . "Return JSON: {\"digest_title\": \"...\", \"digest_body\": \"...\", \"highlights\": [...], \"action_items\": [...], \"priority_notifications\": [...], \"can_safely_batch\": true|false}";
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'temperature' => 0.4,
-                'max_tokens' => 800,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($recipientContext));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
+            if ($parsed === null) {
+                return $this->fallbackDigest($notifications);
+            }
 
             return [
                 'digest_title' => $parsed['digest_title'] ?? 'Notification Digest',
@@ -75,20 +68,12 @@ class NotificationAIService
                 'highlights' => $parsed['highlights'] ?? [],
                 'action_items' => $parsed['action_items'] ?? [],
                 'priority_notifications' => $parsed['priority_notifications'] ?? [],
-                'can_safely_batch' => $parsed['can_safely_batch'] ?? true,
+                'can_safely_batch' => $this->toBool($parsed['can_safely_batch'] ?? true),
                 'source' => 'ai_digest',
             ];
         } catch (\Exception $e) {
             Log::warning('NotificationAIService digest generation failed', ['error' => $e->getMessage()]);
-            return [
-                'digest_title' => 'Notifications',
-                'digest_body' => count($notifications) . ' new notifications',
-                'highlights' => [],
-                'action_items' => [],
-                'priority_notifications' => [],
-                'can_safely_batch' => true,
-                'source' => 'fallback',
-            ];
+            return $this->fallbackDigest($notifications);
         }
     }
 
@@ -103,13 +88,12 @@ class NotificationAIService
             . "Return JSON: {\"prioritized\": [{\"id\": \"...\", \"priority\": \"urgent|high|normal|low\", \"reason\": \"...\"}]}";
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'temperature' => 0.2,
-                'max_tokens' => 600,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($notifications));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
+            if ($parsed === null) {
+                return $this->fallbackPrioritization();
+            }
 
             return [
                 'prioritized' => $parsed['prioritized'] ?? [],
@@ -117,7 +101,7 @@ class NotificationAIService
             ];
         } catch (\Exception $e) {
             Log::warning('NotificationAIService prioritization failed', ['error' => $e->getMessage()]);
-            return ['prioritized' => [], 'source' => 'fallback'];
+            return $this->fallbackPrioritization();
         }
     }
 
@@ -165,5 +149,52 @@ class NotificationAIService
             'action_suggestion' => null,
             'source' => 'fallback',
         ];
+    }
+
+    private function fallbackDigest(array $notifications): array
+    {
+        return [
+            'digest_title' => 'Notifications',
+            'digest_body' => count($notifications) . ' new notifications',
+            'highlights' => [],
+            'action_items' => [],
+            'priority_notifications' => [],
+            'can_safely_batch' => true,
+            'source' => 'fallback',
+        ];
+    }
+
+    private function fallbackPrioritization(): array
+    {
+        return ['prioritized' => [], 'source' => 'fallback'];
+    }
+
+    private function encodeContext(array $context): string
+    {
+        $encoded = json_encode($context);
+        return is_string($encoded) ? $encoded : '{}';
+    }
+
+    private function decodeResponse(mixed $response): ?array
+    {
+        if (is_array($response)) {
+            return $response;
+        }
+
+        if (! is_string($response)) {
+            return null;
+        }
+
+        $decoded = json_decode($response, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function toBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
     }
 }

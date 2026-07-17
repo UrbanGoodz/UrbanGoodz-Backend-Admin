@@ -19,21 +19,15 @@ class DynamicPricingService
         $prompt = $this->buildPricingPrompt($params);
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'model' => config('urban_goodz.ai_model', 'gpt-4o'),
-                'temperature' => 0.3,
-                'max_tokens' => 1000,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($params));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
-
-            if (! is_array($parsed)) {
+            if ($parsed === null) {
                 return $this->fallbackPricing($params);
             }
 
-            $basePrice = (float) ($params['base_price'] ?? 0);
-            $multiplier = (float) ($parsed['dynamic_multiplier'] ?? 1.0);
+            $basePrice = $this->toFloat($params['base_price'] ?? null, 0.0);
+            $multiplier = $this->toFloat($parsed['dynamic_multiplier'] ?? null, 1.0);
             $multiplier = max(0.5, min(3.0, $multiplier)); // Clamp to 0.5x–3.0x
 
             $finalPrice = round($basePrice * $multiplier, 2);
@@ -45,7 +39,7 @@ class DynamicPricingService
                 'factors' => $parsed['factors'] ?? [],
                 'recommendation' => $parsed['recommendation'] ?? null,
                 'explanation' => $parsed['explanation'] ?? null,
-                'confidence' => (float) ($parsed['confidence'] ?? 0.5),
+                'confidence' => $this->toFloat($parsed['confidence'] ?? null, 0.5),
                 'source' => 'ai_pricing',
             ];
         } catch (\Exception $e) {
@@ -70,27 +64,39 @@ class DynamicPricingService
             . "Return JSON: {\"projected_demand_change_percent\": ..., \"projected_revenue_change_percent\": ..., \"risk_level\": \"low|medium|high\", \"factors\": [...], \"recommendation\": \"...\", \"confidence\": 0-1}";
 
         try {
-            $response = $this->ai->chat($prompt, [
-                'temperature' => 0.3,
-                'max_tokens' => 800,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+            $response = $this->ai->chat($prompt, $this->encodeContext($params));
+            $parsed = $this->decodeResponse($response);
 
-            $parsed = is_string($response) ? json_decode($response, true) : $response;
+            if ($parsed === null) {
+                return $this->fallbackSimulation();
+            }
 
             return [
-                'projected_demand_change_percent' => (float) ($parsed['projected_demand_change_percent'] ?? 0),
-                'projected_revenue_change_percent' => (float) ($parsed['projected_revenue_change_percent'] ?? 0),
+                'projected_demand_change_percent' => $this->toFloat($parsed['projected_demand_change_percent'] ?? null, 0.0),
+                'projected_revenue_change_percent' => $this->toFloat($parsed['projected_revenue_change_percent'] ?? null, 0.0),
                 'risk_level' => $parsed['risk_level'] ?? 'medium',
                 'factors' => $parsed['factors'] ?? [],
                 'recommendation' => $parsed['recommendation'] ?? null,
-                'confidence' => (float) ($parsed['confidence'] ?? 0.5),
+                'confidence' => $this->toFloat($parsed['confidence'] ?? null, 0.5),
                 'source' => 'ai_simulation',
             ];
         } catch (\Exception $e) {
             Log::warning('DynamicPricingService simulation failed', ['error' => $e->getMessage()]);
-            return ['projected_demand_change_percent' => 0, 'projected_revenue_change_percent' => 0, 'risk_level' => 'medium', 'factors' => [], 'recommendation' => 'Simulation unavailable', 'confidence' => 0, 'source' => 'fallback'];
+            return $this->fallbackSimulation();
         }
+    }
+
+    private function fallbackSimulation(): array
+    {
+        return [
+            'projected_demand_change_percent' => 0.0,
+            'projected_revenue_change_percent' => 0.0,
+            'risk_level' => 'medium',
+            'factors' => [],
+            'recommendation' => 'Simulation unavailable',
+            'confidence' => 0.0,
+            'source' => 'fallback',
+        ];
     }
 
     private function buildPricingPrompt(array $params): string
@@ -115,7 +121,7 @@ class DynamicPricingService
 
     private function fallbackPricing(array $params): array
     {
-        $basePrice = (float) ($params['base_price'] ?? 0);
+        $basePrice = $this->toFloat($params['base_price'] ?? null, 0.0);
         $demand = $params['demand_level'] ?? 'medium';
 
         $multiplier = match ($demand) {
@@ -136,5 +142,30 @@ class DynamicPricingService
             'confidence' => 0.3,
             'source' => 'fallback',
         ];
+    }
+
+    private function encodeContext(array $params): string
+    {
+        $encoded = json_encode($params);
+        return is_string($encoded) ? $encoded : '{}';
+    }
+
+    private function decodeResponse(mixed $response): ?array
+    {
+        if (is_array($response)) {
+            return $response;
+        }
+
+        if (!is_string($response)) {
+            return null;
+        }
+
+        $decoded = json_decode($response, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function toFloat(mixed $value, float $default): float
+    {
+        return is_numeric($value) ? (float) $value : $default;
     }
 }
