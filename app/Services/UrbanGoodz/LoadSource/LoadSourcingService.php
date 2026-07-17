@@ -287,6 +287,10 @@ class LoadSourcingService
         }
         $totalScore = $totalWeight > 0 ? round($totalScore / $totalWeight) : 0;
 
+        if (! $scheduleScore['feasible']) {
+            $totalScore = min($totalScore, 20);
+        }
+
         $confidenceLevel = match(true) {
             $totalScore >= 75 => 'high',
             $totalScore >= 50 => 'medium',

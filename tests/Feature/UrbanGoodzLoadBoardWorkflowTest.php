@@ -7,12 +7,12 @@ use App\Models\UrbanGoodzLoadBoardAuditLog;
 use App\Models\DeliveryMan;
 use App\Models\Admin;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class UrbanGoodzLoadBoardWorkflowTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected UrbanGoodzLoadBoardService $service;
 

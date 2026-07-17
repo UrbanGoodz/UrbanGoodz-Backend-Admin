@@ -61,6 +61,8 @@ class LoadNormalizer
     {
         $fingerprint = ExternalLoad::generateFingerprint($normalizedData);
         $normalizedData['fingerprint'] = $fingerprint;
+        $normalizedData['is_duplicate'] = false;
+        $normalizedData['deduplicated_to_id'] = null;
 
         $existing = ExternalLoad::where('source_id', $normalizedData['source_id'])
             ->where('external_id', $normalizedData['external_id'])
@@ -69,15 +71,6 @@ class LoadNormalizer
         if ($existing) {
             $existing->update($normalizedData);
             return $existing;
-        }
-
-        $existingByFingerprint = ExternalLoad::where('fingerprint', $fingerprint)
-            ->where('source_id', $normalizedData['source_id'])
-            ->first();
-
-        if ($existingByFingerprint) {
-            $existingByFingerprint->update($normalizedData);
-            return $existingByFingerprint;
         }
 
         $load = ExternalLoad::create($normalizedData);

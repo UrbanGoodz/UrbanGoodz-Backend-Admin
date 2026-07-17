@@ -23,12 +23,12 @@ use App\Services\UrbanGoodz\LoadSource\TruckstopLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TrulosLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TbLoadLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\UrbanGoodzInternalLoadSourceAdapter;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class UrbanGoodzLoadSourcingTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private LoadSourcingService $service;
     private LoadNormalizer $normalizer;

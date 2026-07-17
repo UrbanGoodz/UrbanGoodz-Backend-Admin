@@ -10,12 +10,26 @@ use Illuminate\Support\Facades\Log;
 
 class LoadManualImportService
 {
+    private function getManualImportSource(): LoadSource
+    {
+        return LoadSource::withTrashed()->firstOrCreate(
+            ['source_key' => 'manual_import'],
+            [
+                'name' => 'Manual Import',
+                'type' => 'manual',
+                'enabled' => true,
+                'api_status' => 'connected',
+                'partnership_status' => 'active',
+                'supports_bidding' => false,
+                'supports_booking' => false,
+                'supports_automation' => false,
+            ]
+        );
+    }
+
     public function importSingle(array $data, int $importedBy, string $importedByType): array
     {
-        $source = LoadSource::where('source_key', 'manual_import')->first();
-        if (!$source) {
-            return ['success' => false, 'error' => 'Manual import source not configured'];
-        }
+        $source = $this->getManualImportSource();
 
         $import = LoadImport::create([
             'source_id' => $source->id,
@@ -50,10 +64,7 @@ class LoadManualImportService
 
     public function importCsv(UploadedFile $file, int $importedBy, string $importedByType): array
     {
-        $source = LoadSource::where('source_key', 'manual_import')->first();
-        if (!$source) {
-            return ['success' => false, 'error' => 'Manual import source not configured'];
-        }
+        $source = $this->getManualImportSource();
 
         $import = LoadImport::create([
             'source_id' => $source->id,
@@ -121,10 +132,7 @@ class LoadManualImportService
 
     public function shareToUrbanGoodz(array $data, int $sharedBy, string $sharedByType): array
     {
-        $source = LoadSource::where('source_key', 'manual_import')->first();
-        if (!$source) {
-            return ['success' => false, 'error' => 'Manual import source not configured'];
-        }
+        $source = $this->getManualImportSource();
 
         $import = LoadImport::create([
             'source_id' => $source->id,

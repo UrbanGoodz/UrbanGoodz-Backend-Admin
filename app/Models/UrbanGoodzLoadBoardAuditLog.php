@@ -18,7 +18,7 @@ class UrbanGoodzLoadBoardAuditLog extends Model
         'context' => 'array',
     ];
 
-    public function load(): BelongsTo
+    public function loadBoardLoad(): BelongsTo
     {
         return $this->belongsTo(UrbanGoodzLoadBoardLoad::class, 'load_id');
     }

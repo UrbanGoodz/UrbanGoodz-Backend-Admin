@@ -445,3 +445,63 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 ### Exact Next File/Test to Inspect
 - `database/migrations/2022_05_14_122133_add_dm_tips_column_to_orders_table.php`
 - `tests/Feature/UrbanGoodzLoadSourcingTest.php`
+
+---
+
+## PHASE 41: REAL LEGACY BASELINE IMPORT + TARGET SUITES PASS (2026-07-17)
+
+**Repository:** `AdminPanel_Update_V39`
+**Branch:** `adminpanel-v39-backend-sprint`
+**HEAD (pre-commit):** `919fb3c`
+**Origin HEAD (pre-commit):** `919fb3c`
+
+### Authoritative Baseline Source
+- Source DB used for schema baseline: local legacy mirror `urbakkej_urbangoodzdelivery` on `127.0.0.1:3306`.
+- Basis for selection: prior DCP notes already reference cloned development schema into `urbangoodz_test` (Session 08), and this DB has full legacy core tables (`orders`, `stores`, `items`, `delivery_men`, etc.) required by migration chain.
+
+### Isolation Confirmation
+- Confirmed separate schemas on same local MySQL host (no live production host access used):
+  - `urbakkej_urbangoodzdelivery` (source)
+  - `urbangoodz_test` (target test DB)
+- No destructive operations were executed against source DB; destructive operations were limited to `urbangoodz_test` recreation only.
+
+### Exact Import/Provisioning Commands
+- Recreated isolated test DB and imported schema-only baseline plus migration rows from authoritative source:
+  - `mysql -h 127.0.0.1 -P 3306 -u root -e "DROP DATABASE IF EXISTS urbangoodz_test; CREATE DATABASE urbangoodz_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`
+  - `mysqldump -h 127.0.0.1 -P 3306 -u root --no-data --skip-triggers --routines=false --events=false urbakkej_urbangoodzdelivery | mysql -h 127.0.0.1 -P 3306 -u root urbangoodz_test`
+  - `mysqldump -h 127.0.0.1 -P 3306 -u root --no-create-info --skip-triggers urbakkej_urbangoodzdelivery migrations | mysql -h 127.0.0.1 -P 3306 -u root urbangoodz_test`
+- Applied minimum missing canonical migrations required by the two target suites:
+  - `php artisan migrate --env=testing --path=database/migrations/2026_07_12_200000_add_financial_workflow_to_load_board_loads.php --force`
+  - `php artisan migrate --env=testing --path=database/migrations/2026_07_13_100000_create_load_sourcing_system_tables.php --force`
+  - `php artisan migrate --env=testing --path=database/migrations/2026_07_17_100000_create_urban_goodz_driver_pricing_policies_table.php --force`
+
+### Schema + Migration State
+- Before import (`urbangoodz_test`): 16 tables, 17 migration rows.
+- After import from baseline: 242 tables, 319 migration rows (batch 62).
+- After minimum canonical migration provisioning: 259 tables, 322 migration rows (batch 65).
+
+### Missing Dependencies Found and Fixed
+- Load-sourcing migration FK mismatch with legacy naming (`business_client_users` vs `urban_goodz_business_client_users`) fixed in `2026_07_13_100000_create_load_sourcing_system_tables.php` using runtime table detection.
+- `load_sources` model expected soft deletes; migration now provisions `deleted_at` (create + guarded alter path), and local test DB was aligned.
+- Load-board audit model method conflict (`load()` overriding Eloquent `Model::load`) fixed by renaming relation to `loadBoardLoad()`.
+- Test crypto runtime (`APP_KEY` invalid for encryption) fixed via `phpunit.xml` test APP_KEY.
+- Dedup/manual import/runtime scoring defects fixed in load-sourcing services so tests validate real behavior.
+
+### Target Suite Verification (Required)
+- `php artisan test tests/Feature/UrbanGoodzLoadSourcingTest.php` PASS (23 tests, 106 assertions)
+- `php artisan test tests/Feature/UrbanGoodzLoadBoardWorkflowTest.php` PASS (20 tests, 50 assertions)
+- Combined required command:
+  - `php artisan test tests/Feature/UrbanGoodzLoadSourcingTest.php tests/Feature/UrbanGoodzLoadBoardWorkflowTest.php` PASS (43 tests, 156 assertions)
+
+### Canonical Backend Verification (Focused)
+- `php -l` PASS on changed source files.
+- Route surfaces verified:
+  - `php artisan route:list --name=admin.urban-goodz.load-sourcing` (21 routes)
+  - `php artisan route:list --name=admin.urban-goodz.load-board` (16 routes)
+  - `php artisan route:list --name=admin.urban-goodz.driver-pricing` (8 routes)
+
+### Deployment State
+- Not yet deployed in this phase.
+
+### Exact Continuation Point
+- Commit and push current canonical fixes, then deploy **that exact commit** to cPanel and run live API/data verification gates.

@@ -8,6 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $businessClientUsersTable = null;
+        if (Schema::hasTable('business_client_users')) {
+            $businessClientUsersTable = 'business_client_users';
+        } elseif (Schema::hasTable('urban_goodz_business_client_users')) {
+            $businessClientUsersTable = 'urban_goodz_business_client_users';
+        }
+
         // 1. Load Sources — master registry of all source configurations
         if (!Schema::hasTable('load_sources')) {
             Schema::create('load_sources', function (Blueprint $table) {
@@ -33,6 +40,11 @@ return new class extends Migration
                 $table->integer('total_loads_sourced')->default(0);
                 $table->json('metadata')->nullable();
                 $table->timestamps();
+                $table->softDeletes();
+            });
+        } elseif (!Schema::hasColumn('load_sources', 'deleted_at')) {
+            Schema::table('load_sources', function (Blueprint $table) {
+                $table->softDeletes();
             });
         }
 
@@ -263,9 +275,16 @@ return new class extends Migration
 
         // 10. Dispatcher Saved Searches
         if (!Schema::hasTable('dispatcher_saved_searches')) {
-            Schema::create('dispatcher_saved_searches', function (Blueprint $table) {
+            Schema::create('dispatcher_saved_searches', function (Blueprint $table) use ($businessClientUsersTable) {
                 $table->id();
-                $table->foreignId('business_client_user_id')->nullable()->constrained('business_client_users')->nullOnDelete();
+
+                if ($businessClientUsersTable !== null) {
+                    $table->foreignId('business_client_user_id')->nullable()->constrained($businessClientUsersTable)->nullOnDelete();
+                } else {
+                    $table->unsignedBigInteger('business_client_user_id')->nullable();
+                    $table->index('business_client_user_id');
+                }
+
                 $table->foreignId('dispatch_company_id')->nullable();
                 $table->string('name');
                 $table->json('criteria')->nullable();
