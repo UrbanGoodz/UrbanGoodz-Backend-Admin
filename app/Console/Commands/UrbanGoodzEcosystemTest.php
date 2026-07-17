@@ -321,11 +321,11 @@ class UrbanGoodzEcosystemTest extends Command
     {
         $this->info('  Creating seed test data...');
 
-        // Test driver
-        $vehicle = DB::table('vehicles')->where('status', 1)->first();
-        $vehicleId = $vehicle ? $vehicle->id : DB::table('vehicles')->insertGetId([
-            'type' => 'car', 'capacity' => 4, 'min_cap' => 1,
-            'avg_cap' => 4, 'max_cap' => 6, 'status' => 1,
+        // Test driver - use d_m_vehicles table (DMVehicle model)
+        $vehicle = DB::table('d_m_vehicles')->where('status', 1)->first();
+        $vehicleId = $vehicle ? $vehicle->id : DB::table('d_m_vehicles')->insertGetId([
+            'type' => 'car', 'status' => 1, 'is_delivery' => 1,
+            'starting_coverage_area' => 0, 'maximum_coverage_area' => 0, 'extra_charges' => 0,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
