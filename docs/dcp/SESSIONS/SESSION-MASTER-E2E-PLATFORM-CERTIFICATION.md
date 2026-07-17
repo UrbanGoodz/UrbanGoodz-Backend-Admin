@@ -406,3 +406,42 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 ### Exact Next File/Test to Inspect
 - `tests/Feature/UrbanGoodzLoadSourcingTest.php`
 - `tests/Feature/UrbanGoodzLoadBoardWorkflowTest.php`
+
+---
+
+## PHASE 40: FEATURE TEST MIGRATION BASELINE TRIAGE (2026-07-17)
+
+**Repository:** `AdminPanel_Update_V39`
+**Branch:** `adminpanel-v39-backend-sprint`
+**HEAD (pre-commit):** `54d66a3`
+**Origin HEAD (pre-commit):** `54d66a3`
+
+### Scope
+- Unblock local feature verification for load sourcing and load board workflow suites by resolving migration-chain prerequisites in test DB bootstrap.
+
+### Completed Work
+- Added compatibility migration: `database/migrations/2022_05_09_235959_create_zones_table_if_missing.php`.
+  - Creates `zones` only when absent so `customer_addresses.zone_id` FK and later zone-alter migrations can proceed in local test bootstrap.
+  - Includes `deliveryman_wise_topic` baseline column required by later `after(...)` zone migration.
+- Re-ran blocked suites after baseline patch:
+  - `php artisan test tests/Feature/UrbanGoodzLoadSourcingTest.php tests/Feature/UrbanGoodzLoadBoardWorkflowTest.php`
+
+### Focused Verification
+- Prior blocker (`zones` table missing) resolved.
+- New migration-chain blocker surfaced: `orders` base table missing before `2022_05_14_122133_add_dm_tips_column_to_orders_table.php`.
+- Test result: 43 failed, failure root cause repeated as:
+  - `SQLSTATE[42S02]: Base table or view not found: 1146 Table 'urbangoodz_test.orders' doesn't exist`
+
+### Deployment State
+- No deployment executed in this phase.
+
+### Blockers
+- Local test DB is missing multiple legacy baseline tables that are altered by migrations but not created in repository migration history (e.g., `orders`, `order_transactions`, `order_details`, `stores`, `items`, `delivery_men`, etc.).
+- Full feature-suite verification remains blocked until legacy baseline schema import or guarded compatibility bootstrap for additional core tables is provided.
+
+### Exact Next Command
+- `git commit -m "test(db-baseline): add zones compatibility migration for feature-suite bootstrap" && git push origin adminpanel-v39-backend-sprint`
+
+### Exact Next File/Test to Inspect
+- `database/migrations/2022_05_14_122133_add_dm_tips_column_to_orders_table.php`
+- `tests/Feature/UrbanGoodzLoadSourcingTest.php`
