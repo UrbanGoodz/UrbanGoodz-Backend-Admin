@@ -3,13 +3,13 @@
 
 ---
 
-## REPOSITORY STATE (ACTUAL)
+## REPOSITORY STATE (ACTUAL) — UPDATED 2026-07-16
 
 | Repo | Branch | HEAD | Status |
 |------|--------|------|--------|
-| AdminPanel_Update_V39 | adminpanel-v39-backend-sprint | 800c9ab | Runtime release plus AI route hotfix deployed |
-| UrbanGoodz2026-Revised | codex/vendor-final-release-verification | 520309b | Release fixes committed and pushed |
-| UrbanGoodz_Vendor_Driver_Sprint | vendor-driver-tester-sprint | 5360e73 | Clean; no new source changes |
+| AdminPanel_Update_V39 | adminpanel-v39-backend-sprint | b9529ee | Runtime deployed + cross-app contracts committed |
+| UrbanGoodz2026-Revised | codex/vendor-final-release-verification | ab73197 | RC2 source fixes committed and pushed |
+| UrbanGoodz_Vendor_Driver_Sprint | vendor-driver-tester-sprint | dea434f | Production signing configured; RC2 APKs built |
 
 ### Phase 0 Checkpoint Commits Created
 - `57b7037` — Backend: OrderAnywhereTesterController → OrderAnywhereController (production routes)
@@ -17,6 +17,9 @@
 - `5360e73` — Vendor/Driver: Package name fix (com.urbangoodz.driver), removed mock_driver_data.dart
 - `d6e00aa` — Customer: Fix 'Bearer null' Authorization header causing 401 Unauthorized
 - `c8c99ee` — Customer: Hide ride_share and rental modules from customer app production navigation
+- `71ddbaa` — Backend: AI service unit tests, migration filename fix
+- `ab73197` — Customer: Fix API URLs, add token refresh, remove hardcoded load board stats, wire earn money API
+- `b9529ee` — Backend: Cross-app contract ecosystem (7 contract/matrix docs + surface inventory audit)
 
 ### Package Names Verified
 - Customer: `com.urbangoodz.customer` (build.gradle.kts)
@@ -138,6 +141,30 @@ This file created/updated as master session record.
 - [x] Driver debug APK builds (22.6MB) — disk space cleared
 - [x] All three: flutter analyze clean
 
+### Phase 31b: RC2 Release APK Builds — COMPLETE (2026-07-16)
+- [x] Customer RC2 APK: UrbanGoodz_Customer_Release_RC2.apk (123.1MB)
+  - SHA-256: d37d2d03401e3feeb726edbc53f1080539ce4e753ef10535406dc0cdc9cd8319
+  - Certificate: CN=UrbanGoodz Customer (production, NOT debug)
+  - Cert SHA-256: cbc528f3c3734494ebfa010cefd4ecdf329ce1387e936b90f05303d07dfbd7b6
+- [x] Vendor RC2 APK: UrbanGoodz_Vendor_Release_RC2.apk (55.5MB)
+  - SHA-256: cf8be7f7c8db573508bc72a387cdec89c20398d5c7b723177d6aeb67b306987c
+  - Certificate: CN=UrbanGoodz Vendor (production, NOT debug)
+  - Cert SHA-256: f531915630dbb0fc1aec9b2540b73ff8438cc33b88b452f2bd9751ec4b59a7b5
+- [x] Driver RC2 APK: UrbanGoodz_Driver_Release_RC2.apk (53.8MB)
+  - SHA-256: f937b498d6d145a8eebb77cd13aa8d3587036e93e803ab7ab4ab5ea6052d3f3a
+  - Certificate: CN=UrbanGoodz Driver (production, NOT debug)
+  - Cert SHA-256: 499adc4d3f4794e73c8eeab3bfb3ad5d92cdf629e1bb4ddfdbaaaf82e8019e5c
+
+### Phase 35: Cross-App Contract Ecosystem — COMPLETE (2026-07-16)
+- [x] URBAN_GOODZ_CROSS_APP_CONTRACT.md — Master shared contract with 7 status enums
+- [x] CROSS_APP_ENDPOINT_MATRIX.md — 377+ routes across 27 feature sections
+- [x] CROSS_APP_NOTIFICATION_MATRIX.md — 83 notification events with channels/retry
+- [x] CROSS_APP_MONEY_FLOW_MATRIX.md — Full reconciled chains for all transaction types
+- [x] VENDOR_APP_PORTAL_PARITY_MATRIX.md — 120+ feature comparisons
+- [x] LOAD_BOARD_CROSS_SURFACE_MATRIX.md — Cross-surface mapping
+- [x] URBAN_GOODZ_FULL_ECOSYSTEM_MATRIX.md — Complete ecosystem matrix
+- [x] URBAN_GOODZ_SURFACE_INVENTORY.md — Full audit of all routes and screens
+
 ### Phase 32: Measurement Profile Auth Verification — PENDING
 - [ ] Authenticated API call to /api/v1/fashion-fit/profiles returns 200 with valid token
 - [ ] 401 returned when token is null/expired
@@ -167,7 +194,9 @@ This file created/updated as master session record.
 - [x] Vendor: dependencies resolved; analyzer reports no issues; debug APK builds successfully
 - [x] Driver: dependencies resolved; analyzer reports no issues (No issues found!); debug APK built successfully
 - [x] Driver debug APK: **UrbanGoodz_Driver_Tester_RC1.apk** (22.6MB) at `outputs/`
-- [ ] Vendor/driver release APKs with production signing: not certified in this checkpoint
+- [x] Customer RC2: **UrbanGoodz_Customer_Release_RC2.apk** (123.1MB) — production signed
+- [x] Vendor RC2: **UrbanGoodz_Vendor_Release_RC2.apk** (55.5MB) — production signed
+- [x] Driver RC2: **UrbanGoodz_Driver_Release_RC2.apk** (53.8MB) — production signed
 
 ---
 
@@ -189,17 +218,30 @@ This file created/updated as master session record.
 
 ---
 
-## FINAL VERDICT (PROVISIONAL)
-**BACKEND PRODUCTION DEPLOYMENT: GO.** Backend runtime SHA `800c9ab` is deployed. Command Center exposes direct AI Operations and Business Portal actions; Logistics, Medical Courier, Events, Earn Money, Community Marketplace, and Discovery management cards enabled as live workflows.
+## FINAL VERDICT (UPDATED 2026-07-16)
+**BACKEND PRODUCTION DEPLOYMENT: GO.** Backend runtime SHA `b9529ee` is deployed. 377+ routes across 9 route files verified.
 
-**FULL ECOSYSTEM CERTIFICATION: NO-GO** pending:
+**APK BUILD STATUS: COMPLETE.** All three RC2 APKs built with production signing:
+- Customer: 123.1MB, CN=UrbanGoodz Customer
+- Vendor: 55.5MB, CN=UrbanGoodz Vendor
+- Driver: 53.8MB, CN=UrbanGoodz Driver
+
+**CROSS-APP CONTRACT: COMPLETE.** 7 contract/matrix documents + surface inventory created (3,560 lines):
+- Master contract with 7 canonical status enums
+- Endpoint matrix (377+ routes, 27 feature sections)
+- Notification matrix (83 events)
+- Money flow matrix (all transaction types)
+- Vendor portal parity matrix (120+ features)
+- Load board cross-surface matrix
+- Full ecosystem matrix
+
+**FULL ECOSYSTEM CERTIFICATION: NO-GO** remaining items:
 - Customer APK runtime verification (release APK exists, needs device test)
-- Vendor/Driver APK builds with production signing
 - Measurement Profile authenticated runtime verification
 - AI service unit tests (3 services have fallbacks, need test coverage)
 - Order Anywhere dual fulfillment + financial reconciliation
 - Load Board real-data sync verification
-- Cross-app status/API synchronization
+- **No Android emulator/ADB detected** — device testing blocked
 
 ---
 
@@ -226,4 +268,11 @@ This file created/updated as master session record.
 ---
 
 ## CONTINUATION COMMAND
-Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service unit tests), Phase 33 (Order Anywhere dual fulfillment), Phase 34 (Load Board real-data), Phase 36 (device testing)
+Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service unit tests), Phase 33 (Order Anywhere dual fulfillment), Phase 34 (Load Board real-data), Phase 36 (device testing — requires Android emulator/ADB installation)
+
+## APK ARTIFACTS
+| APK | Path | SHA-256 | Size |
+|-----|------|---------|------|
+| Customer RC2 | `outputs/UrbanGoodz_Customer_Release_RC2.apk` | d37d2d03401e3feeb726edbc53f1080539ce4e753ef10535406dc0cdc9cd8319 | 123.1MB |
+| Vendor RC2 | `outputs/UrbanGoodz_Vendor_Release_RC2.apk` | cf8be7f7c8db573508bc72a387cdec89c20398d5c7b723177d6aeb67b306987c | 55.5MB |
+| Driver RC2 | `outputs/UrbanGoodz_Driver_Release_RC2.apk` | f937b498d6d145a8eebb77cd13aa8d3587036e93e803ab7ab4ab5ea6052d3f3a | 53.8MB |
