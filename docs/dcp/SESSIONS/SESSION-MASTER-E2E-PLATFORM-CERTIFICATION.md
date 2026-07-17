@@ -276,3 +276,42 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 | Customer RC2 | `outputs/UrbanGoodz_Customer_Release_RC2.apk` | d37d2d03401e3feeb726edbc53f1080539ce4e753ef10535406dc0cdc9cd8319 | 123.1MB |
 | Vendor RC2 | `outputs/UrbanGoodz_Vendor_Release_RC2.apk` | cf8be7f7c8db573508bc72a387cdec89c20398d5c7b723177d6aeb67b306987c | 55.5MB |
 | Driver RC2 | `outputs/UrbanGoodz_Driver_Release_RC2.apk` | f937b498d6d145a8eebb77cd13aa8d3587036e93e803ab7ab4ab5ea6052d3f3a | 53.8MB |
+
+---
+
+## PHASE 37: DRIVER PRICING & PAYOUTS MILESTONE (2026-07-17)
+
+**Repository:** `AdminPanel_Update_V39`
+**Branch:** `adminpanel-v39-backend-sprint`
+**HEAD (pre-commit):** `ac0b5ae67d47e8cb8f1be579cdfec4b955046fa7`
+**Origin HEAD (pre-commit):** `ac0b5ae67d47e8cb8f1be579cdfec4b955046fa7`
+
+### Dirty Files (pre-commit)
+- Driver Pricing & Payouts feature set staged: controller/model/service/migration/seeder/views/routes/sidebar + payout integrations in OrderLogic, LoadBoard, Medical Courier, Dedicated Routes, Business Portal, and Order Anywhere payment split.
+- Unrelated files intentionally left unstaged: `app/Services/UrbanGoodz/DynamicPricingService.php`, `app/Services/UrbanGoodz/FraudDetectionService.php`, `app/Services/UrbanGoodz/NotificationAIService.php`, `tests/Unit/NotificationAIServiceTest.php`, `id_rsa_lf`, `id_rsa_utf8`.
+
+### Completed Work
+- Added authoritative Admin module: **Driver Pricing & Payouts** (`admin/urban-goodz/driver-pricing`) with create/edit/history/rollback.
+- Added policy persistence: `urban_goodz_driver_pricing_policies` model + migration + idempotent seeder + `DatabaseSeeder` registration.
+- Added centralized payout engine: `UrbanGoodzDriverPricingService` (policy resolution, payout models, min/max guardrails, margin enforcement, audit logging, earning writes).
+- Integrated payout engine into Marketplace Delivery, Courier/Parcel, Dedicated Routes, Logistics Loads, Medical Courier, and Order Anywhere split calculations.
+- Hardened compatibility gaps: field-name mismatches fixed (`distance_miles`, `payout_amount`, `priority`, `estimated_miles`, `route_offer_amount`), permissions enforced (`urban_goodz_driver_payouts_view/manage`), and load-board payout metadata captured separately from customer-facing amounts.
+
+### Test Results (focused)
+- `php -l` PASS on all Driver Pricing touched PHP files (controller, model, services, migration, seeder, route file, and related integration files).
+- `php artisan test tests/Unit/UrbanGoodzDriverPricingServiceTest.php` PASS (5 tests, 13 assertions).
+- `php artisan route:list --name=admin.urban-goodz.driver-pricing` PASS (8 routes registered).
+
+### Deployment State
+- No deployment executed in this phase.
+- cPanel backend remains behind origin per previous checkpoint (`b9529ee` reported deployed vs current backend branch tip).
+
+### Blockers
+- None for Milestone 1.
+
+### Exact Next Command
+- `git commit -m "feat(driver-pricing): add payouts policy engine and admin pricing module" && git push origin adminpanel-v39-backend-sprint`
+
+### Exact Next File/Test to Inspect
+- `app/Services/UrbanGoodz/DynamicPricingService.php`
+- `tests/Unit/NotificationAIServiceTest.php`

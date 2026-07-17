@@ -154,6 +154,33 @@ class UrbanGoodzMedicalCourierService
             }
             if ($status === 'delivered') {
                 $update['delivered_at'] = now();
+                
+                $finalDriverId = $driverId ?? $job->assigned_driver_id;
+                if ($finalDriverId) {
+                    try {
+                        $driver = DeliveryMan::find($finalDriverId);
+                        $metadata = is_array($job->metadata) ? $job->metadata : [];
+                        $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+                        $payoutResult = $driverPricingService->calculatePayout('medical_courier', [
+                            'zone_id' => $metadata['zone_id'] ?? null,
+                            'mileage' => $job->distance_miles ?? 0.00,
+                            'revenue' => $job->payout_amount ?? 0.00,
+                            'base_amount' => $job->payout_amount ?? 0.00,
+                            'vehicle_id' => $driver?->vehicle_id,
+                            'is_urgent' => (bool) ($job->priority === 'urgent'),
+                        ]);
+
+                        $driverPricingService->recordEarning([
+                            'delivery_man_id' => $finalDriverId,
+                            'earning_type' => 'medical_courier',
+                            'amount' => $payoutResult['payout'],
+                            'status' => 'approved', // Credits wallet immediately
+                            'description' => "Payout for completing medical courier job #{$job->id}",
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to calculate/record medical courier payout: " . $e->getMessage());
+                    }
+                }
             }
 
             $job->update($update);

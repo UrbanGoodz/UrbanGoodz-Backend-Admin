@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             MeasurementRequestSeeder::class,
             UrbanGoodzBusinessTypeSeeder::class,
             UrbanGoodzAIIntentSeeder::class,
+            UrbanGoodzDriverPricingPolicySeeder::class,
         ]);
     }
 }

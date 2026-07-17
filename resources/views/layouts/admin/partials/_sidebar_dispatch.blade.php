@@ -157,6 +157,15 @@
                 @endif
                 <!-- End dispatch -->
 
+                <!-- Driver Pricing & Payouts -->
+                @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_driver_payouts_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/driver-pricing*') || Request::is('admin/urban-goodz/driver-payouts*') || Request::is('admin/urban-goodz/driver-earnings*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.driver-pricing.index') }}" title="{{ translate('Driver Pricing & Payouts') }}">
+                            <i class="tio-money nav-icon"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ translate('Driver Pricing & Payouts') }}</span>
+                        </a>
+                    </li>
+                @endif
 
                 <li class="nav-item py-5">
 

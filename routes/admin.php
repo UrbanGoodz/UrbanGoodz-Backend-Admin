@@ -207,6 +207,17 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@driverEarnings')->name('index');
             });
 
+            Route::group(['prefix' => 'driver-pricing', 'as' => 'driver-pricing.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDriverPricingController@index')->name('index');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzDriverPricingController@create')->name('create');
+                Route::post('/', 'UrbanGoodz\UrbanGoodzDriverPricingController@store')->name('store');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzDriverPricingController@edit')->name('edit');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzDriverPricingController@update')->name('update');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzDriverPricingController@destroy')->name('destroy');
+                Route::get('{id}/history', 'UrbanGoodz\UrbanGoodzDriverPricingController@history')->name('history');
+                Route::post('{id}/rollback', 'UrbanGoodz\UrbanGoodzDriverPricingController@rollback')->name('rollback');
+            });
+
             Route::get('/', 'UrbanGoodzAdminController@index')->name('index');
             Route::get('order-anywhere', 'UrbanGoodzAdminController@orderAnywhere')->name('order-anywhere.index');
             Route::get('order-anywhere/{id}', 'UrbanGoodzAdminController@orderAnywhereShow')->name('order-anywhere.show');

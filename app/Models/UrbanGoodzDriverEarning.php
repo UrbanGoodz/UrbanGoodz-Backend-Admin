@@ -13,12 +13,20 @@ class UrbanGoodzDriverEarning extends Model
         'per_package', 'pickup_bonus', 'completion_bonus',
         'priority_bonus', 'partial_pay', 'return_pay',
         'business_courier_delivery',
+        'marketplace_delivery',
+        'courier_parcel',
+        'business_routes',
+        'dedicated_routes',
+        'logistics_loads',
+        'medical_courier',
+        'order_anywhere',
+        'returns_exceptions',
     ];
 
     const STATUSES = ['pending', 'approved', 'paid', 'held', 'disputed'];
 
     protected $fillable = [
-        'delivery_man_id', 'business_client_job_id', 'package_id', 'dedicated_route_id',
+        'delivery_man_id', 'business_client_job_id', 'package_id', 'dedicated_route_id', 'order_id',
         'earning_type', 'amount', 'currency', 'status',
         'description', 'approved_by', 'approved_at', 'paid_at',
     ];
@@ -47,6 +55,11 @@ class UrbanGoodzDriverEarning extends Model
     public function route()
     {
         return $this->belongsTo(UrbanGoodzDedicatedRoute::class, 'dedicated_route_id');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'order_id');
     }
 
     public function approver()

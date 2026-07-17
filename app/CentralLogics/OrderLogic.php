@@ -138,7 +138,17 @@ class OrderLogic
 
             $dm_tips = $dm_tips_manage_status ? $order->dm_tips : 0;
             $order_amount = $order->order_amount - $dm_tips - $order->additional_charge - $order->extra_packaging_amount - $order->total_tax_amount;
-            $dm_commission = $comission ? ($order_amount / 100) * $comission : 0;
+            
+            // Calculate payout using the centralized pricing service
+            $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+            $payoutResult = $driverPricingService->calculatePayout('courier_parcel', [
+                'zone_id' => $order->zone_id,
+                'mileage' => $order->distance ?? 0.00,
+                'revenue' => $order->delivery_charge ?? 0.00,
+                'base_amount' => $order->original_delivery_charge ?? 0.00,
+                'vehicle_id' => $order->delivery_man?->vehicle_id,
+            ]);
+            $dm_commission = $payoutResult['payout'];
             $comission_amount = $order_amount - $dm_commission;
         } else {
             $comission = isset($order->store->comission) == null ? BusinessSetting::where('key', 'admin_commission')->first()?->value : $order->store->comission;
@@ -209,8 +219,17 @@ class OrderLogic
                 $commission_percentage = $comission;
             }
 
-            $comission_amount = $comission_on_store_amount + $comission_on_actual_delivery_fee;
-            $dm_commission = $order->original_delivery_charge - $comission_on_actual_delivery_fee;
+            // Calculate payout using the centralized pricing service
+            $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+            $payoutResult = $driverPricingService->calculatePayout('marketplace_delivery', [
+                'zone_id' => $order->zone_id,
+                'mileage' => $order->distance ?? 0.00,
+                'revenue' => $order->delivery_charge ?? 0.00,
+                'base_amount' => $order->original_delivery_charge ?? 0.00,
+                'vehicle_id' => $order->delivery_man?->vehicle_id,
+            ]);
+            $dm_commission = $payoutResult['payout'];
+            $comission_amount = $comission_on_store_amount + ($order->original_delivery_charge - $dm_commission);
         }
         $store_amount = $store_amount + $order_amount + $order->total_tax_amount + $order->extra_packaging_amount - $comission_on_store_amount - $store_coupon_discount_subsidy - $flash_store_discount_amount - $extra_discount_amount;
         try {
@@ -267,6 +286,21 @@ class OrderLogic
                 );
                 if ($order->delivery_man->earning == 1) {
                     $dmWallet->total_earning = $dmWallet->total_earning + $dm_commission + $dm_tips;
+
+                    // Log Driver Earning record via pricing service
+                    try {
+                        resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class)->recordEarning([
+                            'delivery_man_id' => $order->delivery_man_id,
+                            'order_id' => $order->id,
+                            'earning_type' => $type == 'parcel' ? 'courier_parcel' : 'marketplace_delivery',
+                            'amount' => $dm_commission,
+                            'status' => 'paid',
+                            'description' => $type == 'parcel' ? 'Courier parcel delivery payout' : 'Marketplace delivery payout',
+                            'bypass_wallet' => true,
+                        ]);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to record driver earning in OrderLogic: " . $e->getMessage());
+                    }
                 } else {
                     $adminWallet->total_commission_earning = $adminWallet->total_commission_earning + $dm_commission + $dm_tips;
                 }

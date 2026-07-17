@@ -311,6 +311,46 @@ class UrbanGoodzDedicatedRouteController extends Controller
 
         $package->save();
 
+        // Check if dedicated route is completed
+        $route = $package->route;
+        if ($route && $route->assigned_driver_id) {
+            $totalCount = $route->packages()->count();
+            $completedCount = $route->completed_packages + $route->failed_packages;
+            if ($completedCount >= $totalCount && $route->status !== 'completed') {
+                $route->status = 'completed';
+                $route->save();
+
+                // Trigger Payout Calculation & Log Earnings
+                try {
+                    $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+                    $packageCount = $route->packages()->count();
+                    $routeRevenue = (float) ($route->route_offer_amount ?? ($route->business_charge_per_package * $packageCount));
+                    $baseAmount = (float) ($route->driver_pay_per_package * $packageCount);
+                    $payoutResult = $driverPricingService->calculatePayout('dedicated_routes', [
+                        'zone_id' => $route->client?->zone_id,
+                        'mileage' => $route->estimated_miles ?? 0.00,
+                        'duration' => $route->estimated_duration ?? 0.00,
+                        'stops' => $packageCount,
+                        'packages' => $packageCount,
+                        'revenue' => $routeRevenue,
+                        'base_amount' => $baseAmount,
+                        'vehicle_id' => $route->driver?->vehicle_id,
+                    ]);
+
+                    $driverPricingService->recordEarning([
+                        'delivery_man_id' => $route->assigned_driver_id,
+                        'dedicated_route_id' => $route->id,
+                        'earning_type' => 'dedicated_routes',
+                        'amount' => $payoutResult['payout'],
+                        'status' => 'approved', // Credits wallet immediately
+                        'description' => "Payout for completing dedicated route: {$route->route_name}",
+                    ]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to calculate/record dedicated route payout: " . $e->getMessage());
+                }
+            }
+        }
+
         UrbanGoodzPackageScan::create([
             'package_id' => $package->id,
             'scan_type' => $data['status'] === 'delivered' ? 'dropoff' : ($data['status'] === 'failed' ? 'exception' : $data['status']),

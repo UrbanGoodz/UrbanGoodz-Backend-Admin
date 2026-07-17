@@ -284,14 +284,25 @@
                     </li>
                     @endif
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_load_board_view') && ($ugModules['load-board']['readiness'] ?? '') !== 'no_table')
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/load-board*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.load-board.index') }}" title="Load Board">
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/load-board*') || (Request::is('admin/urban-goodz/driver-pricing*') && request('type') === 'logistics_loads') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:" title="Load Board">
                             <i class="tio-truck nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Load Board</span>
-                            @if(($ugModules['load-board']['record_count'] ?? 0) > 0)
-                            <span class="badge badge-pill badge-soft-secondary ml-1" style="font-size: 0.65rem;">{{ $ugModules['load-board']['record_count'] }}</span>
-                            @endif
                         </a>
+                        <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="{{ Request::is('admin/urban-goodz/load-board*') || (Request::is('admin/urban-goodz/driver-pricing*') && request('type') === 'logistics_loads') ? 'display-block' : 'display-none' }}">
+                            <li class="nav-item {{ Request::is('admin/urban-goodz/load-board') ? 'active' : '' }}">
+                                <a class="nav-link" href="{{ route('admin.urban-goodz.load-board.index') }}" title="All Loads">
+                                    <span class="tio-circle nav-indicator-icon"></span>
+                                    <span class="text-truncate">All Loads</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {{ Request::is('admin/urban-goodz/driver-pricing*') && request('type') === 'logistics_loads' ? 'active' : '' }}">
+                                <a class="nav-link" href="{{ route('admin.urban-goodz.driver-pricing.index', ['type' => 'logistics_loads']) }}" title="Pricing Rules">
+                                    <span class="tio-circle nav-indicator-icon"></span>
+                                    <span class="text-truncate">Pricing Rules</span>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     @endif
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_discovery_view') && ($ugModules['discovery']['readiness'] ?? '') !== 'no_table')
@@ -668,6 +679,14 @@
                                     </span>
                                 </a>
                             </li>
+                            @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_driver_payouts_view'))
+                                <li class="nav-item {{ Request::is('admin/urban-goodz/driver-pricing*') || Request::is('admin/urban-goodz/driver-payouts*') || Request::is('admin/urban-goodz/driver-earnings*') ? 'active' : '' }}">
+                                    <a class="nav-link" href="{{ route('admin.urban-goodz.driver-pricing.index') }}" title="{{ translate('Driver Pricing & Payouts') }}">
+                                        <span class="tio-circle nav-indicator-icon"></span>
+                                        <span class="text-truncate">{{ translate('Driver Pricing & Payouts') }}</span>
+                                    </a>
+                                </li>
+                            @endif
                         </ul>
                     </li>
                     <!-- Order dispachment End-->

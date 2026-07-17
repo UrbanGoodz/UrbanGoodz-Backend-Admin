@@ -399,7 +399,26 @@ class UrbanGoodzPaymentService
         $platformFee = (float) ($data['platform_fee'] ?? round($totalAmount * ($feePercent / 100), 2));
 
         // ─── Driver payout ──────────────────────────────────────────────
-        $driverAmount = (float) ($data['driver_amount'] ?? $request->delivery_fee ?? 0);
+        $driverPolicyId = null;
+        $driverPayoutModel = 'admin_override';
+        if (isset($data['driver_amount'])) {
+            $driverAmount = (float) $data['driver_amount'];
+        } else {
+            $deliveryMan = $request->assigned_delivery_man_id ? \App\Models\DeliveryMan::find($request->assigned_delivery_man_id) : null;
+            $metadata = is_array($request->metadata) ? $request->metadata : [];
+            $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+            $payoutResult = $driverPricingService->calculatePayout('order_anywhere', [
+                'zone_id' => $data['zone_id'] ?? ($metadata['zone_id'] ?? null),
+                'mileage' => $data['distance_miles'] ?? ($metadata['distance_miles'] ?? 0.00),
+                'duration' => $data['duration_minutes'] ?? ($metadata['duration_minutes'] ?? 0.00),
+                'revenue' => $totalAmount,
+                'base_amount' => $request->delivery_fee ?? 0.00,
+                'vehicle_id' => $deliveryMan?->vehicle_id,
+            ]);
+            $driverAmount = $payoutResult['payout'];
+            $driverPolicyId = $payoutResult['policy_id'] ?? null;
+            $driverPayoutModel = $payoutResult['payout_model'] ?? 'policy';
+        }
 
         // ─── Dispatcher commission (deterministic resolution) ────────────
         $dispatcherCommission = 0.0;
@@ -471,7 +490,8 @@ class UrbanGoodzPaymentService
         $snapshot = [
             'platform_fee_percent' => $feePercent,
             'platform_fee_amount' => $platformFee,
-            'driver_payout_formula' => 'flat_or_admin_override',
+            'driver_payout_formula' => $driverPayoutModel,
+            'driver_pricing_policy_id' => $driverPolicyId,
             'dispatcher_commission_rate' => $dispatcherRate,
             'dispatcher_commission_base' => $dispatcherBase,
             'dispatcher_commission_amount' => $dispatcherCommission,

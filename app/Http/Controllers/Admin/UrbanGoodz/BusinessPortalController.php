@@ -1171,7 +1171,9 @@ class BusinessPortalController extends Controller
         $validated['provider'] = 'internal';
         $validated['status'] = 'available';
 
-        UrbanGoodzLoadBoardLoad::create($validated);
+        // Enforce pricing calculation by using the LoadBoardService
+        $loadBoardService = resolve(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
+        $loadBoardService->createLoad($validated);
 
         Toastr::success(translate('Load Board request created successfully'));
         return redirect()->route('business.load-board.index');

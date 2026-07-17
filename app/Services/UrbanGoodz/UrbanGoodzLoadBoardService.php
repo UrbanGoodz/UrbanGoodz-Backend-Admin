@@ -130,10 +130,34 @@ class UrbanGoodzLoadBoardService
             }
             if ($status === 'delivered') {
                 $update['delivered_at'] = now();
-                if ($driverId || $load->assigned_driver_id) {
-                    $driver = DeliveryMan::find($driverId ?? $load->assigned_driver_id);
+                $finalDriverId = $driverId ?? $load->assigned_driver_id;
+                if ($finalDriverId) {
+                    $driver = DeliveryMan::find($finalDriverId);
                     if ($driver) {
                         $driver->decrement('current_orders');
+                    }
+                    // Trigger payout calculation and log earnings for logistics load completion
+                    try {
+                        $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+                        $metadata = is_array($load->metadata) ? $load->metadata : [];
+                        $payoutResult = $driverPricingService->calculatePayout('logistics_loads', [
+                            'zone_id' => $metadata['zone_id'] ?? null,
+                            'mileage' => $load->distance_miles ?? 0.00,
+                            'duration' => $load->estimated_duration_minutes ?? 0.00,
+                            'revenue' => $load->payout_amount ?? 0.00,
+                            'base_amount' => $load->payout_amount ?? 0.00,
+                            'vehicle_id' => $driver?->vehicle_id,
+                        ]);
+
+                        $driverPricingService->recordEarning([
+                            'delivery_man_id' => $finalDriverId,
+                            'earning_type' => 'logistics_loads',
+                            'amount' => $payoutResult['payout'],
+                            'status' => 'approved', // Credits wallet immediately
+                            'description' => "Payout for completing load board load #{$load->id}",
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to calculate/record load board payout: " . $e->getMessage());
                     }
                 }
             }
@@ -161,6 +185,26 @@ class UrbanGoodzLoadBoardService
     {
         $data['provider'] = $data['provider'] ?? 'internal';
         $data['status'] = $data['status'] ?? 'available';
+        $metadata = isset($data['metadata']) && is_array($data['metadata']) ? $data['metadata'] : [];
+
+        // Calculate and enforce pricing rules at creation if driver payout is not pre-set
+        try {
+            $driverPricingService = resolve(\App\Services\UrbanGoodz\UrbanGoodzDriverPricingService::class);
+            $payoutResult = $driverPricingService->calculatePayout('logistics_loads', [
+                'zone_id' => $data['zone_id'] ?? $metadata['zone_id'] ?? null,
+                'mileage' => $data['distance_miles'] ?? $data['mileage'] ?? 0.00,
+                'duration' => $data['estimated_duration_minutes'] ?? $data['duration'] ?? 0.00,
+                'revenue' => $data['payout_amount'] ?? $data['rate'] ?? 0.00,
+                'base_amount' => $data['payout_amount'] ?? $data['rate'] ?? 0.00,
+            ]);
+            $metadata['driver_payout_amount'] = $metadata['driver_payout_amount'] ?? $payoutResult['payout'];
+            $metadata['driver_pricing_policy_id'] = $metadata['driver_pricing_policy_id'] ?? $payoutResult['policy_id'];
+            $metadata['driver_pricing_model'] = $metadata['driver_pricing_model'] ?? $payoutResult['payout_model'];
+        } catch (\Exception $e) {
+            Log::error("Failed to apply pricing policy at load creation: " . $e->getMessage());
+        }
+
+        $data['metadata'] = $metadata;
 
         return UrbanGoodzLoadBoardLoad::create($data);
     }
