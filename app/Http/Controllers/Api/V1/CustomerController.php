@@ -212,7 +212,7 @@ class CustomerController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
         $zone = Zone::whereContains('coordinates', new Point($request->latitude, $request->longitude, POINT_SRID))->get(['id']);
-        if (!$zone) {
+        if ($zone->isEmpty()) {
             $errors = [];
             array_push($errors, ['code' => 'coordinates', 'message' => translate('messages.service_not_available_in_this_area')]);
             return response()->json([
@@ -230,12 +230,12 @@ class CustomerController extends Controller
             'house' => $request->house,
             'longitude' => $request->longitude,
             'latitude' => $request->latitude,
-            'zone_id' => $zone[0]->id,
+            'zone_id' => $zone->first()->id,
             'created_at' => now(),
             'updated_at' => now()
         ];
         DB::table('customer_addresses')->where('id', $id)->update($address);
-        return response()->json(['message' => translate('messages.updated_successfully'), 'zone_id' => $zone[0]->id], 200);
+        return response()->json(['message' => translate('messages.updated_successfully'), 'zone_id' => $zone->first()->id], 200);
     }
 
     public function delete_address(Request $request)
@@ -942,6 +942,7 @@ class CustomerController extends Controller
             $driveMondBaseUrl = ExternalConfiguration::where('key', 'drivemond_base_url')->first()?->value;
             $driveMondToken = ExternalConfiguration::where('key', 'drivemond_token')->first()?->value;
             $systemSelfToken = ExternalConfiguration::where('key', 'system_self_token')->first()?->value;
+            $drivemondCustomerResponse = null;
             $response = Http::withToken($request->bearer_token)->post($driveMondBaseUrl . '/api/customer/get-data',
                 [
                     'token' => $driveMondToken,
@@ -975,13 +976,15 @@ class CustomerController extends Controller
                     }
                 }
             }
-            $drivemondCustomer = $drivemondCustomerResponse['data'];
-            if ($drivemondCustomer['error_code'] == 402) {
-                $data = [
-                    'status' => false,
-                    'data' => ['error_code' => 402, 'message' => "Drivemond user not found"]
-                ];
-                return response()->json($data);
+            if ($drivemondCustomerResponse !== null) {
+                $drivemondCustomer = $drivemondCustomerResponse['data'] ?? null;
+                if ($drivemondCustomer && ($drivemondCustomer['error_code'] ?? null) == 402) {
+                    $data = [
+                        'status' => false,
+                        'data' => ['error_code' => 402, 'message' => "Drivemond user not found"]
+                    ];
+                    return response()->json($data);
+                }
             }
 
         }

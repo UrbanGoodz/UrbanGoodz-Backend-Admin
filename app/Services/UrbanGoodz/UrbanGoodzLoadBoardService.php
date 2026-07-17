@@ -7,6 +7,7 @@ use App\Models\DeliveryMan;
 use App\Models\Order;
 use App\Services\UrbanGoodz\LoadBoard\DatAdapter;
 use App\Services\UrbanGoodz\LoadBoard\TruckstopAdapter;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -303,5 +304,15 @@ class UrbanGoodzLoadBoardService
             ->where('provider', '!=', 'internal')
             ->where('updated_at', '<', now()->subDays($days))
             ->delete();
+    }
+
+    public function getLastSync(string $key): ?array
+    {
+        return Cache::get("load_board_last_sync:{$key}");
+    }
+
+    public function getRateLimit(string $key): int
+    {
+        return (int) Cache::get("load_board_rate_limit:{$key}", 0);
     }
 }

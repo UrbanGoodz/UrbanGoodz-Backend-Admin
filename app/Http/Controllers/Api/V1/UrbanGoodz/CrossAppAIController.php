@@ -28,7 +28,9 @@ use App\Services\UrbanGoodz\DynamicPricingService;
 use App\Services\UrbanGoodz\FraudDetectionService;
 use App\Services\UrbanGoodz\SupportAIService;
 use App\Services\UrbanGoodz\NotificationAIService;
+use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -48,7 +50,8 @@ class CrossAppAIController extends Controller
         private DynamicPricingService $dynamicPricing,
         private FraudDetectionService $fraudService,
         private SupportAIService $supportAI,
-        private NotificationAIService $notificationAI
+        private NotificationAIService $notificationAI,
+        private UrbanGoodzLoadBoardService $loadBoardService
     ) {}
 
     // ─── CUSTOMER APP ENDPOINTS ────────────────────────────────────────────
@@ -1054,12 +1057,13 @@ class CrossAppAIController extends Controller
             ], 422);
         }
 
-        $result = $this->loadBoardService->syncFromProvider($data['source'], $data['full_sync'] ?? false);
+        $filters = ($data['full_sync'] ?? false) ? [] : ['limit' => 250];
+        $result = $this->loadBoardService->syncAllProviders($filters);
 
         return response()->json([
             'success' => true,
             'source' => $data['source'],
-            'result' => $result,
+            'result' => $result[$data['source']] ?? ['status' => 'skipped'],
         ]);
     }
 
