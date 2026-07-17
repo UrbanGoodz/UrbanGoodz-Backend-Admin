@@ -315,3 +315,47 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 ### Exact Next File/Test to Inspect
 - `app/Services/UrbanGoodz/DynamicPricingService.php`
 - `tests/Unit/NotificationAIServiceTest.php`
+
+---
+
+## PHASE 38: LOGISTICS BRANCH INTEGRATION (2026-07-17)
+
+**Repository:** `AdminPanel_Update_V39`
+**Branch:** `adminpanel-v39-backend-sprint`
+**HEAD (pre-merge-commit):** `8d36643`
+**Origin HEAD (pre-merge-commit):** `8d36643`
+**Merge Base (core vs logistics-e2e-sprint):** `0576608b4aec286fe362596db84b3c80f872251e`
+
+### Integration Method
+- Shared ancestry confirmed; executed direct merge of `logistics-e2e-sprint` into canonical backend.
+- Resolved conflicts by domain, preserving newer canonical backend behavior while accepting logistics load-sourcing and workflow surfaces.
+
+### Conflict Resolution Summary
+- `app/Console/Kernel.php`: preserved existing command registrations and added logistics scheduler commands.
+- `app/Http/Controllers/Admin/UrbanGoodzAdminController.php`: kept canonical live statuses while wiring logistics cards to load-board/medical-courier routes.
+- `app/Models/UrbanGoodzDriverEarning.php`: merged earning types and relationships (`order_id` + `load_id`).
+- `app/Services/UrbanGoodz/UrbanGoodzAIConciergeService.php`: merged customer-context AI prompt path with logistics contextual fallback responses.
+- `app/Services/UrbanGoodz/UrbanGoodzLoadBoardService.php`: merged logistics workflow transitions/bidding with centralized driver pricing payout integration and duplicate earning safeguards.
+- `database/seeders/DatabaseSeeder.php`: merged Driver Pricing seeder and logistics seeders.
+- `resources/views/admin-views/dashboard.blade.php`, `resources/views/admin-views/urban-goodz/dashboard.blade.php`: merged command-center and logistics dashboard card links/counts.
+
+### Focused Verification
+- `php -l` PASS for all conflict-resolved files + load-sourcing controllers/provider/migrations/tests.
+- `php artisan test tests/Unit/UrbanGoodzDriverPricingServiceTest.php` PASS (5 tests, 13 assertions).
+- `php artisan route:list --name=admin.urban-goodz.load-sourcing` PASS (21 routes).
+- `php artisan route:list --name=admin.urban-goodz.driver-pricing` PASS (8 routes).
+- `php artisan test tests/Feature/UrbanGoodzLoadSourcingTest.php tests/Feature/UrbanGoodzLoadBoardWorkflowTest.php` FAIL due local MySQL migration prerequisite (`zones` table missing before `customer_addresses` FK), not due merged logistics source syntax.
+
+### Deployment State
+- No deployment executed in this phase.
+
+### Blockers
+- Local MySQL test schema baseline missing prerequisite `zones` table for full load-sourcing/load-board feature tests.
+
+### Exact Next Command
+- `git commit -m "merge(logistics): integrate logistics-e2e-sprint into canonical backend" && git push origin adminpanel-v39-backend-sprint`
+
+### Exact Next File/Test to Inspect
+- `app/Services/UrbanGoodz/DynamicPricingService.php`
+- `app/Services/UrbanGoodz/FraudDetectionService.php`
+- `app/Services/UrbanGoodz/NotificationAIService.php`

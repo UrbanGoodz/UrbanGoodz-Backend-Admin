@@ -262,6 +262,7 @@ class UrbanGoodzDriverPricingService
                 'package_id' => $data['package_id'] ?? null,
                 'business_client_job_id' => $data['business_client_job_id'] ?? null,
                 'order_id' => $data['order_id'] ?? null,
+                'load_id' => $data['load_id'] ?? null,
                 'earning_type' => $type,
                 'amount' => $amount,
                 'currency' => $currency,

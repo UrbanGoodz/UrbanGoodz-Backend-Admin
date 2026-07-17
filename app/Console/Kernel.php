@@ -17,6 +17,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\CreateBusinessOwner::class,
         \App\Console\Commands\UrbanGoodzEcosystemTest::class,
         \App\Console\Commands\ToggleRecaptcha::class,
+        \App\Console\Commands\AiCopilotGenerateRecommendations::class,
+        \App\Console\Commands\SyncLoadBoard::class,
     ];
 
     /**

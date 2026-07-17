@@ -20,6 +20,9 @@ class DatabaseSeeder extends Seeder
             UrbanGoodzBusinessTypeSeeder::class,
             UrbanGoodzAIIntentSeeder::class,
             UrbanGoodzDriverPricingPolicySeeder::class,
+            UrbanGoodzLoadBoardSeeder::class,
+            UrbanGoodzPermissionRoleSeeder::class,
+            UrbanGoodzIngestionSeeder::class,
         ]);
     }
 }

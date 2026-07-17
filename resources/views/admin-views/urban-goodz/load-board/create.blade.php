@@ -111,6 +111,21 @@
                 </div>
             </div>
 
+            <div class="card mb-3">
+                <div class="card-header"><h5 class="mb-0">{{ translate('Financial Details') }}</h5></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3"><label class="form-label">{{ translate('Customer Price') }}</label><input type="number" name="customer_price" class="form-control" value="{{ old('customer_price') }}" step="0.01"></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Driver Payout') }}</label><input type="number" name="driver_payout_amount" class="form-control" value="{{ old('driver_payout_amount') }}" step="0.01"></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Dispatcher Incentive') }}</label><input type="number" name="dispatcher_incentive" class="form-control" value="{{ old('dispatcher_incentive') }}" step="0.01"></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Source Cost') }}</label><input type="number" name="source_cost" class="form-control" value="{{ old('source_cost') }}" step="0.01"></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Processing Fee') }}</label><input type="number" name="processing_fee" class="form-control" value="{{ old('processing_fee') }}" step="0.01"></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Accessorials') }}</label><input type="number" name="accessorials" class="form-control" value="{{ old('accessorials', 0) }}" step="0.01"></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Platform Margin') }}</label><input type="number" name="platform_margin" class="form-control" value="{{ old('platform_margin') }}" step="0.01"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn--primary"><i class="tio-checkmark-circle"></i> {{ translate('Create Load') }}</button>
                 <a href="{{ route('admin.urban-goodz.load-board.index') }}" class="btn btn-secondary">{{ translate('Cancel') }}</a>

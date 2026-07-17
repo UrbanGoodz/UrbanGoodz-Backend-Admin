@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DeliveryMan;
 use App\Models\UrbanGoodzBusinessClientUser;
 use App\Models\UrbanGoodzDispatchCommission;
+use App\Models\UrbanGoodzDispatchAuditLog;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Illuminate\Http\Request;
@@ -204,6 +205,17 @@ class DispatcherPortalController extends Controller
             'assigned_by' => null,
         ]);
 
+        UrbanGoodzDispatchAuditLog::log(
+            $this->companyId(),
+            $this->user()->id,
+            $load->id,
+            'driver_assigned',
+            null,
+            (string) $request->driver_id,
+            ['driver_id' => $request->driver_id, 'driver_name' => $driver->f_name . ' ' . $driver->l_name],
+            "Driver assigned to load {$load->load_number}"
+        );
+
         if ($load->payout_amount > 0 && $load->dispatch_company_id) {
             $commissionRate = $this->user()->client->dispatch_default_commission_rate ?? 15.00;
             $commissionAmount = round($load->payout_amount * ($commissionRate / 100), 2);
@@ -222,6 +234,17 @@ class DispatcherPortalController extends Controller
                 'commission_rate' => $commissionRate,
                 'commission_amount' => $commissionAmount,
             ]);
+
+            UrbanGoodzDispatchAuditLog::log(
+                $this->companyId(),
+                $this->user()->id,
+                $load->id,
+                'commission_created',
+                null,
+                (string) $commissionAmount,
+                ['rate' => $commissionRate, 'amount' => $commissionAmount],
+                "Commission created: \${$commissionAmount} at {$commissionRate}%"
+            );
         }
 
         Toast::success(translate('Driver assigned successfully'));
@@ -241,6 +264,7 @@ class DispatcherPortalController extends Controller
         ]);
 
         $driverId = $load->assigned_driver_id;
+        $oldStatus = $load->status;
 
         $result = $service->updateStatus($id, $request->status, $driverId);
 
@@ -248,6 +272,17 @@ class DispatcherPortalController extends Controller
             Toast::error(translate('Invalid status transition'));
             return redirect()->back();
         }
+
+        UrbanGoodzDispatchAuditLog::log(
+            $this->companyId(),
+            $this->user()->id,
+            $load->id,
+            'status_changed',
+            $oldStatus,
+            $request->status,
+            ['driver_id' => $driverId],
+            "Load status changed from {$oldStatus} to {$request->status}"
+        );
 
         Toast::success(translate('Load status updated'));
         return redirect()->route('dispatcher.loads.show', $id);

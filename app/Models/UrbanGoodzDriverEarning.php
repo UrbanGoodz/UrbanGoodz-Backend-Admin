@@ -21,12 +21,14 @@ class UrbanGoodzDriverEarning extends Model
         'medical_courier',
         'order_anywhere',
         'returns_exceptions',
+        'load_board_delivery',
     ];
 
     const STATUSES = ['pending', 'approved', 'paid', 'held', 'disputed'];
 
     protected $fillable = [
         'delivery_man_id', 'business_client_job_id', 'package_id', 'dedicated_route_id', 'order_id',
+        'load_id',
         'earning_type', 'amount', 'currency', 'status',
         'description', 'approved_by', 'approved_at', 'paid_at',
     ];
@@ -60,6 +62,11 @@ class UrbanGoodzDriverEarning extends Model
     public function order()
     {
         return $this->belongsTo(Order::class, 'order_id');
+    }
+
+    public function loadBoardLoad()
+    {
+        return $this->belongsTo(UrbanGoodzLoadBoardLoad::class, 'load_id');
     }
 
     public function approver()

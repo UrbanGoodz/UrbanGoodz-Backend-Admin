@@ -13,6 +13,7 @@ use App\Models\UrbanGoodzRouteOptimizationStop;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
 use App\Models\UrbanGoodzClientInvoice;
+use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\DeliveryMan;
 use App\Models\Admin;
 use App\Services\UrbanGoodzDriverDispatchNotificationService;
@@ -286,27 +287,34 @@ class UrbanGoodzDedicatedRouteController extends Controller
         ]);
 
         $package = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->findOrFail($packageId);
-        $package->status = $data['status'];
+
+        $validTransitions = [
+            'pending' => ['picked_up', 'failed', 'return_required', 'admin_review'],
+            'picked_up' => ['in_transit', 'delivered', 'failed', 'return_required'],
+            'in_transit' => ['delivered', 'failed', 'return_required'],
+            'delivered' => ['completed'],
+            'failed' => ['pending', 'picked_up', 'return_required'],
+            'return_required' => ['returning_to_pickup', 'returning_to_hub'],
+            'returning_to_pickup' => ['returned_to_pickup'],
+            'returning_to_hub' => ['returned_to_hub'],
+            'returning_to_business' => ['returned_to_business'],
+        ];
+
+        $currentStatus = $package->status;
+        $newStatus = $data['status'];
+
+        if (isset($validTransitions[$currentStatus]) && !in_array($newStatus, $validTransitions[$currentStatus])) {
+            Toastr::error(translate('Invalid status transition from') . " {$currentStatus} " . translate('to') . " {$newStatus}");
+            return back();
+        }
+
+        $package->status = $newStatus;
         $package->exception_reason = $data['exception_reason'] ?? $package->exception_reason;
         $package->notes = $data['notes'] ?? $package->notes;
 
-        if ($data['status'] === 'delivered') {
+        if ($newStatus === 'delivered') {
             $package->dropoff_scanned_at = now();
             $package->dropoff_scanned_by = auth('admin')->id();
-
-            $route = $package->route;
-            if ($route) {
-                $route->increment('completed_packages');
-            }
-        }
-
-        if ($data['status'] === 'failed') {
-            $package->exception_reason = $data['exception_reason'] ?? 'Manual exception by admin';
-
-            $route = $package->route;
-            if ($route) {
-                $route->increment('failed_packages');
-            }
         }
 
         $package->save();
@@ -353,14 +361,176 @@ class UrbanGoodzDedicatedRouteController extends Controller
 
         UrbanGoodzPackageScan::create([
             'package_id' => $package->id,
-            'scan_type' => $data['status'] === 'delivered' ? 'dropoff' : ($data['status'] === 'failed' ? 'exception' : $data['status']),
+            'scan_type' => match ($newStatus) {
+                'delivered' => 'dropoff',
+                'failed' => 'exception',
+                'return_required', 'returning_to_pickup', 'returning_to_hub' => 'return_scan',
+                default => 'admin_override',
+            },
             'scanned_by' => auth('admin')->id(),
             'scanner_type' => 'admin',
             'notes' => $data['notes'] ?? null,
             'exception_reason' => $data['exception_reason'] ?? null,
         ]);
 
+        $route = $package->route;
+        if ($route) {
+            if ($newStatus === 'delivered' && $currentStatus !== 'delivered') {
+                $route->increment('completed_packages');
+            }
+            if ($newStatus === 'failed' && $currentStatus !== 'failed') {
+                $route->increment('failed_packages');
+            }
+            if ($newStatus === 'return_required' || str_starts_with($newStatus, 'returning_')) {
+                $route->increment('returned_packages');
+            }
+        }
+
         Toastr::success(translate('Package status updated'));
+        return back();
+    }
+
+    public function markMissing($routeId, $packageId, Request $request)
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $package = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->findOrFail($packageId);
+
+        if (in_array($package->status, ['delivered', 'return_required', 'returning_to_pickup', 'returning_to_hub'])) {
+            Toastr::error(translate('Cannot mark package as missing in current status'));
+            return back();
+        }
+
+        $package->status = 'failed';
+        $package->exception_reason = 'Missing package: ' . $data['reason'];
+        $package->save();
+
+        UrbanGoodzPackageScan::create([
+            'package_id' => $package->id,
+            'scan_type' => 'exception',
+            'scanned_by' => auth('admin')->id(),
+            'scanner_type' => 'admin',
+            'exception_reason' => 'Missing package: ' . $data['reason'],
+            'notes' => $data['reason'],
+        ]);
+
+        $route = $package->route;
+        if ($route) {
+            $route->increment('failed_packages');
+        }
+
+        Toastr::success(translate('Package marked as missing'));
+        return back();
+    }
+
+    public function initiateReturn($routeId, $packageId, Request $request)
+    {
+        $data = $request->validate([
+            'return_location' => ['required', 'string', 'in:pickup,hub,business'],
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $package = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->findOrFail($packageId);
+
+        if (in_array($package->status, ['pending', 'return_required', 'returning_to_pickup', 'returning_to_hub'])) {
+            Toastr::error(translate('Package cannot be returned in current status'));
+            return back();
+        }
+
+        $returnStatus = match ($data['return_location']) {
+            'pickup' => 'returning_to_pickup',
+            'hub' => 'returning_to_hub',
+            'business' => 'returning_to_business',
+        };
+
+        $package->status = $returnStatus;
+        $package->return_required = true;
+        $package->return_location = $data['return_location'];
+        $package->exception_reason = 'Return initiated: ' . $data['reason'];
+        $package->save();
+
+        UrbanGoodzPackageScan::create([
+            'package_id' => $package->id,
+            'scan_type' => 'return_scan',
+            'scanned_by' => auth('admin')->id(),
+            'scanner_type' => 'admin',
+            'exception_reason' => 'Return initiated: ' . $data['reason'],
+        ]);
+
+        $route = $package->route;
+        if ($route) {
+            $route->increment('returned_packages');
+            if ($route->return_to_sender_pay > 0) {
+                if ($route->assigned_driver_id) {
+                    UrbanGoodzDriverEarning::create([
+                        'delivery_man_id' => $route->assigned_driver_id,
+                        'package_id' => $package->id,
+                        'dedicated_route_id' => $routeId,
+                        'earning_type' => 'return_pay',
+                        'amount' => $route->return_to_sender_pay,
+                        'status' => 'pending',
+                        'description' => 'Return pay for package ' . $package->tracking_id,
+                    ]);
+                }
+            }
+        }
+
+        Toastr::success(translate('Return initiated for package'));
+        return back();
+    }
+
+    public function completeRoute($id, Request $request)
+    {
+        $route = UrbanGoodzDedicatedRoute::findOrFail($id);
+
+        if (!in_array($route->status, ['active', 'in_progress'])) {
+            Toastr::error(translate('Route is not in an active state'));
+            return back();
+        }
+
+        $pendingPackages = UrbanGoodzRoutePackage::where('dedicated_route_id', $id)
+            ->whereIn('status', ['pending', 'picked_up', 'in_transit', 'ready_for_route'])
+            ->count();
+
+        if ($pendingPackages > 0 && !$request->boolean('force_complete')) {
+            Toastr::error(translate('Route has') . " {$pendingPackages} " . translate('pending packages. Use force_complete to override.'));
+            return back();
+        }
+
+        $route->update([
+            'status' => 'completed',
+            'route_completed_at' => now(),
+        ]);
+
+        UrbanGoodzRouteAssignment::where('dedicated_route_id', $id)
+            ->where('delivery_man_id', $route->assigned_driver_id)
+            ->update([
+                'status' => 'completed',
+                'route_completed_at' => now(),
+            ]);
+
+        UrbanGoodzRouteBatch::where('dedicated_route_id', $id)
+            ->where('status', 'in_transit')
+            ->update(['status' => 'completed', 'completed_at' => now()]);
+
+        if ($route->assigned_driver_id && $route->route_completion_bonus > 0) {
+            UrbanGoodzDriverEarning::create([
+                'delivery_man_id' => $route->assigned_driver_id,
+                'dedicated_route_id' => $id,
+                'earning_type' => 'completion_bonus',
+                'amount' => $route->route_completion_bonus,
+                'status' => 'pending',
+                'description' => 'Route completion bonus: ' . $route->route_name,
+            ]);
+        }
+
+        $completedPackages = UrbanGoodzRoutePackage::where('dedicated_route_id', $id)->delivered()->count();
+        $failedPackages = UrbanGoodzRoutePackage::where('dedicated_route_id', $id)->failed()->count();
+        $totalPackages = $route->total_packages;
+
+        Toastr::success(translate('Route completed') . ": {$completedPackages}/{$totalPackages} " . translate('packages delivered') . ", {$failedPackages} " . translate('failed'));
         return back();
     }
 
@@ -585,6 +755,33 @@ class UrbanGoodzDedicatedRouteController extends Controller
                 'status' => 'paid',
                 'paid_at' => now(),
             ]);
+
+        $idempotencyKey = "driver_payout_{$payout->id}";
+        $existingLedger = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
+        if (!$existingLedger) {
+            UrbanGoodzPaymentLedger::create([
+                'ledger_number' => UrbanGoodzPaymentLedger::nextLedgerNumber(),
+                'feature' => 'driver_payout',
+                'payable_type' => DeliveryMan::class,
+                'payable_id' => $payout->delivery_man_id,
+                'event_type' => 'payout_completed',
+                'direction' => 'outbound',
+                'amount' => $payout->net_amount,
+                'currency' => 'USD',
+                'payment_method' => $payout->payout_type,
+                'payment_status' => 'completed',
+                'idempotency_key' => $idempotencyKey,
+                'delivery_man_id' => $payout->delivery_man_id,
+                'created_by_admin_id' => auth('admin')->id(),
+                'metadata' => [
+                    'payout_id' => $payout->id,
+                    'requested_amount' => $payout->requested_amount,
+                    'instant_fee' => $payout->instant_fee,
+                    'net_amount' => $payout->net_amount,
+                    'payout_type' => $payout->payout_type,
+                ],
+            ]);
+        }
 
         Toastr::success(translate('Payout marked as paid'));
         return back();
