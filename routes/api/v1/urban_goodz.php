@@ -54,9 +54,17 @@ Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'th
     Route::get('{record}', 'Api\V1\UrbanGoodzOpportunityController@event');
     Route::post('{record}/interest', 'Api\V1\UrbanGoodzOpportunityController@eventInterest');
     Route::post('{record}/vendor-opportunity', 'Api\V1\UrbanGoodzOpportunityController@eventVendorOpportunity');
-Route::post('{record}/creator-opportunity', 'Api\V1\UrbanGoodzOpportunityController@eventCreatorOpportunity');
-        Route::post('{record}/logistics-support', 'Api\V1\UrbanGoodzOpportunityController@eventLogisticsSupport');
-    });
+    Route::post('{record}/creator-opportunity', 'Api\V1\UrbanGoodzOpportunityController@eventCreatorOpportunity');
+    Route::post('{record}/logistics-support', 'Api\V1\UrbanGoodzOpportunityController@eventLogisticsSupport');
+});
+
+Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('featured-reels', 'Api\V1\CreatorCommerceTesterController@featuredReels');
+    Route::get('customer/applications', 'Api\V1\CreatorCommerceTesterController@customerApplications');
+    Route::post('applications', 'Api\V1\CreatorCommerceTesterController@storeApplication');
+    Route::get('promotions', 'Api\V1\CreatorCommerceTesterController@promotions');
+    Route::post('promotions', 'Api\V1\CreatorCommerceTesterController@storePromotion');
+});
 
     // Creator Space AI
     Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {

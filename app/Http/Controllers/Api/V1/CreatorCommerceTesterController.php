@@ -3,119 +3,266 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\UrbanGoodzCreatorApplication;
+use App\Models\UrbanGoodzCreatorContent;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
 
 class CreatorCommerceTesterController extends Controller
 {
-    private const APPLICATION_FILE = 'app/urban_goodz_tester/creator_applications.json';
-    private const PROMOTION_FILE = 'app/urban_goodz_tester/creator_promotions.json';
-
-    public function customerApplications()
+    public function customerApplications(Request $request)
     {
-        return response()->json(['success' => true, 'data' => array_values($this->records(self::APPLICATION_FILE))]);
+        [$email, $phone] = $this->identity($request);
+
+        $records = UrbanGoodzCreatorApplication::query()
+            ->when($email || $phone, function ($query) use ($email, $phone) {
+                $query->where(function ($q) use ($email, $phone) {
+                    if ($email) {
+                        $q->orWhere('email', $email);
+                    }
+                    if ($phone) {
+                        $q->orWhere('phone', $phone);
+                    }
+                });
+            })
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $records,
+        ]);
     }
 
-    public function adminApplications()
+    public function featuredReels(Request $request)
     {
-        return $this->customerApplications();
+        $limit = max(1, min((int) $request->input('limit', 20), 50));
+
+        $records = UrbanGoodzCreatorContent::query()
+            ->with(['profile:id,display_name', 'application:id,creator_name'])
+            ->where(function ($query) {
+                $query->where('is_featured', true)
+                    ->orWhere('is_published', true)
+                    ->orWhere('status', 'published');
+            })
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(function (UrbanGoodzCreatorContent $content) {
+                $creatorName = trim((string) ($content->profile?->display_name ?: $content->application?->creator_name ?: 'Urban Goodz Creator'));
+
+                return [
+                    'id' => $content->id,
+                    'title' => $content->title,
+                    'creator_name' => $creatorName,
+                    'product_name' => $content->linked_vendor_name ?: $content->title,
+                    'price_label' => $content->cta_label ?: 'See details',
+                    'likes' => (int) $content->likes_count,
+                    'views' => (int) $content->clicks_count,
+                    'featured' => (bool) $content->is_featured,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $records,
+        ]);
     }
 
     public function storeApplication(Request $request)
     {
-        $record = $this->makeRecord($request->all(), [
-            'status' => 'submitted',
-            'admin_notes' => null,
+        [$email, $phone] = $this->identity($request);
+
+        $data = $request->validate([
+            'creator_name' => ['required_without:name', 'nullable', 'string', 'max:255'],
+            'name' => ['required_without:creator_name', 'nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'platform' => ['nullable', 'string', 'max:100'],
+            'username' => ['nullable', 'string', 'max:255'],
+            'follower_count' => ['nullable', 'integer', 'min:0'],
+            'bio' => ['nullable', 'string'],
+            'bio_pitch' => ['nullable', 'string'],
+            'niche' => ['nullable', 'string', 'max:255'],
+            'niche_category' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'market' => ['nullable', 'string', 'max:255'],
+            'social_links' => ['nullable'],
+            'social_link' => ['nullable', 'string', 'max:2000'],
+            'content_samples' => ['nullable'],
+            'sell_promote' => ['nullable', 'string'],
         ]);
-        $records = $this->records(self::APPLICATION_FILE);
-        $records[$record['id']] = $record;
-        $this->save(self::APPLICATION_FILE, $records);
+
+        $socialLinks = $this->normalizeToArray($data['social_links'] ?? null);
+        if (!empty($data['social_link'])) {
+            $socialLinks[] = $data['social_link'];
+        }
+
+        $contentSamples = $this->normalizeToArray($data['content_samples'] ?? null);
+        if (!empty($data['sell_promote'])) {
+            $contentSamples[] = $data['sell_promote'];
+        }
+
+        $application = UrbanGoodzCreatorApplication::create([
+            'creator_name' => $data['creator_name'] ?? $data['name'],
+            'email' => $data['email'] ?? $email,
+            'phone' => $data['phone'] ?? $phone,
+            'platform' => $data['platform'] ?? 'customer_app',
+            'username' => $data['username'] ?? null,
+            'follower_count' => $data['follower_count'] ?? 0,
+            'bio' => $data['bio'] ?? $data['bio_pitch'] ?? null,
+            'status' => 'pending',
+            'admin_notes' => null,
+            'niche' => $data['niche'] ?? $data['niche_category'] ?? null,
+            'city' => $data['city'] ?? null,
+            'market' => $data['market'] ?? null,
+            'social_links' => $socialLinks ?: null,
+            'content_samples' => $contentSamples ?: null,
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Creator application submitted for admin review.',
-            'data' => $record,
+            'data' => $application,
         ], 201);
     }
 
     public function storePromotion(Request $request)
     {
-        $record = $this->makeRecord($request->all(), [
+        [$email, $phone] = $this->identity($request);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'promotion_type' => ['nullable', 'string', 'max:255'],
+            'details' => ['nullable', 'string'],
+            'creator_application_id' => ['nullable', 'integer', 'exists:urban_goodz_creator_applications,id'],
+        ]);
+
+        $applicationId = $data['creator_application_id'] ?? UrbanGoodzCreatorApplication::query()
+            ->when($email || $phone, function ($query) use ($email, $phone) {
+                $query->where(function ($q) use ($email, $phone) {
+                    if ($email) {
+                        $q->orWhere('email', $email);
+                    }
+                    if ($phone) {
+                        $q->orWhere('phone', $phone);
+                    }
+                });
+            })
+            ->latest('id')
+            ->value('id');
+
+        $promotion = UrbanGoodzCreatorContent::create([
+            'creator_application_id' => $applicationId,
+            'title' => $data['title'],
+            'description' => $data['details'] ?? null,
+            'content_type' => 'promotion',
+            'linked_vendor_type' => $data['promotion_type'] ?? null,
             'status' => 'submitted',
+            'is_published' => false,
+            'is_featured' => false,
             'admin_notes' => null,
         ]);
-        $records = $this->records(self::PROMOTION_FILE);
-        $records[$record['id']] = $record;
-        $this->save(self::PROMOTION_FILE, $records);
 
         return response()->json([
             'success' => true,
             'message' => 'Creator promotion submitted for admin review.',
-            'data' => $record,
+            'data' => $promotion,
         ], 201);
     }
 
-    public function promotions()
+    public function promotions(Request $request)
     {
-        return response()->json(['success' => true, 'data' => array_values($this->records(self::PROMOTION_FILE))]);
+        [$email, $phone] = $this->identity($request);
+
+        $records = UrbanGoodzCreatorContent::query()
+            ->where('content_type', 'promotion')
+            ->when($email || $phone, function ($query) use ($email, $phone) {
+                $query->whereHas('application', function ($q) use ($email, $phone) {
+                    if ($email) {
+                        $q->orWhere('email', $email);
+                    }
+                    if ($phone) {
+                        $q->orWhere('phone', $phone);
+                    }
+                });
+            })
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $records,
+        ]);
+    }
+
+    public function adminApplications(Request $request)
+    {
+        $records = UrbanGoodzCreatorApplication::query()->latest()->paginate(25);
+
+        return response()->json([
+            'success' => true,
+            'data' => $records,
+        ]);
     }
 
     public function updateApplicationStatus(Request $request, $record)
     {
-        return $this->update(self::APPLICATION_FILE, $record, [
-            'status' => $request->input('status', 'under_review'),
-            'admin_notes' => $request->input('admin_notes'),
+        $data = $request->validate([
+            'status' => ['nullable', 'string', 'max:100'],
+            'admin_notes' => ['nullable', 'string'],
         ]);
+
+        $application = UrbanGoodzCreatorApplication::query()->findOrFail($record);
+        $application->status = $data['status'] ?? 'under_review';
+        $application->admin_notes = $data['admin_notes'] ?? $application->admin_notes;
+        $application->save();
+
+        return response()->json(['success' => true, 'data' => $application]);
     }
 
     public function updatePromotionStatus(Request $request, $record)
     {
-        return $this->update(self::PROMOTION_FILE, $record, [
-            'status' => $request->input('status', 'under_review'),
-            'admin_notes' => $request->input('admin_notes'),
+        $data = $request->validate([
+            'status' => ['nullable', 'string', 'max:100'],
+            'admin_notes' => ['nullable', 'string'],
         ]);
+
+        $promotion = UrbanGoodzCreatorContent::query()->where('content_type', 'promotion')->findOrFail($record);
+        $promotion->status = $data['status'] ?? 'under_review';
+        $promotion->admin_notes = $data['admin_notes'] ?? $promotion->admin_notes;
+        $promotion->save();
+
+        return response()->json(['success' => true, 'data' => $promotion]);
     }
 
-    private function makeRecord(array $payload, array $defaults): array
+    private function identity(Request $request): array
     {
-        $now = now()->toIso8601String();
-        return array_merge($defaults, $payload, [
-            'id' => (string)($payload['id'] ?? 'creator_' . now()->format('YmdHis') . '_' . random_int(1000, 9999)),
-            'created_at' => $payload['created_at'] ?? $now,
-            'updated_at' => $now,
-        ]);
+        $user = $request->user();
+
+        return [
+            $user?->email,
+            $user?->phone,
+        ];
     }
 
-    private function update(string $file, string $id, array $changes)
+    private function normalizeToArray(mixed $value): array
     {
-        $records = $this->records($file);
-        if (!isset($records[$id])) {
-            return response()->json(['success' => false, 'message' => 'Record not found'], 404);
-        }
-
-        $records[$id] = array_merge($records[$id], array_filter($changes, fn ($value) => $value !== null), [
-            'updated_at' => now()->toIso8601String(),
-        ]);
-        $this->save($file, $records);
-
-        return response()->json(['success' => true, 'data' => $records[$id]]);
-    }
-
-    private function records(string $file): array
-    {
-        $path = storage_path($file);
-        if (!File::exists($path)) {
+        if ($value === null || $value === '') {
             return [];
         }
+        if (is_array($value)) {
+            return array_values(array_filter($value, fn ($item) => $item !== null && $item !== ''));
+        }
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return array_values(array_filter($decoded, fn ($item) => $item !== null && $item !== ''));
+            }
 
-        $decoded = json_decode(File::get($path), true);
-        return is_array($decoded) ? $decoded : [];
-    }
+            return [$value];
+        }
 
-    private function save(string $file, array $records): void
-    {
-        $path = storage_path($file);
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, json_encode($records, JSON_PRETTY_PRINT));
+        return [];
     }
 }
