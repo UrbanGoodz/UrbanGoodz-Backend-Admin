@@ -619,3 +619,31 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 
 ### Exact Continuation Point
 - After corrected backup/deploy succeeds, verify canonical logistics gates on live: expected route surfaces for `admin.urban-goodz.load-sourcing`, `admin.urban-goodz.load-board`, and `admin.urban-goodz.driver-pricing`; then proceed to authenticated Customer → Vendor → Driver runtime sequence.
+
+---
+
+## PHASE 46: CPANEL DEPLOY RESUME ATTEMPT + SAFE NEXT STEP (2026-07-17)
+
+### Operator Output Received
+- Deploy resume script now successfully checks out canonical commit and creates DB backup:
+  - `Repo HEAD => ef60ea1`
+  - backup created under `/home/urbakkej/backups/deploy_ef60ea1_resume_20260717_204938`
+- Deploy then fails at full migrate command:
+  - `php artisan migrate --force`
+  - error: `SQLSTATE[42S01] Table 'users' already exists` on `2014_10_12_000000_create_users_table`
+
+### Interpretation
+- Server repo is on target commit, but full baseline migration replay is unsafe on this live schema.
+- Continue with targeted migration paths required for current logistics release gates instead of replaying all historical migrations.
+
+### Exact Next Command (cPanel)
+- Run only required canonical logistics migrations and then verify route/API gates:
+  - `php artisan migrate --force --path=database/migrations/2026_07_12_200000_add_financial_workflow_to_load_board_loads.php`
+  - `php artisan migrate --force --path=database/migrations/2026_07_13_100000_create_load_sourcing_system_tables.php`
+  - `php artisan migrate --force --path=database/migrations/2026_07_17_100000_create_urban_goodz_driver_pricing_policies_table.php`
+  - `php artisan route:list --name=admin.urban-goodz.load-sourcing`
+  - `php artisan route:list --name=admin.urban-goodz.load-board`
+  - `php artisan route:list --name=admin.urban-goodz.driver-pricing`
+
+### Continuation Point
+- After targeted migration run + route verification, proceed with authenticated runtime checks for Customer → Vendor → Driver sequence.
