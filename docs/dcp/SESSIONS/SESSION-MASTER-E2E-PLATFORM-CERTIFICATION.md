@@ -590,3 +590,32 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 
 ### Exact Continuation Point
 - Obtain/paste cPanel terminal output for commit SHA + migrate + route checks; once confirmed, proceed directly to deeper Customer → Vendor → Driver authenticated runtime checks.
+
+---
+
+## PHASE 45: CPANEL EXECUTION EVIDENCE + DEPLOY BLOCKER ROOT CAUSE (2026-07-17)
+
+### Operator-Provided cPanel Evidence
+- Repo checkout on server confirmed: `REPO_HEAD=ef60ea1`.
+- Live API checks from cPanel host:
+  - `config => 200`
+  - `categories => 200`
+  - `banners => 200`
+  - `stores => 200`
+- Existing backup directory created: `/home/urbakkej/backups/deploy_ef60ea1_20260717_203126`.
+
+### Deployment Attempt Outcome
+- Deploy script reached checkout and file-backup steps.
+- Script aborted at DB backup step:
+  - `mysqldump ... Access denied for user ...`
+- Root cause: DB password contains `#`; writing unquoted password into `.cnf` causes truncation/comment parsing by MySQL client.
+
+### Current Live State (from cPanel output)
+- Migrations shown as applied up to `2026_07_16_160000...` in provided status tail.
+- Route count probes currently below expected canonical surfaces (`load-sourcing`, `load-board`, `driver-pricing`) indicating full deploy/migration completion for canonical logistics scope is not yet confirmed.
+
+### Exact Next Command
+- Re-run deploy continuation with corrected DB credential quoting in MySQL client config, then complete rsync + `php artisan migrate --force` + focused route checks.
+
+### Exact Continuation Point
+- After corrected backup/deploy succeeds, verify canonical logistics gates on live: expected route surfaces for `admin.urban-goodz.load-sourcing`, `admin.urban-goodz.load-board`, and `admin.urban-goodz.driver-pricing`; then proceed to authenticated Customer → Vendor → Driver runtime sequence.
