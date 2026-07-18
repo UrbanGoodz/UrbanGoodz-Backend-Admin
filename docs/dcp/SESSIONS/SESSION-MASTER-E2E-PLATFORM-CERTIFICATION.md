@@ -565,3 +565,28 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 
 ### Exact Continuation Point
 - Need reachable cPanel shell path (host/port allowlist or operator-run deployment output) to deploy canonical commit `ef60ea1`, then execute live post-deploy verification and continue Customer → Vendor → Driver sequence.
+
+---
+
+## PHASE 44: LIVE APP SEQUENCE CHECKS (READ-ONLY) (2026-07-17)
+
+**Scope:** Continue highest-value release gates without shell access by validating public and auth-gated API behavior for Customer, Vendor, and Driver app surfaces.
+
+### Customer (Live)
+- `GET /api/v1/config` → 200
+- `GET /api/v1/categories` → 200
+- `GET /api/v1/banners` → 200
+- `GET /api/v1/stores/get-stores/all?offset=1&limit=5` → 200 (store payload returned)
+
+### Vendor (Live)
+- `GET /api/v1/vendor/profile` with `Accept: application/json` and no auth token → 401 (expected auth gate)
+
+### Driver (Live)
+- `GET /api/v1/urban-goodz/driver/capability-profile` with `Accept: application/json` and no auth token → 401 (expected auth gate)
+- `GET /api/v1/urban-goodz/driver/vehicle-options` with `Accept: application/json` → 200 (expected public registration helper endpoint)
+
+### Current Blocker
+- Deploy verification gate still blocked by missing cPanel command output proving live checkout at canonical commit `ef60ea1` and successful migration run on server.
+
+### Exact Continuation Point
+- Obtain/paste cPanel terminal output for commit SHA + migrate + route checks; once confirmed, proceed directly to deeper Customer → Vendor → Driver authenticated runtime checks.
