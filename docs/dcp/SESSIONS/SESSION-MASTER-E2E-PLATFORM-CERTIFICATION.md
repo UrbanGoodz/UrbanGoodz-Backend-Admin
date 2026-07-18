@@ -539,3 +539,29 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 
 ### Exact Continuation Point
 - Once SSH/cPanel access is available, deploy commit `ef60ea1` using the established cPanel procedure, then run live API/store-data verification and proceed to Customer → Vendor → Driver sequential gates.
+
+---
+
+## PHASE 43: SSH KEY RETRY + LIVE STORE DATA CHECK (2026-07-17)
+
+**Repository:** `AdminPanel_Update_V39`
+**Branch:** `adminpanel-v39-backend-sprint`
+**HEAD:** `09a4e80`
+
+### Completed
+- Retried SSH access with provided OpenSSH private key (`id_rsa_lf`) and strict non-interactive options:
+  - `ssh -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=12 -i id_rsa_lf urbakkej@admin.urbangoodzdelivery.com "echo connected"`
+- Result remains network timeout on port 22 (no shell access from current environment).
+
+### Live API and Store Data Verification (Read-only)
+- `GET /api/v1/config` → HTTP 200
+- `GET /api/v1/categories` → HTTP 200
+- `GET /api/v1/banners` → HTTP 200
+- `GET /api/v1/stores/get-stores/all?offset=1&limit=5` → HTTP 200
+- Response confirms live store payload present (sample: `total_size: 51`, store records returned).
+
+### Blocker
+- Deploy gate still blocked by unreachable SSH/cPanel terminal from this runner.
+
+### Exact Continuation Point
+- Need reachable cPanel shell path (host/port allowlist or operator-run deployment output) to deploy canonical commit `ef60ea1`, then execute live post-deploy verification and continue Customer → Vendor → Driver sequence.
