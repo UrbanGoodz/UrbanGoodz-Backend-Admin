@@ -647,3 +647,60 @@ Next: Phase 32 (Measurement Profile auth verification), Phase 30 (AI service uni
 
 ### Continuation Point
 - After targeted migration run + route verification, proceed with authenticated runtime checks for Customer → Vendor → Driver sequence.
+
+---
+
+## PHASE 47: CPANEL TARGETED MIGRATIONS APPLIED + ROUTE GATES RESTORED (2026-07-17)
+
+### Operator-Executed cPanel Results
+- `php artisan optimize:clear` executed successfully.
+- Targeted canonical migrations applied successfully on live:
+  - `2026_07_12_200000_add_financial_workflow_to_load_board_loads` DONE
+  - `2026_07_13_100000_create_load_sourcing_system_tables` DONE
+  - `2026_07_17_100000_create_urban_goodz_driver_pricing_policies_table` DONE
+
+### Canonical Route Gate Verification (Live)
+- `load_sourcing_routes => 21`
+- `load_board_routes => 16`
+- `driver_pricing_routes => 8`
+
+### Live API/Store Checks (Live)
+- `config => 200`
+- `categories => 200`
+- `banners => 200`
+- `stores => 200`
+
+### Deploy State
+- Canonical backend commit `ef60ea1` confirmed on cPanel repo.
+- Logistics backend release gates are now restored and live-check healthy.
+
+### Exact Continuation Point
+- Proceed to Customer → Vendor → Driver runtime sequence checks (authenticated where required).
+
+---
+
+## PHASE 48: CUSTOMER->VENDOR->DRIVER SEQUENCE CHECKS (UNAUTH/READ-ONLY BASELINE) (2026-07-17)
+
+### Customer
+- Public endpoints healthy:
+  - `GET /api/v1/config` → 200
+  - `GET /api/v1/categories` → 200
+  - `GET /api/v1/stores/get-stores/all?offset=1&limit=5` → 200
+- Auth gate healthy:
+  - `GET /api/v1/customer/info` (no token, JSON accept) → 401
+
+### Vendor
+- Auth gate healthy:
+  - `GET /api/v1/vendor/profile` (no token, JSON accept) → 401
+
+### Driver
+- Public registration helper healthy:
+  - `GET /api/v1/urban-goodz/driver/vehicle-options` → 200
+- Auth gate healthy:
+  - `GET /api/v1/urban-goodz/driver/active-jobs` (no token, JSON accept) → 401
+
+### Remaining Blocker
+- Authenticated runtime checks require valid app tokens/credentials for customer, vendor, and driver accounts.
+
+### Exact Continuation Point
+- Run authenticated API smoke checks for Customer → Vendor → Driver using known staging/live test accounts and verify core flows end-to-end.
