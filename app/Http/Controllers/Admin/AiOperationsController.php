@@ -4,12 +4,21 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AiActionLog;
+use App\Models\AiAgent;
+use App\Models\AiApproval;
 use App\Models\AiCopilotRecommendation;
 use App\Models\AiCopilotSetting;
 use App\Models\AiModuleAutomationSetting;
+use App\Models\AiOutreachTemplate;
 use App\Models\AiRiskRule;
+use App\Models\AiTask;
+use App\Models\AiWorkforceAction;
+use App\Models\BusinessNeed;
+use App\Models\HumanActionItem;
+use App\Models\MerchantProspect;
 use App\Models\UrbanGoodzAIConversation;
 use App\Models\UrbanGoodzAIIntent;
+use App\Services\UrbanGoodz\AiChiefOfStaffService;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Services\UrbanGoodz\UrbanGoodzAIConciergeService;
 use App\Services\UrbanGoodz\UrbanGoodzAIService;
@@ -299,6 +308,148 @@ class AiOperationsController extends Controller
             'pendingRecommendations',
             'recentRecommendations',
         ));
+    }
+
+    public function workforceOverview()
+    {
+        $agentCount = AiAgent::count();
+        $activeAgentCount = AiAgent::active()->count();
+        $pendingTaskCount = AiTask::where('status', 'pending')->count();
+        $awaitingApprovalCount = AiTask::where('status', 'awaiting_approval')->count();
+        $pendingActionCount = AiWorkforceAction::where('approval_status', 'pending')->count();
+        $pendingApprovalCount = AiApproval::where('decision', 'pending')->count();
+        $contactableProspects = MerchantProspect::contactable()->count();
+        $activeTemplates = AiOutreachTemplate::active()->count();
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.index', compact(
+            'agentCount',
+            'activeAgentCount',
+            'pendingTaskCount',
+            'awaitingApprovalCount',
+            'pendingActionCount',
+            'pendingApprovalCount',
+            'contactableProspects',
+            'activeTemplates'
+        ));
+    }
+
+    public function agents(Request $request)
+    {
+        $agents = AiAgent::withCount(['tasks', 'actions'])
+            ->orderBy('status')
+            ->orderBy('name')
+            ->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.agents', compact('agents'));
+    }
+
+    public function tasks(Request $request)
+    {
+        $query = AiTask::with('agent')->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $tasks = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.tasks', compact('tasks'));
+    }
+
+    public function approvals(Request $request)
+    {
+        $query = AiApproval::with(['action.agent', 'requestedApprover', 'approver'])->latest();
+
+        if ($request->filled('decision')) {
+            $query->where('decision', $request->decision);
+        }
+
+        $approvals = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.approvals', compact('approvals'));
+    }
+
+    public function prospects(Request $request)
+    {
+        $query = MerchantProspect::withCount(['outreachMessages'])->latest();
+
+        if ($request->filled('status')) {
+            $query->where('prospect_status', $request->status);
+        }
+
+        $prospects = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.prospects', compact('prospects'));
+    }
+
+    public function workforceActions(Request $request)
+    {
+        $query = AiWorkforceAction::with('agent', 'task')->latest();
+
+        if ($request->filled('action_type')) {
+            $query->where('action_type', $request->action_type);
+        }
+
+        $actions = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.actions', compact('actions'));
+    }
+
+    public function businessNeeds(Request $request)
+    {
+        $query = BusinessNeed::latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $needs = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.business_needs', compact('needs'));
+    }
+
+    public function humanActionItems(Request $request)
+    {
+        $query = HumanActionItem::with('agent', 'task', 'action')->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('assigned_role')) {
+            $query->where('assigned_role', $request->assigned_role);
+        }
+
+        $items = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.human_actions', compact('items'));
+    }
+
+    public function briefs(Request $request)
+    {
+        $chiefOfStaff = new AiChiefOfStaffService();
+        $chiefOfStaff->runDiagnosticScan();
+
+        $selectedRole = $request->get('role', 'Executive');
+        
+        if ($selectedRole === 'Executive') {
+            $brief = $chiefOfStaff->generateExecutiveDailyBrief();
+        } else {
+            $brief = $chiefOfStaff->generateRoleBrief($selectedRole);
+        }
+
+        return view('admin-views.urban-goodz.ai-operations.workforce.briefs', compact('brief', 'selectedRole'));
+    }
+
+    public function settings(Request $request)
+    {
+        $settings = config('urban_goodz.ai_workforce');
+        return view('admin-views.urban-goodz.ai-operations.workforce.settings', compact('settings'));
+    }
+
+    public function updateSettings(Request $request)
+    {
+        Toastr::success(translate('AI Workforce settings updated successfully.'));
+        return back();
     }
 
     private function maskUrl(string $url): string

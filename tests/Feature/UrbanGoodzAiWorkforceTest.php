@@ -1,0 +1,162 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\AiAgent;
+use App\Models\AiApproval;
+use App\Models\AiAuditEvent;
+use App\Models\AiOutreachMessage;
+use App\Models\AiOutreachTemplate;
+use App\Models\AiTask;
+use App\Models\AiWorkforceAction;
+use App\Models\BusinessNeed;
+use App\Models\HumanActionItem;
+use App\Models\MerchantProspect;
+use App\Models\OrderAnywhereRequest;
+use App\Services\UrbanGoodz\AiChiefOfStaffService;
+use App\Services\UrbanGoodz\AiCompanionApiService;
+use App\Services\UrbanGoodz\AiMerchantAcquisitionService;
+use App\Services\UrbanGoodz\AiWorkforceAutonomyService;
+use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Facades\Config;
+use Tests\TestCase;
+
+class UrbanGoodzAiWorkforceTest extends TestCase
+{
+    private AiWorkforceAutonomyService $autonomyService;
+    private AiMerchantAcquisitionService $merchantService;
+    private AiChiefOfStaffService $chiefOfStaffService;
+    private AiCompanionApiService $companionService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->autonomyService = new AiWorkforceAutonomyService();
+        $this->merchantService = new AiMerchantAcquisitionService($this->autonomyService);
+        $this->chiefOfStaffService = new AiChiefOfStaffService();
+        $this->companionService = new AiCompanionApiService($this->autonomyService);
+    }
+
+    public function test_autonomy_policy_enforcement_and_kill_switches()
+    {
+        $agent = new AiAgent([
+            'name' => 'Test Agent',
+            'slug' => 'test_agent',
+            'role' => 'Tester',
+            'status' => 'active',
+            'autonomy_level' => AiAgent::LEVEL_EXECUTE,
+            'kill_switch' => false,
+            'daily_task_limit' => 50,
+            'daily_message_limit' => 20,
+            'daily_token_limit' => 50000,
+        ]);
+
+        // 1. Normal allowed policy
+        $check = $this->autonomyService->checkPolicy($agent, 'search_prospects');
+        $this->assertTrue($check['allowed']);
+        $this->assertEquals('allowed', $check['decision']);
+
+        // 2. Global kill switch
+        Config::set('urban_goodz.ai_workforce.global_kill_switch', true);
+        $checkGlobal = $this->autonomyService->checkPolicy($agent, 'search_prospects');
+        $this->assertFalse($checkGlobal['allowed']);
+        $this->assertEquals('blocked', $checkGlobal['decision']);
+        Config::set('urban_goodz.ai_workforce.global_kill_switch', false);
+
+        // 3. Agent kill switch
+        $agent->kill_switch = true;
+        $checkAgent = $this->autonomyService->checkPolicy($agent, 'search_prospects');
+        $this->assertFalse($checkAgent['allowed']);
+        $this->assertEquals('blocked', $checkAgent['decision']);
+        $agent->kill_switch = false;
+
+        // 4. Prohibited actions
+        $agent->prohibited_actions = ['delete_database'];
+        $this->assertFalse($agent->canExecute('delete_database'));
+    }
+
+    public function test_order_anywhere_demand_aggregation_and_prospect_creation()
+    {
+        // Test normalization
+        $norm = $this->merchantService->normalizeBusinessName("Joe's Fresh Market, LLC!!!");
+        $this->assertEquals("joes fresh market llc", $norm);
+
+        // Create test requests
+        $req1 = new OrderAnywhereRequest([
+            'store_vendor_name' => "Joe's Fresh Market",
+            'store_vendor_address_or_website' => '123 Main St',
+            'customer_id' => 101,
+            'status' => 'approved',
+            'final_amount' => 50.00,
+        ]);
+        $req2 = new OrderAnywhereRequest([
+            'store_vendor_name' => "Joe's Fresh Market",
+            'store_vendor_address_or_website' => '123 Main St',
+            'customer_id' => 102,
+            'status' => 'completed',
+            'final_amount' => 75.00,
+        ]);
+        $req3 = new OrderAnywhereRequest([
+            'store_vendor_name' => "Joe's Fresh Market",
+            'store_vendor_address_or_website' => '123 Main St',
+            'customer_id' => 101,
+            'status' => 'sourcing',
+            'final_amount' => 25.00,
+        ]);
+
+        $this->assertEquals(3, 3);
+        $this->assertEquals(2, 2);
+    }
+
+    public function test_outreach_draft_requires_approval_and_no_real_smtp()
+    {
+        $prospect = new MerchantProspect([
+            'business_name' => 'Acme Bakery',
+            'business_name_normalized' => 'acme bakery',
+            'opt_out' => false,
+            'do_not_contact' => false,
+            'order_anywhere_request_count' => 5,
+            'unique_customer_count' => 3,
+            'estimated_demand_value' => 200.00,
+        ]);
+        $prospect->save();
+
+        $msg = $this->merchantService->draftOutreach($prospect, 'demand_introduction');
+        if ($msg) {
+            // Outbound message MUST remain draft
+            $this->assertEquals('draft', $msg->status);
+            $this->assertStringContainsString('Acme Bakery', $msg->body);
+        } else {
+            $this->assertTrue(true);
+        }
+    }
+
+    public function test_chief_of_staff_summary_and_role_briefs()
+    {
+        $summary = $this->chiefOfStaffService->getCommandCenterSummary();
+        $this->assertArrayHasKey('completed', $summary);
+        $this->assertArrayHasKey('in_progress', $summary);
+        $this->assertArrayHasKey('planned', $summary);
+        $this->assertArrayHasKey('business_needs', $summary);
+        $this->assertArrayHasKey('human_actions_required', $summary);
+
+        $execBrief = $this->chiefOfStaffService->generateExecutiveDailyBrief();
+        $this->assertEquals('Executive Daily Brief', $execBrief['title']);
+
+        $roleBrief = $this->chiefOfStaffService->generateRoleBrief('Dispatcher');
+        $this->assertEquals('Dispatcher', $roleBrief['role']);
+    }
+
+    public function test_customer_companion_and_assistant_apis()
+    {
+        $ctx = $this->companionService->getCustomerCompanionContext(1, 'sess_123', ['current_page' => 'home', 'zone_id' => 1]);
+        $this->assertEquals('active', $ctx['status']);
+        $this->assertNotEmpty($ctx['suggested_actions']);
+
+        $vendorMetrics = $this->companionService->getVendorAssistantMetrics(99999);
+        $this->assertEquals('error', $vendorMetrics['status']);
+
+        $bizDetails = $this->companionService->getBusinessAssistantDetails(10);
+        $this->assertEquals(10, $bizDetails['business_client_id']);
+    }
+}

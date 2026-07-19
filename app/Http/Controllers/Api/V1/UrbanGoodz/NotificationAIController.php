@@ -7,7 +7,7 @@ use App\Models\Order;
 use App\Models\OrderAnywhereRequest;
 use App\Models\UrbanGoodzActivityLog;
 use App\Services\UrbanGoodz\UrbanGoodzAIService;
-use App\Services\UrbanGoodz\UrbanGoodzNotificationService;
+use App\Services\UrbanGoodzNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

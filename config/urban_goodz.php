@@ -33,4 +33,48 @@ return [
         'break_after_hours' => env('URBAN_GOODZ_BREAK_AFTER_HOURS', 5),
         'break_duration_minutes' => env('URBAN_GOODZ_BREAK_DURATION_MINUTES', 30),
     ],
+
+    'ai_workforce' => [
+        'enabled' => env('URBAN_GOODZ_AI_WORKFORCE_ENABLED', false),
+        'global_kill_switch' => env('URBAN_GOODZ_AI_WORKFORCE_KILL_SWITCH', false),
+
+        'demand_thresholds' => [
+            'enabled' => env('URBAN_GOODZ_DEMAND_TRIGGER_ENABLED', true),
+            'rolling_window_days' => env('URBAN_GOODZ_DEMAND_WINDOW_DAYS', 30),
+            'min_requests' => env('URBAN_GOODZ_DEMAND_MIN_REQUESTS', 3),
+            'min_unique_customers' => env('URBAN_GOODZ_DEMAND_MIN_CUSTOMERS', 2),
+            'min_estimated_value' => env('URBAN_GOODZ_DEMAND_MIN_VALUE', 0),
+            'valid_statuses' => ['pending_review', 'sourcing', 'quote_ready', 'awaiting_payment', 'approved', 'completed'],
+            'excluded_categories' => [],
+            'excluded_businesses' => [],
+            'cooldown_days' => env('URBAN_GOODZ_DEMAND_COOLDOWN_DAYS', 30),
+        ],
+
+        'outreach' => [
+            'automatic_enabled' => env('URBAN_GOODZ_OUTREACH_AUTO_ENABLED', false),
+            'first_send_approval_required' => env('URBAN_GOODZ_OUTREACH_FIRST_APPROVAL', true),
+            'max_contact_attempts' => env('URBAN_GOODZ_OUTREACH_MAX_ATTEMPTS', 4),
+            'sequence_days' => [0, 3, 7, 12],
+            'sending_hours_start' => env('URBAN_GOODZ_OUTREACH_HOURS_START', '09:00'),
+            'sending_hours_end' => env('URBAN_GOODZ_OUTREACH_HOURS_END', '17:00'),
+            'sending_timezone' => env('URBAN_GOODZ_OUTREACH_TIMEZONE', 'America/Chicago'),
+            'sender_name' => env('URBAN_GOODZ_OUTREACH_SENDER_NAME', 'Urban Goodz'),
+            'sender_email' => env('URBAN_GOODZ_OUTREACH_SENDER_EMAIL', ''),
+            'reply_to_email' => env('URBAN_GOODZ_OUTREACH_REPLY_TO', ''),
+            'physical_address' => env('URBAN_GOODZ_OUTREACH_ADDRESS', ''),
+            'unsubscribe_url' => env('URBAN_GOODZ_OUTREACH_UNSUBSCRIBE_URL', ''),
+            'onboarding_url' => env('URBAN_GOODZ_OUTREACH_ONBOARDING_URL', ''),
+            'domain_cooldown_seconds' => env('URBAN_GOODZ_OUTREACH_DOMAIN_COOLDOWN', 60),
+            'prospect_cooldown_days' => env('URBAN_GOODZ_OUTREACH_PROSPECT_COOLDOWN', 3),
+        ],
+
+        'daily_brief' => [
+            'enabled' => env('URBAN_GOODZ_DAILY_BRIEF_ENABLED', true),
+            'send_hour' => env('URBAN_GOODZ_DAILY_BRIEF_HOUR', '08:00'),
+            'recipients' => [], // Admin IDs
+        ],
+
+        'market_filters' => [],
+    ],
 ];
+
