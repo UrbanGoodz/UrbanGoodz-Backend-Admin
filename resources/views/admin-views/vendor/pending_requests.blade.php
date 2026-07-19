@@ -178,15 +178,17 @@
 
 
                                     @if($store->vendor->status == 0)
-                                        <a class="btn action-btn btn--primary btn-outline-primary float-right swal_fire_alert" data-toggle="tooltip" data-placement="top"
-                                        data-original-title="{{ translate('messages.approve') }}"
-                                       data-title="{{translate('messages.are_you_sure_?')}}"
-                                       data-image_url="{{ asset('public/assets/admin/img/off-danger.png') }}"
-                                       data-confirm_button_text="{{ translate('messages.yes') }}"
-                                       data-cancel_button_text="{{ translate('messages.No') }}"
-                                       data-message="{{translate('messages.you_want_to_approve_the_vendor_joining_request.')}}"
-                                        data-url="{{route('admin.store.application',[$store['id'],1])}}"
-                                            href="javascript:"><i class="tio-done font-weight-bold"></i></a>
+                                        <form action="{{route('admin.store.application',[$store['id'],1])}}" method="post" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn action-btn btn--primary btn-outline-primary float-right swal_fire_alert" data-toggle="tooltip" data-placement="top"
+                                            data-original-title="{{ translate('messages.approve') }}"
+                                           data-title="{{translate('messages.are_you_sure_?')}}"
+                                           data-image_url="{{ asset('public/assets/admin/img/off-danger.png') }}"
+                                           data-confirm_button_text="{{ translate('messages.yes') }}"
+                                           data-cancel_button_text="{{ translate('messages.No') }}"
+                                           data-message="{{translate('messages.you_want_to_approve_the_vendor_joining_request.')}}"
+                                                ><i class="tio-done font-weight-bold"></i></button>
+                                        </form>
                                     @endif
                                     @if (!isset($store->vendor->status))
                                         <button class="btn action-btn btn--danger btn-outline-danger float-right"
@@ -203,7 +205,8 @@
         aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content pb-2 max-w-500">
-                <form action="{{ route('admin.store.application', [$store['id'], 0]) }}" method="get">
+                <form action="{{ route('admin.store.application', [$store['id'], 0]) }}" method="post">
+                @csrf
                 <div class="modal-header">
                     <button type="button"
                         class="close bg-modal-btn w-30px h-30 rounded-circle position-absolute right-0 top-0 m-2 z-2"
@@ -344,13 +347,28 @@
             });
         });
          $('.swal_fire_alert').on('click', function (event) {
-            let url = $(this).data('url');
+            event.preventDefault();
+            let form = $(this).closest('form');
             let message = $(this).data('message');
             let title = $(this).data('title');
             let imageUrl = $(this).data('image_url');
             let cancelButtonText = $(this).data('cancel_button_text');
             let confirmButtonText = $(this).data('confirm_button_text');
-            swalFire(url,title, message, imageUrl,cancelButtonText, confirmButtonText)
+            Swal.fire({
+                title: title,
+                text: message,
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#FC6A57',
+                cancelButtonText: cancelButtonText,
+                confirmButtonText: confirmButtonText,
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    form.submit();
+                }
+            });
         })
 
         $('#search-form').on('submit', function () {

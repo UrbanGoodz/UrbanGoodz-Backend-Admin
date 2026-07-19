@@ -34,7 +34,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
     Route::get('zone/check', 'ZoneController@zonesCheck');
 
     Route::get('offline_payment_method_list', 'ConfigController@offline_payment_method_list');
-    Route::group(['prefix' => 'auth', 'namespace' => 'Auth'], function () {
+    Route::group(['prefix' => 'auth', 'namespace' => 'Auth', 'middleware' => 'throttle:10,1'], function () {
         Route::post('sign-up', 'CustomerAuthController@register');
         Route::post('login', 'CustomerAuthController@login');
         Route::post('external-login', 'CustomerAuthController@customerLoginFromDrivemond');
@@ -49,7 +49,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
 
         Route::post('guest/request','CustomerAuthController@guest_request');
 
-        Route::group(['prefix' => 'delivery-man','middleware' => 'actch:deliveryman_app'], function () {
+        Route::group(['prefix' => 'delivery-man','middleware' => ['actch:deliveryman_app', 'throttle:5,1']], function () {
             Route::post('login', 'DeliveryManLoginController@login');
             Route::post('store', 'DeliveryManLoginController@store');
 
@@ -58,7 +58,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
             Route::post('firebase-verify-token', 'DMPasswordResetController@firebase_auth_verify');
             Route::put('reset-password', 'DMPasswordResetController@reset_password_submit');
         });
-        Route::group(['prefix' => 'vendor','middleware' => 'actch:vendor_app'], function () {
+        Route::group(['prefix' => 'vendor','middleware' => ['actch:vendor_app', 'throttle:5,1']], function () {
             Route::post('login', 'VendorLoginController@login');
             Route::post('forgot-password', 'VendorPasswordResetController@reset_password_request');
             Route::post('verify-token', 'VendorPasswordResetController@verify_token');

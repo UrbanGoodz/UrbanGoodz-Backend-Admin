@@ -29,7 +29,7 @@ class VendorPasswordResetController extends Controller
         $vendor = Vendor::Where(['email' => $request['email']])->first();
 
         if (isset($vendor)) {
-            $token = rand(1000,9999);
+            $token = rand(100000,999999);
             DB::table('password_resets')->updateOrInsert([
                 'email' => $vendor['email'],
                 'token' => $token,
@@ -63,7 +63,7 @@ class VendorPasswordResetController extends Controller
         }
 
         $data = DB::table('password_resets')->where(['token' => $request['reset_token'],'email'=>$request->email])->first();
-        if (isset($data) || (getEnvMode()=='demo'&& $request['reset_token'] == '123456' )) {
+        if (isset($data) || (config('app.debug') && config('app.env') === 'local' && getEnvMode()=='demo'&& $request['reset_token'] == '123456' )) {
             return response()->json(['message'=>translate("OTP found, you can proceed")], 200);
         } else{
             // $otp_hit = BusinessSetting::where('key', 'max_otp_hit')->first();
@@ -149,7 +149,7 @@ class VendorPasswordResetController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        if(getEnvMode()=='demo') {
+        if(config('app.debug') && config('app.env') === 'local' && getEnvMode()=='demo') {
             if ($request['reset_token'] != '123456') {
                 return response()->json(['errors' => [
                     ['code' => 'invalid', 'message' => trans('messages.invalid_otp')]

@@ -33,7 +33,7 @@ class DMPasswordResetController extends Controller
         $deliveryman = DeliveryMan::withoutGlobalScope('delivery_only')->Where(['phone' => $request['phone']])->first();
 
         if (isset($deliveryman)) {
-            if($firebase_otp_verification || getEnvMode() =='demo')
+            if($firebase_otp_verification || (config('app.debug') && config('app.env') === 'local' && getEnvMode() =='demo'))
             {
                 return response()->json(['message' => translate('messages.otp_sent_successfull')], 200);
             }
@@ -145,7 +145,7 @@ class DMPasswordResetController extends Controller
             return response()->json(['errors' => $errors
             ], 404);
         }
-        if(getEnvMode()=='demo')
+        if(config('app.debug') && config('app.env') === 'local' && getEnvMode()=='demo')
         {
             if($request['reset_token'] == '123456')
             {
@@ -242,7 +242,7 @@ class DMPasswordResetController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        if(getEnvMode()=='demo')
+        if(config('app.debug') && config('app.env') === 'local' && getEnvMode()=='demo')
         {
             if($request['reset_token']=="123456")
             {
