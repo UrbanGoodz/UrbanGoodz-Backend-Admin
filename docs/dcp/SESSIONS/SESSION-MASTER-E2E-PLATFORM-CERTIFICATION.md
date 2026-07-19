@@ -1111,30 +1111,18 @@ To deploy the latest backend update on target staging/production cPanel environm
 2. Execute the following sequence:
 ```bash
 # Navigate to the Laravel application root
-cd "/home/urbakkej/public_html"
+cd "/home/urbakkej/admin.urbangoodzdelivery.com"
 
-# Pull the latest sprint commit
-git fetch origin
-git checkout adminpanel-v39-backend-sprint
-git pull --ff-only origin adminpanel-v39-backend-sprint
-
-# Verify the deployed HEAD matches 3b1f2fb8a1bccae136775e6e28d5597c6b326daa
-git rev-parse HEAD
-
-# Run production vendor and cache optimization steps
-composer install --no-dev --optimize-autoloader
-php artisan optimize:clear
-php artisan migrate --force
-php artisan db:seed --class=UrbanGoodzAiWorkforceSeeder --force
-php artisan optimize:clear
-php artisan config:cache
-php artisan view:cache
+# Run the deployment shell script which automates pulling, database backups, file copy, migrations, seeds, and caching
+bash AdminPanel_Update_V39/scripts/deploy-ai-workforce.sh
 ```
 
 **Rollback Command:**
 ```bash
-cd "/home/urbakkej/public_html"
-git checkout 70bfd95b62652f66bddc6bbb0c71fba6bc6db8c0
+cd "/home/urbakkej/admin.urbangoodzdelivery.com"
+git -C AdminPanel_Update_V39 checkout 70bfd95b62652f66bddc6bbb0c71fba6bc6db8c0
+# Restore backed up files from the created backup folder (e.g. backups/ai-workforce-deploy_xxxx)
+cp -r backups/ai-workforce-deploy_xxxx/* ./
 php artisan optimize:clear
 php artisan config:cache
 php artisan view:cache
