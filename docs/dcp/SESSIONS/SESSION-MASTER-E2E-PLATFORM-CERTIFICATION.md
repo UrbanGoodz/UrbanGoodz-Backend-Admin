@@ -1104,21 +1104,24 @@ Complete recovery of incomplete AI Workforce features, including autonomy policy
 - **Commit Message:** `Implement Urban Goodz AI workforce and operational assistants`
 - **Push target:** `origin/adminpanel-v39-backend-sprint` (SUCCESS)
 
-### Exact Continuation Command & Deployment Helper
-A web deployment helper has been committed at `public/deploy_helper.php` to bypass runner SSH timeouts and private key encryption blockages.
+### Exact cPanel Terminal Deployment Command
+To deploy the latest backend update on target staging/production cPanel environment:
 
-**Browser-Based Deployment Trigger:**
-1. Pull branch `adminpanel-v39-backend-sprint` onto the server (HEAD: `458e4a204322c6101d66735da3ff0de65a3f90ab`).
-2. Navigate to: `https://admin.urbangoodzdelivery.com/deploy_helper.php?token=UrbanGoodzDeploy2026!`
-   This runs all migrations, database seeders, clears optimize config, and warms up the config/view cache.
-3. Delete `public/deploy_helper.php` from the live site post-verification.
-
-**Staging/Production Terminal Deployment Command:**
+1. Log in to cPanel Terminal (or SSH if accessible).
+2. Execute the following sequence:
 ```bash
-# Verify the newly checked-out code on target staging/production environment
+# Navigate to the Laravel application root
 cd "/home/urbakkej/public_html"
-git fetch --all
-git checkout 458e4a204322c6101d66735da3ff0de65a3f90ab
+
+# Pull the latest sprint commit
+git fetch origin
+git checkout adminpanel-v39-backend-sprint
+git pull --ff-only origin adminpanel-v39-backend-sprint
+
+# Verify the deployed HEAD matches 3b1f2fb8a1bccae136775e6e28d5597c6b326daa
+git rev-parse HEAD
+
+# Run production vendor and cache optimization steps
 composer install --no-dev --optimize-autoloader
 php artisan optimize:clear
 php artisan migrate --force
@@ -1136,6 +1139,7 @@ php artisan optimize:clear
 php artisan config:cache
 php artisan view:cache
 ```
+
 
 
 
