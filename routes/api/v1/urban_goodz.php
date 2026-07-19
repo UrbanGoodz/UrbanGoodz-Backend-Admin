@@ -89,6 +89,7 @@ Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@han
 
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
+    Route::post('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');
     Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereController@authorizePayment');
     Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereController@uploadReceipt');
@@ -126,6 +127,14 @@ Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::post('chat', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
+});
+
+Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('generate', 'Api\V1\UrbanGoodz\NotificationAIController@generateNotification');
+    Route::post('batch', 'Api\V1\UrbanGoodz\NotificationAIController@generateBatch');
+    Route::get('history', 'Api\V1\UrbanGoodz\NotificationAIController@history');
+    Route::post('mark-read', 'Api\V1\UrbanGoodz\NotificationAIController@markAsRead');
+    Route::post('preview', 'Api\V1\UrbanGoodz\NotificationAIController@previewTemplate');
 });
 
 // Driver API - dedicated routes, package scanning, earnings, payouts
