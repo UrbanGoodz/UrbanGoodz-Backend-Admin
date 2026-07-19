@@ -26,7 +26,7 @@ class RouteClusteringService
         $startTime = microtime(true);
 
         $sameAddressGroups = $this->groupSameAddresses($stops);
-        $consolidated = $this->consolidateSameAddressGroups($sameAddressGroups);
+        $consolidated = $this->consolidateSameAddressGroups($stops, $sameAddressGroups);
         $locked = array_filter($consolidated, fn($s) => $s->isLocked && $constraints->preserveLockedStops);
         $priority = array_filter($consolidated, fn($s) => $s->isUrgent() && $constraints->preservePriorityStops);
         $regular = array_values(array_filter($consolidated, fn($s) => !in_array($s, $locked) && !in_array($s, $priority)));
@@ -74,14 +74,18 @@ class RouteClusteringService
         return array_filter($groups, fn($g) => count($g['stops']) > 1);
     }
 
-    private function consolidateSameAddressGroups(array $groups): array
+    private function consolidateSameAddressGroups(array $stops, array $groups): array
     {
         $consolidated = [];
-        $seen = [];
+        $groupedPackageIds = [];
 
         foreach ($groups as $key => $group) {
             $representative = $group['stops'][0];
             $totalPackages = array_sum(array_map(fn($s) => $s->packageCount, $group['stops']));
+
+            foreach ($group['stops'] as $s) {
+                $groupedPackageIds[$s->packageId] = true;
+            }
 
             $consolidated[] = new RouteStop(
                 packageId: $representative->packageId,
@@ -111,6 +115,12 @@ class RouteClusteringService
                 packageCount: $totalPackages,
                 manifestId: $representative->manifestId,
             );
+        }
+
+        foreach ($stops as $stop) {
+            if (!isset($groupedPackageIds[$stop->packageId])) {
+                $consolidated[] = $stop;
+            }
         }
 
         return $consolidated;

@@ -87,7 +87,31 @@ class RoutePlanningService
         $result = $this->executePlanningPipeline($stops, $constraints, null);
 
         $totalMs = (microtime(true) - $startTime) * 1000;
-        return $this->enrichMetrics($result, $totalMs);
+        $result = $this->enrichMetrics($result, $totalMs);
+
+        if (($request['persist'] ?? false)) {
+            $auditId = $this->persistPlanningResult($result, null, $constraints, $request);
+            $result = new PlanningResult(
+                totalPackages: $result->totalPackages,
+                routedPackages: $result->routedPackages,
+                unrouteableCount: $result->unrouteableCount,
+                routeCountRequested: $result->routeCountRequested,
+                routeCountGenerated: $result->routeCountGenerated,
+                uniqueStopCount: $result->uniqueStopCount,
+                clusters: $result->clusters,
+                unrouteable: $result->unrouteable,
+                sameAddressGroups: $result->sameAddressGroups,
+                metrics: $result->metrics,
+                constraints: $result->constraints,
+                algorithmVersion: $result->algorithmVersion,
+                overallDistanceMode: $result->overallDistanceMode,
+                overallViolations: $result->overallViolations,
+                warnings: $result->warnings,
+                auditId: $auditId,
+            );
+        }
+
+        return $result;
     }
 
     public function planFromStops(array $stops, array $request = []): PlanningResult
@@ -167,36 +191,38 @@ class RoutePlanningService
     {
         $stops = [];
         foreach ($packages as $pkg) {
-            $lat = (float)($pkg->dropoff_lat ?? 0);
-            $lng = (float)($pkg->dropoff_lng ?? 0);
+            $p = is_array($pkg) ? (object)$pkg : $pkg;
+
+            $lat = (float)($p->dropoff_lat ?? 0);
+            $lng = (float)($p->dropoff_lng ?? 0);
 
             if ($lat == 0 && $lng == 0) {
-                $lat = (float)($pkg->pickup_lat ?? 0);
-                $lng = (float)($pkg->pickup_lng ?? 0);
+                $lat = (float)($p->pickup_lat ?? 0);
+                $lng = (float)($p->pickup_lng ?? 0);
             }
 
             $stops[] = RouteStop::fromPackageModel((object)[
-                'id' => $pkg->id ?? 0,
-                'tracking_id' => $pkg->tracking_id ?? '',
+                'id' => $p->id ?? 0,
+                'tracking_id' => $p->tracking_id ?? '',
                 'dropoff_lat' => $lat,
                 'dropoff_lng' => $lng,
-                'dropoff_address' => $pkg->dropoff_address ?? '',
-                'dropoff_city' => $pkg->dropoff_city ?? '',
-                'dropoff_state' => $pkg->dropoff_state ?? '',
-                'dropoff_zip' => $pkg->dropoff_zip ?? '',
-                'pickup_lat' => $pkg->pickup_lat ?? null,
-                'pickup_lng' => $pkg->pickup_lng ?? null,
-                'priority' => $pkg->priority ?? 'normal',
-                'delivery_window_start' => isset($pkg->delivery_window_start) ? (string)$pkg->delivery_window_start : null,
-                'delivery_window_end' => isset($pkg->delivery_window_end) ? (string)$pkg->delivery_window_end : null,
-                'delivery_completion_locked_until_verified' => $pkg->delivery_completion_locked_until_verified ?? false,
-                'age_restricted' => $pkg->age_restricted ?? false,
-                'requires_custody' => $pkg->requires_custody ?? false,
-                'requires_signature' => $pkg->requires_signature ?? false,
-                'requires_photo' => $pkg->requires_photo ?? false,
-                'weight' => $pkg->weight ?? null,
-                'package_type' => $pkg->package_type ?? 'parcel',
-                'manifest_id' => $pkg->manifest_id ?? null,
+                'dropoff_address' => $p->dropoff_address ?? '',
+                'dropoff_city' => $p->dropoff_city ?? '',
+                'dropoff_state' => $p->dropoff_state ?? '',
+                'dropoff_zip' => $p->dropoff_zip ?? '',
+                'pickup_lat' => $p->pickup_lat ?? null,
+                'pickup_lng' => $p->pickup_lng ?? null,
+                'priority' => $p->priority ?? 'normal',
+                'delivery_window_start' => isset($p->delivery_window_start) ? (string)$p->delivery_window_start : null,
+                'delivery_window_end' => isset($p->delivery_window_end) ? (string)$p->delivery_window_end : null,
+                'delivery_completion_locked_until_verified' => $p->delivery_completion_locked_until_verified ?? false,
+                'age_restricted' => $p->age_restricted ?? false,
+                'requires_custody' => $p->requires_custody ?? false,
+                'requires_signature' => $p->requires_signature ?? false,
+                'requires_photo' => $p->requires_photo ?? false,
+                'weight' => $p->weight ?? null,
+                'package_type' => $p->package_type ?? 'parcel',
+                'manifest_id' => $p->manifest_id ?? null,
             ]);
         }
         return $stops;
@@ -381,6 +407,7 @@ class RoutePlanningService
         $audit = UrbanGoodzRouteClusteringAudit::create([
             'business_client_id' => $request['business_client_id'] ?? null,
             'manifest_id' => $manifestId,
+            'intake_batch_id' => $request['batch_id'] ?? null,
             'planning_uuid' => $request['planning_uuid'] ?? (string)\Illuminate\Support\Str::uuid(),
             'clustering_params' => json_encode([
                 'algorithm_version' => $this->algorithmVersion,

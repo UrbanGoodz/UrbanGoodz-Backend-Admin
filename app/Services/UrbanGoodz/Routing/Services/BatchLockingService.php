@@ -117,12 +117,77 @@ class BatchLockingService
     {
         $packageData = $packages->map(fn($p) => (array)$p->toArray())->toArray();
 
+        // 1. Run the planning pipeline with persist flag
         $result = $this->planning->planFromPool($packageData, array_merge($params, [
             'business_client_id' => $batch->business_client_id,
             'batch_id' => $batch->id,
+            'persist' => true,
         ]));
 
         $batch->markRoutesGenerated();
+
+        // 2. Create actual routes and link package assignments
+        $routes = [];
+        $sameAddressGroups = $result->sameAddressGroups;
+
+        foreach ($result->clusters as $cluster) {
+            $route = \App\Models\UrbanGoodzDedicatedRoute::create([
+                'business_client_id' => $batch->business_client_id,
+                'intake_batch_id' => $batch->id,
+                'route_name' => "Route {$cluster->label}",
+                'route_label' => $cluster->label,
+                'total_packages' => $cluster->packageCount,
+                'estimated_miles' => $cluster->estimatedMiles,
+                'estimated_duration' => "{$cluster->estimatedDurationMinutes} min",
+                'scheduled_date' => $batch->service_date,
+                'route_type' => $params['route_type'] ?? 'bulk_delivery',
+                'status' => 'planned',
+                'created_by' => $userId,
+            ]);
+
+            $stopOrder = 1;
+            foreach ($cluster->stops as $stop) {
+                // Determine which packages to assign (consolidated vs single)
+                $packageIds = [];
+                if ($stop->sameAddressGroupId !== null) {
+                    // Find group in sameAddressGroups
+                    foreach ($sameAddressGroups as $group) {
+                        if ($group['group_id'] === $stop->sameAddressGroupId) {
+                            $packageIds = $group['package_ids'];
+                            break;
+                        }
+                    }
+                } else {
+                    $packageIds = [$stop->packageId];
+                }
+
+                // Update packages
+                foreach ($packageIds as $pId) {
+                    \App\Models\UrbanGoodzBatchPackage::where('id', $pId)->update([
+                        'route_assignment_status' => 'assigned',
+                        'dedicated_route_id' => $route->id,
+                        'stop_order' => $stopOrder,
+                    ]);
+                }
+                
+                $stopOrder++;
+            }
+
+            $routes[] = [
+                'id' => $route->id,
+                'label' => $cluster->label,
+                'package_count' => $cluster->packageCount,
+                'estimated_miles' => $cluster->estimatedMiles,
+            ];
+        }
+
+        // Handle unrouteable packages
+        foreach ($result->unrouteable as $unr) {
+            \App\Models\UrbanGoodzBatchPackage::where('id', $unr['package_id'])->update([
+                'route_assignment_status' => 'unassigned',
+                'validation_status' => 'invalid',
+            ]);
+        }
 
         return [
             'route_count' => $result->routeCountGenerated,
@@ -132,6 +197,7 @@ class BatchLockingService
             'clusters' => array_map(fn($c) => $c->toSummaryArray(), $result->clusters),
             'metrics' => $result->metrics->toArray(),
             'audit_id' => $result->auditId,
+            'routes' => $routes,
         ];
     }
 }

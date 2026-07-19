@@ -12,7 +12,7 @@ class UrbanGoodzRouteClusteringAudit extends Model
     const STATUSES = ['pending_review', 'reviewed', 'applied', 'discarded'];
 
     protected $fillable = [
-        'business_client_id', 'manifest_id', 'planning_uuid',
+        'business_client_id', 'manifest_id', 'intake_batch_id', 'planning_uuid',
         'clustering_params', 'original_plan', 'optimized_plan',
         'unrouteable_packages',
         'algorithm', 'distance_mode', 'status', 'admin_notes', 'metrics',
