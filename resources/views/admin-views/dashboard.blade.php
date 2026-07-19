@@ -49,10 +49,24 @@
                 <div class="d-flex flex-wrap gap-2 mb-4">
                     <a href="{{ route('admin.urban-goodz.business-clients.index') }}" class="btn btn-primary btn-sm">{{ translate('Business Clients') }}</a>
                     <a href="{{ route('admin.urban-goodz.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Command Center') }}</a>
+                    <a href="{{ route('admin.store.list') }}" class="btn btn-outline-primary btn-sm">{{ translate('Vendors') }}</a>
+                    <a href="{{ route('admin.delivery-man.list') }}" class="btn btn-outline-primary btn-sm">{{ translate('Drivers') }}</a>
+                    <a href="{{ route('admin.order.list', ['all']) }}" class="btn btn-outline-primary btn-sm">{{ translate('Orders') }}</a>
+                    <a href="{{ route('admin.urban-goodz.dispatcher-sourcing.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Dispatcher') }}</a>
+                    <a href="{{ route('admin.urban-goodz.load-board.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Load Board') }}</a>
+                    <a href="{{ route('admin.urban-goodz.load-sourcing.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Load Sourcing') }}</a>
+                    <a href="{{ route('admin.urban-goodz.driver-pricing.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Driver Pricing') }}</a>
                     <a href="{{ route('admin.urban-goodz.payments.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Payment Center') }}</a>
                     <a href="{{ route('admin.urban-goodz.dedicated-routes.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Dedicated Routes') }}</a>
                     <a href="{{ route('admin.urban-goodz.driver-payouts.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Driver Payouts') }}</a>
-                    <a href="{{ route('admin.urban-goodz.creator.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Creator Space') }}</a>
+                    <a href="{{ route('admin.urban-goodz.fashion-fit.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Fashion Fit') }}</a>
+                    <a href="{{ route('admin.urban-goodz.order-anywhere.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Order Anywhere') }}</a>
+                    <a href="{{ route('admin.urban-goodz.ai-concierge.conversations') }}" class="btn btn-outline-primary btn-sm">{{ translate('AI Concierge') }}</a>
+                    <a href="{{ route('admin.urban-goodz.creator.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Creator Commerce') }}</a>
+                    <a href="{{ route('admin.urban-goodz.service-requests.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Services') }}</a>
+                    <a href="{{ route('admin.notification.add-new') }}" class="btn btn-outline-primary btn-sm">{{ translate('Notifications') }}</a>
+                    <a href="{{ route('admin.report.item-wise-report') }}" class="btn btn-outline-primary btn-sm">{{ translate('Reports') }}</a>
+                    <a href="{{ route('admin.business-settings.business-setup') }}" class="btn btn-outline-primary btn-sm">{{ translate('Settings') }}</a>
                     <a href="{{ url('/business/login') }}" class="btn btn-outline-secondary btn-sm" target="_blank">{{ translate('Business Portal Login') }}</a>
                 </div>
 
@@ -190,6 +204,94 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="card-subtitle m-0">{{ translate('Pending Refunds') }} <span class="text-danger">*</span></h6>
                                 <span class="card-title text-danger">{{ $ugData['pending_refunds'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.store.list') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Vendors') }}</h6>
+                                <span class="card-title text-info">{{ $data['total_stores'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.delivery-man.list') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Drivers') }}</h6>
+                                <span class="card-title text-info">{{ $data['delivery_man'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.order.list', ['all']) }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Orders') }}</h6>
+                                <span class="card-title text-info">{{ $data['total_orders'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.dispatcher-sourcing.dashboard') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Dispatcher') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['dedicated_routes_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.load-sourcing.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Load Sourcing') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['load_board_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.driver-pricing.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Driver Pricing') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['driver_pricing_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.customer.wallet.add-fund') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Customer Wallets') }}</h6>
+                                <span class="card-title text-info">{{ $data['customer'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.urban-goodz.service-requests.index') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Services') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['service_requests_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.notification.add-new') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Push Notifications') }}</h6>
+                                <span class="card-title text-info">{{ $ugData['notifications_count'] ?? 0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.report.item-wise-report') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Reports') }}</h6>
+                                <span class="card-title text-info">{{ translate('View') }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.business-settings.business-setup') }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Settings') }}</h6>
+                                <span class="card-title text-info">{{ translate('Configure') }}</span>
                             </div>
                         </a>
                     </div>
