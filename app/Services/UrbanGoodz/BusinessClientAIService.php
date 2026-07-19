@@ -7,6 +7,7 @@ use App\Models\UrbanGoodzBusinessClientJob;
 use App\Models\UrbanGoodzManifest;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Models\DeliveryMan;
+use App\Services\UrbanGoodz\UrbanGoodzRouteClusteringService;
 use Illuminate\Support\Facades\Log;
 
 class BusinessClientAIService
@@ -523,6 +524,114 @@ You MUST return ONLY a valid JSON object with this structure, no markdown, no co
             'optimization_notes' => [],
             'warnings' => ['Unable to auto-schedule jobs.'],
         ]);
+    }
+
+    public function groupPackagesForRoutes(array $packages, array $params = []): array
+    {
+        $packageModels = collect($packages)->map(function ($p) {
+            if ($p instanceof UrbanGoodzRoutePackage) {
+                return $p;
+            }
+            return UrbanGoodzRoutePackage::find($p['id'] ?? $p['package_id'] ?? null);
+        })->filter()->values();
+
+        if ($packageModels->isEmpty()) {
+            return [
+                'groups' => [],
+                'total_packages' => count($packages),
+                'routed_packages' => 0,
+                'unrouteable_count' => count($packages),
+            ];
+        }
+
+        $clusteringService = app(UrbanGoodzRouteClusteringService::class);
+
+        $clusteringParams = [
+            'maximum_packages_per_route' => $params['max_stops_per_route'] ?? 25,
+            'maximum_route_miles' => $params['max_route_distance'] ?? 100,
+            'preferred_cluster_radius_miles' => $params['preferred_cluster_radius_miles'] ?? 25,
+            'maximum_route_duration_minutes' => $params['maximum_route_duration_minutes'] ?? 480,
+            'vehicle_type' => $params['vehicle_types'][0] ?? 'cargo_van',
+        ];
+
+        $result = $clusteringService->clusterPackages($packageModels, $clusteringParams);
+
+        $groups = array_map(function ($cluster) {
+            return [
+                'group_id' => $cluster['cluster_index'],
+                'package_count' => $cluster['stats']['package_count'],
+                'estimated_miles' => $cluster['stats']['estimated_miles'],
+                'estimated_duration_minutes' => $cluster['stats']['estimated_duration_minutes'],
+                'packages' => array_map(fn($p) => [
+                    'id' => $p->id,
+                    'tracking_id' => $p->tracking_id,
+                    'dropoff_address' => $p->dropoff_address,
+                    'dropoff_lat' => $p->dropoff_lat,
+                    'dropoff_lng' => $p->dropoff_lng,
+                ], $cluster['packages']),
+            ];
+        }, $result['clusters']);
+
+        return [
+            'groups' => $groups,
+            'total_packages' => $result['total_packages'],
+            'routed_packages' => $result['routed_packages'],
+            'unrouteable_count' => $result['unrouteable']->count(),
+            'unrouteable' => $result['unrouteable'],
+        ];
+    }
+
+    public function optimizeRoute(array $packages, array $params = []): array
+    {
+        $packageModels = collect($packages)->map(function ($p) {
+            if ($p instanceof UrbanGoodzRoutePackage) {
+                return $p;
+            }
+            return UrbanGoodzRoutePackage::find($p['id'] ?? $p['package_id'] ?? null);
+        })->filter()->values();
+
+        if ($packageModels->isEmpty()) {
+            return [
+                'optimized_stops' => [],
+                'total_distance_miles' => 0,
+                'estimated_duration_minutes' => 0,
+            ];
+        }
+
+        $clusteringService = app(UrbanGoodzRouteClusteringService::class);
+
+        $clusterResult = $clusteringService->clusterPackages($packageModels, [
+            'requested_route_count' => 1,
+            'maximum_packages_per_route' => count($packages),
+            'start_location' => $params['start_location'] ?? null,
+            'end_location' => $params['end_location'] ?? null,
+            'respect_time_windows' => true,
+        ]);
+
+        if (empty($clusterResult['clusters'])) {
+            return [
+                'optimized_stops' => [],
+                'total_distance_miles' => 0,
+                'estimated_duration_minutes' => 0,
+            ];
+        }
+
+        $firstCluster = $clusterResult['clusters'][0];
+
+        return [
+            'optimized_stops' => array_map(function ($pkg) {
+                return [
+                    'package_id' => $pkg->id,
+                    'tracking_id' => $pkg->tracking_id,
+                    'dropoff_address' => $pkg->dropoff_address,
+                    'dropoff_lat' => $pkg->dropoff_lat,
+                    'dropoff_lng' => $pkg->dropoff_lng,
+                ];
+            }, $firstCluster['packages']),
+            'total_distance_miles' => $firstCluster['stats']['estimated_miles'],
+            'estimated_duration_minutes' => $firstCluster['stats']['estimated_duration_minutes'],
+            'stop_count' => $firstCluster['stats']['package_count'],
+        ];
     }
 
     private function parseJsonResponse(string $result, array $fallback): array

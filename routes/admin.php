@@ -183,6 +183,41 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('{routeId}/packages/{packageId}/initiate-return', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@initiateReturn')->name('package-initiate-return');
             });
 
+            Route::group(['prefix' => 'intake-batches', 'as' => 'intake-batches.'], function () {
+                Route::post('/', 'UrbanGoodz\BatchIntakeController@store')->name('store');
+                Route::get('/', 'UrbanGoodz\BatchIntakeController@index')->name('index');
+                Route::get('{id}', 'UrbanGoodz\BatchIntakeController@show')->name('show');
+                Route::post('{id}/open', 'UrbanGoodz\BatchIntakeController@open')->name('open');
+                Route::post('{id}/cancel', 'UrbanGoodz\BatchIntakeController@cancel')->name('cancel');
+                Route::post('{id}/join', 'UrbanGoodz\BatchIntakeController@join')->name('join');
+                Route::get('{id}/participants', 'UrbanGoodz\BatchIntakeController@participants')->name('participants');
+                Route::post('{id}/packages', 'UrbanGoodz\BatchIntakeController@addPackage')->name('packages.store');
+                Route::get('{id}/packages', 'UrbanGoodz\BatchIntakeController@packages')->name('packages.index');
+                Route::put('packages/{packageId}', 'UrbanGoodz\BatchIntakeController@updatePackage')->name('packages.update');
+                Route::get('packages/{packageId}', 'UrbanGoodz\BatchIntakeController@showPackage')->name('packages.show');
+                Route::post('{id}/bulk-import', 'UrbanGoodz\BatchIntakeController@bulkImport')->name('bulk-import');
+                Route::get('{id}/validation-queue', 'UrbanGoodz\BatchIntakeController@validationQueue')->name('validation-queue');
+                Route::post('packages/{packageId}/assign-review', 'UrbanGoodz\BatchIntakeController@assignReview')->name('packages.assign-review');
+                Route::post('packages/{packageId}/complete-review', 'UrbanGoodz\BatchIntakeController@completeReview')->name('packages.complete-review');
+                Route::get('{id}/progress', 'UrbanGoodz\BatchIntakeController@progress')->name('progress');
+                Route::get('{id}/worker-activity', 'UrbanGoodz\BatchIntakeController@workerActivity')->name('worker-activity');
+                Route::post('{id}/lock', 'UrbanGoodz\BatchIntakeController@lockForRouting')->name('lock');
+                Route::post('{id}/unlock', 'UrbanGoodz\BatchIntakeController@unlockBatch')->name('unlock');
+                Route::post('{id}/late-package', 'UrbanGoodz\BatchIntakeController@addLatePackage')->name('late-package');
+            });
+
+            Route::group(['prefix' => 'route-clustering', 'as' => 'route-clustering.'], function () {
+                Route::post('manifest/{manifestId}/cluster', 'UrbanGoodz\RouteClusteringController@clusterFromManifest')->name('cluster-manifest');
+                Route::post('client/{clientId}/cluster', 'UrbanGoodz\RouteClusteringController@clusterFromPool')->name('cluster-pool');
+                Route::post('audit/{auditId}/create-routes', 'UrbanGoodz\RouteClusteringController@createRoutesFromAudit')->name('create-routes');
+                Route::post('route/{routeId}/recalculate', 'UrbanGoodz\RouteClusteringController@recalculateRoute')->name('recalculate');
+                Route::get('client/{clientId}/unrouteable', 'UrbanGoodz\RouteClusteringController@unrouteable')->name('unrouteable');
+                Route::post('package/{packageId}/reassign', 'UrbanGoodz\RouteClusteringController@reassignPackage')->name('reassign');
+                Route::get('client/{clientId}/audit-history', 'UrbanGoodz\RouteClusteringController@auditHistory')->name('audit-history');
+                Route::get('audit/{auditId}', 'UrbanGoodz\RouteClusteringController@auditDetail')->name('audit-detail');
+                Route::post('audit/{auditId}/review', 'UrbanGoodz\RouteClusteringController@reviewAudit')->name('review');
+            });
+
             Route::group(['prefix' => 'manifests', 'as' => 'manifests.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzManifestController@index')->name('index');
                 Route::post('/', 'UrbanGoodz\UrbanGoodzManifestController@store')->name('store');

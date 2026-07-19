@@ -1,4 +1,4 @@
-﻿.env
+.env
 .env.*
 !.env.example
 /vendor
@@ -47,3 +47,8 @@ sourced_businesses_*.json
 # Import reports (keep in storage/app, ignore in repo)
 storage/app/urban_goodz_import_reports/
 storage/app/urban_goodz_import_tmp/
+
+# Sensitive key files
+id_rsa_lf
+id_rsa_utf8
+

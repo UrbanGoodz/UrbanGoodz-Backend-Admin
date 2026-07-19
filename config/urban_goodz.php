@@ -1,21 +1,36 @@
 <?php
 
 return [
-    'brand_name' => env('URBAN_GOODZ_BRAND_NAME', 'Urban Goodz'),
 
-    'default_city' => env('URBAN_GOODZ_DEFAULT_CITY', 'Houston'),
-    'default_country' => env('URBAN_GOODZ_DEFAULT_COUNTRY', 'US'),
-    'distance_unit' => env('URBAN_GOODZ_DISTANCE_UNIT', 'miles'),
-    'currency' => env('URBAN_GOODZ_CURRENCY', 'USD'),
+    'legacy_route_chunking' => env('URBAN_GOODZ_LEGACY_ROUTE_CHUNKING', false),
 
-    'floating_ai_enabled' => env('URBAN_GOODZ_FLOATING_AI_ENABLED', true),
+    'distance_matrix' => [
+        'provider' => env('URBAN_GOODZ_DISTANCE_MATRIX_PROVIDER', 'haversine'),
+        'google_maps_key' => env('URBAN_GOODZ_GOOGLE_MAPS_KEY', ''),
+        'cache_ttl_hours' => env('URBAN_GOODZ_DISTANCE_CACHE_TTL_HOURS', 24),
+        'batch_size' => env('URBAN_GOODZ_DISTANCE_BATCH_SIZE', 25),
+        'request_delay_ms' => env('URBAN_GOODZ_DISTANCE_REQUEST_DELAY_MS', 100),
+    ],
 
-    'ai_model' => env('URBAN_GOODZ_AI_MODEL', 'gpt-4o'),
-    'ai_temperature' => env('URBAN_GOODZ_AI_TEMPERATURE', 0.4),
-    'ai_max_tokens' => env('URBAN_GOODZ_AI_MAX_TOKENS', 1500),
-    'ai_concierge_enabled' => env('URBAN_GOODZ_AI_CONCIERGE_ENABLED', true),
-    'ai_copilot_enabled' => env('URBAN_GOODZ_AI_COPILOT_ENABLED', true),
-    'ai_load_board_enabled' => env('URBAN_GOODZ_AI_LOAD_BOARD_ENABLED', true),
+    'clustering' => [
+        'algorithm_version' => '1.0.0',
+        'seeding' => 'kmeans_plus_plus',
+        'max_iterations' => env('URBAN_GOODZ_CLUSTER_MAX_ITERATIONS', 100),
+        'rebalance_threshold' => env('URBAN_GOODZ_CLUSTER_REBALANCE_THRESHOLD', 0.3),
+    ],
 
-    'order_anywhere_owner' => 'master_admin',
+    'sequencing' => [
+        'algorithm_version' => '1.0.0',
+        'initial' => 'nearest_feasible_neighbor',
+        'improvement' => '2opt',
+        'max_2opt_iterations' => env('URBAN_GOODZ_2OPT_MAX_ITERATIONS', 50),
+    ],
+
+    'planning' => [
+        'default_service_time_minutes' => env('URBAN_GOODZ_DEFAULT_SERVICE_TIME_MINUTES', 10),
+        'default_average_speed_mph' => env('URBAN_GOODZ_DEFAULT_AVG_SPEED_MPH', 30),
+        'driver_shift_limit_hours' => env('URBAN_GOODZ_DRIVER_SHIFT_LIMIT_HOURS', 10),
+        'break_after_hours' => env('URBAN_GOODZ_BREAK_AFTER_HOURS', 5),
+        'break_duration_minutes' => env('URBAN_GOODZ_BREAK_DURATION_MINUTES', 30),
+    ],
 ];
