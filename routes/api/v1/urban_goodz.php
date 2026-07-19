@@ -141,6 +141,7 @@ Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth
 Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], function () {
     Route::get('routes', 'Api\UrbanGoodzDriverApiController@assignedRoutes');
     Route::get('routes/{routeId}', 'Api\UrbanGoodzDriverApiController@routeDetail');
+    Route::post('routes/{routeId}/sequence', 'Api\UrbanGoodzDriverApiController@resequenceRoute');
     Route::post('routes/{routeId}/started', 'Api\UrbanGoodzDriverApiController@routeStarted');
     Route::post('routes/{routeId}/completed', 'Api\UrbanGoodzDriverApiController@routeCompleted');
     Route::post('routes/{routeId}/scan-pickup', 'Api\UrbanGoodzDriverApiController@scanPickup');

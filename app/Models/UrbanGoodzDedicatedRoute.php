@@ -122,4 +122,86 @@ class UrbanGoodzDedicatedRoute extends Model
         }
         return (int) round(($this->completed_packages / $total) * 100);
     }
+
+    public function activeExecutionVersion()
+    {
+        return $this->hasOne(UrbanGoodzRouteExecutionVersion::class, 'dedicated_route_id')
+            ->where('status', 'active')
+            ->latest();
+    }
+
+    private function shouldMaskPrivateEndpoint(): bool
+    {
+        $activeVersion = $this->activeExecutionVersion;
+        if (!$activeVersion || $activeVersion->endpoint_type !== 'private_endpoint') {
+            return false;
+        }
+
+        $driver = auth('delivery_men')->user() ?? auth('api')->user();
+        if ($driver && (int)$driver->id === (int)$this->assigned_driver_id) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function getEndLocationAttribute($value)
+    {
+        if ($this->shouldMaskPrivateEndpoint()) {
+            return 'Driver Private Location';
+        }
+
+        $activeVersion = $this->activeExecutionVersion;
+        if ($activeVersion && $activeVersion->endpoint_type === 'private_endpoint') {
+            return $activeVersion->private_endpoint_address ?? 'Driver Private Location';
+        }
+
+        return $value;
+    }
+
+    public function getEndLatAttribute($value)
+    {
+        if ($this->shouldMaskPrivateEndpoint()) {
+            return 0.0;
+        }
+
+        $activeVersion = $this->activeExecutionVersion;
+        if ($activeVersion && $activeVersion->endpoint_type === 'private_endpoint') {
+            return $activeVersion->private_endpoint_lat;
+        }
+
+        return $value;
+    }
+
+    public function getEndLngAttribute($value)
+    {
+        if ($this->shouldMaskPrivateEndpoint()) {
+            return 0.0;
+        }
+
+        $activeVersion = $this->activeExecutionVersion;
+        if ($activeVersion && $activeVersion->endpoint_type === 'private_endpoint') {
+            return $activeVersion->private_endpoint_lng;
+        }
+
+        return $value;
+    }
+
+    public function getEstimatedMilesAttribute($value)
+    {
+        $activeVersion = $this->activeExecutionVersion;
+        if ($activeVersion) {
+            return $activeVersion->miles;
+        }
+        return $value;
+    }
+
+    public function getEstimatedDurationAttribute($value)
+    {
+        $activeVersion = $this->activeExecutionVersion;
+        if ($activeVersion) {
+            return $activeVersion->duration_minutes;
+        }
+        return $value;
+    }
 }

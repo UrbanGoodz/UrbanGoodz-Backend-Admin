@@ -135,6 +135,168 @@ class UrbanGoodzDriverApiController extends Controller
         ]);
     }
 
+    public function resequenceRoute(Request $request, $routeId)
+    {
+        $driver = $this->authDriver($request);
+
+        $validator = Validator::make($request->all(), [
+            'endpoint_type' => 'required|in:company_endpoint,return_to_pickup,no_preference,private_endpoint',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 400);
+        }
+
+        $endpointType = $request->input('endpoint_type');
+
+        $route = UrbanGoodzDedicatedRoute::where('id', $routeId)
+            ->where('assigned_driver_id', $driver->id)
+            ->firstOrFail();
+
+        $startLocation = [
+            'lat' => (float)$route->pickup_lat,
+            'lng' => (float)$route->pickup_lng,
+        ];
+
+        $endLocation = null;
+        $privateAddress = null;
+        $privateLat = null;
+        $privateLng = null;
+
+        if ($endpointType === 'company_endpoint') {
+            $endLocation = [
+                'lat' => (float)($route->end_lat ?? $route->pickup_lat),
+                'lng' => (float)($route->end_lng ?? $route->pickup_lng),
+            ];
+        } elseif ($endpointType === 'return_to_pickup') {
+            $endLocation = [
+                'lat' => (float)$route->pickup_lat,
+                'lng' => (float)$route->pickup_lng,
+            ];
+        } elseif ($endpointType === 'private_endpoint') {
+            if (!$driver->hasApprovedPrivateEndpoint()) {
+                return response()->json(['message' => 'Selected private endpoint is not approved.'], 400);
+            }
+            $privateAddress = $driver->private_endpoint_address;
+            $privateLat = (float)$driver->private_endpoint_lat;
+            $privateLng = (float)$driver->private_endpoint_lng;
+            $endLocation = [
+                'lat' => $privateLat,
+                'lng' => $privateLng,
+            ];
+        }
+
+        $stops = $route->optimizationStops()
+            ->with('package')
+            ->orderBy('stop_order')
+            ->get();
+
+        if ($stops->isEmpty()) {
+            return response()->json(['message' => 'No stops found on this route.'], 400);
+        }
+
+        $routeStops = [];
+        foreach ($stops as $stop) {
+            $pkg = $stop->package;
+            if ($pkg) {
+                $routeStops[] = \App\Services\UrbanGoodz\Routing\DTOs\RouteStop::fromPackageModel($pkg);
+            }
+        }
+
+        $sequencingService = new \App\Services\UrbanGoodz\Routing\Services\RouteSequencingService();
+        
+        $constraints = new \App\Services\UrbanGoodz\Routing\DTOs\ClusteringConstraints(
+            preserveLockedStops: true,
+            respectTimeWindows: true,
+            serviceTimePerStopMinutes: 5,
+        );
+
+        $sequenced = $sequencingService->sequenceRoute($routeStops, $constraints, null, $startLocation, $endLocation);
+
+        $startTime = strtotime($route->scheduled_date ? $route->scheduled_date->toDateString() . ' 08:00:00' : now()->toDateString() . ' 08:00:00');
+        $isFeasible = $sequencingService->checkTimeWindowFeasibility($sequenced['ordered_stops'], $startLocation, $startTime);
+        if (!$isFeasible) {
+            return response()->json(['message' => 'Resequencing failed: The optimized stops violate delivery time windows.'], 400);
+        }
+
+        $originalMiles = (float)$route->estimated_miles;
+        $newMiles = (float)$sequenced['total_miles'];
+        $varianceMiles = $newMiles - $originalMiles;
+        $variancePercent = $originalMiles > 0 ? ($varianceMiles / $originalMiles) * 100 : 0;
+
+        $isExcessive = ($variancePercent > 20.0 || $varianceMiles > 15.0);
+
+        $nextVersion = \App\Models\UrbanGoodzRouteExecutionVersion::where('dedicated_route_id', $route->id)->max('version') + 1;
+        $nextVersion = max(1, $nextVersion);
+
+        $stopOrderSequence = [];
+        $seqOrder = 1;
+        foreach ($sequenced['ordered_stops'] as $sStop) {
+            $stopOrderSequence[] = [
+                'package_id' => $sStop->packageId,
+                'stop_order' => $seqOrder++,
+            ];
+        }
+
+        $executionVersion = \App\Models\UrbanGoodzRouteExecutionVersion::create([
+            'dedicated_route_id' => $route->id,
+            'driver_id' => $driver->id,
+            'version' => $nextVersion,
+            'endpoint_type' => $endpointType,
+            'private_endpoint_address' => $privateAddress,
+            'private_endpoint_lat' => $privateLat,
+            'private_endpoint_lng' => $privateLng,
+            'miles' => $newMiles,
+            'duration_minutes' => (int)$sequenced['estimated_duration_minutes'],
+            'stop_order_sequence' => $stopOrderSequence,
+            'status' => $isExcessive ? 'pending_approval' : 'active',
+        ]);
+
+        if ($isExcessive) {
+            $route->update(['status' => 'admin_review']);
+            return response()->json([
+                'message' => 'Resequencing requires dispatcher approval due to excessive variance.',
+                'execution_version' => $executionVersion->version,
+                'miles' => $newMiles,
+                'duration_minutes' => $executionVersion->duration_minutes,
+                'requires_approval' => true,
+            ]);
+        }
+
+        DB::transaction(function () use ($route, $stopOrderSequence) {
+            // First pass: set stop_orders to negative temporary values to prevent unique key collisions
+            foreach ($stopOrderSequence as $mapping) {
+                \App\Models\UrbanGoodzRouteOptimizationStop::where('dedicated_route_id', $route->id)
+                    ->where('package_id', $mapping['package_id'])
+                    ->update(['stop_order' => -$mapping['stop_order']]);
+            }
+
+            // Second pass: set to final correct stop_orders
+            foreach ($stopOrderSequence as $mapping) {
+                \App\Models\UrbanGoodzRouteOptimizationStop::where('dedicated_route_id', $route->id)
+                    ->where('package_id', $mapping['package_id'])
+                    ->update(['stop_order' => $mapping['stop_order']]);
+
+                \App\Models\UrbanGoodzRoutePackage::where('id', $mapping['package_id'])
+                    ->update(['stop_order' => $mapping['stop_order']]);
+
+                $routePkg = \App\Models\UrbanGoodzRoutePackage::find($mapping['package_id']);
+                if ($routePkg) {
+                    \App\Models\UrbanGoodzBatchPackage::where('tracking_id', $routePkg->tracking_id)
+                        ->update(['stop_order' => $mapping['stop_order']]);
+                }
+            }
+        });
+
+        return response()->json([
+            'message' => 'Route resequenced successfully.',
+            'execution_version' => $executionVersion->version,
+            'miles' => $newMiles,
+            'duration_minutes' => $executionVersion->duration_minutes,
+            'requires_approval' => false,
+        ]);
+    }
+
     public function scanPickup(Request $request, $routeId)
     {
         $driver = $this->authDriver($request);

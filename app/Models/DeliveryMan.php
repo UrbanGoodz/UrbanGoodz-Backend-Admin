@@ -69,6 +69,8 @@ class DeliveryMan extends Authenticatable
         'load_board_eligible' => 'boolean',
         'ref_by'=>'integer',
         'loyalty_point'=>'float',
+        'private_endpoint_lat' => 'decimal:7',
+        'private_endpoint_lng' => 'decimal:7',
     ];
 
     protected $guarded = [];
@@ -79,6 +81,13 @@ class DeliveryMan extends Authenticatable
     ];
 
     protected $appends = ['image_full_url','identity_image_full_url'];
+
+    public function hasApprovedPrivateEndpoint(): bool
+    {
+        return $this->private_endpoint_status === 'approved' 
+            && !is_null($this->private_endpoint_lat) 
+            && !is_null($this->private_endpoint_lng);
+    }
 
     public function getFullNameAttribute()
     {

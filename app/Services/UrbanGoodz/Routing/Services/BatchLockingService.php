@@ -130,6 +130,7 @@ class BatchLockingService
         $routes = [];
         $sameAddressGroups = $result->sameAddressGroups;
 
+        $firstPkg = $packages->first();
         foreach ($result->clusters as $cluster) {
             $route = \App\Models\UrbanGoodzDedicatedRoute::create([
                 'business_client_id' => $batch->business_client_id,
@@ -138,11 +139,17 @@ class BatchLockingService
                 'route_label' => $cluster->label,
                 'total_packages' => $cluster->packageCount,
                 'estimated_miles' => $cluster->estimatedMiles,
-                'estimated_duration' => "{$cluster->estimatedDurationMinutes} min",
+                'estimated_duration' => (int)$cluster->estimatedDurationMinutes,
                 'scheduled_date' => $batch->service_date,
                 'route_type' => $params['route_type'] ?? 'bulk_delivery',
                 'status' => 'planned',
                 'created_by' => $userId,
+                'pickup_lat' => $firstPkg ? $firstPkg->pickup_lat : null,
+                'pickup_lng' => $firstPkg ? $firstPkg->pickup_lng : null,
+                'pickup_location' => $firstPkg ? $firstPkg->pickup_address : null,
+                'end_lat' => $firstPkg ? $firstPkg->pickup_lat : null,
+                'end_lng' => $firstPkg ? $firstPkg->pickup_lng : null,
+                'end_location' => $firstPkg ? $firstPkg->pickup_address : null,
             ]);
 
             $stopOrder = 1;
@@ -163,14 +170,54 @@ class BatchLockingService
 
                 // Update packages
                 foreach ($packageIds as $pId) {
-                    \App\Models\UrbanGoodzBatchPackage::where('id', $pId)->update([
+                    $batchPkg = \App\Models\UrbanGoodzBatchPackage::find($pId);
+                    
+                    // Create Route Package copy for driver API compatibility
+                    $routePkg = \App\Models\UrbanGoodzRoutePackage::create([
+                        'dedicated_route_id' => $route->id,
+                        'business_client_id' => $batch->business_client_id,
+                        'tracking_id' => $batchPkg->tracking_id,
+                        'barcode' => $batchPkg->barcode,
+                        'dropoff_name' => $batchPkg->recipient_name,
+                        'dropoff_address' => $batchPkg->dropoff_address ?? '',
+                        'dropoff_city' => $batchPkg->dropoff_city,
+                        'dropoff_state' => $batchPkg->dropoff_state,
+                        'dropoff_zip' => $batchPkg->dropoff_zip,
+                        'dropoff_phone' => $batchPkg->recipient_phone,
+                        'dropoff_lat' => $batchPkg->dropoff_lat,
+                        'dropoff_lng' => $batchPkg->dropoff_lng,
+                        'delivery_window_start' => $batchPkg->delivery_window_start,
+                        'delivery_window_end' => $batchPkg->delivery_window_end,
+                        'package_type' => $batchPkg->package_type,
+                        'weight' => $batchPkg->weight_lbs,
+                        'priority' => $batchPkg->priority,
+                        'requires_signature' => $batchPkg->requires_signature ?? false,
+                        'requires_photo' => $batchPkg->requires_photo ?? false,
+                        'requires_custody' => $batchPkg->requires_custody ?? false,
+                        'age_restricted' => $batchPkg->age_restricted ?? false,
+                        'delivery_completion_locked_until_verified' => $batchPkg->delivery_completion_locked_until_verified ?? false,
+                        'status' => 'pending',
+                        'stop_order' => $stopOrder,
+                    ]);
+
+                    $batchPkg->update([
                         'route_assignment_status' => 'assigned',
                         'dedicated_route_id' => $route->id,
                         'stop_order' => $stopOrder,
                     ]);
+
+                    // Create Optimization Stop record
+                    \App\Models\UrbanGoodzRouteOptimizationStop::create([
+                        'dedicated_route_id' => $route->id,
+                        'package_id' => $routePkg->id,
+                        'stop_order' => $stopOrder,
+                        'estimated_distance_from_prev' => 0.0,
+                        'estimated_duration_from_prev' => 0,
+                        'status' => 'pending',
+                    ]);
+
+                    $stopOrder++;
                 }
-                
-                $stopOrder++;
             }
 
             $routes[] = [

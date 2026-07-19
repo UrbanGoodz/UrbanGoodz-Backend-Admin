@@ -38,8 +38,8 @@ class DistanceMatrixService
         if ($cached !== null) {
             $this->cacheHitCount++;
             return DistanceResult::road(
-                distanceMiles: $cached['miles'],
-                durationMinutes: $cached['minutes'],
+                miles: $cached['miles'],
+                minutes: $cached['minutes'],
                 provider: 'google_distance_matrix',
                 fromCache: true
             );

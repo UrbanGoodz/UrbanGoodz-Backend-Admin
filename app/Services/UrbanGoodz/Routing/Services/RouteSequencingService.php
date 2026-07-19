@@ -19,8 +19,13 @@ class RouteSequencingService
         $this->max2OptIterations = $cfg['max_2opt_iterations'] ?? 50;
     }
 
-    public function sequenceRoute(array $stops, ClusteringConstraints $constraints, ?int $originIndex = null): array
-    {
+    public function sequenceRoute(
+        array $stops,
+        ClusteringConstraints $constraints,
+        ?int $originIndex = null,
+        ?array $startLocation = null,
+        ?array $endLocation = null
+    ): array {
         if (count($stops) <= 1) {
             return [
                 'ordered_stops' => $stops,
@@ -52,17 +57,17 @@ class RouteSequencingService
 
         if (empty($unlockedStops)) {
             $ordered = array_merge($sortedLocked, $invalidStops);
-            return $this->computeRouteMetrics($ordered, $constraints);
+            return $this->computeRouteMetrics($ordered, $constraints, 'HAVERSINE_FALLBACK', $startLocation, $endLocation);
         }
 
         $matrix = $this->distanceMatrix->buildPairwiseMatrix($unlockedStops, 0);
         $initialOrder = $this->nearestFeasibleNeighbor($unlockedStops, $matrix, $constraints);
-        $optimizedOrder = $this->twoOptImprovement($initialOrder, $matrix, $constraints);
+        $optimizedOrder = $this->twoOptImprovement($initialOrder, $matrix, $constraints, $startLocation, $endLocation);
 
         $ordered = array_merge($sortedLocked, $optimizedOrder, $invalidStops);
         $distanceMode = $this->distanceMatrix->getOverallDistanceMode($matrix);
 
-        return $this->computeRouteMetrics($ordered, $constraints, $distanceMode);
+        return $this->computeRouteMetrics($ordered, $constraints, $distanceMode, $startLocation, $endLocation);
     }
 
     public function sequenceAllRoutes(array $clusteredStops, ClusteringConstraints $constraints): array
@@ -140,13 +145,18 @@ class RouteSequencingService
         return $ordered;
     }
 
-    private function twoOptImprovement(array $stops, array $matrix, ClusteringConstraints $constraints): array
-    {
+    private function twoOptImprovement(
+        array $stops,
+        array $matrix,
+        ClusteringConstraints $constraints,
+        ?array $startLocation = null,
+        ?array $endLocation = null
+    ): array {
         $n = count($stops);
         if ($n <= 3) return $stops;
 
         $bestOrder = $stops;
-        $bestDistance = $this->calculateTotalDistance($bestOrder, $matrix);
+        $bestDistance = $this->calculateTotalDistance($bestOrder, $matrix, $startLocation, $endLocation);
 
         for ($iter = 0; $iter < $this->max2OptIterations; $iter++) {
             $improved = false;
@@ -154,7 +164,7 @@ class RouteSequencingService
             for ($i = 1; $i < $n - 1; $i++) {
                 for ($j = $i + 1; $j < $n; $j++) {
                     $newOrder = $this->twoOptSwap($bestOrder, $i, $j);
-                    $newDistance = $this->calculateTotalDistance($newOrder, $matrix);
+                    $newDistance = $this->calculateTotalDistance($newOrder, $matrix, $startLocation, $endLocation);
 
                     if ($newDistance < $bestDistance - 0.001) {
                         $bestOrder = $newOrder;
@@ -178,10 +188,27 @@ class RouteSequencingService
         return $newOrder;
     }
 
-    private function calculateTotalDistance(array $stops, array $matrix): float
-    {
+    private function calculateTotalDistance(
+        array $stops,
+        array $matrix,
+        ?array $startLocation = null,
+        ?array $endLocation = null
+    ): float {
         $total = 0.0;
-        for ($i = 0; $i < count($stops) - 1; $i++) {
+        $n = count($stops);
+        if ($n === 0) return 0.0;
+
+        // 1. Start location to first stop
+        if ($startLocation) {
+            $res = $this->distanceMatrix->getDistance(
+                (string)$startLocation['lat'], (string)$startLocation['lng'],
+                (string)$stops[0]->lat, (string)$stops[0]->lng
+            );
+            $total += $res->distanceMiles;
+        }
+
+        // 2. Between stops
+        for ($i = 0; $i < $n - 1; $i++) {
             $fromIdx = $this->findStopIndex($stops[$i], $matrix);
             $toIdx = $this->findStopIndex($stops[$i + 1], $matrix);
 
@@ -195,6 +222,16 @@ class RouteSequencingService
                 );
             }
         }
+
+        // 3. Last stop to end location
+        if ($endLocation) {
+            $res = $this->distanceMatrix->getDistance(
+                (string)$stops[$n - 1]->lat, (string)$stops[$n - 1]->lng,
+                (string)$endLocation['lat'], (string)$endLocation['lng']
+            );
+            $total += $res->distanceMiles;
+        }
+
         return $total;
     }
 
@@ -270,22 +307,92 @@ class RouteSequencingService
         return fmod($currentTimeMinutes, $breakIntervalMinutes) < $constraints->serviceTimePerStopMinutes;
     }
 
-    private function computeRouteMetrics(array $orderedStops, ClusteringConstraints $constraints, string $distanceMode = 'HAVERSINE_FALLBACK'): array
+    public function checkTimeWindowFeasibility(array $orderedStops, ?array $startLocation = null, ?int $startTimeStamp = null): bool
     {
-        $totalMiles = 0.0;
-        $totalDuration = 0.0;
+        if (empty($orderedStops)) return true;
 
-        for ($i = 0; $i < count($orderedStops) - 1; $i++) {
-            $miles = $this->distanceMatrix->haversine(
-                $orderedStops[$i]->lat, $orderedStops[$i]->lng,
-                $orderedStops[$i + 1]->lat, $orderedStops[$i + 1]->lng
-            );
-            $totalMiles += $miles;
-            $speedMph = $constraints->averageSpeedMph ?: 30;
-            $totalDuration += ($miles / $speedMph) * 60;
+        $currentTime = $startTimeStamp ?? time();
+        $currentLat = $startLocation ? $startLocation['lat'] : null;
+        $currentLng = $startLocation ? $startLocation['lng'] : null;
+
+        foreach ($orderedStops as $stop) {
+            if ($currentLat !== null && $currentLng !== null) {
+                $res = $this->distanceMatrix->getDistance(
+                    (string)$currentLat, (string)$currentLng,
+                    (string)$stop->lat, (string)$stop->lng
+                );
+                $travelMinutes = $res->durationMinutes ?? (($res->distanceMiles / 30) * 60);
+                $currentTime += $travelMinutes * 60;
+            }
+
+            if ($stop->deliveryWindowEnd !== null) {
+                $windowEnd = strtotime($stop->deliveryWindowEnd);
+                if ($windowEnd !== false && $currentTime > $windowEnd) {
+                    return false; // Violated SLA delivery window
+                }
+            }
+
+            $currentLat = $stop->lat;
+            $currentLng = $stop->lng;
+
+            // Wait if before start window
+            if ($stop->deliveryWindowStart !== null) {
+                $windowStart = strtotime($stop->deliveryWindowStart);
+                if ($windowStart !== false && $currentTime < $windowStart) {
+                    $currentTime = $windowStart;
+                }
+            }
+
+            $currentTime += 5 * 60; // 5 mins service time
         }
 
-        $totalDuration += count($orderedStops) * $constraints->serviceTimePerStopMinutes;
+        return true;
+    }
+
+    private function computeRouteMetrics(
+        array $orderedStops,
+        ClusteringConstraints $constraints,
+        string $distanceMode = 'HAVERSINE_FALLBACK',
+        ?array $startLocation = null,
+        ?array $endLocation = null
+    ): array {
+        $totalMiles = 0.0;
+        $totalDuration = 0.0;
+        $n = count($orderedStops);
+
+        if ($n > 0) {
+            // 1. Start location to first stop
+            if ($startLocation) {
+                $res = $this->distanceMatrix->getDistance(
+                    (string)$startLocation['lat'], (string)$startLocation['lng'],
+                    (string)$orderedStops[0]->lat, (string)$orderedStops[0]->lng
+                );
+                $totalMiles += $res->distanceMiles;
+                $totalDuration += $res->durationMinutes ?? (($res->distanceMiles / 30) * 60);
+            }
+
+            // 2. Between consecutive stops
+            for ($i = 0; $i < $n - 1; $i++) {
+                $res = $this->distanceMatrix->getDistance(
+                    (string)$orderedStops[$i]->lat, (string)$orderedStops[$i]->lng,
+                    (string)$orderedStops[$i + 1]->lat, (string)$orderedStops[$i + 1]->lng
+                );
+                $totalMiles += $res->distanceMiles;
+                $totalDuration += $res->durationMinutes ?? (($res->distanceMiles / 30) * 60);
+            }
+
+            // 3. Last stop to end location
+            if ($endLocation) {
+                $res = $this->distanceMatrix->getDistance(
+                    (string)$orderedStops[$n - 1]->lat, (string)$orderedStops[$n - 1]->lng,
+                    (string)$endLocation['lat'], (string)$endLocation['lng']
+                );
+                $totalMiles += $res->distanceMiles;
+                $totalDuration += $res->durationMinutes ?? (($res->distanceMiles / 30) * 60);
+            }
+        }
+
+        $totalDuration += $n * $constraints->serviceTimePerStopMinutes;
         $breaks = (int)($totalDuration / ($constraints->breakAfterHours * 60));
         $totalDuration += $breaks * $constraints->breakDurationMinutes;
 
@@ -299,8 +406,8 @@ class RouteSequencingService
             'estimated_duration_hours' => round($totalDuration / 60, 1),
             'total_weight_lbs' => $totalWeight,
             'total_packages' => $totalPackages,
-            'unique_stop_count' => count($orderedStops),
-            'algorithm' => count($orderedStops) <= 3 ? 'nearest_feasible_neighbor' : 'nearest_feasible_neighbor+2opt',
+            'unique_stop_count' => $n,
+            'algorithm' => $n <= 3 ? 'nearest_feasible_neighbor' : 'nearest_feasible_neighbor+2opt',
             'distance_mode' => $distanceMode,
         ];
     }
