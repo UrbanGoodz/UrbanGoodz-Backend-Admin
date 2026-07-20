@@ -239,14 +239,18 @@ class AiCopilotService
             ->get();
 
         foreach ($waitingOrders as $order) {
+            $orderCreated = $this->safeCarbon($order->created_at);
+            $orderCreatedHuman = $orderCreated ? $orderCreated->diffForHumans() : 'unknown';
+            $hoursWaiting = $orderCreated ? $orderCreated->diffInHours(now()) : 0;
+
             $rec = $this->createRecommendation(
                 'stuck_order',
                 'unassigned',
                 $order,
                 'Assign driver or cancel',
-                "Order #{$order->id} was created {$order->created_at->diffForHumans()} with no driver assigned",
+                "Order #{$order->id} was created {$orderCreatedHuman} with no driver assigned",
                 0.7,
-                ['hours_waiting' => $order->created_at->diffInHours(now()), 'order_status' => $order->order_status]
+                ['hours_waiting' => $hoursWaiting, 'order_status' => $order->order_status]
             );
             $this->autoExecute($rec, 'ai_auto_dispatch_enabled', 0.7, function() use ($order) {
                 $availableDrivers = DeliveryMan::where('active', 1)
@@ -269,12 +273,15 @@ class AiCopilotService
             ->get();
 
         foreach ($blockedPackages as $pkg) {
+            $pkgUpdated = $this->safeCarbon($pkg->updated_at);
+            $pkgUpdatedHuman = $pkgUpdated ? $pkgUpdated->diffForHumans() : 'unknown';
+
             $this->createRecommendation(
                 'stuck_order',
                 'blocked_delivery',
                 $pkg,
                 'Review package status and resolve',
-                "Package {$pkg->tracking_id} stuck in '{$pkg->status}' for {$pkg->updated_at->diffForHumans()}",
+                "Package {$pkg->tracking_id} stuck in '{$pkg->status}' for {$pkgUpdatedHuman}",
                 0.8,
                 ['package_id' => $pkg->id, 'current_status' => $pkg->status, 'tracking_id' => $pkg->tracking_id]
             );
@@ -288,12 +295,15 @@ class AiCopilotService
             ->get();
 
         foreach ($unassignedJobs as $job) {
+            $jobCreated = $this->safeCarbon($job->created_at);
+            $jobCreatedHuman = $jobCreated ? $jobCreated->diffForHumans() : 'unknown';
+
             $this->createRecommendation(
                 'stuck_order',
                 'unassigned_job',
                 $job,
                 'Assign driver or contact client',
-                "Job #{$job->job_number} for {$job->pickup_name} has no driver for {$job->created_at->diffForHumans()}",
+                "Job #{$job->job_number} for {$job->pickup_name} has no driver for {$jobCreatedHuman}",
                 0.65,
                 ['job_id' => $job->id, 'client_id' => $job->business_client_id]
             );
@@ -313,12 +323,15 @@ class AiCopilotService
             ->get();
 
         foreach ($pendingRequests as $req) {
+            $reqCreated = $this->safeCarbon($req->created_at);
+            $reqCreatedHuman = $reqCreated ? $reqCreated->diffForHumans() : 'unknown';
+
             $action = 'Review and respond';
-            $reason = "Request #{$req->id} ({$req->status}) from {$req->created_at->diffForHumans()}";
+            $reason = "Request #{$req->id} ({$req->status}) from {$reqCreatedHuman}";
 
             if ($req->status === 'quote_needed') {
                 $action = 'Provide quote to customer';
-                $reason = "Request #{$req->id} needs pricing quote, waiting {$req->created_at->diffForHumans()}";
+                $reason = "Request #{$req->id} needs pricing quote, waiting {$reqCreatedHuman}";
             } elseif (empty($req->description) && $req->status === 'pending_review') {
                 $action = 'Contact customer for details';
                 $reason = "Request #{$req->id} has unclear or missing description";
@@ -351,14 +364,18 @@ class AiCopilotService
             ->get();
 
         foreach ($poolPackages as $pkg) {
+            $pkgCreated = $this->safeCarbon($pkg->created_at);
+            $pkgCreatedHuman = $pkgCreated ? $pkgCreated->diffForHumans() : 'unknown';
+            $daysUnassigned = $pkgCreated ? $pkgCreated->diffInDays(now()) : 0;
+
             $this->createRecommendation(
                 'package_monitoring',
                 'unassigned',
                 $pkg,
                 'Assign to a route or manifest',
-                "Package {$pkg->tracking_id} unassigned for {$pkg->created_at->diffForHumans()}",
+                "Package {$pkg->tracking_id} unassigned for {$pkgCreatedHuman}",
                 0.7,
-                ['package_id' => $pkg->id, 'tracking_id' => $pkg->tracking_id, 'days_unassigned' => $pkg->created_at->diffInDays(now())]
+                ['package_id' => $pkg->id, 'tracking_id' => $pkg->tracking_id, 'days_unassigned' => $daysUnassigned]
             );
             $count++;
         }
@@ -369,12 +386,15 @@ class AiCopilotService
             ->get();
 
         foreach ($exceptionPackages as $pkg) {
+            $pkgUpdated = $this->safeCarbon($pkg->updated_at);
+            $pkgUpdatedHuman = $pkgUpdated ? $pkgUpdated->diffForHumans() : 'unknown';
+
             $this->createRecommendation(
                 'package_monitoring',
                 'exception',
                 $pkg,
                 'Review exception and determine next action',
-                "Package {$pkg->tracking_id} has exception status '{$pkg->status}' for {$pkg->updated_at->diffForHumans()}",
+                "Package {$pkg->tracking_id} has exception status '{$pkg->status}' for {$pkgUpdatedHuman}",
                 0.85,
                 ['package_id' => $pkg->id, 'tracking_id' => $pkg->tracking_id, 'exception_status' => $pkg->status]
             );
@@ -388,12 +408,15 @@ class AiCopilotService
             ->get();
 
         foreach ($pendingUnscaned as $pkg) {
+            $pkgUpdated = $this->safeCarbon($pkg->updated_at);
+            $pkgUpdatedHuman = $pkgUpdated ? $pkgUpdated->diffForHumans() : 'unknown';
+
             $this->createRecommendation(
                 'package_monitoring',
                 'in_transit_stalled',
                 $pkg,
                 'Contact driver for status update',
-                "Package {$pkg->tracking_id} has been in transit for {$pkg->updated_at->diffForHumans()} without dropoff scan",
+                "Package {$pkg->tracking_id} has been in transit for {$pkgUpdatedHuman} without dropoff scan",
                 0.6,
                 ['package_id' => $pkg->id, 'tracking_id' => $pkg->tracking_id, 'driver_id' => $pkg->dropoff_scanned_by]
             );
@@ -413,12 +436,15 @@ class AiCopilotService
             ->get();
 
         foreach ($pendingVerifications as $v) {
+            $vAttempted = $this->safeCarbon($v->verification_attempted_at);
+            $vAttemptedHuman = $vAttempted ? $vAttempted->diffForHumans() : 'unknown';
+
             $this->createRecommendation(
                 'age_verification_alert',
                 'pending_verification',
                 $v,
                 'Follow up with driver or resolve manually',
-                "Age verification #{$v->id} for package #{$v->package_id} pending for {$v->verification_attempted_at->diffForHumans()}",
+                "Age verification #{$v->id} for package #{$v->package_id} pending for {$vAttemptedHuman}",
                 0.7,
                 ['verification_id' => $v->id, 'package_id' => $v->package_id, 'driver_id' => $v->driver_id]
             );
@@ -431,12 +457,15 @@ class AiCopilotService
             ->get();
 
         foreach ($needsAdminReview as $v) {
+            $vCreated = $this->safeCarbon($v->created_at);
+            $vCreatedHuman = $vCreated ? $vCreated->diffForHumans() : 'unknown';
+
             $this->createRecommendation(
                 'age_verification_alert',
                 'admin_review_needed',
                 $v,
                 'Review refused verification and approve or escalate',
-                "Age verification #{$v->id} refused ({$v->refusal_reason}) needs admin review for {$v->created_at->diffForHumans()}",
+                "Age verification #{$v->id} refused ({$v->refusal_reason}) needs admin review for {$vCreatedHuman}",
                 0.9,
                 ['verification_id' => $v->id, 'package_id' => $v->package_id, 'refusal_reason' => $v->refusal_reason]
             );
@@ -461,21 +490,26 @@ class AiCopilotService
         }
 
         $staleLoads = $availableLoads->filter(function ($load) {
-            return $load->created_at->isBefore(now()->subDays(3));
+            $loadCreated = $this->safeCarbon($load->created_at);
+            return $loadCreated ? $loadCreated->isBefore(now()->subDays(3)) : false;
         });
 
         foreach ($staleLoads as $load) {
+            $loadCreated = $this->safeCarbon($load->created_at);
+            $loadCreatedHuman = $loadCreated ? $loadCreated->diffForHumans() : 'unknown';
+            $daysAvailable = $loadCreated ? $loadCreated->diffInDays(now()) : 0;
+
             $this->createRecommendation(
                 'load_board_stale',
                 'aging_load',
                 $load,
                 'Consider repricing or removing this load',
-                "Load {$load->load_number} ({$load->origin_city}, {$load->origin_state} → {$load->destination_city}, {$load->destination_state}) has been available for {$load->created_at->diffForHumans()}",
+                "Load {$load->load_number} ({$load->origin_city}, {$load->origin_state} → {$load->destination_city}, {$load->destination_state}) has been available for {$loadCreatedHuman}",
                 0.65,
                 [
                     'load_id' => $load->id,
                     'load_number' => $load->load_number,
-                    'days_available' => $load->created_at->diffInDays(now()),
+                    'days_available' => $daysAvailable,
                     'payout_amount' => $load->payout_amount,
                     'rate_per_mile' => $load->rate_per_mile,
                     'origin_state' => $load->origin_state,
@@ -1558,16 +1592,19 @@ class AiCopilotService
             ->orderByDesc('payout_amount')
             ->limit(20)
             ->get()
-            ->map(fn($l) => [
-                'id' => $l->id,
-                'origin' => $l->origin_city . ', ' . $l->origin_state,
-                'destination' => $l->destination_city . ', ' . $l->destination_state,
-                'payout' => $l->payout_amount,
-                'distance' => $l->distance_miles,
-                'type' => $l->load_type,
-                'equipment' => $l->equipment_type,
-                'posted' => $l->created_at?->diffForHumans(),
-            ])->toArray();
+            ->map(function($l) {
+                $lCreated = $this->safeCarbon($l->created_at);
+                return [
+                    'id' => $l->id,
+                    'origin' => $l->origin_city . ', ' . $l->origin_state,
+                    'destination' => $l->destination_city . ', ' . $l->destination_state,
+                    'payout' => $l->payout_amount,
+                    'distance' => $l->distance_miles,
+                    'type' => $l->load_type,
+                    'equipment' => $l->equipment_type,
+                    'posted' => $lCreated ? $lCreated->diffForHumans() : 'unknown',
+                ];
+            })->toArray();
 
         $drivers = DeliveryMan::where('active', 1)
             ->where('application_status', 'approved')
@@ -1598,13 +1635,14 @@ Return JSON: {\"summary\": string, \"top_opportunities\": [{\"load_id\": number,
             return ['risk_level' => 'unknown', 'recommendation' => 'AI not configured'];
         }
 
+        $orderCreated = $this->safeCarbon($order->created_at);
         $orderData = [
             'id' => $order->id,
             'status' => $order->order_status,
             'amount' => $order->order_amount,
             'payment_status' => $order->payment_status ?? 'unknown',
-            'created' => $order->created_at?->format('Y-m-d H:i'),
-            'age_hours' => $order->created_at ? now()->diffInHours($order->created_at) : 0,
+            'created' => $orderCreated ? $orderCreated->format('Y-m-d H:i') : null,
+            'age_hours' => $orderCreated ? now()->diffInHours($orderCreated) : 0,
             'delivery_type' => $order->order_type ?? 'standard',
         ];
 
@@ -1635,5 +1673,20 @@ Return JSON: {\"summary\": string, \"top_opportunities\": [{\"load_id\": number,
             . "- Stuck orders (>4h): {$stuck}\n"
             . "- Available loads: {$availableLoads}\n"
             . "- Active drivers: " . DeliveryMan::where('active', 1)->count();
+    }
+
+    private function safeCarbon($value): ?\Carbon\Carbon
+    {
+        if (empty($value)) {
+            return null;
+        }
+        if ($value instanceof \Carbon\Carbon) {
+            return $value;
+        }
+        try {
+            return \Carbon\Carbon::parse($value);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 }
