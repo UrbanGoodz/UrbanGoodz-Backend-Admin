@@ -347,6 +347,9 @@ class AiOperationsController extends Controller
     {
         $query = AiTask::with('agent')->latest();
 
+        if ($request->filled('id')) {
+            $query->where('id', $request->id);
+        }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -360,6 +363,9 @@ class AiOperationsController extends Controller
     {
         $query = AiApproval::with(['action.agent', 'requestedApprover', 'approver'])->latest();
 
+        if ($request->filled('id')) {
+            $query->where('id', $request->id);
+        }
         if ($request->filled('decision')) {
             $query->where('decision', $request->decision);
         }
@@ -373,6 +379,9 @@ class AiOperationsController extends Controller
     {
         $query = MerchantProspect::withCount(['outreachMessages'])->latest();
 
+        if ($request->filled('id')) {
+            $query->where('id', $request->id);
+        }
         if ($request->filled('status')) {
             $query->where('prospect_status', $request->status);
         }
@@ -399,6 +408,9 @@ class AiOperationsController extends Controller
     {
         $query = BusinessNeed::latest();
 
+        if ($request->filled('id')) {
+            $query->where('id', $request->id);
+        }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -412,6 +424,9 @@ class AiOperationsController extends Controller
     {
         $query = HumanActionItem::with('agent', 'task', 'action')->latest();
 
+        if ($request->filled('id')) {
+            $query->where('id', $request->id);
+        }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }

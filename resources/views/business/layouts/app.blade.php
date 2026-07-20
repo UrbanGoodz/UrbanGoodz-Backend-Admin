@@ -121,6 +121,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('business.invoices.index') }}">{{ translate('Invoices') }}</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('business.ai-assistant') }}">
+                            <i class="tio-magic-wand mr-1" style="color: var(--ug-orange);"></i>{{ translate('AI Assistant') }}
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav align-items-lg-center">
                     @php($businessClientUser = auth('business')->user())

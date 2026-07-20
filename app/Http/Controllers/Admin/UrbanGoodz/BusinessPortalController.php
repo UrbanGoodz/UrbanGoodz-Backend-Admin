@@ -1217,4 +1217,30 @@ class BusinessPortalController extends Controller
         Toastr::success(translate('Load cancelled successfully'));
         return redirect()->route('business.load-board.show', $id);
     }
+
+    public function aiAssistant(Request $request)
+    {
+        $clientId = $this->getClientId();
+
+        $data = [
+            'client' => UrbanGoodzBusinessClient::find($clientId),
+            'pool_packages' => UrbanGoodzRoutePackage::where('business_client_id', $clientId)
+                ->whereNull('dedicated_route_id')
+                ->whereIn('status', ['pending', 'queued', 'awaiting_assignment'])
+                ->get(),
+            'active_routes' => UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
+                ->whereIn('status', ['active', 'in_progress'])
+                ->get(),
+            'employees_count' => UrbanGoodzBusinessClientUser::where('business_client_id', $clientId)->count(),
+            'unpaid_invoices' => UrbanGoodzClientInvoice::where('business_client_id', $clientId)
+                ->where('status', 'unpaid')
+                ->get(),
+            'recent_manifests' => UrbanGoodzManifest::where('business_client_id', $clientId)
+                ->latest()
+                ->take(5)
+                ->get(),
+        ];
+
+        return view('business.ai.assistant', $data);
+    }
 }

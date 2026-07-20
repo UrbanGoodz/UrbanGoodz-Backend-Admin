@@ -99,6 +99,8 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
             Route::post('invoice-support', [BusinessAIController::class, 'generateInvoiceSupport'])->name('invoice-support');
             Route::post('delivery-proof', [BusinessAIController::class, 'deliveryProofPackage'])->name('delivery-proof');
         });
+
+        Route::get('ai-assistant', [BusinessPortalController::class, 'aiAssistant'])->name('ai-assistant');
     });
 
     Route::middleware(['business', 'dispatcher', 'dispatch-territory'])->group(function () {
