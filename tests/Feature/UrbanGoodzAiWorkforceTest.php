@@ -31,6 +31,49 @@ class UrbanGoodzAiWorkforceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        
+        // Dynamically create dependency tables if they do not exist
+        $dummyTables = [
+            'stores' => function ($table) {
+                $table->id();
+                $table->string('logo')->nullable();
+                $table->string('banner')->nullable();
+                $table->decimal('comission', 5, 2)->nullable();
+                $table->timestamps();
+            },
+            'delivery_men' => function ($table) {
+                $table->id();
+                $table->string('vehicle_type')->nullable();
+                $table->timestamps();
+            },
+            'urban_goodz_manifests' => function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('business_client_id');
+                $table->timestamps();
+            },
+            'urban_goodz_dedicated_routes' => function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('business_client_id');
+                $table->unsignedBigInteger('assigned_driver_id')->nullable();
+                $table->timestamps();
+            },
+            'order_anywhere_requests' => function ($table) {
+                $table->id();
+                $table->string('store_vendor_name')->nullable();
+                $table->string('store_vendor_address_or_website')->nullable();
+                $table->unsignedBigInteger('customer_id')->nullable();
+                $table->string('status')->nullable();
+                $table->decimal('final_amount', 10, 2)->nullable();
+                $table->timestamps();
+            }
+        ];
+
+        foreach ($dummyTables as $name => $schema) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable($name)) {
+                \Illuminate\Support\Facades\Schema::create($name, $schema);
+            }
+        }
+
         $this->autonomyService = new AiWorkforceAutonomyService();
         $this->merchantService = new AiMerchantAcquisitionService($this->autonomyService);
         $this->chiefOfStaffService = new AiChiefOfStaffService();
