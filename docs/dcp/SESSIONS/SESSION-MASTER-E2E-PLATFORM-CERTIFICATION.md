@@ -1129,6 +1129,34 @@ php artisan view:cache
 ```
 
 
+# Hotfix: MySQL Constraint Identifier Name Limit (Phase 54-Hotfix)
+**Date:** 2026-07-19
+**Status:** PASS_LOCAL
+
+### Failure Root Cause
+- **Error:** `SQLSTATE[42000]: 1059 Identifier name 'merchant_prospect_order_anywhere_order_anywhere_request_id_foreign' is too long.`
+- **Reason:** The automatically generated foreign key name in `merchant_prospect_order_anywhere` was 66 characters, exceeding MySQL's 64-character limit.
+
+### Action Taken
+1. **Explicit Constraints:** Modified `2026_07_19_160400_create_merchant_prospects_table.php` to use short explicit constraint names:
+   - Foreign key 1: `mp_oa_prospect_fk`
+   - Foreign key 2: `mp_oa_request_fk`
+   - Unique key: `mp_oar_unique`
+2. **Partial-State Recovery:** Wrapped table creations in `Schema::hasTable` checks and added safe drops of the junction table before creation.
+3. **Regression Tests:** Created `tests/Feature/UrbanGoodzAiMigrationTest.php` to prove constraint length compliance and partial-state recovery.
+4. **Focused Tests Run:** `UrbanGoodzAiMigrationTest` (1 passed) and `UrbanGoodzAiWorkforceTest` (5 passed) both successfully executed.
+
+### Deployed HEAD
+- **HEAD:** `907270991d8cd8d5c08f30f9617689453b1014e8` (pushed to origin)
+
+### cPanel Terminal Deployment Commands
+Run from the cPanel Terminal:
+```bash
+cd "/home/urbakkej/admin.urbangoodzdelivery.com"
+bash AdminPanel_Update_V39/scripts/deploy-ai-workforce.sh
+```
+
+
 
 
 
