@@ -15,6 +15,9 @@ return new class extends Migration
             if (!Schema::hasColumn('urban_goodz_dedicated_routes', 'route_label')) {
                 $table->string('route_label')->nullable()->after('route_name');
             }
+            if (!Schema::hasColumn('urban_goodz_dedicated_routes', 'business_client_id')) {
+                $table->unsignedBigInteger('business_client_id')->nullable()->after('id');
+            }
         });
     }
 
