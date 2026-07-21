@@ -23,7 +23,7 @@ use Illuminate\Http\Request;
 
 class UrbanGoodzLoadSourcingController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request)
     {
         $sources = LoadSource::withCount(['externalLoads', 'syncRuns', 'errors'])
             ->orderBy('name')
@@ -39,10 +39,18 @@ class UrbanGoodzLoadSourcingController extends Controller
             'total_recommendations' => LoadRecommendation::count(),
         ];
 
-        return response()->json([
-            'sources' => $sources,
-            'stats' => $stats,
-        ]);
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'sources' => $sources,
+                'stats' => $stats,
+            ]);
+        }
+
+        $externalLoads = ExternalLoad::with('source')
+            ->latest()
+            ->paginate(25);
+
+        return view('admin-views.urban-goodz.load-sourcing.index', compact('sources', 'stats', 'externalLoads'));
     }
 
     public function showSource(int $id): JsonResponse

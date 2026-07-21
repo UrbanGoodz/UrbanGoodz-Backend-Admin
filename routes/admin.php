@@ -312,12 +312,17 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->name('action-logs');
                 Route::post('action-logs/{logId}/rollback', 'UrbanGoodz\AiCopilotController@rollback')->name('action-logs.rollback');
                 Route::get('load-board-analytics', 'UrbanGoodz\AiCopilotController@loadBoardAnalytics')->name('load-board-analytics');
+                Route::get('suppressed', 'UrbanGoodz\AiCopilotController@suppressed')->name('suppressed');
 
                 Route::get('settings', 'UrbanGoodz\AiCopilotController@settings')->name('settings');
                 Route::post('settings', 'UrbanGoodz\AiCopilotController@saveSettings')->name('settings.save');
                 Route::get('{id}', 'UrbanGoodz\AiCopilotController@show')->name('show');
                 Route::post('{id}/accept', 'UrbanGoodz\AiCopilotController@accept')->name('accept');
                 Route::post('{id}/dismiss', 'UrbanGoodz\AiCopilotController@dismiss')->name('dismiss');
+                Route::post('{id}/snooze', 'UrbanGoodz\AiCopilotController@snooze')->name('snooze');
+                Route::post('{id}/dont-show-again', 'UrbanGoodz\AiCopilotController@dontShowAgain')->name('dont-show-again');
+                Route::post('{id}/resolve', 'UrbanGoodz\AiCopilotController@resolve')->name('resolve');
+                Route::post('{id}/restore', 'UrbanGoodz\AiCopilotController@restore')->name('restore');
             });
 
             Route::group(['prefix' => 'ai', 'as' => 'ai.'], function () {

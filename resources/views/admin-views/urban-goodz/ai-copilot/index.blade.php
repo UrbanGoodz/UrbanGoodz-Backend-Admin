@@ -15,7 +15,7 @@
     <div class="content container-fluid">
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
             <h1 class="page-header-title">{{ translate('AI Ops Copilot') }}</h1>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
                 <a href="{{ route('admin.urban-goodz.ai-copilot.module-settings') }}" class="btn btn-outline--primary">
                     <i class="tio-settings-outlined"></i> {{ translate('Modules') }}
                 </a>
@@ -25,13 +25,16 @@
                 <a href="{{ route('admin.urban-goodz.ai-copilot.action-logs') }}" class="btn btn-outline--primary">
                     <i class="tio-list"></i> {{ translate('Logs') }}
                 </a>
+                <a href="{{ route('admin.urban-goodz.ai-copilot.suppressed') }}" class="btn btn-outline-secondary">
+                    <i class="tio-clear-circle-outlined"></i> {{ translate('Suppressed') }}
+                </a>
                 <a href="{{ route('admin.urban-goodz.ai-copilot.load-board-analytics') }}" class="btn btn-outline--primary">
                     <i class="tio-truck"></i> {{ translate('Load Board Analytics') }}
                 </a>
                 <a href="{{ route('admin.urban-goodz.ai-copilot.settings') }}" class="btn btn-outline--primary">
                     <i class="tio-settings"></i> {{ translate('Settings') }}
                 </a>
-                <a href="{{ route('admin.urban-goodz.ai-copilot.generate') }}" class="btn btn--primary" onclick="return confirm('Generate new AI recommendations?')">
+                <a href="{{ route('admin.urban-goodz.ai-copilot.generate', array_filter(['type' => request('type')])) }}" class="btn btn--primary" onclick="return confirm('Generate AI recommendations?')">
                     <i class="tio-refresh"></i> {{ translate('Generate Recommendations') }}
                 </a>
             </div>
@@ -59,7 +62,7 @@
         </div>
 
         <div class="row g-3 mb-4">
-            <div class="col-md-3 col-6">
+            <div class="col-md-2 col-6">
                 <div class="card stat-card">
                     <div class="card-body text-center py-3">
                         <div class="stat-number text--warning">{{ $stats['total_pending'] }}</div>
@@ -67,7 +70,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
+            <div class="col-md-2 col-6">
                 <div class="card stat-card">
                     <div class="card-body text-center py-3">
                         <div class="stat-number text--success">{{ $stats['total_accepted'] }}</div>
@@ -75,19 +78,35 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
+            <div class="col-md-2 col-6">
                 <div class="card stat-card">
                     <div class="card-body text-center py-3">
                         <div class="stat-number text--secondary">{{ $stats['total_dismissed'] }}</div>
-                        <small class="text-muted">{{ translate('Dismissed') }}</small>
+                        <small class="text-muted">{{ translate('Dismissed Once') }}</small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
+            <div class="col-md-2 col-6">
                 <div class="card stat-card">
                     <div class="card-body text-center py-3">
-                        <div class="stat-number text--info">{{ array_sum($stats['by_type']) }}</div>
-                        <small class="text-muted">{{ translate('Active Issues') }}</small>
+                        <div class="stat-number text--info">{{ $stats['total_snoozed'] ?? 0 }}</div>
+                        <small class="text-muted">{{ translate('Snoozed') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card stat-card">
+                    <div class="card-body text-center py-3">
+                        <div class="stat-number text--danger">{{ $stats['total_dont_show_again'] ?? 0 }}</div>
+                        <small class="text-muted">{{ translate('Suppressed') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card stat-card">
+                    <div class="card-body text-center py-3">
+                        <div class="stat-number text--primary">{{ $stats['total_resolved'] ?? 0 }}</div>
+                        <small class="text-muted">{{ translate('Resolved') }}</small>
                     </div>
                 </div>
             </div>
@@ -97,18 +116,18 @@
         <div class="row g-3 mb-4">
             @foreach($stats['by_type'] as $type => $count)
             <div class="col-md-3 col-6">
-                <div class="card">
+                <a href="{{ route('admin.urban-goodz.ai-copilot.index', ['type' => $type]) }}" class="card text-decoration-none">
                     <div class="card-body d-flex align-items-center gap-3 py-3">
                         <div class="rec-type-icon text--primary">
-                            @php $icons = ['dispatch_suggestion' => 'tio-delivery', 'stuck_order' => 'tio-alert', 'order_anywhere_triage' => 'tio-chat', 'package_monitoring' => 'tio-package', 'age_verification_alert' => 'tio-verified', 'load_board' => 'tio-truck', 'load_board_demand' => 'tio-chart-line', 'load_board_driver_match' => 'tio-user-check', 'load_board_pricing' => 'tio-dollar']; @endphp
+                            @php $icons = ['dispatch_suggestion' => 'tio-delivery', 'stuck_order' => 'tio-alert', 'stuck_order_alert' => 'tio-alert', 'order_anywhere_triage' => 'tio-chat', 'package_monitoring' => 'tio-package', 'age_verification_alert' => 'tio-verified', 'load_board' => 'tio-truck', 'load_board_alert' => 'tio-truck', 'load_board_demand' => 'tio-chart-line', 'load_acceptance_suggestion' => 'tio-user-check', 'load_board_driver_match' => 'tio-user-check', 'load_pricing_anomaly' => 'tio-dollar', 'load_board_pricing' => 'tio-dollar']; @endphp
                             <i class="{{ $icons[$type] ?? 'tio-flag' }}"></i>
                         </div>
                         <div>
-                            <div class="fw-bold">{{ $count }}</div>
+                            <div class="fw-bold text-dark">{{ $count }}</div>
                             <small class="text-muted">{{ ucwords(str_replace('_', ' ', $type)) }}</small>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
             @endforeach
         </div>
@@ -116,19 +135,36 @@
 
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <h5 class="mb-0">{{ translate('Recommendations') }}</h5>
+                <div>
+                    <h5 class="mb-0">{{ translate('Recommendations') }}</h5>
+                    @if(request('type'))
+                        <small class="text-primary font-weight-bold">{{ translate('Filtered by') }}: {{ ucwords(str_replace('_', ' ', request('type'))) }} ({{ $recommendations->total() }} {{ translate('found') }})</small>
+                    @endif
+                </div>
                 <form method="GET" class="d-flex gap-2 flex-wrap">
                     <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
                         <option value="">{{ translate('All Types') }}</option>
-                        @foreach(['dispatch_suggestion', 'stuck_order', 'order_anywhere_triage', 'package_monitoring', 'age_verification_alert', 'load_board', 'load_board_demand', 'load_board_driver_match', 'load_board_pricing'] as $t)
-                        <option value="{{ $t }}" {{ request('type') === $t ? 'selected' : '' }}>{{ ucwords(str_replace('_', ' ', $t)) }}</option>
+                        @foreach([
+                            'dispatch_suggestion' => 'Dispatch Suggestion',
+                            'stuck_order_alert' => 'Stuck Order Alert',
+                            'order_anywhere_triage' => 'Order Anywhere Triage',
+                            'package_monitoring' => 'Package Monitoring',
+                            'age_verification_alert' => 'Age Verification Alert',
+                            'load_board_alert' => 'Load Board Alert',
+                            'load_acceptance_suggestion' => 'Load Acceptance Suggestion',
+                            'load_pricing_anomaly' => 'Load Pricing Anomaly'
+                        ] as $tKey => $tVal)
+                        <option value="{{ $tKey }}" {{ request('type') === $tKey ? 'selected' : '' }}>{{ translate($tVal) }}</option>
                         @endforeach
                     </select>
                     <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
-                        <option value="">{{ translate('All Statuses') }}</option>
-                        @foreach(['pending', 'accepted', 'dismissed'] as $s)
-                        <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
-                        @endforeach
+                        <option value="pending" {{ request('status') === 'pending' || !request('status') ? 'selected' : '' }}>{{ translate('Pending Review') }}</option>
+                        <option value="accepted" {{ request('status') === 'accepted' ? 'selected' : '' }}>{{ translate('Accepted') }}</option>
+                        <option value="dismissed" {{ request('status') === 'dismissed' ? 'selected' : '' }}>{{ translate('Dismissed Once') }}</option>
+                        <option value="snoozed" {{ request('status') === 'snoozed' ? 'selected' : '' }}>{{ translate('Snoozed') }}</option>
+                        <option value="dont_show_again" {{ request('status') === 'dont_show_again' ? 'selected' : '' }}>{{ translate('Suppressed (Don\'t Show)') }}</option>
+                        <option value="resolved" {{ request('status') === 'resolved' ? 'selected' : '' }}>{{ translate('Resolved') }}</option>
+                        <option value="all" {{ request('status') === 'all' ? 'selected' : '' }}>{{ translate('All Statuses') }}</option>
                     </select>
                     @if(count(request()->query()) > 0)
                     <a href="{{ route('admin.urban-goodz.ai-copilot.index') }}" class="btn btn-sm btn-outline-secondary">{{ translate('Reset') }}</a>
@@ -155,15 +191,15 @@
                                 <td>{{ $r->id }}</td>
                                 <td>
                                     @php
-                                        $typeLabels = ['dispatch_suggestion' => 'Dispatch', 'stuck_order' => 'Stuck Order', 'order_anywhere_triage' => 'OA Triage', 'package_monitoring' => 'Package', 'age_verification_alert' => 'Age Verify', 'load_board' => 'Load Board', 'load_board_demand' => 'Load Demand', 'load_board_driver_match' => 'Driver Match', 'load_board_pricing' => 'Pricing'];
-                                        $typeBadges = ['dispatch_suggestion' => 'primary', 'stuck_order' => 'danger', 'order_anywhere_triage' => 'info', 'package_monitoring' => 'warning', 'age_verification_alert' => 'dark', 'load_board' => 'success', 'load_board_demand' => 'info', 'load_board_driver_match' => 'primary', 'load_board_pricing' => 'warning'];
+                                        $typeLabels = ['dispatch_suggestion' => 'Dispatch', 'stuck_order' => 'Stuck Order', 'stuck_order_alert' => 'Stuck Order', 'order_anywhere_triage' => 'OA Triage', 'package_monitoring' => 'Package', 'age_verification_alert' => 'Age Verify', 'load_board' => 'Load Board', 'load_board_alert' => 'Load Board', 'load_board_stale' => 'Load Board', 'load_board_demand' => 'Load Demand', 'load_acceptance_suggestion' => 'Driver Match', 'load_board_accept' => 'Driver Match', 'load_pricing_anomaly' => 'Pricing Anomaly', 'load_board_repricing' => 'Pricing Anomaly'];
+                                        $typeBadges = ['dispatch_suggestion' => 'primary', 'stuck_order' => 'danger', 'stuck_order_alert' => 'danger', 'order_anywhere_triage' => 'info', 'package_monitoring' => 'warning', 'age_verification_alert' => 'dark', 'load_board' => 'success', 'load_board_alert' => 'success', 'load_board_stale' => 'success', 'load_board_demand' => 'info', 'load_acceptance_suggestion' => 'primary', 'load_board_accept' => 'primary', 'load_pricing_anomaly' => 'warning', 'load_board_repricing' => 'warning'];
                                     @endphp
                                     <span class="badge badge-soft-{{ $typeBadges[$r->recommendation_type] ?? 'secondary' }}">
-                                        {{ $typeLabels[$r->recommendation_type] ?? $r->recommendation_type }}
+                                        {{ $typeLabels[$r->recommendation_type] ?? ucwords(str_replace('_', ' ', $r->recommendation_type)) }}
                                     </span>
                                 </td>
-                                <td style="max-width: 300px;">
-                                    <div class="text-truncate" title="{{ $r->reason }}">
+                                <td style="max-width: 320px;">
+                                    <div title="{{ $r->reason }}">
                                         <strong>{{ $r->suggested_action }}</strong>
                                         <br><small class="text-muted">{{ $r->reason }}</small>
                                     </div>
@@ -182,12 +218,12 @@
                                 </td>
                                 <td>
                                     @php
-                                        $sMap = ['pending' => 'warning', 'accepted' => 'success', 'dismissed' => 'secondary', 'expired' => 'danger'];
+                                        $sMap = ['pending' => 'warning', 'accepted' => 'success', 'dismissed' => 'secondary', 'snoozed' => 'info', 'dont_show_again' => 'danger', 'resolved' => 'primary'];
                                         $autoLabel = !empty($r->metadata['auto_executed']) ? ' (Auto)' : '';
                                     @endphp
-                                    <span class="badge badge-soft-{{ $sMap[$r->status] ?? 'secondary' }}">{{ ucfirst($r->status) }}{{ $autoLabel }}</span>
-                                    @if(!empty($r->metadata['automation_mode']))
-                                    <br><small class="text-muted" style="font-size: 0.7rem;">via {{ str_replace('_', ' ', $r->metadata['automation_mode']) }}</small>
+                                    <span class="badge badge-soft-{{ $sMap[$r->status] ?? 'secondary' }}">{{ ucfirst(str_replace('_', ' ', $r->status)) }}{{ $autoLabel }}</span>
+                                    @if(!empty($r->metadata['suppressed_until']))
+                                    <br><small class="text-muted" style="font-size: 0.7rem;">Until {{ \Carbon\Carbon::parse($r->metadata['suppressed_until'])->format('M d H:i') }}</small>
                                     @endif
                                 </td>
                                 <td><small>{{ $r->created_at->format('M d, h:i A') }}</small></td>
@@ -199,14 +235,61 @@
                                         @if($r->status === 'pending')
                                         <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.accept', $r->id) }}" class="d-inline">
                                             @csrf
-                                            <button type="submit" class="btn btn-sm btn-success" title="Accept" onclick="return confirm('Accept this recommendation?')">
+                                            <button type="submit" class="btn btn-sm btn-success" title="Accept" onclick="return confirm('Accept and execute this recommendation?')">
                                                 <i class="tio-checkmark-circle"></i>
                                             </button>
                                         </form>
-                                        <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.dismiss', $r->id) }}" class="d-inline">
+
+                                        <div class="dropdown d-inline">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-toggle="dropdown">
+                                                {{ translate('Actions') }}
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-end p-2" style="min-width: 200px;">
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.dismiss', $r->id) }}">
+                                                    @csrf
+                                                    <button type="submit" class="dropdown-item py-1">
+                                                        <i class="tio-clear text-muted"></i> {{ translate('Dismiss Once') }}
+                                                    </button>
+                                                </form>
+
+                                                <div class="dropdown-divider"></div>
+                                                <div class="dropdown-header px-2 py-1">{{ translate('Snooze') }}</div>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.snooze', $r->id) }}">
+                                                    @csrf
+                                                    <input type="hidden" name="days" value="1">
+                                                    <button type="submit" class="dropdown-item py-1"><i class="tio-time"></i> 1 {{ translate('Day') }}</button>
+                                                </form>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.snooze', $r->id) }}">
+                                                    @csrf
+                                                    <input type="hidden" name="days" value="7">
+                                                    <button type="submit" class="dropdown-item py-1"><i class="tio-time"></i> 7 {{ translate('Days') }}</button>
+                                                </form>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.snooze', $r->id) }}">
+                                                    @csrf
+                                                    <input type="hidden" name="days" value="30">
+                                                    <button type="submit" class="dropdown-item py-1"><i class="tio-time"></i> 30 {{ translate('Days') }}</button>
+                                                </form>
+
+                                                <div class="dropdown-divider"></div>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.resolve', $r->id) }}">
+                                                    @csrf
+                                                    <button type="submit" class="dropdown-item py-1 text-success">
+                                                        <i class="tio-checkmark-circle"></i> {{ translate('Mark Resolved') }}
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.dont-show-again', $r->id) }}">
+                                                    @csrf
+                                                    <button type="submit" class="dropdown-item py-1 text-danger" onclick="return confirm('Permanently suppress this recommendation?')">
+                                                        <i class="tio-block"></i> {{ translate('Don\'t Show Again') }}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        @else
+                                        <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.restore', $r->id) }}" class="d-inline">
                                             @csrf
-                                            <button type="submit" class="btn btn-sm btn-secondary" title="Dismiss" onclick="return confirm('Dismiss this recommendation?')">
-                                                <i class="tio-clear"></i>
+                                            <button type="submit" class="btn btn-sm btn-outline-info" title="Restore to Pending">
+                                                <i class="tio-redo"></i> {{ translate('Restore') }}
                                             </button>
                                         </form>
                                         @endif
@@ -215,7 +298,13 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">{{ translate('No recommendations found. Click "Generate Recommendations" to scan for issues.') }}</td>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    {{ translate('No recommendations found matching selected filters.') }}
+                                    <br>
+                                    <a href="{{ route('admin.urban-goodz.ai-copilot.generate', array_filter(['type' => request('type')])) }}" class="btn btn-sm btn--primary mt-2">
+                                        <i class="tio-refresh"></i> {{ translate('Generate Now') }}
+                                    </a>
+                                </td>
                             </tr>
                             @endforelse
                         </tbody>

@@ -25,12 +25,36 @@ class AiCopilotController extends Controller
         $query = AiCopilotRecommendation::with('reviewer')
             ->latest();
 
+        $typeAliasMap = [
+            'dispatch_suggestion' => ['dispatch_suggestion', 'dispatch'],
+            'stuck_order_alert' => ['stuck_order_alert', 'stuck_order', 'stuck_orders'],
+            'order_anywhere_triage' => ['order_anywhere_triage', 'order_anywhere'],
+            'package_monitoring' => ['package_monitoring'],
+            'age_verification_alert' => ['age_verification_alert', 'age_verification'],
+            'load_board_alert' => ['load_board_alert', 'load_board', 'load_board_stale', 'load_board_lane', 'load_board_demand'],
+            'load_acceptance_suggestion' => ['load_acceptance_suggestion', 'load_board_accept', 'load_board_driver_match'],
+            'load_pricing_anomaly' => ['load_pricing_anomaly', 'load_board_repricing', 'load_board_pricing'],
+        ];
+
         if ($request->filled('type')) {
-            $query->where('recommendation_type', $request->type);
+            $reqType = $request->type;
+            $matchedTypes = [$reqType];
+            foreach ($typeAliasMap as $key => $aliases) {
+                if ($reqType === $key || in_array($reqType, $aliases)) {
+                    $matchedTypes = array_merge($matchedTypes, [$key], $aliases);
+                }
+            }
+            $matchedTypes = array_unique($matchedTypes);
+            $query->where(function($q) use ($matchedTypes, $reqType) {
+                $q->whereIn('recommendation_type', $matchedTypes)
+                  ->orWhere('recommendation_type', 'like', $reqType . '%');
+            });
         }
 
-        if ($request->filled('status')) {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
+        } else if (!$request->filled('status')) {
+            $query->where('status', 'pending');
         }
 
         $recommendations = $query->paginate(25);
@@ -39,6 +63,9 @@ class AiCopilotController extends Controller
             'total_pending' => AiCopilotRecommendation::where('status', 'pending')->count(),
             'total_accepted' => AiCopilotRecommendation::where('status', 'accepted')->count(),
             'total_dismissed' => AiCopilotRecommendation::where('status', 'dismissed')->count(),
+            'total_snoozed' => AiCopilotRecommendation::where('status', 'snoozed')->count(),
+            'total_dont_show_again' => AiCopilotRecommendation::where('status', 'dont_show_again')->count(),
+            'total_resolved' => AiCopilotRecommendation::where('status', 'resolved')->count(),
             'by_type' => AiCopilotRecommendation::selectRaw('recommendation_type, COUNT(*) as count')
                 ->where('status', 'pending')
                 ->groupBy('recommendation_type')
@@ -55,7 +82,8 @@ class AiCopilotController extends Controller
     public function generate(Request $request)
     {
         try {
-            $results = $this->copilotService->generateRecommendations();
+            $type = $request->query('type');
+            $results = $this->copilotService->generateRecommendations($type);
 
             if (empty($results)) {
                 Toastr::info('AI Ops is currently disabled. Enable it in Settings to generate recommendations.');
@@ -66,17 +94,10 @@ class AiCopilotController extends Controller
 
             $this->copilotService->notifyHighConfidenceRecommendations($results);
 
-            $mode = $this->copilotService->getMode();
-            if ($mode === 'full_low_risk_automation' || $mode === 'supervised_automation') {
-                $autoCount = AiCopilotRecommendation::where('status', 'accepted')
-                    ->where('created_at', '>=', now()->subMinute())
-                    ->count();
-                Toastr::success("AI Copilot processed {$total} items across " . count($results) . " categories ({$autoCount} auto-executed)");
-            } else {
-                Toastr::success("AI Copilot generated {$total} new recommendations across " . count($results) . " categories");
-            }
+            $typeLabel = $type ? ucwords(str_replace('_', ' ', $type)) : 'All Categories';
+            Toastr::success("AI Copilot generated {$total} recommendations for {$typeLabel}.");
 
-            return redirect()->route('admin.urban-goodz.ai-copilot.index');
+            return redirect()->route('admin.urban-goodz.ai-copilot.index', array_filter(['type' => $type]));
         } catch (\Exception $e) {
             Toastr::error('Failed to generate recommendations: ' . $e->getMessage());
             return redirect()->back();
@@ -85,7 +106,8 @@ class AiCopilotController extends Controller
 
     public function accept(Request $request, $id)
     {
-        $rec = $this->copilotService->accept((int) $id, auth('admin')->id(), $request->admin_notes);
+        $adminId = auth('admin')->id() ?? auth()->id() ?? 1;
+        $rec = $this->copilotService->accept((int) $id, $adminId, $request->admin_notes);
 
         if (!$rec) {
             Toastr::error('Recommendation not found or already processed');
@@ -93,20 +115,101 @@ class AiCopilotController extends Controller
         }
 
         Toastr::success('Recommendation accepted');
-        return redirect()->route('admin.urban-goodz.ai-copilot.index');
+        return redirect()->back();
     }
 
     public function dismiss(Request $request, $id)
     {
-        $rec = $this->copilotService->dismiss((int) $id, auth('admin')->id(), $request->admin_notes);
+        $adminId = auth('admin')->id() ?? auth()->id() ?? 1;
+        $rec = $this->copilotService->dismiss((int) $id, $adminId, $request->admin_notes);
 
         if (!$rec) {
             Toastr::error('Recommendation not found or already processed');
             return redirect()->back();
         }
 
-        Toastr::success('Recommendation dismissed');
-        return redirect()->route('admin.urban-goodz.ai-copilot.index');
+        Toastr::success('Recommendation dismissed once');
+        return redirect()->back();
+    }
+
+    public function snooze(Request $request, $id)
+    {
+        $until = $request->input('until_date');
+        $days = $request->input('days');
+        if ($days) {
+            $until = now()->addDays((int) $days)->toIso8601String();
+        }
+        if (!$until) {
+            $until = now()->addDays(7)->toIso8601String();
+        }
+
+        $adminId = auth('admin')->id() ?? auth()->id() ?? 1;
+        $rec = $this->copilotService->snooze((int) $id, $adminId, $until, $request->admin_notes);
+
+        if (!$rec) {
+            Toastr::error('Recommendation not found');
+            return redirect()->back();
+        }
+
+        Toastr::success('Recommendation snoozed until ' . \Carbon\Carbon::parse($until)->format('Y-m-d H:i'));
+        return redirect()->back();
+    }
+
+    public function dontShowAgain(Request $request, $id)
+    {
+        $adminId = auth('admin')->id() ?? auth()->id() ?? 1;
+        $rec = $this->copilotService->dontShowAgain((int) $id, $adminId, $request->admin_notes);
+
+        if (!$rec) {
+            Toastr::error('Recommendation not found');
+            return redirect()->back();
+        }
+
+        Toastr::success('Recommendation permanently suppressed (Don\'t Show Again)');
+        return redirect()->back();
+    }
+
+    public function resolve(Request $request, $id)
+    {
+        $adminId = auth('admin')->id() ?? auth()->id() ?? 1;
+        $rec = $this->copilotService->resolve((int) $id, $adminId, $request->admin_notes);
+
+        if (!$rec) {
+            Toastr::error('Recommendation not found');
+            return redirect()->back();
+        }
+
+        Toastr::success('Recommendation marked as resolved');
+        return redirect()->back();
+    }
+
+    public function restore(Request $request, $id)
+    {
+        $adminId = auth('admin')->id() ?? auth()->id() ?? 1;
+        $rec = $this->copilotService->restore((int) $id, $adminId, $request->admin_notes);
+
+        if (!$rec) {
+            Toastr::error('Recommendation not found');
+            return redirect()->back();
+        }
+
+        Toastr::success('Recommendation restored to pending');
+        return redirect()->back();
+    }
+
+    public function suppressed(Request $request)
+    {
+        $query = AiCopilotRecommendation::with('reviewer')
+            ->whereIn('status', ['snoozed', 'dont_show_again', 'dismissed', 'resolved'])
+            ->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $recommendations = $query->paginate(25);
+
+        return view('admin-views.urban-goodz.ai-copilot.suppressed', compact('recommendations'));
     }
 
     public function rollback(Request $request, $logId)

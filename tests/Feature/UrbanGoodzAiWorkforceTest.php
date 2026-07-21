@@ -65,12 +65,35 @@ class UrbanGoodzAiWorkforceTest extends TestCase
                 $table->string('status')->nullable();
                 $table->decimal('final_amount', 10, 2)->nullable();
                 $table->timestamps();
+            },
+            'ai_action_logs' => function ($table) {
+                $table->id();
+                $table->string('action_taken')->nullable();
+                $table->string('module')->nullable();
+                $table->string('affected_user_type')->nullable();
+                $table->unsignedBigInteger('affected_user_id')->nullable();
+                $table->text('before_value')->nullable();
+                $table->text('after_value')->nullable();
+                $table->text('reason')->nullable();
+                $table->string('automation_mode')->nullable();
+                $table->unsignedBigInteger('recommendation_id')->nullable();
+                $table->unsignedBigInteger('approved_by')->nullable();
+                $table->boolean('rollback_available')->default(false);
+                $table->timestamps();
             }
         ];
 
         foreach ($dummyTables as $name => $schema) {
             if (!\Illuminate\Support\Facades\Schema::hasTable($name)) {
                 \Illuminate\Support\Facades\Schema::create($name, $schema);
+            }
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('urban_goodz_dedicated_routes')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('urban_goodz_dedicated_routes', 'business_client_id')) {
+                \Illuminate\Support\Facades\Schema::table('urban_goodz_dedicated_routes', function ($table) {
+                    $table->unsignedBigInteger('business_client_id')->nullable();
+                });
             }
         }
 
@@ -208,7 +231,7 @@ class UrbanGoodzAiWorkforceTest extends TestCase
         // 1. Authenticated Admin Deep Links
         $admin = \App\Models\Admin::firstOrCreate(
             ['email' => 'admin_test_cert@urbangoodz.com'],
-            ['f_name' => 'Test', 'l_name' => 'Admin', 'phone' => '1234567890', 'password' => bcrypt('password'), 'role_id' => 1]
+            ['f_name' => 'Test', 'l_name' => 'Admin', 'phone' => '1234567890', 'password' => bcrypt('password'), 'role_id' => 1, 'image' => 'def.png', 'is_logged_in' => 1]
         );
 
         $deepLinks = [
@@ -235,8 +258,8 @@ class UrbanGoodzAiWorkforceTest extends TestCase
 
         // 2. Authenticated Business Portal AI Assistant
         $bizClient = \App\Models\UrbanGoodzBusinessClient::firstOrCreate(
-            ['id' => 1],
-            ['company_name' => 'Test Client', 'status' => 'active']
+            ['company_name' => 'Test Client'],
+            ['email' => 'biz_test_client@urbangoodz.com', 'status' => 'active']
         );
 
         $bizUser = \App\Models\UrbanGoodzBusinessClientUser::firstOrCreate(
@@ -247,5 +270,49 @@ class UrbanGoodzAiWorkforceTest extends TestCase
         $bizResponse = $this->actingAs($bizUser, 'business')->get('/business/ai-assistant');
         $this->assertNotEquals(500, $bizResponse->getStatusCode(), "Business AI Assistant route threw 500 error.");
         $this->assertTrue(in_array($bizResponse->getStatusCode(), [200, 302]), "Business AI Assistant status was {$bizResponse->getStatusCode()}");
+    }
+
+    public function test_ai_copilot_suppression_and_load_sourcing_flow()
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['email' => 'admin_test_cert@urbangoodz.com'],
+            ['f_name' => 'Test', 'l_name' => 'Admin', 'phone' => '1234567890', 'password' => bcrypt('password'), 'role_id' => 1, 'image' => 'def.png', 'is_logged_in' => 1]
+        );
+
+        // 1. Test AI Copilot Index Filtering
+        $indexResponse = $this->actingAs($admin, 'admin')->get(route('admin.urban-goodz.ai-copilot.index', ['type' => 'load_board_alert', 'status' => 'pending']));
+        $this->assertTrue(in_array($indexResponse->getStatusCode(), [200, 302]));
+
+        // 2. Test Type-Specific Generation
+        $genResponse = $this->actingAs($admin, 'admin')->get(route('admin.urban-goodz.ai-copilot.generate', ['type' => 'load_board_alert']));
+        $this->assertEquals(302, $genResponse->getStatusCode());
+
+        // 3. Create dummy recommendation and test suppression actions
+        $rec = \App\Models\AiCopilotRecommendation::create([
+            'recommendation_type' => 'load_board_alert',
+            'recommendation_subtype' => 'low_rate_lane',
+            'suggested_action' => 'Test Action',
+            'reason' => 'Test Reason',
+            'confidence_score' => 0.85,
+            'status' => 'pending',
+        ]);
+
+        $service = app(\App\Services\AiCopilotService::class);
+        $snoozedRec = $service->snooze($rec->id, $admin->id, now()->addDays(7)->toIso8601String());
+        $this->assertEquals('snoozed', $snoozedRec->status);
+
+        $dontShowRec = $service->dontShowAgain($rec->id, $admin->id);
+        $this->assertEquals('dont_show_again', $dontShowRec->status);
+
+        $restoredRec = $service->restore($rec->id, $admin->id);
+        $this->assertEquals('pending', $restoredRec->status);
+
+        // 4. Test Suppressed View
+        $suppressedView = $this->actingAs($admin, 'admin')->get(route('admin.urban-goodz.ai-copilot.suppressed'));
+        $this->assertTrue(in_array($suppressedView->getStatusCode(), [200, 302]));
+
+        // 5. Test Load Sourcing Admin Index View
+        $sourcingView = $this->actingAs($admin, 'admin')->get(route('admin.urban-goodz.load-sourcing.index'));
+        $this->assertTrue(in_array($sourcingView->getStatusCode(), [200, 302]));
     }
 }

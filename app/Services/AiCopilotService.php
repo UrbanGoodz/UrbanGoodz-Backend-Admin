@@ -1504,21 +1504,61 @@ class AiCopilotService
         }
     }
 
-    private function createRecommendation(string $type, string $subtype, $relatable, string $action, string $reason, float $confidence, array $meta = []): AiCopilotRecommendation
+    private function createRecommendation(string $type, string $subtype, $relatable, string $action, string $reason, float $confidence, array $meta = []): ?AiCopilotRecommendation
     {
+        $relatableType = $relatable ? get_class($relatable) : ($meta['entity_type'] ?? 'none');
+        $relatableId = $relatable ? $relatable->id : ($meta['entity_id'] ?? 0);
+        $tenantId = $meta['tenant_id'] ?? $meta['business_client_id'] ?? 0;
+
+        $fingerprint = hash('sha256', implode('|', [
+            $type,
+            $relatableType,
+            $relatableId,
+            $subtype,
+            $tenantId,
+            $action,
+        ]));
+
+        $meta['fingerprint'] = $fingerprint;
+
         $existing = AiCopilotRecommendation::where('recommendation_type', $type)
-            ->where('recommendation_subtype', $subtype)
-            ->where('suggested_action', $action)
-            ->where('status', 'pending');
+            ->where(function($q) use ($fingerprint, $relatable, $action) {
+                $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.fingerprint')) = ?", [$fingerprint]);
+                if ($relatable) {
+                    $q->orWhere(function($sub) use ($relatable, $action) {
+                        $sub->where('relatable_type', get_class($relatable))
+                            ->where('relatable_id', $relatable->id)
+                            ->where('suggested_action', $action);
+                    });
+                }
+            })
+            ->latest()
+            ->first();
 
-        if ($relatable) {
-            $existing->where('relatable_type', get_class($relatable))
-                     ->where('relatable_id', $relatable->id);
-        }
-
-        $existing = $existing->first();
         if ($existing) {
-            return $existing;
+            if ($existing->status === 'pending') {
+                return $existing;
+            }
+
+            if ($existing->status === 'dont_show_again') {
+                return null;
+            }
+
+            if ($existing->status === 'snoozed') {
+                $until = $existing->metadata['suppressed_until'] ?? null;
+                if ($until && \Carbon\Carbon::parse($until)->isFuture()) {
+                    return null;
+                }
+            }
+
+            if (in_array($existing->status, ['dismissed', 'resolved'])) {
+                if ($relatable && isset($relatable->updated_at) && $existing->reviewed_at) {
+                    $updatedAt = $this->safeCarbon($relatable->updated_at);
+                    if ($updatedAt && $updatedAt->lte($existing->reviewed_at)) {
+                        return null;
+                    }
+                }
+            }
         }
 
         $data = [
@@ -1556,6 +1596,119 @@ class AiCopilotService
         }
 
         return AiCopilotRecommendation::create($data);
+    }
+
+    public function snooze(int $id, int $adminId, string $untilDate, ?string $notes = null): ?AiCopilotRecommendation
+    {
+        $rec = AiCopilotRecommendation::find($id);
+        if (!$rec) return null;
+
+        $rec->status = 'snoozed';
+        $rec->reviewed_by = $adminId;
+        $rec->reviewed_at = now();
+        $rec->admin_notes = $notes;
+
+        $meta = $rec->metadata ?? [];
+        $meta['suppression_mode'] = 'snooze';
+        $meta['suppressed_until'] = \Carbon\Carbon::parse($untilDate)->toIso8601String();
+        $meta['suppressed_by'] = $adminId;
+        $meta['suppressed_at'] = now()->toIso8601String();
+        $rec->metadata = $meta;
+        $rec->save();
+
+        $this->logAction(
+            actionTaken: 'snooze_recommendation',
+            module: 'ai_copilot',
+            reason: "Snoozed recommendation #{$rec->id} until {$untilDate}.",
+            recommendationId: $rec->id,
+            approvedBy: $adminId
+        );
+
+        return $rec;
+    }
+
+    public function dontShowAgain(int $id, int $adminId, ?string $notes = null): ?AiCopilotRecommendation
+    {
+        $rec = AiCopilotRecommendation::find($id);
+        if (!$rec) return null;
+
+        $rec->status = 'dont_show_again';
+        $rec->reviewed_by = $adminId;
+        $rec->reviewed_at = now();
+        $rec->admin_notes = $notes;
+
+        $meta = $rec->metadata ?? [];
+        $meta['suppression_mode'] = 'dont_show_again';
+        $meta['suppressed_by'] = $adminId;
+        $meta['suppressed_at'] = now()->toIso8601String();
+        $rec->metadata = $meta;
+        $rec->save();
+
+        $this->logAction(
+            actionTaken: 'dont_show_again_recommendation',
+            module: 'ai_copilot',
+            reason: "Permanently suppressed recommendation #{$rec->id}.",
+            recommendationId: $rec->id,
+            approvedBy: $adminId
+        );
+
+        return $rec;
+    }
+
+    public function resolve(int $id, int $adminId, ?string $notes = null): ?AiCopilotRecommendation
+    {
+        $rec = AiCopilotRecommendation::find($id);
+        if (!$rec) return null;
+
+        $rec->status = 'resolved';
+        $rec->reviewed_by = $adminId;
+        $rec->reviewed_at = now();
+        $rec->admin_notes = $notes;
+
+        $meta = $rec->metadata ?? [];
+        $meta['suppression_mode'] = 'resolved';
+        $meta['resolved_by'] = $adminId;
+        $meta['resolved_at'] = now()->toIso8601String();
+        $rec->metadata = $meta;
+        $rec->save();
+
+        $this->logAction(
+            actionTaken: 'resolve_recommendation',
+            module: 'ai_copilot',
+            reason: "Resolved recommendation #{$rec->id}.",
+            recommendationId: $rec->id,
+            approvedBy: $adminId
+        );
+
+        return $rec;
+    }
+
+    public function restore(int $id, int $adminId, ?string $notes = null): ?AiCopilotRecommendation
+    {
+        $rec = AiCopilotRecommendation::find($id);
+        if (!$rec) return null;
+
+        $rec->status = 'pending';
+        $rec->reviewed_by = $adminId;
+        $rec->reviewed_at = now();
+        $rec->admin_notes = ($rec->admin_notes ? $rec->admin_notes . ' | ' : '') . 'Restored by admin';
+
+        $meta = $rec->metadata ?? [];
+        unset($meta['suppression_mode'], $meta['suppressed_until']);
+        $meta['restored_by'] = $adminId;
+        $meta['restored_at'] = now()->toIso8601String();
+        $rec->metadata = $meta;
+        $rec->save();
+
+        $this->logAction(
+            actionTaken: 'restore_recommendation',
+            module: 'ai_copilot',
+            reason: "Restored recommendation #{$rec->id} to pending.",
+            recommendationId: $rec->id,
+            approvedBy: $adminId
+        );
+
+        return $rec;
     }
 
     public function generateAIOpsSummary(): string

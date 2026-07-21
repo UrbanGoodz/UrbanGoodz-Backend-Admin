@@ -22,6 +22,9 @@
                 <a href="{{ route('admin.urban-goodz.load-board.index') }}" class="btn btn-outline--primary">
                     <i class="tio-truck"></i> {{ translate('View Load Board') }}
                 </a>
+                <a href="{{ route('admin.urban-goodz.load-sourcing.index') }}" class="btn btn--primary">
+                    <i class="tio-search"></i> {{ translate('Open Load Sourcing') }}
+                </a>
             </div>
         </div>
 

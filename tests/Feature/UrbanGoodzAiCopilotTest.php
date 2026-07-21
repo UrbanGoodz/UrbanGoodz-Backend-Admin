@@ -185,10 +185,12 @@ class UrbanGoodzAiCopilotTest extends TestCase
             }
         ];
 
+        Schema::disableForeignKeyConstraints();
         foreach ($dummyTables as $name => $schema) {
             Schema::dropIfExists($name);
             Schema::create($name, $schema);
         }
+        Schema::enableForeignKeyConstraints();
 
         // 2. Set default Copilot Settings
         Config::set('urban_goodz.ai_copilot.mode', 'recommend_only');
