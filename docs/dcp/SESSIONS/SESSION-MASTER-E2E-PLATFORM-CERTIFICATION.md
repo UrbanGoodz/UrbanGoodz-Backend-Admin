@@ -1289,8 +1289,3 @@ bash AdminPanel_Update_V39/scripts/deploy-ai-workforce.sh
 
 
 
-
-
-
-
-
