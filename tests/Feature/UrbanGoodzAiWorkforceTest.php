@@ -202,4 +202,50 @@ class UrbanGoodzAiWorkforceTest extends TestCase
         $bizDetails = $this->companionService->getBusinessAssistantDetails(10);
         $this->assertEquals(10, $bizDetails['business_client_id']);
     }
+
+    public function test_authenticated_admin_deep_links_and_business_portal()
+    {
+        // 1. Authenticated Admin Deep Links
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['email' => 'admin_test_cert@urbangoodz.com'],
+            ['f_name' => 'Test', 'l_name' => 'Admin', 'phone' => '1234567890', 'password' => bcrypt('password'), 'role_id' => 1]
+        );
+
+        $deepLinks = [
+            '/admin/urban-goodz/ai-operations/workforce/tasks?id=1',
+            '/admin/urban-goodz/ai-operations/workforce/approvals?id=1',
+            '/admin/urban-goodz/ai-operations/workforce/prospects?id=1',
+            '/admin/urban-goodz/ai-operations/workforce/business-needs?id=1',
+            '/admin/urban-goodz/ai-operations/workforce/human-actions?id=1',
+        ];
+
+        foreach ($deepLinks as $url) {
+            $response = $this->actingAs($admin, 'admin')->get($url);
+            $this->assertNotEquals(500, $response->getStatusCode(), "Deep link {$url} threw 500 error.");
+            $this->assertTrue(in_array($response->getStatusCode(), [200, 302]), "Deep link {$url} status was {$response->getStatusCode()}");
+        }
+
+        // Missing record handling
+        $missingResponse = $this->actingAs($admin, 'admin')->get('/admin/urban-goodz/ai-operations/workforce/tasks?id=999999');
+        $this->assertNotEquals(500, $missingResponse->getStatusCode(), "Missing record deep link threw 500 error.");
+
+        // Unauthenticated access check (302 login redirect required)
+        $unauthResponse = $this->get('/admin/urban-goodz/ai-operations/workforce/tasks?id=1');
+        $this->assertEquals(302, $unauthResponse->getStatusCode(), "Unauthenticated request did not redirect to login.");
+
+        // 2. Authenticated Business Portal AI Assistant
+        $bizClient = \App\Models\UrbanGoodzBusinessClient::firstOrCreate(
+            ['id' => 1],
+            ['company_name' => 'Test Client', 'status' => 'active']
+        );
+
+        $bizUser = \App\Models\UrbanGoodzBusinessClientUser::firstOrCreate(
+            ['email' => 'biz_test_cert@urbangoodz.com'],
+            ['business_client_id' => $bizClient->id, 'name' => 'Test Business', 'password' => bcrypt('password')]
+        );
+
+        $bizResponse = $this->actingAs($bizUser, 'business')->get('/business/ai-assistant');
+        $this->assertNotEquals(500, $bizResponse->getStatusCode(), "Business AI Assistant route threw 500 error.");
+        $this->assertTrue(in_array($bizResponse->getStatusCode(), [200, 302]), "Business AI Assistant status was {$bizResponse->getStatusCode()}");
+    }
 }
