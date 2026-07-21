@@ -373,6 +373,19 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('errors/{id}/resolve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@resolveError')->name('resolve-error');
             });
 
+            Route::group(['prefix' => 'dispatches', 'as' => 'dispatches.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDispatchController@index')->name('index');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzDispatchController@show')->name('show');
+                Route::post('{id}/approve', 'UrbanGoodz\UrbanGoodzDispatchController@approve')->name('approve');
+                Route::post('{id}/send', 'UrbanGoodz\UrbanGoodzDispatchController@sendToDriver')->name('send');
+                Route::post('{id}/cancel', 'UrbanGoodz\UrbanGoodzDispatchController@cancel')->name('cancel');
+                Route::post('{id}/resend', 'UrbanGoodz\UrbanGoodzDispatchController@resend')->name('resend');
+                Route::post('{id}/resolve-exception', 'UrbanGoodz\UrbanGoodzDispatchController@resolveException')->name('resolve-exception');
+                Route::post('{id}/settle', 'UrbanGoodz\UrbanGoodzDispatchController@settle')->name('settle');
+                Route::get('create', 'UrbanGoodz\UrbanGoodzDispatchController@create')->name('create');
+                Route::post('store', 'UrbanGoodz\UrbanGoodzDispatchController@store')->name('store');
+            });
+
             Route::group(['prefix' => 'dispatcher-sourcing', 'as' => 'dispatcher-sourcing.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboard')->name('dashboard');
                 Route::post('search', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchAllSources')->name('search');

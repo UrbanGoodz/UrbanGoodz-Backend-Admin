@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UrbanGoodz\BusinessPortalController;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessForgotPasswordController;
 use App\Http\Controllers\Admin\UrbanGoodz\BusinessResetPasswordController;
 use App\Http\Controllers\Admin\UrbanGoodz\DispatcherPortalController;
+use App\Http\Controllers\Admin\UrbanGoodz\BusinessAiLogisticsController;
 use App\Http\Controllers\Api\V1\Business\BusinessAIController;
 
 Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
@@ -101,6 +102,48 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
         });
 
         Route::get('ai-assistant', [BusinessPortalController::class, 'aiAssistant'])->name('ai-assistant');
+        Route::prefix('order-anywhere-dispatch')->name('order-anywhere-dispatch.')->group(function () {
+            Route::get('dispatches', [\App\Http\Controllers\Api\V1\UrbanGoodz\OrderAiDispatchBusinessController::class, 'dispatches'])->name('dispatches');
+            Route::get('dispatches/{id}', [\App\Http\Controllers\Api\V1\UrbanGoodz\OrderAiDispatchBusinessController::class, 'show'])->name('show');
+        });
+    });
+
+    Route::prefix('ai-logistics')->name('ai-logistics.')->group(function () {
+        Route::middleware(['business'])->group(function () {
+            Route::get('command-center', [BusinessAiLogisticsController::class, 'commandCenter'])->name('command-center');
+            Route::get('load-board', [BusinessAiLogisticsController::class, 'loadBoard'])->name('load-board.index');
+            Route::get('load-board/create', [BusinessAiLogisticsController::class, 'loadBoardCreate'])->name('load-board.create');
+            Route::post('load-board', [BusinessAiLogisticsController::class, 'loadBoardStore'])->name('load-board.store');
+            Route::get('load-board/{id}', [BusinessAiLogisticsController::class, 'loadBoardShow'])->name('load-board.show');
+            Route::get('load-sourcing', [BusinessAiLogisticsController::class, 'loadSourcing'])->name('load-sourcing.index');
+            Route::post('load-sourcing/search', [BusinessAiLogisticsController::class, 'loadSourcingSearch'])->name('load-sourcing.search');
+            Route::get('dispatch', [BusinessAiLogisticsController::class, 'driverDispatchForm'])->name('dispatch.create');
+            Route::post('dispatch', [BusinessAiLogisticsController::class, 'driverDispatch'])->name('dispatch.store');
+            Route::get('dispatch/matching', [BusinessAiLogisticsController::class, 'driverMatching'])->name('dispatch.matching');
+            Route::post('dispatch/match-route', [BusinessAiLogisticsController::class, 'driverMatchRoute'])->name('dispatch.match-route');
+            Route::get('dispatches', [BusinessAiLogisticsController::class, 'dispatches'])->name('dispatches.index');
+            Route::get('dispatches/{id}', [BusinessAiLogisticsController::class, 'dispatchShow'])->name('dispatches.show');
+            Route::post('dispatches/{id}/cancel', [BusinessAiLogisticsController::class, 'dispatchCancel'])->name('dispatches.cancel');
+            Route::post('dispatches/{id}/resend', [BusinessAiLogisticsController::class, 'dispatchResend'])->name('dispatches.resend');
+            Route::get('dynamic-pricing', [BusinessAiLogisticsController::class, 'dynamicPricing'])->name('dynamic-pricing');
+            Route::post('dynamic-pricing/calculate', [BusinessAiLogisticsController::class, 'dynamicPricingCalculate'])->name('dynamic-pricing.calculate');
+            Route::get('route-recommendations', [BusinessAiLogisticsController::class, 'routeRecommendations'])->name('route-recommendations');
+            Route::post('route-optimize', [BusinessAiLogisticsController::class, 'routeOptimize'])->name('route-optimize');
+            Route::get('package-clustering', [BusinessAiLogisticsController::class, 'packageClustering'])->name('package-clustering');
+            Route::post('package-cluster', [BusinessAiLogisticsController::class, 'packageCluster'])->name('package-cluster');
+            Route::get('exceptions', [BusinessAiLogisticsController::class, 'exceptionManagement'])->name('exceptions');
+            Route::post('exceptions/{id}/resolve', [BusinessAiLogisticsController::class, 'exceptionResolve'])->name('exceptions.resolve');
+            Route::get('returns', [BusinessAiLogisticsController::class, 'returnManagement'])->name('returns');
+            Route::get('cost-analysis', [BusinessAiLogisticsController::class, 'costAnalysis'])->name('cost-analysis');
+            Route::get('document-alerts', [BusinessAiLogisticsController::class, 'documentAlerts'])->name('document-alerts');
+            Route::get('invoice-insights', [BusinessAiLogisticsController::class, 'invoiceInsights'])->name('invoice-insights');
+            Route::get('demand-forecast', [BusinessAiLogisticsController::class, 'demandForecast'])->name('demand-forecast');
+            Route::get('copilot-recommendations', [BusinessAiLogisticsController::class, 'copilotRecommendations'])->name('copilot-recommendations');
+            Route::post('copilot/{id}/accept', [BusinessAiLogisticsController::class, 'copilotAccept'])->name('copilot.accept');
+            Route::post('copilot/{id}/dismiss', [BusinessAiLogisticsController::class, 'copilotDismiss'])->name('copilot.dismiss');
+            Route::post('copilot/{id}/snooze', [BusinessAiLogisticsController::class, 'copilotSnooze'])->name('copilot.snooze');
+            Route::get('audit-log', [BusinessAiLogisticsController::class, 'auditLog'])->name('audit-log');
+        });
     });
 
     Route::middleware(['business', 'dispatcher', 'dispatch-territory'])->group(function () {

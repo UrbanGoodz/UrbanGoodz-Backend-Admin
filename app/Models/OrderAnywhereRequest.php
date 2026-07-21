@@ -105,6 +105,7 @@ class OrderAnywhereRequest extends Model
     protected $fillable = [
         'request_number',
         'customer_id',
+        'order_id',
         'customer_name',
         'customer_phone',
         'customer_email',

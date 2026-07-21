@@ -94,6 +94,8 @@ Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'thrott
     Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereController@authorizePayment');
     Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereController@uploadReceipt');
     Route::get('customer/requests', 'Api\V1\OrderAnywhereController@customerRequests');
+    Route::post('orders/{orderId}/dispatch/trigger-nearest', 'Api\V1\UrbanGoodz\OrderAiDispatchController@triggerNearestDriver');
+    Route::get('orders/{orderId}/dispatch/status', 'Api\V1\UrbanGoodz\OrderAiDispatchController@dispatchStatus');
 });
 
 Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
@@ -102,10 +104,19 @@ Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin',
     Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereController@addNotes');
     Route::post('requests/{record}/assign-driver', 'Api\V1\OrderAnywhereController@assignDriver');
     Route::post('requests/{record}/payment-link', 'Api\V1\OrderAnywhereController@createPaymentLink');
+    Route::get('pending-orders', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@pendingOrders');
+    Route::post('orders/{orderId}/dispatch/trigger-nearest', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@triggerNearestDriver');
+    Route::post('orders/{orderId}/dispatch/assign', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@assignDriver');
+    Route::post('dispatches/{dispatchId}/cancel', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@cancelDispatch');
+    Route::get('dispatches', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@getAllDispatches');
+    Route::get('dispatches/{dispatchId}', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@getDispatchDetail');
 });
 
 Route::group(['prefix' => 'order-anywhere/vendor', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
     Route::post('requests/{record}/update', 'Api\V1\OrderAnywhereController@vendorUpdate');
+    Route::get('orders', 'Api\V1\UrbanGoodz\OrderAiDispatchVendorController@orders');
+    Route::get('orders/{orderId}', 'Api\V1\UrbanGoodz\OrderAiDispatchVendorController@orderDetail');
+    Route::get('dispatches', 'Api\V1\UrbanGoodz\OrderAiDispatchVendorController@dispatches');
 });
 
 Route::group(['prefix' => 'order-anywhere/driver', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
@@ -237,6 +248,16 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('certifications', 'Api\UrbanGoodzDriverActiveJobsController@certifications');
     Route::post('certifications/{certId}/upload', 'Api\UrbanGoodzDriverActiveJobsController@uploadCertDocument');
 Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
+
+    // Driver AI dispatches (AiDispatch lifecycle)
+    Route::get('ai-dispatches', 'Api\UrbanGoodzDriverDispatchController@index');
+    Route::get('ai-dispatches/{dispatch}', 'Api\UrbanGoodzDriverDispatchController@show');
+    Route::post('ai-dispatches/{dispatch}/accept', 'Api\UrbanGoodzDriverDispatchController@accept');
+    Route::post('ai-dispatches/{dispatch}/decline', 'Api\UrbanGoodzDriverDispatchController@decline');
+    Route::get('ai-dispatches/{dispatch}/route-guidance', 'Api\UrbanGoodzDriverDispatchController@routeGuidance');
+    Route::post('ai-dispatches/{dispatch}/exceptions', 'Api\UrbanGoodzDriverDispatchController@reportException');
+    Route::post('ai-dispatches/{dispatch}/deliver', 'Api\UrbanGoodzDriverDispatchController@markDelivered');
+    Route::get('ai-performance-summary', 'Api\UrbanGoodzDriverDispatchController@performanceSummary');
     });
 
     // Driver AI
