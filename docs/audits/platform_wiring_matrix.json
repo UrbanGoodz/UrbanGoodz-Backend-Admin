@@ -1,0 +1,95 @@
+{
+  "version": "3.9",
+  "last_updated": "2026-07-21",
+  "status": "CERTIFIED_E2E",
+  "workflows": [
+    {
+      "domain": "Customer",
+      "screen": "Splash Screen",
+      "route": "/",
+      "api_endpoint": "/api/v1/config",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright & Flutter Unit"
+    },
+    {
+      "domain": "Customer",
+      "screen": "Home Landing",
+      "route": "/",
+      "api_endpoint": "/api/v1/landing-page",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright & Flutter Unit"
+    },
+    {
+      "domain": "Customer",
+      "screen": "Search / Discovery",
+      "route": "/search",
+      "api_endpoint": "/api/v1/discovery/search",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright E2E"
+    },
+    {
+      "domain": "Customer",
+      "screen": "Urban Goodz Hub",
+      "route": "/urban-goodz-hub",
+      "api_endpoint": "/api/v1/urban-goodz/hub",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright E2E"
+    },
+    {
+      "domain": "Customer",
+      "screen": "Order Anywhere Request",
+      "route": "/order-anywhere-request",
+      "api_endpoint": "/api/v1/order-anywhere/requests",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Feature Test & Playwright"
+    },
+    {
+      "domain": "Customer",
+      "screen": "Fashion Fit",
+      "route": "/fashion-fit",
+      "api_endpoint": "/api/v1/fashion-fit/profile",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright E2E & Unit"
+    },
+    {
+      "domain": "Driver",
+      "screen": "Active Jobs",
+      "route": "/driver/active-jobs",
+      "api_endpoint": "/api/v1/urban-goodz/driver/active-jobs",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Feature Test"
+    },
+    {
+      "domain": "Driver",
+      "screen": "Load Board",
+      "route": "/driver/load-board",
+      "api_endpoint": "/api/v1/urban-goodz/driver/load-board",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Feature Test"
+    },
+    {
+      "domain": "Vendor",
+      "screen": "Orders View",
+      "route": "/vendor/orders",
+      "api_endpoint": "/api/v1/order-anywhere/vendor/orders",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Feature Test"
+    },
+    {
+      "domain": "Business",
+      "screen": "Business Login",
+      "route": "/business/login",
+      "api_endpoint": "/business/login",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright E2E"
+    },
+    {
+      "domain": "Admin",
+      "screen": "Admin Login",
+      "route": "/login/admin",
+      "api_endpoint": "/login_submit",
+      "status": "VERIFIED_WORKING",
+      "test_coverage": "Playwright E2E"
+    }
+  ]
+}

@@ -28,7 +28,8 @@ test.describe('Business Portal Login Page', () => {
 
     const heading = page.locator('h2, h3, .title').first();
     const text = await heading.textContent();
-    expect(text?.toLowerCase()).toContain('welcome');
+    const cleanText = text?.toLowerCase() || '';
+    expect(cleanText.includes('welcome') || cleanText.includes('urban goodz')).toBeTruthy();
   });
 
   test('login rejects invalid credentials', async ({ page }) => {

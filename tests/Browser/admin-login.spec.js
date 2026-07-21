@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Admin Login Page', () => {
   test('login page loads with UG branding', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login/admin');
 
     // Page title
     await expect(page).toHaveTitle(/login|admin|urban goodz/i);
@@ -13,10 +13,10 @@ test.describe('Admin Login Page', () => {
     expect(body).toContain('ug-admin.css');
 
     // Login form exists
-    const emailInput = page.locator('input[name="email"], input[type="email"]');
+    const emailInput = page.locator('input[name="email"], input[type="email"]').first();
     await expect(emailInput).toBeVisible();
 
-    const passwordInput = page.locator('input[name="password"], input[type="password"]');
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible();
 
     // Submit button exists
@@ -25,10 +25,10 @@ test.describe('Admin Login Page', () => {
   });
 
   test('login rejects invalid credentials', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login/admin');
 
-    await page.fill('input[name="email"], input[type="email"]', 'nonexistent@test.com');
-    await page.fill('input[name="password"], input[type="password"]', 'wrongpassword');
+    await page.locator('input[name="email"], input[type="email"]').first().fill('nonexistent@test.com');
+    await page.locator('input[name="password"], input[type="password"]').first().fill('wrongpassword');
     await page.click('button[type="submit"], input[type="submit"]');
 
     // Should stay on login page or show error
@@ -38,7 +38,7 @@ test.describe('Admin Login Page', () => {
   });
 
   test('reCAPTCHA auto-detect works', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login/admin');
 
     // The page should either show reCAPTCHA widget or custom captcha
     // If Google reCAPTCHA fails, it should auto-switch to custom
@@ -54,10 +54,10 @@ test.describe('Admin Login Page - Mobile', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test('mobile login renders correctly', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login/admin');
     await expect(page).toHaveTitle(/login|admin|urban goodz/i);
 
-    const emailInput = page.locator('input[name="email"], input[type="email"]');
+    const emailInput = page.locator('input[name="email"], input[type="email"]').first();
     await expect(emailInput).toBeVisible();
   });
 });
