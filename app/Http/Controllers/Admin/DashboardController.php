@@ -50,8 +50,12 @@ class DashboardController extends Controller
 
     public function __construct()
     {
-        if (DB::connection()->getDriverName() === 'mysql') {
-            DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+        try {
+            if (DB::connection()->getDriverName() === 'mysql') {
+                DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+            }
+        } catch (\Throwable $e) {
+            // Suppress if DB connection not ready or statement restricted
         }
     }
 
@@ -179,7 +183,8 @@ class DashboardController extends Controller
             $rider_data = [];
         }
 
-        return view("admin-views.dashboard-{$module_type}", compact('data', 'reviews', 'this_month', 'user_data', 'neutral_reviews', 'good_reviews', 'negative_reviews', 'positive_reviews', 'employees', 'active_deliveryman', 'deliveryMen', 'inactive_deliveryman', 'newly_joined_deliveryman', 'delivery_man', 'total_sell', 'commission', 'delivery_commission', 'params', 'module_type', 'customers', 'active_customers', 'blocked_customers', 'newly_joined', 'last_year_users', 'blocked_deliveryman', 'rider_data'));
+        $viewName = (empty($module_type) || !view()->exists("admin-views.dashboard-{$module_type}")) ? "admin-views.dashboard" : "admin-views.dashboard-{$module_type}";
+        return view($viewName, compact('data', 'reviews', 'this_month', 'user_data', 'neutral_reviews', 'good_reviews', 'negative_reviews', 'positive_reviews', 'employees', 'active_deliveryman', 'deliveryMen', 'inactive_deliveryman', 'newly_joined_deliveryman', 'delivery_man', 'total_sell', 'commission', 'delivery_commission', 'params', 'module_type', 'customers', 'active_customers', 'blocked_customers', 'newly_joined', 'last_year_users', 'blocked_deliveryman', 'rider_data'));
     }
 
     private function get_rider_data($params) {
