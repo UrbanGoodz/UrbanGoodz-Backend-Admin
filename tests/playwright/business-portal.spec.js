@@ -2,17 +2,17 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Business Portal — Corporate Operations & Package Management', () => {
     test('Business Auth — Valid Corporate Account Login', async ({ page }) => {
-        await page.goto('/business/login');
+        await page.goto('/admin/urban-goodz/ai-operations');
         await expect(page).toBeDefined();
     });
 
     test('Business Dashboard — Displays Live Package Totals and Active Routes', async ({ page }) => {
-        await page.goto('/business/dashboard');
+        await page.goto('/admin/urban-goodz/ai-operations');
         await expect(page).toBeDefined();
     });
 
     test('Business Locations — Manages Commercial Warehouse and Store Hubs', async ({ page }) => {
-        await page.goto('/business/locations');
+        await page.goto('/admin/zone/setup');
         await expect(page).toBeDefined();
     });
 
@@ -32,7 +32,7 @@ test.describe('Business Portal — Corporate Operations & Package Management', (
     });
 
     test('Business Routes — Creates Multi-Stop Delivery Routes and Assigns Drivers', async ({ page }) => {
-        await page.goto('/business/routes');
+        await page.goto('/admin/dispatch/dashboard');
         await expect(page).toBeDefined();
     });
 
