@@ -115,8 +115,8 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
             Route::get('load-board/create', [BusinessAiLogisticsController::class, 'loadBoardCreate'])->name('load-board.create');
             Route::post('load-board', [BusinessAiLogisticsController::class, 'loadBoardStore'])->name('load-board.store');
             Route::get('load-board/{id}', [BusinessAiLogisticsController::class, 'loadBoardShow'])->name('load-board.show');
-            Route::get('load-sourcing', [BusinessAiLogisticsController::class, 'loadSourcing'])->name('load-sourcing.index');
-            Route::post('load-sourcing/search', [BusinessAiLogisticsController::class, 'loadSourcingSearch'])->name('load-sourcing.search');
+            Route::match(['get','post'], 'load-sourcing', [BusinessAiLogisticsController::class, 'loadSourcing'])->name('load-sourcing.index');
+            Route::match(['get','post'], 'load-sourcing/search', [BusinessAiLogisticsController::class, 'loadSourcingSearch'])->name('load-sourcing.search');
             Route::get('dispatch', [BusinessAiLogisticsController::class, 'driverDispatchForm'])->name('dispatch.create');
             Route::post('dispatch', [BusinessAiLogisticsController::class, 'driverDispatch'])->name('dispatch.store');
             Route::get('dispatch/matching', [BusinessAiLogisticsController::class, 'driverMatching'])->name('dispatch.matching');

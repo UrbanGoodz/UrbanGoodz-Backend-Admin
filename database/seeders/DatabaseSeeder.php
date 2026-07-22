@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             UrbanGoodzDriverPricingPolicySeeder::class,
             UrbanGoodzLoadBoardSeeder::class,
             UrbanGoodzPermissionRoleSeeder::class,
+            UrbanGoodzLoadSourcingPermissionSeeder::class,
             UrbanGoodzIngestionSeeder::class,
             UrbanGoodzTestVendorSeeder::class,
             UrbanGoodzAiWorkforceSeeder::class,

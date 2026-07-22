@@ -13,9 +13,193 @@ use App\Models\LoadPartnerReferral;
 use App\Services\UrbanGoodz\LoadSource\LoadSourcingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class UrbanGoodzDispatcherLoadSourcingController extends Controller
 {
+    // ═══════════════════════════════════════════════════════════════════
+    // BLADE VIEW METHODS
+    // ═══════════════════════════════════════════════════════════════════
+
+    public function dashboardBlade(): View
+    {
+        $companyId = request()->attributes->get('dispatch_company_id');
+
+        $eligibleDrivers = DeliveryMan::where('load_board_eligible', true)
+            ->where('active', 1)
+            ->get();
+
+        $availableLoads = ExternalLoad::where('status', 'available')
+            ->where('is_duplicate', false)
+            ->count();
+
+        $savedSearchCount = DispatcherSavedSearch::where('dispatch_company_id', $companyId)->count();
+
+        $assignmentCount = LoadRecommendation::where('generated_by_type', 'dispatcher')
+            ->where('status', 'pending')
+            ->count();
+
+        $activeLoadCount = ExternalLoad::where('status', 'available')
+            ->where('is_duplicate', false)
+            ->count();
+
+        $topRecommendations = LoadRecommendation::whereIn('delivery_man_id', $eligibleDrivers->pluck('id'))
+            ->where('status', 'pending')
+            ->with('externalLoad.source')
+            ->orderByDesc('score')
+            ->limit(20)
+            ->get();
+
+        return view('admin-views.urban-goodz.dispatcher-sourcing.dashboard', compact(
+            'eligibleDrivers', 'availableLoads', 'savedSearchCount',
+            'assignmentCount', 'activeLoadCount', 'topRecommendations'
+        ));
+    }
+
+    public function searchBlade(Request $request): View
+    {
+        $searchResults = null;
+        $eligibleDrivers = DeliveryMan::where('load_board_eligible', true)->where('active', 1)->get();
+
+        if ($request->isMethod('POST')) {
+            $service = new LoadSourcingService();
+            $criteria = $request->only([
+                'origin_state', 'destination_state', 'equipment_type',
+                'min_rate', 'max_deadhead', 'pickup_date_from', 'pickup_date_to',
+                'weight_max', 'max_results',
+            ]);
+
+            try {
+                $result = $service->searchAllSources($criteria, auth('business')->id(), 'dispatcher');
+                $searchResults = ExternalLoad::with('source')
+                    ->where('is_duplicate', false)
+                    ->latest()
+                    ->limit(100)
+                    ->get();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Dispatcher search error: ' . $e->getMessage());
+            }
+        }
+
+        return view('admin-views.urban-goodz.dispatcher-sourcing.search', compact(
+            'searchResults', 'eligibleDrivers'
+        ));
+    }
+
+    public function savedSearchesBlade(Request $request): View
+    {
+        if ($request->isMethod('POST')) {
+            $user = auth('business')->user();
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'criteria' => 'sometimes|array',
+                'source_keys' => 'sometimes|array',
+                'auto_alert' => 'sometimes|boolean',
+                'alert_threshold_score' => 'sometimes|integer|min:0|max:100',
+            ]);
+
+            DispatcherSavedSearch::create([
+                'business_client_user_id' => $user->id,
+                'dispatch_company_id' => $user->business_client_id,
+                'name' => $validated['name'],
+                'criteria' => $validated['criteria'] ?? null,
+                'source_keys' => $validated['source_keys'] ?? null,
+                'auto_alert' => $validated['auto_alert'] ?? false,
+                'alert_threshold_score' => $validated['alert_threshold_score'] ?? 70,
+            ]);
+
+            return redirect()->route('admin.urban-goodz.dispatcher-sourcing.saved-searches')
+                ->with('success', translate('Search saved successfully'));
+        }
+
+        $user = auth('business')->user();
+        $savedSearches = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)
+            ->latest()
+            ->get();
+
+        return view('admin-views.urban-goodz.dispatcher-sourcing.saved-searches', compact('savedSearches'));
+    }
+
+    public function assignmentsBlade(Request $request): View
+    {
+        $user = auth('business')->user();
+
+        $query = LoadRecommendation::where('generated_by_type', 'dispatcher')
+            ->with('externalLoad.source', 'deliveryMan');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('externalLoad', function ($q) use ($search) {
+                $q->where('origin_city', 'like', "%{$search}%")
+                  ->orWhere('destination_city', 'like', "%{$search}%")
+                  ->orWhere('external_reference_id', 'like', "%{$search}%");
+            });
+        }
+
+        $assignments = $query->latest()->paginate(25);
+
+        $statusCounts = LoadRecommendation::where('generated_by_type', 'dispatcher')
+            ->selectRaw('status, count(*) as cnt')
+            ->groupBy('status')
+            ->pluck('cnt', 'status')
+            ->toArray();
+
+        return view('admin-views.urban-goodz.dispatcher-sourcing.assignments', compact(
+            'assignments', 'statusCounts'
+        ));
+    }
+
+    public function driverMatchesBlade(int $loadId): View
+    {
+        $load = ExternalLoad::with('source')->find($loadId);
+        $driverMatches = [];
+
+        if ($load) {
+            $eligibleDrivers = DeliveryMan::where('load_board_eligible', true)
+                ->where('active', 1)
+                ->get();
+
+            $service = new LoadSourcingService();
+            $preferences = null;
+            $weights = $service->getWeights();
+
+            foreach ($eligibleDrivers as $driver) {
+                $preferences = DriverLoadPreference::where('delivery_man_id', $driver->id)->first();
+                if (!$service->isEligible($load, $driver, $preferences)) {
+                    continue;
+                }
+
+                $scoreResult = $service->scoreLoad($load, $driver, $preferences, $weights);
+                $activeDispatches = LoadRecommendation::where('delivery_man_id', $driver->id)
+                    ->whereIn('status', ['pending', 'accepted'])
+                    ->count();
+
+                $driverMatches[] = [
+                    'driver' => $driver,
+                    'score' => $scoreResult['total_score'] ?? 0,
+                    'reasons' => array_merge(
+                        $scoreResult['reasons_recommended'] ?? [],
+                        array_map(fn($r) => '-' . $r, $scoreResult['reasons_penalized'] ?? [])
+                    ),
+                    'active_dispatches' => $activeDispatches,
+                ];
+            }
+
+            usort($driverMatches, fn($a, $b) => $b['score'] <=> $a['score']);
+        }
+
+        return view('admin-views.urban-goodz.dispatcher-sourcing.driver-matches', compact(
+            'load', 'driverMatches'
+        ));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // JSON API METHODS (existing)
+    // ═══════════════════════════════════════════════════════════════════
+
     public function dashboard(): JsonResponse
     {
         $companyId = request()->attributes->get('dispatch_company_id');

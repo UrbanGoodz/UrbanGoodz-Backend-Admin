@@ -350,27 +350,48 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             });
 
             Route::group(['prefix' => 'load-sourcing', 'as' => 'load-sourcing.'], function () {
-                Route::get('/', 'UrbanGoodz\UrbanGoodzLoadSourcingController@index')->name('index');
-                Route::get('sources/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@showSource')->name('show-source');
-                Route::put('sources/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@updateSource')->name('update-source');
-                Route::post('sources/{id}/credentials', 'UrbanGoodz\UrbanGoodzLoadSourcingController@storeCredential')->name('store-credential');
-                Route::post('sources/{sourceId}/search', 'UrbanGoodz\UrbanGoodzLoadSourcingController@sourceSearch')->name('source-search');
-                Route::post('search-all', 'UrbanGoodz\UrbanGoodzLoadSourcingController@searchAll')->name('search-all');
-                Route::get('settings', 'UrbanGoodz\UrbanGoodzLoadSourcingController@settings')->name('settings');
-                Route::put('settings', 'UrbanGoodz\UrbanGoodzLoadSourcingController@updateSettings')->name('settings-update');
-                Route::get('sync-history', 'UrbanGoodz\UrbanGoodzLoadSourcingController@syncHistory')->name('sync-history');
-                Route::get('external-loads', 'UrbanGoodz\UrbanGoodzLoadSourcingController@externalLoads')->name('external-loads');
+                // ── 9 Blade Pages ──
+                Route::get('overview', 'UrbanGoodz\UrbanGoodzLoadSourcingController@overview')->name('overview');
+                Route::get('sources', 'UrbanGoodz\UrbanGoodzLoadSourcingController@sources')->name('sources');
+                Route::match(['get','post'], 'search', 'UrbanGoodz\UrbanGoodzLoadSourcingController@search')->name('search');
+                Route::match(['get','post','delete'], 'saved-searches', 'UrbanGoodz\UrbanGoodzLoadSourcingController@savedSearches')->name('saved-searches');
+                Route::post('saved-searches/{id}/run', 'UrbanGoodz\UrbanGoodzLoadSourcingController@runSavedSearch')->name('run-saved-search');
+                Route::match(['get','post'], 'sourced-loads', 'UrbanGoodz\UrbanGoodzLoadSourcingController@sourcedLoads')->name('sourced-loads');
+                Route::match(['get','post'], 'recommendations', 'UrbanGoodz\UrbanGoodzLoadSourcingController@recommendations')->name('recommendations');
+                Route::match(['get','post'], 'sync-runs', 'UrbanGoodz\UrbanGoodzLoadSourcingController@syncRuns')->name('sync-runs');
+                Route::match(['get','post'], 'errors', 'UrbanGoodz\UrbanGoodzLoadSourcingController@errors')->name('errors');
+                Route::match(['get','post'], 'settings', 'UrbanGoodz\UrbanGoodzLoadSourcingController@settings')->name('settings');
+
+                // ── Actions ──
                 Route::post('external-loads/{id}/approve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@approveLoad')->name('approve-load');
                 Route::post('external-loads/{id}/reject', 'UrbanGoodz\UrbanGoodzLoadSourcingController@rejectLoad')->name('reject-load');
-                Route::get('recommendations', 'UrbanGoodz\UrbanGoodzLoadSourcingController@recommendations')->name('recommendations');
-                Route::post('recommendations/generate', 'UrbanGoodz\UrbanGoodzLoadSourcingController@generateRecommendations')->name('generate-recommendations');
-                Route::get('email-ingestions', 'UrbanGoodz\UrbanGoodzLoadSourcingController@emailIngestions')->name('email-ingestions');
-                Route::post('email-ingestions/{id}/approve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@approveEmailIngestion')->name('approve-email');
-                Route::post('email-ingestions/{id}/reject', 'UrbanGoodz\UrbanGoodzLoadSourcingController@rejectEmailIngestion')->name('reject-email');
-                Route::get('imports', 'UrbanGoodz\UrbanGoodzLoadSourcingController@imports')->name('imports');
-                Route::post('import/csv', 'UrbanGoodz\UrbanGoodzLoadSourcingController@importCsv')->name('import-csv');
-                Route::get('errors', 'UrbanGoodz\UrbanGoodzLoadSourcingController@errors')->name('errors');
+                Route::post('external-loads/{id}/publish', 'UrbanGoodz\UrbanGoodzLoadSourcingController@publishToLoadBoard')->name('publish-to-board');
+                Route::post('bulk-approve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkApprove')->name('bulk-approve');
+                Route::post('bulk-reject', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkReject')->name('bulk-reject');
+                Route::post('bulk-publish', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkPublish')->name('bulk-publish');
                 Route::post('errors/{id}/resolve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@resolveError')->name('resolve-error');
+                Route::post('sync-runs/{id}/retry', 'UrbanGoodz\UrbanGoodzLoadSourcingController@retrySyncRun')->name('retry-sync-run');
+                Route::post('recommendations/generate', 'UrbanGoodz\UrbanGoodzLoadSourcingController@generateRecommendations')->name('generate-recommendations');
+
+                // ── JSON API (for AJAX) ──
+                Route::get('api/sources/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@showSourceApi')->name('api.show-source');
+                Route::put('api/sources/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@updateSource')->name('api.update-source');
+                Route::post('api/sources/{id}/toggle', 'UrbanGoodz\UrbanGoodzLoadSourcingController@toggleSource')->name('api.toggle-source');
+                Route::post('api/sources/{id}/credentials', 'UrbanGoodz\UrbanGoodzLoadSourcingController@storeCredential')->name('api.store-credential');
+                Route::post('api/sources/{id}/test', 'UrbanGoodz\UrbanGoodzLoadSourcingController@testConnection')->name('api.test-connection');
+                Route::post('api/sources/{id}/sync', 'UrbanGoodz\UrbanGoodzLoadSourcingController@syncSource')->name('api.sync-source');
+                Route::post('api/sources/{sourceId}/search', 'UrbanGoodz\UrbanGoodzLoadSourcingController@sourceSearchApi')->name('api.source-search');
+                Route::post('api/search-all', 'UrbanGoodz\UrbanGoodzLoadSourcingController@searchAllApi')->name('api.search-all');
+                Route::get('api/external-loads', 'UrbanGoodz\UrbanGoodzLoadSourcingController@externalLoadsApi')->name('api.external-loads');
+                Route::get('api/sync-history', 'UrbanGoodz\UrbanGoodzLoadSourcingController@syncHistoryApi')->name('api.sync-history');
+                Route::get('api/errors', 'UrbanGoodz\UrbanGoodzLoadSourcingController@errorsApi')->name('api.errors');
+                Route::get('api/recommendations', 'UrbanGoodz\UrbanGoodzLoadSourcingController@recommendationsApi')->name('api.recommendations');
+
+                // ── Legacy redirects ──
+                Route::get('/', fn() => redirect()->route('admin.urban-goodz.load-sourcing.overview'))->name('index');
+                Route::get('settings-old', 'UrbanGoodz\UrbanGoodzLoadSourcingController@settings')->name('settings-update');
+                Route::get('sync-history', fn() => redirect()->route('admin.urban-goodz.load-sourcing.sync-runs'));
+                Route::get('external-loads', fn() => redirect()->route('admin.urban-goodz.load-sourcing.sourced-loads'));
             });
 
             Route::group(['prefix' => 'dispatches', 'as' => 'dispatches.'], function () {
@@ -387,6 +408,14 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             });
 
             Route::group(['prefix' => 'dispatcher-sourcing', 'as' => 'dispatcher-sourcing.'], function () {
+                // ── Blade views ──
+                Route::get('dashboard', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('dashboard-blade');
+                Route::match(['get','post'], 'search-form', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchBlade')->name('search-blade');
+                Route::match(['get','post'], 'saved-form', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@savedSearchesBlade')->name('saved-blade');
+                Route::match(['get','post'], 'assignments', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignmentsBlade')->name('assignments-blade');
+                Route::get('driver-matches/{loadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverMatchesBlade')->name('driver-matches-blade');
+
+                // ── JSON API ──
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboard')->name('dashboard');
                 Route::post('search', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchAllSources')->name('search');
                 Route::get('best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestLoads')->name('best-loads');

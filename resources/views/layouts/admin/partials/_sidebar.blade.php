@@ -269,11 +269,75 @@
                         </a>
                     </li>
                     @endif
-                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-operations*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-operations.index') }}" title="AI Operations">
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-operations*') || Request::is('admin/urban-goodz/load-sourcing*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:" title="AI Operations">
                             <i class="tio-auto-flash nav-icon" style="color: #ED9914;"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">AI Operations</span>
                         </a>
+                        <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="{{ Request::is('admin/urban-goodz/ai-operations*') || Request::is('admin/urban-goodz/load-sourcing*') ? 'display-block' : 'display-none' }}">
+                            <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/load-sourcing*') ? 'active' : '' }}">
+                                <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:" title="Load Sourcing">
+                                    <span class="tio-truck nav-indicator-icon"></span>
+                                    <span class="text-truncate">Load Sourcing</span>
+                                </a>
+                                <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="{{ Request::is('admin/urban-goodz/load-sourcing*') ? 'display-block' : 'display-none' }}">
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/overview') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.overview') }}" title="Overview">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Overview</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/sources') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.sources') }}" title="Sources">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Sources</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/search') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.search') }}" title="Search Loads">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Search Loads</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/saved-searches') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.saved-searches') }}" title="Saved Searches">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Saved Searches</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/sourced-loads') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.sourced-loads') }}" title="Sourced Loads">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Sourced Loads</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/recommendations') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.recommendations') }}" title="Recommendations">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Recommendations</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/sync-runs') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.sync-runs') }}" title="Sync Runs">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Sync Runs</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/errors') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.errors') }}" title="Errors">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Errors</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{ Request::is('admin/urban-goodz/load-sourcing/settings') ? 'active' : '' }}">
+                                        <a class="nav-link" href="{{ route('admin.urban-goodz.load-sourcing.settings') }}" title="Settings">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">Settings</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
                     </li>
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view') && ($ugModules['ai-copilot']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-copilot*') ? 'active' : '' }}">
@@ -313,6 +377,13 @@
                         </a>
                     </li>
                     @endif
+
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/dispatcher-sourcing*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.dispatcher-sourcing.dashboard-blade') }}" title="Dispatcher Sourcing">
+                            <i class="tio-filter-arrow-alt nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Dispatcher Sourcing</span>
+                        </a>
+                    </li>
 
                     {{-- Marketing / Subscription --}}
                     <li class="nav-item">

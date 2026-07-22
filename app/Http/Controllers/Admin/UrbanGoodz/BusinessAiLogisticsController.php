@@ -251,7 +251,26 @@ class BusinessAiLogisticsController extends Controller
             ->latest()
             ->paginate(15);
 
-        return view('business.ai-logistics.load-sourcing.index', compact('sources', 'externalLoads'));
+        $availableCount = DB::table('external_loads')
+            ->where('business_client_id', $clientId)
+            ->where('status', 'available')
+            ->count();
+
+        $fleetMatchCount = DB::table('external_loads')
+            ->where('business_client_id', $clientId)
+            ->where('fleet_match', true)
+            ->count();
+
+        $savedSearchCount = \App\Models\DispatcherSavedSearch::where('dispatch_company_id', $clientId)->count();
+
+        $activeDispatchCount = \App\Models\AiDispatch::forClient($clientId)
+            ->whereIn('status', ['pending', 'accepted', 'in_progress'])
+            ->count();
+
+        return view('business.ai-logistics.load-sourcing.index', compact(
+            'sources', 'externalLoads', 'availableCount',
+            'fleetMatchCount', 'savedSearchCount', 'activeDispatchCount'
+        ));
     }
 
     public function loadSourcingSearch(Request $request)
@@ -279,13 +298,9 @@ class BusinessAiLogisticsController extends Controller
             return response()->json(['success' => true, 'results' => $results]);
         }
 
-        $sources = DB::table('load_sourcing_sources')
-            ->where('business_client_id', $clientId)
-            ->orWhereNull('business_client_id')
-            ->get();
-        $externalLoads = collect($results['loads'] ?? []);
+        $searchResults = collect($results['loads'] ?? []);
 
-        return view('business.ai-logistics.load-sourcing.index', compact('sources', 'externalLoads'));
+        return view('business.ai-logistics.load-sourcing.search', compact('searchResults'));
     }
 
     // ═══════════════════════════════════════════════════════════════════

@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\ToggleRecaptcha::class,
         \App\Console\Commands\AiCopilotGenerateRecommendations::class,
         \App\Console\Commands\SyncLoadBoard::class,
+        \App\Console\Commands\RunScheduledSourcing::class,
     ];
 
     /**
@@ -39,6 +40,12 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->when(fn() => config('urban_goodz_load_board.sync.enabled', true));
+
+        $schedule->command('run-scheduled-sourcing')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn() => config('urban_goodz_load_board.sourcing.enabled', true));
     }
 
     /**
