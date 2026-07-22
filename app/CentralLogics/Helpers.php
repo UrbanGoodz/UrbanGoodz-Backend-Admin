@@ -3817,10 +3817,6 @@ class Helpers
             return asset('storage/app/public') . '/' . $path . '/' . $data;
         }
 
-        if (request()->is('api/*')) {
-            return null;
-        }
-
         if (isset($placeholder) && array_key_exists($placeholder, $place_holders)) {
             return $place_holders[$placeholder];
         } elseif (array_key_exists($path, $place_holders)) {

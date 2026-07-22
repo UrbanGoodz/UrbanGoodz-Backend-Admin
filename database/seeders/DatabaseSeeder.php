@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             UrbanGoodzLoadBoardSeeder::class,
             UrbanGoodzPermissionRoleSeeder::class,
             UrbanGoodzIngestionSeeder::class,
+            UrbanGoodzTestVendorSeeder::class,
             UrbanGoodzAiWorkforceSeeder::class,
         ]);
     }
