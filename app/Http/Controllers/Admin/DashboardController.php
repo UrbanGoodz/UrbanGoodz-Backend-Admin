@@ -553,7 +553,7 @@ class DashboardController extends Controller
             $total_orders = Order::where('module_id', $module_id);
             $total_items = Item::where('is_approved', 1)->where('module_id', $module_id);
             $total_stores = Store::whereHas('vendor', fn($query) => $query->where('status', 1))->where('module_id', $module_id);
-            $total_customers = User::guery();
+            $total_customers = User::query();
         } elseif ($module_id && $params['statistics_type'] == 'this_month') {
             $searching_for_dm = Order::SearchingForDeliveryman()->where('module_id', $module_id)->whereMonth('created_at', now()->format('m'))->whereYear('created_at', now()->format('Y'));
             $accepted_by_dm = Order::AccepteByDeliveryman()->where('module_id', $module_id)->whereMonth('accepted', now()->format('m'))->whereYear('accepted', now()->format('Y'));
@@ -587,7 +587,7 @@ class DashboardController extends Controller
             $total_orders = Order::where('module_id', $module_id);
             $total_items = Item::where('is_approved', 1)->where('module_id', $module_id);
             $total_stores = Store::whereHas('vendor', fn($query) => $query->where('status', 1))->where('module_id', $module_id);
-            $total_customers = User::guery();
+            $total_customers = User::query();
         } elseif ($module_id) {
             $searching_for_dm = Order::SearchingForDeliveryman()->where('module_id', $module_id);
             $accepted_by_dm = Order::AccepteByDeliveryman()->where('module_id', $module_id);
