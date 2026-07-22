@@ -50,8 +50,6 @@ class UrbanGoodzIngestionSeeder extends Seeder
                 [
                     'module_type' => $this->getModuleType($cat),
                     'status' => 1,
-                    'theme' => 'default',
-                    'slug' => Str::slug($cat)
                 ]
             );
         }
@@ -60,9 +58,7 @@ class UrbanGoodzIngestionSeeder extends Seeder
         $zone = Zone::firstOrCreate(
             ['name' => 'Houston'],
             [
-                'display_name' => 'Houston Zone',
                 'status' => 1,
-                'is_default' => true,
                 'coordinates' => new \MatanYadaev\EloquentSpatial\Objects\Polygon([
                     new \MatanYadaev\EloquentSpatial\Objects\LineString([
                         new \MatanYadaev\EloquentSpatial\Objects\Point(29.5, -95.8),

@@ -52,3 +52,7 @@ storage/app/urban_goodz_import_tmp/
 id_rsa_lf
 id_rsa_utf8
 
+
+release_artifacts_20260720/*.apk
+*.apk
+

@@ -30,3 +30,5 @@ Route::group([
         Route::post('settings', [AiOperationsController::class, 'updateSettings'])->name('settings.update');
     });
 });
+
+Route::get('urban-goodz/ai-chief-of-staff', [AiOperationsController::class, 'chiefOfStaff'])->name('admin.urban-goodz.ai-chief-of-staff');

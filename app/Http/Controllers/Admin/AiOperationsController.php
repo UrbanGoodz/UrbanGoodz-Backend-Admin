@@ -467,6 +467,15 @@ class AiOperationsController extends Controller
         return back();
     }
 
+    public function chiefOfStaff(Request $request, AiChiefOfStaffService $chiefOfStaffService)
+    {
+        $brief = $chiefOfStaffService->generateExecutiveDailyBrief();
+        $summary = $chiefOfStaffService->getCommandCenterSummary();
+        $diagnostics = $chiefOfStaffService->runDiagnosticScan();
+
+        return view('admin-views.urban-goodz.ai-chief-of-staff.index', compact('brief', 'summary', 'diagnostics'));
+    }
+
     private function maskUrl(string $url): string
     {
         if (empty($url)) {

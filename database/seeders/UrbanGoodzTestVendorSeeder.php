@@ -14,19 +14,26 @@ class UrbanGoodzTestVendorSeeder extends Seeder
 {
     public function run(): void
     {
-        // Find the Restaurants module (created by UrbanGoodzIngestionSeeder)
-        $module = Module::where('module_name', 'Restaurants')->first();
-        if (!$module) {
-            $this->command?->warn('Restaurants module not found. Run UrbanGoodzIngestionSeeder first.');
-            return;
-        }
+        // Find or create the Restaurants module
+        $module = Module::firstOrCreate(
+            ['module_name' => 'Restaurants'],
+            [
+                'module_type' => 'food',
+                'thumbnail' => null,
+                'status' => 1,
+                'stores_count' => 0,
+                'all_zone_service' => 1,
+            ]
+        );
 
-        // Find the Houston zone (created by UrbanGoodzIngestionSeeder)
-        $zone = Zone::where('name', 'Houston')->first();
-        if (!$zone) {
-            $this->command?->warn('Houston zone not found. Run UrbanGoodzIngestionSeeder first.');
-            return;
-        }
+        // Find or create the Houston zone
+        $zone = Zone::firstOrCreate(
+            ['name' => 'Houston'],
+            [
+                'coordinates' => null,
+                'status' => 1,
+            ]
+        );
 
         // Check if vendor already exists
         $existing = Vendor::where('email', 'test.restaurant@gmail.com')->first();

@@ -52,10 +52,14 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
             ]
         );
 
+        $coords = DB::connection()->getDriverName() === 'sqlite'
+            ? 'POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))'
+            : new \Illuminate\Database\Query\Expression("ST_GeomFromText('POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))')");
+
         $this->zone = Zone::firstOrCreate(
             ['name' => 'UG AI Test Zone'],
             [
-                'coordinates' => new \Illuminate\Database\Query\Expression("ST_GeomFromText('POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))')"),
+                'coordinates' => $coords,
                 'status' => 1,
             ]
         );
