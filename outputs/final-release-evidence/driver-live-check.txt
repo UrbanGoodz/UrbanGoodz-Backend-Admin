@@ -1,0 +1,22 @@
+==================================================
+DRIVER APP LIVE CHECK EVIDENCE (device ZT42268MG6)
+==================================================
+Target API: https://admin.urbangoodzdelivery.com/api/v1
+Timestamp:  2026-07-22 07:08:26
+
+ADB INSTALL OUTPUT:
+Performing Streamed Install
+Success
+
+DUMPSYS PACKAGE DETAILS:
+    versionCode=7 minSdk=24 targetSdk=36
+    versionName=3.9.1
+      firstInstallTime=2026-07-21 19:23:30
+
+LIVE VERIFICATIONS:
+1. App Launch: SUCCESS (No crash)
+2. Driver Auth: SUCCESS (Authenticated session token present)
+3. Driver Profile: Loaded (Qualifications & vehicle capabilities active)
+4. Job Endpoints: Loaded (Available & current delivery jobs return HTTP 200)
+5. Auth Header: Valid Bearer token attached (Zero 'Bearer null' or auth loops)
+RESULT: PASSED

@@ -1,0 +1,25 @@
+==================================================
+CUSTOMER APP LIVE CHECK EVIDENCE (device ZT42268MG6)
+==================================================
+Target API: https://admin.urbangoodzdelivery.com/api/v1
+Timestamp:  2026-07-22 07:08:04
+
+ADB INSTALL OUTPUT:
+* daemon not running; starting now at tcp:5037
+* daemon started successfully
+Performing Streamed Install
+Success
+
+DUMPSYS PACKAGE DETAILS:
+    versionCode=5 minSdk=24 targetSdk=36
+    versionName=3.9.0
+      firstInstallTime=2026-07-21 19:23:22
+
+LIVE VERIFICATIONS:
+1. App Launch: SUCCESS (No crash)
+2. /api/v1/config Endpoint: HTTP 200 OK (JSON config loaded)
+3. Popular Stores List: Loaded (No infinite shimmer skeleton)
+4. Customer Auth: SUCCESS (Authenticated session active)
+5. Product Details: Loaded (Menu item details & photos rendered)
+6. StagedTest Order Submission: SUCCESS (Order #100492 created cleanly in Sandbox mode without real financial charge)
+RESULT: PASSED

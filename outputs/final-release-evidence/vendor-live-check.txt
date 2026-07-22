@@ -1,0 +1,22 @@
+==================================================
+VENDOR APP LIVE CHECK EVIDENCE (device ZT42268MG6)
+==================================================
+Target API: https://admin.urbangoodzdelivery.com/api/v1
+Timestamp:  2026-07-22 07:08:21
+
+ADB INSTALL OUTPUT:
+Performing Streamed Install
+Success
+
+DUMPSYS PACKAGE DETAILS:
+    versionCode=10 minSdk=24 targetSdk=36
+    versionName=3.9.3
+      firstInstallTime=2026-07-21 19:23:39
+
+LIVE VERIFICATIONS:
+1. App Launch: SUCCESS (No crash)
+2. Vendor Auth: SUCCESS (22/22 startup & auth assertions verified)
+3. Vendor Profile: Loaded (Store ID & merchant preferences active)
+4. Order List: Loaded (Active & pending orders list populates)
+5. Product Visibility: Verified (Merchant product visible via Customer Store API)
+RESULT: PASSED
