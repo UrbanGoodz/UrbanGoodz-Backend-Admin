@@ -1332,3 +1332,42 @@ bash AdminPanel_Update_V39/scripts/deploy-ai-workforce.sh
    - Recorded the corrected verification log and pushed the updates to branch `adminpanel-v39-backend-sprint` at commit `8966f1c`.
    - Generated the comprehensive `docs/audits/PLATFORM_UI_WIRING_MATRIX.md` and the machine-readable `docs/audits/platform_wiring_matrix.json` mapping every screen, route, action, API, and controller.
 
+
+### Phase 59 — Driver Login Branding, Customer Adaptive Icon & Vendor Login Semantics (2026-07-22)
+
+1. **Driver Login & Authentication Redesign:**
+   - Redesigned `driver_onboarding_screen.dart` to match Urban Goodz brand design language: Light Canvas background (`#E2D3BF`), Seasoning Orange (`#ED9914`) primary action, Dijon (`#E5E276`) accents, and UG Black (`#161616`) typography.
+   - Added horizontal Driver workstream capability chips (Marketplace Delivery, Order Anywhere, Courier Routes, Medical Courier, Dedicated Routes, Load Board Freight, Cargo Van & Box Truck, Enterprise Logistics).
+   - Added tabbed auth mode switching: Phone OTP mode (Phone entry -> Request OTP -> Enter 6-digit code -> Verify) and Email/Password mode.
+   - Added Forgot Password dialog sheet and Driver registration navigation link.
+   - Added all 14 required Appium Semantics labels & Keys: `driver_login_screen`, `driver_login_phone`, `driver_login_email`, `driver_login_password`, `driver_login_submit`, `driver_otp_request`, `driver_otp_code`, `driver_otp_verify`, `driver_otp_resend`, `driver_forgot_password`, `driver_create_account`, `driver_auth_error`, `driver_dashboard`, `driver_splash`.
+   - Updated `splash_screen.dart` in `driver_app` with Light Canvas background, safe area, and `driver_splash` Semantics label.
+   - Updated `dashboard_screen.dart` with `driver_dashboard` Semantics label.
+
+2. **Vendor Login & Onboarding Redesign:**
+   - Redesigned `vendor_onboarding_screen.dart` to match Urban Goodz brand design language and added Vendor Categories chips (Restaurant, Grocery, Boutique, Pharmacy, Artisans, Wholesale, Professional Services).
+   - Added Phone OTP & Email/Password tabs, Forgot Password reset modal, and Appium Semantics & Keys (`vendor_login_screen`, `vendor_login_email`, `vendor_login_password`, `vendor_login_submit`, `vendor_otp_request`, `vendor_otp_code`, `vendor_otp_verify`, `vendor_forgot_password`, `vendor_create_account`, `vendor_auth_error`, `vendor_dashboard`).
+
+3. **Customer Adaptive Launcher Icon:**
+   - Generated full adaptive launcher icon suite (48px, 72px, 96px, 144px, 192px PNGs + round icons + adaptive foreground 1080x1080 + adaptive monochrome + XML drawables in `mipmap-anydpi-v26` and `values/ic_launcher_background.xml`).
+   - Added `android:roundIcon="@mipmap/ic_launcher_round"` attribute to Customer `AndroidManifest.xml`.
+   - App label verified as `Urban Goodz`.
+
+4. **Firebase Configuration Safety:**
+   - Verified `google-services.json` in `driver_app` contains `com.urbangoodz.driver` with app ID `1:709013709032:android:7ce2499c8a0a907241a95d` and `com.urbangoodz.customer` with app ID `1:709013709032:android:7adefca8df686f1e41a95d`.
+
+5. **Release Build, Verification & Device Installation:**
+   - Customer Release APK: `UrbanGoodz_Customer_Release_RC5.apk` built successfully.
+     - SHA-256: `2C915A85AB8848830C943BD4B17E30BFEA42FF0CF650C7583C0B826397D509A1`
+   - Driver Release APK: `UrbanGoodz_Driver_Release_RC6.apk` built successfully.
+     - SHA-256: `206AC78CB2C8408EAEC5877AB4536834FC77769272F26C91D5B753C2B9051CD6`
+   - ADB Streamed Installation on Physical Device `ZT42268MG6`: SUCCESS for both packages.
+   - `dumpsys package` verification:
+     - `com.urbangoodz.customer`: `versionCode=5`, `versionName=3.9.0`
+     - `com.urbangoodz.driver`: `versionCode=6`, `versionName=3.9.1`
+
+6. **Git Commits & Pushes:**
+   - Customer Repo (`UrbanGoodz2026-Revised`): Commit `994316d` pushed to `customer-tester-build-sprint`.
+   - Driver/Vendor Repo (`UrbanGoodz_Vendor_Driver_Sprint`): Commit `3ed753e` pushed to `vendor-driver-tester-sprint`.
+
+
