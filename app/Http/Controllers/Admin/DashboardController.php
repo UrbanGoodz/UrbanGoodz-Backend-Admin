@@ -177,8 +177,12 @@ class DashboardController extends Controller
 
         $module_type = Config::get('module.current_module_type');
 
-        if(addon_published_status('RideShare')) {
-            $rider_data = self::get_rider_data($params);
+        if(addon_published_status('RideShare') && Schema::hasTable('riders')) {
+            try {
+                $rider_data = self::get_rider_data($params);
+            } catch (\Throwable $e) {
+                $rider_data = [];
+            }
         } else {
             $rider_data = [];
         }
@@ -318,8 +322,8 @@ class DashboardController extends Controller
 
         $deliveryMen = Helpers::deliverymen_list_formatting($deliveryMen);
 
-        $module_type = Config::get('module.current_module_type');
-        return view("admin-views.dashboard-{$module_type}", compact('data', 'active_deliveryman', 'deliveryMen', 'unavailable_deliveryman', 'available_deliveryman', 'inactive_deliveryman', 'module_type', 'suspend_deliveryman'));
+        $viewName = (empty($module_type) || !view()->exists("admin-views.dashboard-{$module_type}")) ? "admin-views.dashboard-dispatch" : "admin-views.dashboard-{$module_type}";
+        return view($viewName, compact('data', 'active_deliveryman', 'deliveryMen', 'unavailable_deliveryman', 'available_deliveryman', 'inactive_deliveryman', 'module_type', 'suspend_deliveryman'));
     }
 
     public function dashboard(Request $request)
@@ -390,8 +394,8 @@ class DashboardController extends Controller
         if ($module_type == 'rental' && addon_published_status('Rental') == 0) {
             return view('errors.404');
         }
-        return view("admin-views.dashboard-{$module_type}", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type'));
-
+        $viewName = (empty($module_type) || !view()->exists("admin-views.dashboard-{$module_type}")) ? "admin-views.dashboard" : "admin-views.dashboard-{$module_type}";
+        return view($viewName, compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData'));
     }
 
     public function order(Request $request)
