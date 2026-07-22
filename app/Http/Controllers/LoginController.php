@@ -92,8 +92,13 @@ class LoginController extends Controller
         $email = null;
         $password = null;
         if (Cookie::has('p_token') && Cookie::has('e_token') && Cookie::has('role') && Cookie::get('role') == $role) {
-            $email = Crypt::decryptString(Cookie::get('e_token'));
-            $password = Crypt::decryptString(Cookie::get('p_token'));
+            try {
+                $email = Crypt::decryptString(Cookie::get('e_token'));
+                $password = Crypt::decryptString(Cookie::get('p_token'));
+            } catch (\Throwable $e) {
+                $email = null;
+                $password = null;
+            }
         }
 
         return view('auth.login', compact('custome_recaptcha', 'email', 'password', 'role', 'site_direction', 'locale'));
