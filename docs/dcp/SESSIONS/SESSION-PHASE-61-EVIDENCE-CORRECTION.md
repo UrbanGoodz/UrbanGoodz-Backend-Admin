@@ -424,3 +424,93 @@
 - **LAST FAILING TEST**: owner visual acceptance of the login page.
 - **NEXT EXACT COMMAND**: after receiving the reference, compare it only against `resources/views/auth/login.blade.php` and its direct CSS/assets, back up those exact files, and implement visual parity without changing form/CAPTCHA/authentication logic.
 - **DO NOT REPEAT**: environment identity, invalid CAPTCHA, dashboard root-cause proof, logo discovery, repository-wide searches, or unrelated tests.
+
+### Original Admin Command Center visual reference recovered
+
+- **Owner-provided reference**: `C:\Users\D'Andre Good\Downloads\Admin command logo.png`.
+- **Dimensions**: `1672x941`.
+- **Size**: `1,537,249` bytes.
+- **SHA-256**: `1015c42ab92cd3b5cdcd6c81b34135ad1f044be91501f5ee2a2f35b4bec6d4cc`.
+- **Reference content**: exact two-panel Urban Goodz Admin Command Center login with UG wordmark, commerce/delivery/logistics presentation, van/city artwork, white rounded login card, email/password fields, custom CAPTCHA row, remember/forgot-password row, orange Sign In button, secure-access notice, and support footer.
+- **Visual blocker**: RESOLVED; exact reference is available locally.
+- **Implementation constraint**: preserve current form action, input names, CSRF, custom/Google CAPTCHA logic, password toggle, remember-me behavior, validation, authentication, and responsive behavior. Change presentation/direct assets only.
+- **Next exact action**: back up the deployed login Blade/CSS/Urban Goodz SVG and compiled view, then implement parity against this reference.
+- **DO NOT REPEAT**: visual-reference discovery, repository history search, or any CAPTCHA submission before the new presentation is deployed.
+
+### M2/M4 current pre-login and dashboard route failures proven
+
+- **Checkpoint time**: 2026-07-23, after the owner reported that the Admin page now returns HTTP 500 before displaying the login form.
+- **Local branch**: `adminpanel-v39-backend-sprint`.
+- **Local/remote/live SHA**: `c60c4118038e2c538e5229b5836101a14ab94228`.
+- **Local working tree**: intended, uncommitted Admin/Business reference-based visual changes in `resources/views/auth/login.blade.php`, `resources/views/business/auth/login.blade.php`, `public/assets/admin/css/ug-admin.css`, `tests/Feature/AdminLoginRecoveryRegressionTest.php`, the two reference PNG assets, and this DCP.
+- **Live working tree preserved**: `M resources/lang/en/messages.php`, `?? error_log`, `?? public/storage`.
+- **New pre-login failure evidence**: production Laravel errors at `2026-07-23 06:09:51` and `06:09:56` report `Symfony\Component\Routing\Exception\RouteNotFoundException: Route [admin.auth.login] not defined`, thrown by `UrlGenerator.php:526` while the root `/` closure calls `redirect()->route(...)`.
+- **Exact pre-login source defect**: `routes/web.php:34-36` redirects `/` to nonexistent route `admin.auth.login`. The live application has `GET /login/{tab}` named `login`; the Admin destination is `/login/admin`.
+- **New authenticated dashboard evidence**: production Laravel errors at `2026-07-23 06:03:21`, `06:03:26`, and `06:03:39` report `Illuminate\View\ViewException: Route [admin.report.item-wise-report] not defined` in `resources/views/admin-views/dashboard.blade.php`.
+- **Exact dashboard source defect**: stale route calls at dashboard lines 68 and 283. The registered route and the existing transaction sidebar use `admin.transactions.report.item-wise-report`.
+- **Root-cause status**: PROVEN. The current immediate pre-login 500 is the invalid named route in the root redirect. A separate sequential dashboard render failure is caused by the two directly proven stale report route names.
+- **Files inspected**: narrow current Laravel error entries, `routes/web.php:34-36`, `resources/views/admin-views/dashboard.blade.php:68,283`, `routes/admin.php:1324-1341`, and the correct transaction-sidebar reference.
+- **Files changed for these failures**: none yet.
+- **Backup path**: pending new exact-file production backup before modification.
+- **Rollback command**: pending backup creation.
+- **Tests completed**: direct source-to-exception correlation; focused route registration proof remains next.
+- **Commit/push/deployment status**: not started for this correction.
+- **Remaining blocker**: create the exact-file backup and apply the two narrowly proven route-name corrections.
+- **CONTINUE FROM MILESTONE**: M4 proof, then M5 minimal secure repair.
+- **PROVEN ROOT CAUSE**: the root closure generates nonexistent `admin.auth.login`; the subsequently reached dashboard generates nonexistent `admin.report.item-wise-report`.
+- **CURRENT FILE CHANGES**: reference-based Admin/Business visual work plus this DCP; no production source change.
+- **LAST PASSING TEST**: deployed invalid-CAPTCHA flow returned to `/login/admin` without HTTP 500 at `2026-07-23T05:43:06.926Z`.
+- **LAST FAILING TEST**: owner request for the Admin hostname root encountered HTTP 500 before the form; current Laravel exception is `Route [admin.auth.login] not defined`.
+- **NEXT EXACT COMMAND**: prove `login` and `admin.transactions.report.item-wise-report` exist while both stale names do not, then back up only `routes/web.php` and `resources/views/admin-views/dashboard.blade.php`.
+- **DO NOT REPEAT**: environment identity, document-root probes, redirect investigation, invalid-CAPTCHA submission, historical log scans, or unrelated route/module tests.
+
+### Business Operations Hub visual reference recovered
+
+- **Owner-provided reference**: `C:\Users\D'Andre Good\Downloads\Business command logo.png`.
+- **Dimensions**: `1672x941`.
+- **Size**: `1,453,024` bytes.
+- **SHA-256**: `ad3dde63cf507bdf85312460abb8cca947c2e8a20f61d1ff751fba692977b6de`.
+- **Repository copy**: `public/assets/admin/img/business-operations-hub-reference.png`, byte-for-byte checksum match.
+- **Admin repository reference copy**: `public/assets/admin/img/admin-command-center-reference.png`, SHA-256 `1015c42ab92cd3b5cdcd6c81b34135ad1f044be91501f5ee2a2f35b4bec6d4cc`.
+- **Production visual backup path**: `/home/urbakkej/backups/admin_command_visual_20260723_060500`.
+- **Admin visual rollback**: `tar -xpf /home/urbakkej/backups/admin_command_visual_20260723_060500/login-visual-before.tar -C /home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39`.
+- **Business visual rollback**: `tar -xpf /home/urbakkej/backups/admin_command_visual_20260723_060500/business-visual-before.tar -C /home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39`.
+- **Visual changes remain local only**: both login views and the scoped CSS preserve their existing routes, CSRF fields, input names/IDs, CAPTCHA behavior where applicable, password toggles, remember-me behavior, validation, and scripts.
+
+### M5 minimal route repair passes uncached
+
+- **Production backup path**: `/home/urbakkej/backups/admin_route_repair_20260723_0215/route-files-before.tar`.
+- **Backup SHA-256**: `ed9a81887cdcd7cfd03a0bbe0dbc30004094b1f2f115598605290c04e6d6c475`.
+- **Backed-up live checksums**:
+  - `routes/web.php`: `a05e9a25bc08d316f9490b26dc57730c3c3d310a59a5f4d2027b3abec7d069ed`;
+  - `resources/views/admin-views/dashboard.blade.php`: `ee907b1203a026fd036ecf7c1d84d4f6b23054f4b83fa857a420d685f1baa7dc`.
+- **Preserved ownership/mode**: both files `urbakkej:urbakkej`, mode `-rw-rw-r--`.
+- **Rollback command**: `tar -xpf /home/urbakkej/backups/admin_route_repair_20260723_0215/route-files-before.tar -C /home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39`.
+- **Minimal source repair**:
+  - root `/` now calls registered route `login` with `tab=admin`;
+  - both directly failing dashboard report links now call registered route `admin.transactions.report.item-wise-report`;
+  - no public-domain redirect, authentication, permission, CAPTCHA, CSRF, controller, middleware, or database logic was changed.
+- **Focused route proof**:
+  - `login=true`, `admin.auth.login=false`;
+  - `admin.transactions.report.item-wise-report=true`, `admin.report.item-wise-report=false`.
+- **Initial focused test cache artifact**: the local `bootstrap/cache/routes-v7.php` still contained an older serialized root closure redirecting to `https://urbangoodzdelivery.com`; this caused only the new root regression assertion to observe the stale cached behavior.
+- **Local cache action**: ran only `php artisan route:clear`; no production cache was changed and no cache was rebuilt.
+- **Uncached focused regression**: PASS, 5 tests / 31 assertions.
+- **Coverage**: invalid CAPTCHA remains controlled and unauthenticated; Admin-host root reaches `/login/admin`; all four directly relevant route names have the expected registration state; both dashboard delivery/report link pairs use registered names; Admin and Business reference assets/forms are present.
+- **Production source changes**: none yet.
+- **Next exact action**: perform focused diff/syntax review, commit the visual work and route repair intentionally, push, checkpoint, and fast-forward production to the exact pushed SHA.
+
+### M9 pre-push checkpoint
+
+- **Visual restoration commit**: `30b1d55` (`feat(auth): restore approved command center login visuals`).
+- **Admin incident repair commit**: `1e1d19f` (`fix(admin): repair login and dashboard route references`).
+- **Local HEAD**: `1e1d19f` on `adminpanel-v39-backend-sprint`.
+- **Remote/live SHA before push**: `c60c4118038e2c538e5229b5836101a14ab94228`.
+- **Focused diff review**: PASS; no whitespace errors, no credentials, sessions, cookies, private keys, `.env`, runtime logs, or credential-bearing screenshots staged.
+- **Syntax review**: `routes/web.php` and `AdminLoginRecoveryRegressionTest.php` pass `php -l`.
+- **Reference-image review**: both images contain only approved mock login content and placeholders; no real credentials.
+- **Focused tests**: PASS, 5 tests / 31 assertions against uncached route source.
+- **Production deployment**: NOT STARTED.
+- **Production caches**: UNCHANGED.
+- **Remaining local change**: this DCP checkpoint only.
+- **Next exact action**: commit this DCP, push `origin/adminpanel-v39-backend-sprint`, record the pushed SHA, and fast-forward the live checkout to that exact SHA while preserving its unrelated tracked translation change and runtime untracked files.
