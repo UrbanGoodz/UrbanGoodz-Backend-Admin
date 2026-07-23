@@ -56,7 +56,7 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
     {
         // BLOCKER: the local `urbangoodz_test` database schema is drifted from the
         // current migrations (see docs/qa/E2E_REBUILD_TEST_INVENTORY.md §6 and
-        // test-support/reports/phpunit-feature.txt) — rendering these views queries a
+        // test-support/reports/phpunit-full.txt) — rendering these views queries a
         // table missing a `type` column that current migrations define. This is an
         // environment/schema-sync issue, not a route or test defect; re-enable once
         // `urbangoodz_test` is migrated to match HEAD.
@@ -292,9 +292,15 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
 
     public function test_unauthenticated_admin_route_redirects_to_admin_login_not_an_open_page(): void
     {
-        $response = $this->get('/admin/urban-goodz/ai-operations');
-        $response->assertRedirect();
-        $this->assertStringContainsString('/login/', $response->headers->get('Location'));
+        // AdminMiddleware::handle() (app/Http/Middleware/AdminMiddleware.php) redirects to
+        // route('login', [Helpers::get_login_url('admin_login_url') ?? 'admin']); with no
+        // DataSetting rows seeded, get_login_url() falls through to its 'admin' default, and
+        // login/{tab} (routes/web.php:53) has a single positional parameter, so this resolves
+        // to exactly the same URL asserted at test_public_root_redirects_to_the_registered_login_route
+        // above — asserted exactly here too, not just "contains /login/", so a regression to a
+        // *different* role's login page (which would also contain that substring) is caught.
+        $this->get('/admin/urban-goodz/ai-operations')
+            ->assertRedirect(route('login', ['tab' => 'admin']));
     }
 
     // ─── ROLE SEPARATION (GUARD ISOLATION) ──────────────────────────────
@@ -313,10 +319,12 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
         $this->actingAs($businessUser, 'business');
 
         // The 'admin' middleware only trusts the 'admin' guard; an authenticated
-        // business-guard user must be treated as unauthenticated on admin routes.
-        $response = $this->get('/admin/urban-goodz/ai-operations');
-        $response->assertRedirect();
-        $this->assertStringContainsString('/login/', $response->headers->get('Location'));
+        // business-guard user must be treated as unauthenticated on admin routes and
+        // land on the exact same admin-login URL an anonymous visitor would (not merely
+        // "some URL containing /login/", which a redirect to a different role's login
+        // page would also satisfy).
+        $this->get('/admin/urban-goodz/ai-operations')
+            ->assertRedirect(route('login', ['tab' => 'admin']));
         $this->assertGuest('admin');
     }
 

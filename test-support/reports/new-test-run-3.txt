@@ -5,7 +5,7 @@ Configuration: <repo>\phpunit.xml
 
 .[36;1mS[0m[36;1mS[0m..............[36;1mS[0m....                                            22 / 22 (100%)
 
-Time: 00:25.466, Memory: 80.00 MB
+Time: 00:25.586, Memory: 80.00 MB
 
 [4mUrban Goodz Public Surface Validation Boundary (Tests\Feature\UrbanGoodzPublicSurfaceValidationBoundary)[0m
 [32m ✔ [0mPublic root redirects to the registered login route

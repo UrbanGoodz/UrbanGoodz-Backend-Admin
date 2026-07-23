@@ -11,7 +11,7 @@ Configuration: <repo>\phpunit.xml
 [31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m.[36;1mS[0m[36;1mS[0m..............[36;1mS[0m.....[31;1mE[0m.[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m[31;1mE[0m 378 / 382 ( 98%)
 [31;1mE[0m...                                                            382 / 382 (100%)
 
-Time: 05:04.405, Memory: 206.00 MB
+Time: 05:17.140, Memory: 204.00 MB
 
 There were 112 errors:
 
@@ -106,7 +106,7 @@ Error: Class "Tests\Feature\DB" not found
 <repo>\tests\Feature\UrbanGoodzAIExecutionEngineTest.php:55
 
 19) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_1_age_compliance_index_page_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$A87A8CfkQ6FmxtKiYW2pcutY3kCrPR4L/6FokAQ7wkIsVh0Iqll/2, 1, def.png, 1, 2026-07-23 09:30:41, 2026-07-23 09:30:41))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$YIcFFpC8q75qIWCGMumJ..KnTfCcwPZdOn3utHuCnKaZfjZT/jgzy, 1, def.png, 1, 2026-07-23 10:00:39, 2026-07-23 10:00:39))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -147,7 +147,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAgeComplianceRuntimeTest.php:19
 
 20) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_2_age_compliance_packages_page_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$LeYDpB4emH3ZXB7565OguObGIC.xsv3fde9QbVs2cQMXevpS/NWLy, 1, def.png, 1, 2026-07-23 09:30:41, 2026-07-23 09:30:41))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$nfcdhB8gawvG4BAw5AYrjuNlYPqBhFU1mDjbqAzU5TrcK/zAM5IvS, 1, def.png, 1, 2026-07-23 10:00:39, 2026-07-23 10:00:39))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -188,7 +188,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAgeComplianceRuntimeTest.php:19
 
 21) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_3_age_compliance_orders_page_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$Vg/nCZ5CNW8NfWZknSucY.fYZ2oKG.z9ZjMh.fNRwmDxO9SRS5GJ., 1, def.png, 1, 2026-07-23 09:30:42, 2026-07-23 09:30:42))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$F7ypu/idnC8eid5gojvLBuY3SfY7MQHylGdduzon.RJeXuIs4F3hK, 1, def.png, 1, 2026-07-23 10:00:39, 2026-07-23 10:00:39))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -229,7 +229,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAgeComplianceRuntimeTest.php:19
 
 22) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_4_age_compliance_items_page_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$kU.m0EUS2IOYEEIPhfnyL.8oMdz1lap0ao1sQNUqj3ZW2pfPxk86u, 1, def.png, 1, 2026-07-23 09:30:42, 2026-07-23 09:30:42))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$hgKb6.rs9hGIdO1in..VKekHowMBJGlvFquRCX3vuyRvqNbL9n.iu, 1, def.png, 1, 2026-07-23 10:00:40, 2026-07-23 10:00:40))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -270,7 +270,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAgeComplianceRuntimeTest.php:19
 
 23) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_5_admin_dashboard_still_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$F9BEhJhAb86waeuz4d/CFeFsTbTcgum824Q1vGGhK9ml8.ifP8ol6, 1, def.png, 1, 2026-07-23 09:30:43, 2026-07-23 09:30:43))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$.pl0CzgQNQiQwXUpBiftje2qTiiK.Yxj6dxP2kIkhWC7lj96F7VCS, 1, def.png, 1, 2026-07-23 10:00:40, 2026-07-23 10:00:40))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -311,7 +311,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAgeComplianceRuntimeTest.php:19
 
 24) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_6_manifests_index_still_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$yjf.6saZliiP/4s0E2Ptiu79MQX3jGYsmI8RrOpuCuQCxJpCFBit6, 1, def.png, 1, 2026-07-23 09:30:44, 2026-07-23 09:30:44))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$StdzMyAduJu2sj7IC6eqsemALL8a6rO9vs2Zxj9igT76Chk3DXafO, 1, def.png, 1, 2026-07-23 10:00:41, 2026-07-23 10:00:41))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -352,7 +352,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAgeComplianceRuntimeTest.php:19
 
 25) Tests\Feature\UrbanGoodzAgeComplianceRuntimeTest::test_7_courier_routes_index_still_loads
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$Xg/CmNHVkLNcNDNtCU.Na..Gy8dK1lbT9CjMU2s3jDeSLpBMtdf66, 1, def.png, 1, 2026-07-23 09:30:45, 2026-07-23 09:30:45))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`f_name`, `l_name`, `email`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (Test, Admin, test@admin.com, 1234567890, $2y$04$mD5KuK5M25ktVPA8qdomJ.HLHSVi.U/bbiKIc6pPAYt/bNZdZ2jEy, 1, def.png, 1, 2026-07-23 10:00:42, 2026-07-23 10:00:42))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -627,7 +627,7 @@ PDOException: SQLSTATE[42000]: Syntax error or access violation: 1701 Cannot tru
 <repo>\tests\Feature\UrbanGoodzAiCopilotTest.php:207
 
 32) Tests\Feature\UrbanGoodzAiCopilotTest::test_artisan_command_generates_recommendations
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'admin_review_required' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: select * from `urban_goodz_age_verifications` where `admin_review_required` = 1 and `admin_review_status` in (pending, escalated) and `created_at` < 2026-07-23 05:31:01 limit 10)
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'admin_review_required' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: select * from `urban_goodz_age_verifications` where `admin_review_required` = 1 and `admin_review_status` in (pending, escalated) and `created_at` < 2026-07-23 06:00:59 limit 10)
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -717,7 +717,7 @@ PDOException: SQLSTATE[HY000]: General error: 3730 Cannot drop table 'merchant_p
 <repo>\tests\Feature\UrbanGoodzAiMigrationTest.php:33
 
 34) Tests\Feature\UrbanGoodzAiWorkforceTest::test_authenticated_admin_deep_links_and_business_portal
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`email`, `f_name`, `l_name`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (admin_test_cert@urbangoodz.com, Test, Admin, 1234567890, $2y$04$y3foz7Q9ohMQG90CcDV.WuLT5Zg9FPKKWMSihkRyhwvHbyemJQ4.K, 1, def.png, 1, 2026-07-23 09:31:18, 2026-07-23 09:31:18))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`email`, `f_name`, `l_name`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (admin_test_cert@urbangoodz.com, Test, Admin, 1234567890, $2y$04$Ta3inJcLmu.LiHALipVblOAzNGmcWA9HBXslaXp8zpN0NGNrEfDs., 1, def.png, 1, 2026-07-23 10:01:08, 2026-07-23 10:01:08))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -766,7 +766,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAiWorkforceTest.php:232
 
 35) Tests\Feature\UrbanGoodzAiWorkforceTest::test_ai_copilot_suppression_and_load_sourcing_flow
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`email`, `f_name`, `l_name`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (admin_test_cert@urbangoodz.com, Test, Admin, 1234567890, $2y$04$twNgBgGZ1LlO1psLAgAaIurkQEUrv4qz5/k2qJYzSRknNM24KFxpy, 1, def.png, 1, 2026-07-23 09:31:18, 2026-07-23 09:31:18))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `admins` (`email`, `f_name`, `l_name`, `phone`, `password`, `role_id`, `image`, `is_logged_in`, `updated_at`, `created_at`) values (admin_test_cert@urbangoodz.com, Test, Admin, 1234567890, $2y$04$W0R4CmAd8YIAUD054UcOi.Jd1pO3HlhMFTbqp50hEwlo42WhFB4nW, 1, def.png, 1, 2026-07-23 10:01:09, 2026-07-23 10:01:09))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -815,7 +815,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'image' in 
 <repo>\tests\Feature\UrbanGoodzAiWorkforceTest.php:277
 
 36) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_no_preference_success
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$33IPVtiG0jtWbbJHFGT4Hulu3YLTqk/8sYkApiHQbMnywG4UxMTtK, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:34, 2026-07-23 09:31:34))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$v3.YnAPmPaWEyG8j1s13Zu/y/1lEgS.zgseaxYlNUmuYv87oXnjZq, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:35, 2026-07-23 10:01:35))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -856,7 +856,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 37) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_company_endpoint_success
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$lhpNDFCwbxCfM1kAZObyk.r.4d/hWRK4RLEo2SXdqVA8Wqfi7qASS, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:35, 2026-07-23 09:31:35))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$SnQGIaMX4tDKWb0FsWpxOe6h.MnL0D8o3mGaaaOclRRb1/wlBhO0q, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:36, 2026-07-23 10:01:36))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -897,7 +897,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 38) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_private_endpoint_fails_if_unapproved
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$SEAy9dK6b8urjTHVGcuQOuQNCqGxvbF6Y6FeSx7NAjp91icRFZxD., 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:35, 2026-07-23 09:31:35))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$MVs2v2/AjszAya6llPvhsermC5lAelQUkaBeeEQ.o1ccOTglciEq6, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:37, 2026-07-23 10:01:37))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -938,7 +938,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 39) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_private_endpoint_success_when_approved
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$39ctG2T9Gid2kRLZIU3.ae7yv4HalfIyOZ7ZomL8325aHzDtU0K62, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:36, 2026-07-23 09:31:36))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$OCHeVy2Q9Qz1i4/wkU7lCOnuRlk.dknNSySRoTYZ9k9uIVox/2lJO, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:37, 2026-07-23 10:01:37))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -979,7 +979,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 40) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_preserves_locked_stops
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$49ORdxPeswZ.Yr3ji0TAbesgNIWvTESzZeeKV1T6KPxDlwyg.GKpO, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:36, 2026-07-23 09:31:36))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$/yzPJD2V.kSC6UAttZ6ZBea8Q4sclruNQHoL6HoMyLcRwXtT8qkt., 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:41, 2026-07-23 10:01:41))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1020,7 +1020,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 41) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_violates_time_window_fails
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$g0s.WwbXRstxFfJNRzuN2utPYEGT3.y0N0OU0kPfzu5Lq4nrpehd2, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:37, 2026-07-23 09:31:37))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$cwo.sZbjudJo7pT3n3lP5ednFnE98EsLJWbtu7Tp29lOF99whNx1a, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:44, 2026-07-23 10:01:44))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1061,7 +1061,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 42) Tests\Feature\UrbanGoodzDriverSequencingTest::test_driver_resequence_excessive_variance_requires_approval
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$54DbOazBb63JNB4o0IAiGuGWMWHDLfUzcLCywyxcbmutWZvphYmq., 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:37, 2026-07-23 09:31:37))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$pfnp3LHNQCpzP/7sYCOti.NVF5NG0t966TPgjR/30A.Gl8e7NNxo6, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:44, 2026-07-23 10:01:44))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1102,7 +1102,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 43) Tests\Feature\UrbanGoodzDriverSequencingTest::test_private_endpoint_is_protected
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$6/2vGG1mrFxQC5zkIFEVGewZoPWoQ3sqALXJz6f8h53bqiOLELFAy, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 09:31:38, 2026-07-23 09:31:38))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `phone`, `email`, `password`, `private_endpoint_address`, `private_endpoint_lat`, `private_endpoint_lng`, `private_endpoint_status`, `auth_token`, `updated_at`, `created_at`) values (Driver, Dan, 1234567890, driverdan@urbangoodz.test, $2y$04$0m1UvWws5fywP89HrPw4de6njLsh0.M5y5xH8bFFzDFkaKGOAGoaG, 123 Home Rd, Houston, TX 77001, 29.75, -95.36, approved, TEST_DRIVER_TOKEN, 2026-07-23 10:01:45, 2026-07-23 10:01:45))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1143,7 +1143,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzDriverSequencingTest.php:52
 
 44) Tests\Feature\UrbanGoodzIntakeBatchTest::test_late_package_policy
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_batch_id' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: select * from `urban_goodz_dedicated_routes` where `intake_batch_id` = 128 and `status` != completed and `urban_goodz_dedicated_routes`.`deleted_at` is null)
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_batch_id' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: select * from `urban_goodz_dedicated_routes` where `intake_batch_id` = 154 and `status` != completed and `urban_goodz_dedicated_routes`.`deleted_at` is null)
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1176,7 +1176,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_bat
 <repo>\tests\Feature\UrbanGoodzIntakeBatchTest.php:357
 
 45) Tests\Feature\UrbanGoodzIntakeBatchTest::test_1000_package_concurrency_stress_simulation
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_batch_id' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: select * from `urban_goodz_dedicated_routes` where `intake_batch_id` = 129 and `status` != completed and `urban_goodz_dedicated_routes`.`deleted_at` is null)
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_batch_id' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: select * from `urban_goodz_dedicated_routes` where `intake_batch_id` = 155 and `status` != completed and `urban_goodz_dedicated_routes`.`deleted_at` is null)
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1209,7 +1209,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_bat
 <repo>\tests\Feature\UrbanGoodzIntakeBatchTest.php:443
 
 46) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_create_load
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`load_number`, `origin_city`, `origin_state`, `destination_city`, `destination_state`, `payout_amount`, `load_type`, `provider`, `status`, `metadata`, `updated_at`, `created_at`) values (UG-TEST-001, Dallas, TX, Houston, TX, 1500, FTL, internal, available, {"driver_payout_amount":1500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, 2026-07-23 09:32:59, 2026-07-23 09:32:59))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`load_number`, `origin_city`, `origin_state`, `destination_city`, `destination_state`, `payout_amount`, `load_type`, `provider`, `status`, `metadata`, `updated_at`, `created_at`) values (UG-TEST-001, Dallas, TX, Houston, TX, 1500, FTL, internal, available, {"driver_payout_amount":1500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, 2026-07-23 10:03:04, 2026-07-23 10:03:04))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1252,7 +1252,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:89
 
 47) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_create_load_generates_number_when_empty
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCBC469D, 2026-07-23 09:32:59, 2026-07-23 09:32:59))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6D94E1FA, 2026-07-23 10:03:05, 2026-07-23 10:03:05))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1295,7 +1295,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:107
 
 48) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_update_load
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `origin_city`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, Dallas, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCC68D43, 2026-07-23 09:33:00, 2026-07-23 09:33:00))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `origin_city`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, Dallas, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6D9DF211, 2026-07-23 10:03:05, 2026-07-23 10:03:05))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1338,7 +1338,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:117
 
 49) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_delete_available_load
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCCBD451, 2026-07-23 09:33:00, 2026-07-23 09:33:00))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DA6B73C, 2026-07-23 10:03:06, 2026-07-23 10:03:06))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1381,7 +1381,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:134
 
 50) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_delete_assigned_load_is_blocked
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCD2FD1D, 2026-07-23 09:33:01, 2026-07-23 09:33:01))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DB05E10, 2026-07-23 10:03:07, 2026-07-23 10:03:07))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1424,7 +1424,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:141
 
 51) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_audit_log_created_on_load_creation
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCD9A4FB, 2026-07-23 09:33:01, 2026-07-23 09:33:01))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DB929CD, 2026-07-23 10:03:07, 2026-07-23 10:03:07))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1467,7 +1467,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:150
 
 52) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_audit_log_created_on_status_change
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCE0B220, 2026-07-23 09:33:02, 2026-07-23 09:33:02))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (500, internal, available, {"driver_payout_amount":500,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DC598A5, 2026-07-23 10:03:08, 2026-07-23 10:03:08))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1510,7 +1510,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:159
 
 53) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_list_with_filters
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `origin_state`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, TX, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCE7755E, 2026-07-23 09:33:02, 2026-07-23 09:33:02))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `origin_state`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, TX, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DD0F2F8, 2026-07-23 10:03:09, 2026-07-23 10:03:09))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1553,7 +1553,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:174
 
 54) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_list_search
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `load_number`, `provider`, `status`, `metadata`, `updated_at`, `created_at`) values (1000, SEARCH-ME, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, 2026-07-23 09:33:02, 2026-07-23 09:33:02))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `load_number`, `provider`, `status`, `metadata`, `updated_at`, `created_at`) values (1000, SEARCH-ME, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, 2026-07-23 10:03:09, 2026-07-23 10:03:09))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1596,7 +1596,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:184
 
 55) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_get_stats
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFCF6B86A, 2026-07-23 09:33:03, 2026-07-23 09:33:03))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DE7D6D6, 2026-07-23 10:03:10, 2026-07-23 10:03:10))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1639,7 +1639,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'provider' 
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:195
 
 56) Tests\Feature\UrbanGoodzLoadBoardWorkflowTest::test_financial_fields_persist
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'customer_price' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `customer_price`, `driver_payout_amount`, `dispatcher_incentive`, `platform_margin`, `source_cost`, `processing_fee`, `accessorials`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, 1500, 900, 50, 550, 800, 25, 75, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61DFD05D60B, 2026-07-23 09:33:04, 2026-07-23 09:33:04))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'customer_price' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_load_board_loads` (`payout_amount`, `customer_price`, `driver_payout_amount`, `dispatcher_incentive`, `platform_margin`, `source_cost`, `processing_fee`, `accessorials`, `provider`, `status`, `metadata`, `load_number`, `updated_at`, `created_at`) values (1000, 1500, 900, 50, 550, 800, 25, 75, internal, available, {"driver_payout_amount":1000,"driver_pricing_policy_id":null,"driver_pricing_model":"fallback"}, UG-6A61E6DFD8DD8, 2026-07-23 10:03:11, 2026-07-23 10:03:11))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1682,7 +1682,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'customer_p
 <repo>\tests\Feature\UrbanGoodzLoadBoardWorkflowTest.php:226
 
 57) Tests\Feature\UrbanGoodzLoadSourcingTest::test_profit_calculation
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `has_hazmat`, `max_weight_lbs`, `updated_at`, `created_at`) values (Test, Driver, test@test.com, 555-0100, test, van, 1, 0, 45000, 2026-07-23 09:33:09, 2026-07-23 09:33:09))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `has_hazmat`, `max_weight_lbs`, `updated_at`, `created_at`) values (Test, Driver, test@test.com, 555-0100, test, van, 1, 0, 45000, 2026-07-23 10:03:19, 2026-07-23 10:03:19))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1723,7 +1723,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:230
 
 58) Tests\Feature\UrbanGoodzLoadSourcingTest::test_missing_data_reduces_confidence
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Test, Driver, test2@test.com, 555-0102, test, van, 1, 2026-07-23 09:33:09, 2026-07-23 09:33:09))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Test, Driver, test2@test.com, 555-0102, test, van, 1, 2026-07-23 10:03:20, 2026-07-23 10:03:20))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1764,7 +1764,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:268
 
 59) Tests\Feature\UrbanGoodzLoadSourcingTest::test_equipment_match_scoring
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Van, Driver, van@test.com, 555-1, test, van, 1, 2026-07-23 09:33:10, 2026-07-23 09:33:10))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Van, Driver, van@test.com, 555-1, test, van, 1, 2026-07-23 10:03:20, 2026-07-23 10:03:20))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1805,7 +1805,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:294
 
 60) Tests\Feature\UrbanGoodzLoadSourcingTest::test_driver_eligibility_rejects_non_eligible
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `has_hazmat`, `max_weight_lbs`, `updated_at`, `created_at`) values (No, Hazmat, no@hazmat.com, 555-3, test, van, 0, 0, 20000, 2026-07-23 09:33:10, 2026-07-23 09:33:10))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `has_hazmat`, `max_weight_lbs`, `updated_at`, `created_at`) values (No, Hazmat, no@hazmat.com, 555-3, test, van, 0, 0, 20000, 2026-07-23 10:03:21, 2026-07-23 10:03:21))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1846,7 +1846,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:329
 
 61) Tests\Feature\UrbanGoodzLoadSourcingTest::test_driver_eligibility_accepts_eligible
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `has_hazmat`, `max_weight_lbs`, `updated_at`, `created_at`) values (Good, Driver, good@driver.com, 555-4, test, van, 1, 1, 45000, 2026-07-23 09:33:11, 2026-07-23 09:33:11))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `has_hazmat`, `max_weight_lbs`, `updated_at`, `created_at`) values (Good, Driver, good@driver.com, 555-4, test, van, 1, 1, 45000, 2026-07-23 10:03:22, 2026-07-23 10:03:22))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1887,7 +1887,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:353
 
 62) Tests\Feature\UrbanGoodzLoadSourcingTest::test_scheduling_conflict_rejects_expired_pickup
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Test, Driver, sched@test.com, 555-5, test, van, 1, 2026-07-23 09:33:11, 2026-07-23 09:33:11))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Test, Driver, sched@test.com, 555-5, test, van, 1, 2026-07-23 10:03:24, 2026-07-23 10:03:24))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1928,7 +1928,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:378
 
 63) Tests\Feature\UrbanGoodzLoadSourcingTest::test_scoring_components_are_all_present
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Score, Test, score@test.com, 555-6, test, van, 1, 2026-07-23 09:33:14, 2026-07-23 09:33:14))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `updated_at`, `created_at`) values (Score, Test, score@test.com, 555-6, test, van, 1, 2026-07-23 10:03:36, 2026-07-23 10:03:36))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -1969,7 +1969,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 
 <repo>\tests\Feature\UrbanGoodzLoadSourcingTest.php:572
 
 64) Tests\Feature\UrbanGoodzLoadSourcingTest::test_generate_recommendations_only_eligible
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `max_weight_lbs`, `updated_at`, `created_at`) values (Rec, Test, rec@test.com, 555-7, test, van, 1, 45000, 2026-07-23 09:33:14, 2026-07-23 09:33:14))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'email' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `delivery_men` (`f_name`, `l_name`, `email`, `phone`, `password`, `vehicle_type`, `load_board_eligible`, `max_weight_lbs`, `updated_at`, `created_at`) values (Rec, Test, rec@test.com, 555-7, test, van, 1, 45000, 2026-07-23 10:03:37, 2026-07-23 10:03:37))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794
@@ -3180,7 +3180,7 @@ PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'phone' in 
 <repo>\tests\Feature\UrbanGoodzPaymentAuditTest.php:97
 
 95) Tests\Feature\UrbanGoodzRouteClusteringTest::test_1000_package_locked_intake_snapshot_routing_and_clustering
-Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_batch_id' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_dedicated_routes` (`business_client_id`, `intake_batch_id`, `route_name`, `route_label`, `total_packages`, `estimated_miles`, `estimated_duration`, `scheduled_date`, `route_type`, `status`, `created_by`, `pickup_lat`, `pickup_lng`, `pickup_location`, `end_lat`, `end_lng`, `end_location`, `updated_at`, `created_at`) values (436, 130, Route A, A, 50, 1.08, 101, 2026-07-23 00:00:00, bulk_delivery, planned, 1013, ?, ?, ?, ?, ?, ?, 2026-07-23 09:34:00, 2026-07-23 09:34:00))
+Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'intake_batch_id' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urbangoodz_test, SQL: insert into `urban_goodz_dedicated_routes` (`business_client_id`, `intake_batch_id`, `route_name`, `route_label`, `total_packages`, `estimated_miles`, `estimated_duration`, `scheduled_date`, `route_type`, `status`, `created_by`, `pickup_lat`, `pickup_lng`, `pickup_location`, `end_lat`, `end_lng`, `end_location`, `updated_at`, `created_at`) values (516, 156, Route A, A, 50, 1.08, 101, 2026-07-23 00:00:00, bulk_delivery, planned, 1177, ?, ?, ?, ?, ?, ?, 2026-07-23 10:04:51, 2026-07-23 10:04:51))
 
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
 <repo>\vendor\laravel\framework\src\Illuminate\Database\Connection.php:794

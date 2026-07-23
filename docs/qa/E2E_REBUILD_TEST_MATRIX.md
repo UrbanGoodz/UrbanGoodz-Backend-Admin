@@ -120,7 +120,7 @@ EXPECTED STATUS TRANSITIONS: none (vendor + store created with status=0/null, pe
 NEXT ROLE:        Admin (approval)
 NOTIFICATIONS:    StoreRegistration / VendorSelfRegistration mail classes referenced in VendorController — not exercised this pass
 CLEANUP:          DatabaseTransactions
-AUTOMATION STATUS: AUTOMATED (this session) — missing-required-field validation (all 10 required fields individually confirmed present in the error payload), zone_id-specifically-required, logo-upload-required, zone-scoped module dropdown (a module mapped to Zone A does not leak into Zone B's dropdown), and module/zone dependency check are all real, DB-backed tests. Discovered and documented along the way: registration is gated behind `toggle_store_registration`, which returns a single `latitude`/"not_found" error and short-circuits full-field validation when unseeded — a real behavior, not a test artifact.
+AUTOMATION STATUS: AUTOMATED (this session) — missing-required-field validation (all 14 unconditionally-required fields per VendorController.php:86-101 individually confirmed present in the error payload; `cover_photo` is `nullable` and correctly excluded), zone_id-specifically-required, logo-upload-required, zone-scoped module dropdown (a module mapped to Zone A does not leak into Zone B's dropdown), and module/zone dependency check are all real, DB-backed tests. Discovered and documented along the way: registration is gated behind `toggle_store_registration`, which returns a single `latitude`/"not_found" error and short-circuits full-field validation when unseeded — a real behavior, not a test artifact.
 ```
 
 ## Driver / Rider registration
