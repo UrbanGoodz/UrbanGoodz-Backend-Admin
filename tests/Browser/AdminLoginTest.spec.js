@@ -61,6 +61,14 @@ function requireCredentials(...values) {
 const PROTECTED_MODULE_ROUTE = '/admin/urban-goodz/business-clients';
 const PROTECTED_MODULE_HEADING = 'Business Clients';
 
+// Rendered only inside the `role_id == 1` branch of
+// admin-views/dashboard.blade.php. Its ABSENCE is how we prove an account
+// is non-primary, so that the module-permission tests cannot be silently
+// satisfied by a primary Admin short-circuiting module_permission_check().
+const PRIMARY_ONLY_DASHBOARD_MARKER = 'Urban Goodz Command Center';
+
+const GENERIC_LOGIN_ERROR = 'Invalid email or password.';
+
 async function fillCustomCaptcha(page) {
   // Relies on APP_MODE=dev pre-filling the correct phrase server-side.
   const captchaInput = page.locator('#custome_recaptcha');
@@ -69,6 +77,11 @@ async function fillCustomCaptcha(page) {
   return prefilled;
 }
 
+/**
+ * Submits the login form and returns the actual POST /login_submit
+ * response, so callers can assert on the real submission rather than on a
+ * separate GET issued before or after it.
+ */
 async function submitLogin(page, email, password, { captcha = 'valid' } = {}) {
   await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
   await page.locator('input[name="email"]').fill(email);
@@ -82,8 +95,38 @@ async function submitLogin(page, email, password, { captcha = 'valid' } = {}) {
     await page.locator('#custome_recaptcha').fill('');
   }
 
-  await page.locator('#signInBtn').click();
+  const [postResponse] = await Promise.all([
+    page.waitForResponse(
+      (r) => new URL(r.url()).pathname.endsWith('/login_submit') && r.request().method() === 'POST'
+    ),
+    page.locator('#signInBtn').click(),
+  ]);
+
   await page.waitForLoadState('networkidle');
+  return postResponse;
+}
+
+/** Sorted, deduped set of same-origin link paths visible to this account. */
+async function visibleAdminPaths(page) {
+  const hrefs = await page.locator('a[href]').evaluateAll((nodes) =>
+    nodes.map((n) => n.getAttribute('href'))
+  );
+  const paths = new Set();
+  for (const href of hrefs) {
+    if (!href) continue;
+    try {
+      paths.add(new URL(href, page.url()).pathname.replace(/\/+$/, ''));
+    } catch {
+      /* ignore unparseable hrefs (javascript:, #, mailto:) */
+    }
+  }
+  return [...paths].sort();
+}
+
+async function loginAndOpenDashboard(page, email, password) {
+  await submitLogin(page, email, password, { captcha: 'valid' });
+  await expect(page).toHaveURL(/\/admin(\/|$)/);
+  await page.goto('/admin', { waitUntil: 'domcontentloaded' });
 }
 
 test.describe('Admin login page', () => {
@@ -121,44 +164,52 @@ test.describe('Admin login page', () => {
     expect(page.url()).toContain('/login/admin');
   });
 
-  test('omitted CAPTCHA is rejected', async ({ page }) => {
+  for (const captcha of ['omitted', 'wrong']) {
+    test(`${captcha} CAPTCHA is rejected by the login POST and creates no session`, async ({ page }) => {
+      requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Assert the status of the actual POST /login_submit response, not a
+      // separate GET issued before or after it.
+      const postResponse = await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha });
+      expect(postResponse.status()).not.toBe(500);
+      expect(postResponse.status()).toBeLessThan(400);
+
+      expect(page.url()).toContain('/login/admin');
+      await expect(page.locator('body')).toContainText(/captcha/i);
+
+      // No session may have been created: the protected dashboard route
+      // must still bounce back to the login page.
+      const dashboardAttempt = await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+      expect(dashboardAttempt.status()).not.toBe(500);
+      expect(page.url()).toContain('/login');
+    });
+  }
+
+  test('unknown email and wrong password show the identical generic error', async ({ page }) => {
     requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
-    await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'omitted' });
 
-    expect(page.url()).toContain('/login/admin');
-    const body = await page.content();
-    expect(body.toLowerCase()).toContain('captcha');
-
-    const response = await page.goto(page.url());
-    expect(response.status()).not.toBe(500);
-  });
-
-  test('wrong CAPTCHA is rejected with a visible error and no session is created', async ({ page }) => {
-    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
-    const response = await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
-    expect(response.status()).toBe(200);
-
-    await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'wrong' });
-
-    expect(response.status()).not.toBe(500);
-    expect(page.url()).toContain('/login/admin');
-
-    const body = await page.content();
-    expect(body.toLowerCase()).toMatch(/captcha/);
-
-    // No session should have been created: the protected dashboard route
-    // must still bounce back to the login page.
-    const dashboardAttempt = await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-    expect(dashboardAttempt.status()).not.toBe(500);
-    expect(page.url()).toContain('/login');
-  });
-
-  test('invalid credentials are rejected', async ({ page }) => {
+    // Case 1: an account that does not exist.
     await submitLogin(page, 'nonexistent-regression@urban-goodz.test', 'wrong-password', { captcha: 'valid' });
-
     expect(page.url()).toContain('/login/admin');
-    const body = await page.content();
-    expect(body.toLowerCase()).toMatch(/does not match|failed|error/);
+
+    // Asserted against visible text, not raw HTML: the login Blade always
+    // emits a toastr.error(...) call whenever any error exists, so a
+    // substring search over page.content() would pass even if the message
+    // regressed. toContainText also auto-waits for the toast to render.
+    await expect(page.locator('body')).toContainText(GENERIC_LOGIN_ERROR);
+    const unknownEmailText = await page.locator('body').innerText();
+
+    // Case 2: a real account with the wrong password.
+    await submitLogin(page, ADMIN_EMAIL, 'definitely-not-the-right-password', { captcha: 'valid' });
+    expect(page.url()).toContain('/login/admin');
+    await expect(page.locator('body')).toContainText(GENERIC_LOGIN_ERROR);
+    const wrongPasswordText = await page.locator('body').innerText();
+
+    // Neither branch may reveal which half of the credential pair was wrong.
+    for (const text of [unknownEmailText, wrongPasswordText]) {
+      expect(text).not.toContain('Email does not match');
+      expect(text).not.toContain('Password does not match');
+    }
   });
 
   test('valid Admin login reaches the authenticated dashboard', async ({ page }) => {
@@ -172,10 +223,73 @@ test.describe('Admin login page', () => {
     await expect(page.locator('body')).not.toContainText('Stack trace');
   });
 
+  // Preflight: the two authorization tests below are only meaningful if the
+  // fixture accounts really are non-primary and really differ only by
+  // urban_goodz_view. A primary Admin short-circuits
+  // Helpers::module_permission_check() via `role_id == 1` and would make the
+  // "authorized" test pass without exercising the module permission at all.
+  // This asserts that topology instead of assuming it from a comment.
+  test('role fixture preflight: both accounts are non-primary and differ only by urban_goodz_view', async ({ browser }) => {
+    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
+
+    const authorizedContext = await browser.newContext();
+    const restrictedContext = await browser.newContext();
+
+    try {
+      const authorizedPage = await authorizedContext.newPage();
+      const restrictedPage = await restrictedContext.newPage();
+
+      await loginAndOpenDashboard(authorizedPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await loginAndOpenDashboard(restrictedPage, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
+
+      // 1. Neither account may be the primary Admin (role_id == 1).
+      await expect(
+        authorizedPage.locator('body'),
+        'ADMIN_TEST_EMAIL is a primary Admin (role_id=1); it cannot prove the urban_goodz_view boundary'
+      ).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
+      await expect(
+        restrictedPage.locator('body'),
+        'ADMIN_RESTRICTED_TEST_EMAIL is a primary Admin (role_id=1)'
+      ).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
+
+      // 2. The two roles must be otherwise identical. Using the set of
+      //    reachable admin link paths as a browser-observable proxy for the
+      //    role's module set: everything they disagree about must be an
+      //    urban-goodz path.
+      const authorizedPaths = await visibleAdminPaths(authorizedPage);
+      const restrictedPaths = await visibleAdminPaths(restrictedPage);
+
+      const onlyAuthorized = authorizedPaths.filter((p) => !restrictedPaths.includes(p));
+      const onlyRestricted = restrictedPaths.filter((p) => !authorizedPaths.includes(p));
+
+      expect(
+        onlyAuthorized.every((p) => p.includes('urban-goodz')),
+        `Authorized-only paths outside urban-goodz (roles differ by more than urban_goodz_view): ${JSON.stringify(onlyAuthorized)}`
+      ).toBe(true);
+      expect(
+        onlyRestricted.every((p) => p.includes('urban-goodz')),
+        `Restricted-only paths outside urban-goodz: ${JSON.stringify(onlyRestricted)}`
+      ).toBe(true);
+
+      // 3. The permission difference must actually be present, otherwise
+      //    both accounts are identical and the pair proves nothing.
+      expect(
+        onlyAuthorized.length,
+        'Authorized and restricted accounts expose the same paths; the urban_goodz_view difference is not present'
+      ).toBeGreaterThan(0);
+    } finally {
+      await authorizedContext.close();
+      await restrictedContext.close();
+    }
+  });
+
   test('Admin with urban_goodz_view permission reaches the module-protected Urban Goodz route', async ({ page }) => {
     requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
-    await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'valid' });
-    await expect(page).toHaveURL(/\/admin(\/|$)/);
+    await loginAndOpenDashboard(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    // Re-assert non-primary here so this test cannot pass in isolation with
+    // a primary-Admin fixture.
+    await expect(page.locator('body')).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
 
     const response = await page.goto(PROTECTED_MODULE_ROUTE, { waitUntil: 'domcontentloaded' });
     expect(response.status()).toBe(200);
@@ -185,17 +299,19 @@ test.describe('Admin login page', () => {
 
   test('Admin without urban_goodz_view permission is denied the module-protected Urban Goodz route', async ({ page }) => {
     requireCredentials(RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
-    await submitLogin(page, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD, { captcha: 'valid' });
-    await expect(page).toHaveURL(/\/admin(\/|$)/);
+    await loginAndOpenDashboard(page, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
+
+    await expect(page.locator('body')).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
 
     const response = await page.goto(PROTECTED_MODULE_ROUTE, { waitUntil: 'domcontentloaded' });
     expect(response.status()).not.toBe(500);
 
     // ModulePermissionMiddleware bounces denied requests away with
-    // Toastr::error + back() -- the protected route/heading/data must not
-    // be reachable, regardless of exactly where the bounce lands.
+    // Toastr::error + back() -- the protected route, its heading, and its
+    // record data must all be unreachable, regardless of where it lands.
     expect(page.url()).not.toContain(PROTECTED_MODULE_ROUTE);
     await expect(page.locator('h1,h3', { hasText: PROTECTED_MODULE_HEADING })).toHaveCount(0);
+    await expect(page.locator('table tbody tr')).toHaveCount(0);
   });
 
   test('session survives a refresh and logout invalidates it', async ({ page }) => {

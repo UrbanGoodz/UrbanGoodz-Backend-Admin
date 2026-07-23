@@ -415,52 +415,68 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $this->assertGuest('admin');
     }
 
+    /**
+     * Perform one isolated failed-login attempt and snapshot every
+     * externally-observable outcome immediately afterwards.
+     *
+     * Rate limiter and session are cleared first so each case is measured
+     * from the same starting state and the limiter count reflects only
+     * this attempt.
+     */
+    private function snapshotFailedAdminLogin(string $email, string $password): array
+    {
+        $limiterKey = 'login-attempts:127.0.0.1';
+        RateLimiter::clear($limiterKey);
+        $this->flushSession();
+        auth('admin')->logout();
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $email,
+                'password' => $password,
+                'role' => 'admin',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $oldInput = session()->getOldInput();
+        ksort($oldInput);
+
+        return [
+            'status' => $response->getStatusCode(),
+            'redirect' => $response->headers->get('Location'),
+            'errors' => session('errors')->getBag('default')->all(),
+            'is_guest' => !auth('admin')->check(),
+            'old_input_keys' => array_keys($oldInput),
+            'old_input_has_password' => array_key_exists('password', $oldInput),
+            'limiter_attempts' => RateLimiter::attempts($limiterKey),
+        ];
+    }
+
     public function test_unknown_email_and_wrong_password_produce_identical_responses(): void
     {
         $this->bootSqliteAdminSchema();
         $this->disableGoogleRecaptcha();
         $admin = $this->createAdmin();
 
-        $unknownEmailResponse = $this
-            ->from('/login/admin')
-            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
-            ->post('/login_submit', [
-                '_token' => self::CSRF_TOKEN,
-                'email' => 'no-such-admin@urban-goodz.test',
-                'password' => 'whatever-password',
-                'role' => 'admin',
-                'custome_recaptcha' => 'CORRECT',
-            ]);
+        $unknownEmail = $this->snapshotFailedAdminLogin('no-such-admin@urban-goodz.test', 'whatever-password');
+        $wrongPassword = $this->snapshotFailedAdminLogin($admin->email, 'wrong-password');
 
-        $unknownEmailErrors = session('errors')->getBag('default')->all();
+        // Every observable dimension must match, not just the error text:
+        // status, redirect target, error bag, auth state, which fields were
+        // re-flashed, and how many limiter hits the attempt cost.
+        $this->assertSame($unknownEmail, $wrongPassword);
 
-        $wrongPasswordResponse = $this
-            ->from('/login/admin')
-            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
-            ->post('/login_submit', [
-                '_token' => self::CSRF_TOKEN,
-                'email' => $admin->email,
-                'password' => 'wrong-password',
-                'role' => 'admin',
-                'custome_recaptcha' => 'CORRECT',
-            ]);
-
-        $wrongPasswordErrors = session('errors')->getBag('default')->all();
-
-        $unknownEmailResponse->assertRedirect('/login/admin');
-        $wrongPasswordResponse->assertRedirect('/login/admin');
-        $unknownEmailResponse->assertSessionHasErrors();
-        $wrongPasswordResponse->assertSessionHasErrors();
-
-        $this->assertSame($unknownEmailErrors, $wrongPasswordErrors);
-        $this->assertSame(['Invalid email or password.'], $unknownEmailErrors);
-
-        $this->assertNull(session()->getOldInput('password'));
-        $this->assertGuest('admin');
-
-        // Both branches must record identical rate-limiter treatment
-        // (one hit per attempt each), not just an identical error string.
-        $this->assertTrue(RateLimiter::tooManyAttempts('login-attempts:127.0.0.1', 2));
+        // And each dimension must independently be the safe value.
+        $this->assertSame(302, $unknownEmail['status']);
+        $this->assertStringEndsWith('/login/admin', $unknownEmail['redirect']);
+        $this->assertSame(['Invalid email or password.'], $unknownEmail['errors']);
+        $this->assertTrue($unknownEmail['is_guest']);
+        $this->assertFalse($unknownEmail['old_input_has_password']);
+        $this->assertSame(1, $unknownEmail['limiter_attempts']);
+        $this->assertSame(1, $wrongPassword['limiter_attempts']);
     }
 
     public function test_successful_admin_login_reaches_the_dashboard_redirect(): void

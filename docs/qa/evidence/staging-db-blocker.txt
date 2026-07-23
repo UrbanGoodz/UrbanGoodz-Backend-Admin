@@ -1,0 +1,51 @@
+STAGING DATABASE BLOCKER - artifact-backed evidence
+Captured: 2026-07-23T09:33:15Z  Commit: 3b8d2e2c246ceb6b4c6cba8b69b9fa3516b8f6a1
+
+Claim: the Browser (Playwright) suite cannot be executed from this
+repository alone, because the committed migrations cannot build the
+schema from scratch. Reproduction below.
+
+--- 1. orders create-table migration present? ---
+NONE FOUND - no create_orders_table migration exists
+
+--- 2. migrations that ALTER orders (depend on it existing) ---
+2022_05_14_122133_add_dm_tips_column_to_orders_table.php
+2022_07_31_103626_add_free_delivery_by_column_to_orders_table.php
+2022_10_18_093323_add_refund_request_cancel_column_to_orders_table.php
+2022_12_29_114005_add_prescription_order_column_to_orders_table.php
+2023_01_23_144828_add_tax_status_column_to_orders_table.php
+2023_02_25_133409_add_vehicle_id_column_to_orders_table.php
+2023_02_27_111937_add_cancellation_reason_col_to_orders_table.php
+2023_02_27_162357_add_coupon_created_by_columns_to_orders_table.php
+2023_03_02_103114_add_discount_on_product_by_column_to_orders_table.php
+2023_05_16_104129_add_cutlery_processing_time_unavailable_product_note_col_to_orders_table.php
+2023_05_18_143530_add_delivery_instruction_col_to_orders_table.php
+2023_05_28_153920_add_tax_percentage_col_to_orders_table.php
+(total alter-orders migrations: 21)
+
+--- 3. committed SQL files (schema dumps?) ---
+./database/partial/addon_settings.sql
+./database/partial/data_settings.sql
+./database/partial/email_tempaltes.sql
+./database/partial/payment_requests.sql
+./outputs/update-live-landing-copy-data-settings.sql
+./scripts/production-driver-test-setup.sql
+(no full schema/install dump - only partial seed fragments)
+
+--- 4. live 'php artisan migrate --force' against an empty database ---
+   INFO  Preparing database.  
+  Creating migration table  ...  114.92ms DONE
+   INFO  Running migrations.  
+  0000_00_00_000000_create_websockets_statistics_entries_table  ...  67.39ms DONE
+  2014_10_12_000000_create_users_table  ...  206.85ms DONE
+  2014_10_12_000001_create_modules_table  ...  120.86ms DONE
+  2016_06_01_000001_create_oauth_auth_codes_table  ...  128.41ms DONE
+  2016_06_01_000002_create_oauth_access_tokens_table  ...  103.67ms DONE
+  2016_06_01_000003_create_oauth_refresh_tokens_table  ...  88.99ms DONE
+  2016_06_01_000004_create_oauth_clients_table  ...  90.23ms DONE
+  2016_06_01_000005_create_oauth_personal_access_clients_table  ...  58.06ms DONE
+  2022_03_31_103418_create_wallet_transactions_table  ...  55.28ms DONE
+...
+  2022_05_14_122133_add_dm_tips_column_to_orders_table  ...  7.89ms FAIL
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'ug_blocker_proof.orders' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: ug_blocker_proof, SQL: alter table `orders` add `dm_tips` double not null default '0')
+      PDOException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'ug_blocker_proof.orders' doesn't exist")
