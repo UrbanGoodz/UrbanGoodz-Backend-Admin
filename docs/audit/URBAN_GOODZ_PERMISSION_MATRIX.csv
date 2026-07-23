@@ -1,0 +1,28 @@
+ROLE,PORTAL,MODULE,ROUTE,ACTION,ALLOWED,DENIED,TESTED,EVIDENCE,STATUS
+Guest,Admin,Authentication,GET /login/admin,View Admin login,YES,N/A,FOCUSED PHP,"routes/web.php; Admin login regression evidence",TESTED LOCALLY
+Guest,Admin,Authentication,POST /login_submit,Submit credentials and CAPTCHA,YES,N/A,FOCUSED PHP,"LoginController; 33 focused tests/134 assertions",TESTED LOCALLY
+Guest,Admin,Dashboard,GET /admin,View protected dashboard,NO,YES,FOCUSED PHP,"admin middleware and auth recovery regression tests",TESTED LOCALLY
+Primary Admin,Admin,All modules,GET /admin,View dashboard,YES,N/A,SOURCE AND FOCUSED PHP,"role_id=1 bypass is part of inherited helper behavior",PARTIALLY WIRED
+Non-primary Admin with urban_goodz_view,Admin,Urban Goodz,GET /admin/urban-goodz/business-clients,View protected Urban Goodz content,YES,N/A,FOCUSED PHP,"module middleware/helper fixture tests",TESTED LOCALLY
+Non-primary Admin without urban_goodz_view,Admin,Urban Goodz,GET /admin/urban-goodz/business-clients,View protected Urban Goodz content,NO,YES,FOCUSED PHP,"restricted role denial and protected-content absence tests",TESTED LOCALLY
+Authenticated Admin,Admin,AI Chief of Staff,GET /admin/urban-goodz/ai-chief-of-staff,View command assistant,YES,NO,SOURCE ONLY,"route lacks module:* middleware and controller permission check",BROKEN
+Non-primary Admin without AI permission,Admin,AI Chief of Staff,GET /admin/urban-goodz/ai-chief-of-staff,View command assistant,YES,NO,NOT TESTED,"only route-provider auth/current-module/activation middleware applies",BROKEN
+Non-primary Admin with urban_goodz_view,Admin,Driver pricing,GET /admin/urban-goodz/driver-pricing,View policies,CONDITIONAL,YES,SOURCE ONLY,"broad route middleware plus controller helper-specific view check",PARTIALLY WIRED
+Non-primary Admin with pricing manage,Admin,Driver pricing,POST /admin/urban-goodz/driver-pricing,Create/update policy,CONDITIONAL,YES,SOURCE ONLY,"controller helper checks dedicated key but custom-role UI does not expose all required keys",BROKEN
+Non-primary Admin with urban_goodz_view only,Admin,Driver payouts,POST /admin/urban-goodz/driver-payouts/{id}/approve,Approve payout,YES,NO,NOT TESTED,"route has only module:urban_goodz_view and controller lacks dedicated manage check",BROKEN
+Non-primary Admin with urban_goodz_view only,Admin,Driver payouts,POST /admin/urban-goodz/driver-payouts/{id}/pay,Mark payout paid and create ledger,YES,NO,NOT TESTED,"same broad middleware; no external settlement proof",BROKEN
+Non-primary Admin with urban_goodz_view only,Admin,Driver payouts,POST /admin/urban-goodz/driver-payouts/{id}/reject,Reject payout,YES,NO,NOT TESTED,"same broad middleware",BROKEN
+Non-primary Admin without urban_goodz_view,Admin,Urban Goodz,Urban Goodz route group,View module,NO,YES,FOCUSED PHP,"ModulePermissionMiddleware and helper denial evidence",TESTED LOCALLY
+Business owner,Business Portal,Business account,/business/*,Manage own business resources,CONDITIONAL,YES,SOURCE ONLY,"business auth and business-scoping middleware exist; cross-account browser proof absent",PARTIALLY WIRED
+Business employee with dispatcher access,Business Portal,Dispatcher,/business/dispatcher/*,Use dispatcher workspace,CONDITIONAL,YES,SOURCE ONLY,"business dispatcher and territory middleware",PARTIALLY WIRED
+Dispatcher with dispatch_commissions_view,Business Portal,Dispatcher commissions,GET /business/dispatcher/commissions,View commission totals/history,YES,N/A,SOURCE ONLY,"controller calls permission boundary; no browser proof",PARTIALLY WIRED
+Dispatcher without dispatch_commissions_view,Business Portal,Dispatcher commissions,GET /business/dispatcher/commissions,View commission totals/history,NO,YES,NOT TESTED,"permission name exists and controller checks it",PARTIALLY WIRED
+Dispatcher with dispatch_commissions_approve,Business Portal,Dispatcher commissions,No located approval route,Approve commission,NO,N/A,NOT TESTED,"capability exists on model but no route/controller consumer was located",BACKEND ONLY
+Vendor owner,Vendor Web,Store/orders,/store-panel/*,Manage own store and orders,CONDITIONAL,YES,SOURCE ONLY,"vendor auth/store-scope foundation exists; complete cross-store proof absent",PARTIALLY WIRED
+Vendor employee,Vendor Web,Assigned permissions,/store-panel/*,Perform assigned actions,CONDITIONAL,YES,SOURCE ONLY,"inherited vendor employee permissions exist; comprehensive matrix/test absent",PARTIALLY WIRED
+Shopper,Shopper app,Customer APIs,/api/v1/*,Use customer-scoped APIs,CONDITIONAL,YES,SOURCE ONLY,"token/customer routes exist; full app E2E proof absent",PARTIALLY WIRED
+Driver,Driver API,Delivery and courier,/api/v1/delivery-man/*,Use own jobs/earnings,CONDITIONAL,YES,SOURCE ONLY,"delivery-man token middleware exists; standalone app uses mocks for major surfaces",PARTIALLY WIRED
+Load-source operator,Admin,Load sourcing,Admin sourcing routes,Configure/run load sourcing,CONDITIONAL,YES,SOURCE ONLY,"permission seeder and route checks exist; assignability/full role proof absent",PARTIALLY WIRED
+Unauthenticated caller,Webhooks,Payments,Provider webhook routes,Submit provider event,CONDITIONAL,YES,FOCUSED SOURCE REVIEW,"provider signature is the boundary; Adyen missing-HMAC branch accepts",BROKEN
+System scheduler,Console,AI Copilot,ai-copilot:generate --notify,Generate/notify,YES,N/A,SOURCE ONLY,"scheduled every 15 minutes; production cron/worker unknown",UNKNOWN
+System scheduler,Console,Load sourcing,sync-load-board and run-scheduled-sourcing,Queue/sync loads,YES,N/A,SOURCE ONLY,"scheduled every 30 minutes with overlap lock; production execution unknown",UNKNOWN
