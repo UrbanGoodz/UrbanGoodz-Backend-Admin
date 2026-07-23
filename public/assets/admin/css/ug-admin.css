@@ -140,6 +140,309 @@
   height: auto;
 }
 
+/* ---- Admin Command Center / Business Operations Hub login ---- */
+.ug-command-page {
+  margin: 0;
+  min-width: 320px;
+  background: #f8f8f8;
+  color: var(--ug-black);
+}
+.ug-command-page .main {
+  min-height: 100vh;
+}
+.ug-command-login {
+  display: grid;
+  grid-template-columns: 55% 45%;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--ug-white);
+}
+.ug-command-visual {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fff8e9, var(--ug-canvas));
+}
+.ug-command-visual > img {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 181.82%;
+  max-width: none;
+  height: 100%;
+  object-fit: fill;
+}
+.ug-command-auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 28px 34px;
+  background: #fafafa;
+}
+.ug-command-card {
+  width: min(680px, 100%);
+  padding: clamp(34px, 4vw, 62px);
+  border: 1px solid rgba(22, 22, 22, .08);
+  border-radius: 28px;
+  background: var(--ug-white);
+  box-shadow: 0 14px 48px rgba(22, 22, 22, .12);
+}
+.ug-command-mobile-brand {
+  display: none;
+  margin-bottom: 26px;
+}
+.ug-command-mobile-brand img {
+  width: 210px;
+  max-width: 70vw;
+  height: auto;
+}
+.ug-command-header {
+  margin-bottom: 42px;
+}
+.ug-command-header h1 {
+  margin: 0 0 10px;
+  color: var(--ug-black);
+  font-size: clamp(32px, 3vw, 46px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+.ug-command-header p {
+  margin: 0;
+  color: #303030;
+  font-size: clamp(15px, 1.2vw, 19px);
+  line-height: 1.55;
+}
+.ug-command-group {
+  margin-bottom: 28px;
+}
+.ug-command-group .input-label,
+.ug-command-captcha > .input-label {
+  margin-bottom: 10px;
+  color: var(--ug-black);
+  font-size: 16px;
+  font-weight: 700;
+}
+.ug-command-field {
+  position: relative;
+}
+.ug-command-field .form-control {
+  height: 62px;
+  padding-inline-start: 58px;
+  border: 1px solid #d4d6da;
+  border-radius: 9px;
+  color: var(--ug-black);
+  font-size: 16px;
+  box-shadow: none;
+}
+.ug-command-field .form-control:focus {
+  border-color: var(--ug-orange);
+  box-shadow: 0 0 0 3px rgba(var(--ug-orange-rgb), .12);
+}
+.ug-command-field-icon {
+  position: absolute;
+  z-index: 4;
+  inset-inline-start: 18px;
+  top: 50%;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  transform: translateY(-50%);
+  place-items: center;
+  pointer-events: none;
+}
+.ug-command-field-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: #5f6268;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+.ug-command-field .input-group-append .input-group-text {
+  height: 62px;
+  border-color: #d4d6da;
+  border-radius: 0 9px 9px 0;
+  background: transparent;
+  color: #5f6268;
+}
+.ug-command-captcha {
+  margin-bottom: 20px;
+}
+.ug-command-captcha #reload-captcha {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0 !important;
+}
+.ug-command-captcha #reload-captcha > div {
+  flex: 1 1 50%;
+  width: 50%;
+  max-width: 50%;
+  padding: 0 !important;
+}
+.ug-command-captcha #reload-captcha > div:first-child {
+  order: 2;
+}
+.ug-command-captcha #reload-captcha > div:nth-child(2) {
+  order: 1;
+  min-height: 58px;
+  overflow: hidden;
+  border: 1px solid #d4d6da;
+  border-radius: 9px !important;
+}
+.ug-command-captcha #reload-captcha .form-control {
+  height: 58px;
+  border: 1px solid #d4d6da;
+  border-radius: 9px;
+  font-size: 15px;
+}
+.ug-command-captcha #reload-captcha img {
+  min-width: 0;
+  height: 56px;
+  object-fit: contain;
+}
+.ug-command-captcha .capcha-spin {
+  display: grid;
+  flex: 0 0 52px;
+  padding: 0 !important;
+  place-items: center;
+  cursor: pointer;
+}
+.ug-command-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 24px 0 22px;
+}
+.ug-command-options .form-group {
+  margin: 0;
+}
+.ug-command-options .text-primary,
+.ug-command-options a {
+  color: #f26a00 !important;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ug-command-submit {
+  height: 64px !important;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #ff8a00, #ff7900) !important;
+  color: var(--ug-white) !important;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+.ug-command-submit:hover,
+.ug-command-submit:focus {
+  background: linear-gradient(90deg, #ed7d00, #ed6800) !important;
+}
+.ug-command-notice {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 30px;
+  padding: 16px 18px;
+  border: 1px solid #e3e3e3;
+  border-radius: 10px;
+  color: #242424;
+  font-size: 16px;
+}
+.ug-command-notice-icon {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #fff1bc;
+  color: var(--ug-black);
+  font-size: 25px;
+  place-items: center;
+}
+.ug-command-support {
+  margin: 22px 0 0;
+  color: #333;
+  font-size: 16px;
+  text-align: center;
+}
+.ug-command-support > span {
+  margin-inline-end: 8px;
+}
+.ug-command-support a {
+  color: #f26a00;
+  text-decoration: underline;
+}
+
+@media (max-width: 1300px) {
+  .ug-command-auth {
+    padding: 22px;
+  }
+  .ug-command-card {
+    padding: 34px;
+  }
+  .ug-command-header {
+    margin-bottom: 30px;
+  }
+  .ug-command-group {
+    margin-bottom: 20px;
+  }
+  .ug-command-notice {
+    margin-top: 22px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ug-command-login {
+    display: block;
+    min-height: 100vh;
+  }
+  .ug-command-visual {
+    display: none;
+  }
+  .ug-command-auth {
+    min-height: 100vh;
+    padding: 24px 18px;
+  }
+  .ug-command-card {
+    padding: clamp(24px, 7vw, 42px);
+    border-radius: 20px;
+  }
+  .ug-command-mobile-brand {
+    display: block;
+  }
+}
+
+@media (max-width: 520px) {
+  .ug-command-header h1 {
+    font-size: 30px;
+  }
+  .ug-command-captcha #reload-captcha {
+    flex-wrap: wrap;
+  }
+  .ug-command-captcha #reload-captcha > div {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+  .ug-command-options {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ug-command-notice {
+    font-size: 14px;
+  }
+  .ug-command-support {
+    font-size: 14px;
+  }
+}
+
 /* ---- Footer ---- */
 .footer {
   background: var(--ug-white) !important;

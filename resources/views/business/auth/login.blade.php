@@ -61,39 +61,25 @@
         }
     </style>
 </head>
-<body>
+<body class="ug-command-page">
 <main id="content" role="main" class="main">
-    <div class="auth-wrapper">
-        <div class="auth-wrapper-left">
-            <div class="auth-left-cont">
-                <h1 class="title" style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.25rem;">
-                    <strong>{{ translate('Urban Goodz') }}</strong>
-                </h1>
-                <p style="font-size: 1.15rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 500;">{{ translate('Business Portal') }}</p>
-                <p class="brand-tagline">{{ translate('Your logistics command center.') }}</p>
-                <ul class="brand-features">
-                    <li>{{ translate('Manage dedicated routes and deliveries') }}</li>
-                    <li>{{ translate('Track packages and scan barcodes') }}</li>
-                    <li>{{ translate('Upload documents and view invoices') }}</li>
-                    <li>{{ translate('Coordinate with dispatchers in real time') }}</li>
-                </ul>
-                <p class="brand-copyright">&copy; {{ date('Y') }} Urban Goodz Delivery</p>
-            </div>
-        </div>
-        <div class="auth-wrapper-right">
-            <div class="auth-wrapper-form">
-                <div class="d-sm-none flex-grow-1 mb-3 mobile-logo">
-                    <strong style="font-size: 1.3rem; color: var(--ug-orange);">Urban Goodz</strong>
+    <div class="ug-command-login ug-command-login--business">
+        <aside class="ug-command-visual" aria-label="Urban Goodz Business Operations Hub">
+            <img src="{{ asset('public/assets/admin/img/business-operations-hub-reference.png') }}"
+                alt="Urban Goodz Business Operations Hub for locations, courier routes, and package management">
+        </aside>
+        <section class="ug-command-auth">
+            <div class="ug-command-card">
+                <div class="ug-command-mobile-brand">
+                    <img src="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz">
                 </div>
+                <header class="ug-command-header">
+                    <h1>Business Portal Login</h1>
+                    <p>Welcome back. Sign in to manage your Urban Goodz business operations.</p>
+                </header>
 
                 <form action="{{ route('business.login.submit') }}" method="post">
                     @csrf
-                    <div class="auth-header">
-                        <div class="mb-5">
-                            <h2 class="title" style="color: var(--ug-black); font-weight: 700;">{{ translate('Welcome Back') }}</h2>
-                            <div style="color: #6c757d;">{{ translate('Sign in to your business account') }}.</div>
-                        </div>
-                    </div>
 
                     @if(session('status'))
                         <div class="alert alert-success" role="alert" style="font-size: 0.9rem;">
@@ -101,17 +87,24 @@
                         </div>
                     @endif
 
-                    <div class="js-form-message form-group">
-                        <label class="input-label" for="email" style="color: var(--ug-black);">{{ translate('Email') }}</label>
+                    <div class="js-form-message form-group ug-command-group">
+                        <label class="input-label" for="email">Business Email</label>
+                        <div class="ug-command-field">
+                            <span class="ug-command-field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5Zm1.5 1.5 7.5 6 7.5-6M4.5 17.5l5.4-5m9.6 5-5.4-5"/></svg>
                         <input type="email" class="form-control form-control-lg" name="email" id="email"
-                               placeholder="email@address.com" value="{{ old('email') }}" required autofocus>
+                               placeholder="Enter your business email" value="{{ old('email') }}" required autofocus>
+                        </div>
                     </div>
 
-                    <div class="js-form-message form-group">
-                        <label class="input-label" for="password" style="color: var(--ug-black);">{{ translate('Password') }}</label>
-                        <div class="input-group input-group-merge">
+                    <div class="js-form-message form-group ug-command-group">
+                        <label class="input-label" for="password">Password</label>
+                        <div class="input-group input-group-merge ug-command-field">
+                            <span class="ug-command-field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2m-12 0h14v10H5V10Zm7 4v3"/></svg>
+                            </span>
                             <input type="password" class="js-toggle-password form-control form-control-lg"
-                                   name="password" id="password" placeholder="******" required
+                                   name="password" id="password" placeholder="Enter your password" required
                                    data-hs-toggle-password-options='{
                                        "target": "#changePassTarget",
                                        "defaultClass": "tio-hidden-outlined",
@@ -126,7 +119,7 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-between mt-5">
+                    <div class="ug-command-options">
                         <div class="form-group">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="remember" name="remember">
@@ -142,12 +135,21 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-lg btn-block btn--primary mt-xxl-3">
-                        {{ translate('Sign In') }}
+                    <button type="submit" class="btn btn-lg btn-block btn--primary ug-command-submit">
+                        SIGN IN
                     </button>
                 </form>
+
+                <div class="ug-command-notice">
+                    <span class="ug-command-notice-icon" aria-hidden="true">⌾</span>
+                    <span>Secure business access&nbsp; • &nbsp;Authorized users only</span>
+                </div>
+                <p class="ug-command-support">
+                    <span aria-hidden="true">◉</span>
+                    Need help? Contact <a href="{{ url('/contact-us') }}">Urban Goodz Business Support</a>
+                </p>
             </div>
-        </div>
+        </section>
     </div>
 </main>
 <script src="{{asset('public/assets/admin/js/vendor.min.js')}}"></script>
