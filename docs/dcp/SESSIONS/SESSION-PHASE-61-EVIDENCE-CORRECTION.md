@@ -256,3 +256,41 @@
 - **Rollback document-root command**: `uapi --output=jsonpretty SubDomain changedocroot domain=admin.urbangoodzdelivery.com docroot=admin.urbangoodzdelivery.com`
 - **Next exact action**: review, commit, and push the two intended tracked files; deploy that exact commit to the nested checkout; switch cPanel to `admin.urbangoodzdelivery.com/AdminPanel_Update_V39/public`; run the static marker, front-controller, route, view, public-site, and Business Portal identity regressions.
 - **DO NOT REPEAT**: any Admin credential submission or post-login HTTP 500 debugging until the corrected environment identity gate passes.
+
+### Environment identity correction complete
+- **Correction commit/push**: `ebb7fbbb50a7ea169afa4aed63396f02e4681482`
+- **Nested checkout deployment**: fast-forwarded to the exact pushed commit without reset or file copying.
+- **cPanel correction**: `SubDomain::changedocroot` changed only `admin.urbangoodzdelivery.com` to `/home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39/public`.
+- **Stale parent rewrite**: the backed-up parent `.htaccess` continued intercepting requests after the cPanel change; it was reversibly moved to `/home/urbakkej/admin.urbangoodzdelivery.com/.htaccess.pre-public-docroot-20260723`.
+- **Corrected-root probe**: HTTP 200 with exact marker `UG_CORRECTED_ROOT_PROBE_20260723_E2A7C6B1`; probe deleted.
+- **Final live index**: `/home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39/public/index.php`
+- **Final live index SHA-256**: `ff059a2a31ab3ad9529645ce37fc3b5beba184a91f134ae84ca1b4774b0c0606`
+- **Final index targets**: `../vendor/autoload.php` and `../bootstrap/app.php`.
+- **Final Laravel paths**:
+  - base: `/home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39`
+  - public: `/home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39/public`
+- **Final cPanel document root**: `/home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39/public`
+- **Final branch/SHA**: `adminpanel-v39-backend-sprint` at `ebb7fbbb50a7ea169afa4aed63396f02e4681482`; remote matched before this final DCP-only checkpoint.
+- **Final live working tree**: untracked runtime `error_log` and pre-existing `public/storage`; no modified tracked files.
+- **Final corrected-view backup**: `/home/urbakkej/backups/admin_env_identity_final_20260723_031000/login-view-and-compiled-views.tar`
+- **Final corrected-view backup SHA-256**: `457691be67951c08f95f4d3f3abdf954ad8de321464f1162e8deac2007bccd06`
+- **Final view marker**: `UG-CORRECTED-LOGIN-PROBE-20260723-F3B8D2C4` appeared in HTTP 200 `/login/admin`, proving the nested checkout's `resources/views/auth/login.blade.php` is rendered.
+- **Final view restoration**: SHA-256 restored to `657e77fcfc2a004b35635fecd220cba5e9a0f64f8d595939b6056d5e44071429`; `view:clear` and `view:cache` passed; marker absent afterward.
+- **Final routes**:
+  - `GET login/{tab}` → `App\Http\Controllers\LoginController@login`, route `login`;
+  - `POST login_submit` → `App\Http\Controllers\LoginController@submit`, route `login_post`;
+  - `GET admin` → `App\Http\Controllers\Admin\DashboardController@dashboard`, route `admin.dashboard`.
+- **Branding**: HTTP 200 login response contains Urban Goodz, contains no `6amMart`/`6am Mart` text, and the compatibility URL `/public/assets/admin/css/ug-admin.css` returns HTTP 200 `text/css`.
+- **Admin unauthenticated entry**: `/admin` returns HTTP 302 to `/login/admin`.
+- **Public regression**: `https://urbangoodzdelivery.com/` HTTP 200.
+- **Business regression**: `https://admin.urbangoodzdelivery.com/business/login` HTTP 200 with login form and Business text.
+- **Config/cache identity**: APP_URL correct; production; debug false; config cache present; route cache present; view cache rebuilt and present.
+- **Rollback procedure**:
+  1. `uapi --output=jsonpretty SubDomain changedocroot domain=admin.urbangoodzdelivery.com docroot=admin.urbangoodzdelivery.com`
+  2. `mv /home/urbakkej/admin.urbangoodzdelivery.com/.htaccess.pre-public-docroot-20260723 /home/urbakkej/admin.urbangoodzdelivery.com/.htaccess`
+  3. verify the parent marker/front controller and restore from `/home/urbakkej/backups/admin_env_correction_20260723_024500/environment-files-before.tar` only if checksums differ.
+- **Environment identity gate**: PASS.
+- **SAFE_TO_RESUME_ADMIN_500_DEBUGGING**: TRUE.
+- **Admin authentication testing**: remains STOPPED pending the next explicit continuation after this identity report.
+- **Next exact action**: commit/push this final checkpoint, fast-forward the nested checkout to the exact DCP commit, then resume M2 only when explicitly directed.
+- **DO NOT REPEAT**: document-root discovery, application-copy enumeration, marker probes, view marker proof, cache rebuild, or unauthenticated identity regressions.
