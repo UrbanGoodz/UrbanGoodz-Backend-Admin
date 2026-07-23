@@ -21,7 +21,7 @@ This file exists so the two raw artifacts in this directory (`phpunit-full.txt`,
 - Command: `DB_HOST=127.0.0.1 DB_PORT=3306 DB_USERNAME=root DB_PASSWORD= php vendor/bin/phpunit --no-coverage`
 - Exit code: 2 (PHPUnit's exit code for "tests ran, but there were errors/failures")
 - Result line: `Tests: 382, Assertions: 1027, Errors: 112, Failures: 7, PHPUnit Deprecations: 2, Skipped: 3.`
-- Absolute local file-system paths in stack traces were replaced with the literal token `<repo>` before commit (the original paths embed the operator's real Windows account name, e.g. `C:\Users\<name>\...\AdminPanel_E2E_Rebuild`) using the two-pass method below — no other content was altered.
+- Absolute local file-system paths in stack traces were replaced with the literal token `<repo>` before commit (the original paths embedded the operator's real Windows account name) using the method below — no other content was altered.
 
 ## `new-test-run-3.txt`
 
@@ -30,9 +30,15 @@ This file exists so the two raw artifacts in this directory (`phpunit-full.txt`,
 - Result line: `Tests: 22, Assertions: 73, PHPUnit Deprecations: 2, Skipped: 3.` (21 test methods; one data provider produces 2 executed cases — see inventory doc §6)
 - Same path-scrubbing applied as above.
 
-## Path-scrubbing method (and its limit)
+## Path-scrubbing method (three rounds, third one gated by a script instead of ad hoc greps)
 
-The first commit's scrub did a single literal `str_replace()` of the exact full local path. That missed cases where PHP/PHPUnit's own stack-trace formatter had already truncated a long string argument mid-path (a quoted argument preview cut short by PHP's own formatter, mid-way through the path) — the truncated fragment no longer matched the full-path needle. This regeneration scrubs in two passes: (1) the same full-path literal replace (caught 3,370 occurrences in `phpunit-full.txt`, 1 in `new-test-run-3.txt`), then (2) a regex pass matching any remaining `C:\Users\D...` fragment regardless of where it was cut off (0 additional matches in this particular regeneration — the literal pass alone happened to catch everything this time, since PHP's argument-truncation points weren't hit in the same places as the prior run; the second pass is kept as a standing safeguard regardless). Both files were re-verified at zero remaining matches across five independent patterns (`D'Andre`, `C:\Users`, short-form `D'ANDR`, `D_Andre`, `Andre Good`) before this commit. **This does not retroactively clean the prior commit (`dc738df`) already on `origin/e2e-certification-rebuild`** — those 5 fragments remain in that commit's history; removing them would require a force-push history rewrite, which was not performed without explicit authorization since it rewrites shared branch history.
+This went through three rounds on this branch, and it's worth recording why the first two both self-certified "zero remaining matches" while real fragments were still present, committed, and pushed:
+
+1. **Round 1 (commit `dc738df`):** a single literal `str_replace()` of the exact full local path, verified with a handful of ad hoc `grep` checks. This missed every case where PHP/PHPUnit's own stack-trace argument-preview formatter had already truncated a long string mid-path — the truncated fragment no longer matched the full-path needle, and the ad hoc grep patterns used for verification happened to require more of the string than the truncation had left (e.g. requiring a complete name where PHP had cut it off one character short), so they reported clean when they weren't.
+2. **Round 2 (commit `da79297`):** added a second, regex-based pass intended to catch truncated fragments regardless of cut-off point, and verified with five more ad hoc grep patterns, all reporting zero. It was still wrong — a hand-escaped regex pattern (backslash counts hand-derived through shell-quoting → PHP double-quoted-string parsing → PCRE parsing, three separate escaping layers) silently failed to match on 8 real occurrences across 3 distinct truncation shapes. The verification greps that followed had the same blind spot as round 1's for the same reason: they were re-derived by hand each time rather than run through one fixed, checked-in tool.
+3. **Round 3 (this commit):** replaced all of the above with a single checked-in script, `test-support/reports/verify-no-local-paths.php`, whose pattern is built from `chr(92)` primitives (no hand-written backslash-escaping through multiple layers to get wrong) and which requires zero, one, or two trailing backslashes after `Users` — so it doesn't care where the truncation happened. It was sanity-checked against a synthetic copy of a known-bad line (confirmed it fails loudly) before being trusted against the real files. Command: `php test-support/reports/verify-no-local-paths.php <files...>` — exit 0 means clean, exit 1 prints every match with its file and line number. Both artifacts in this directory pass it as of this commit.
+
+**None of this retroactively cleans the prior commits (`dc738df`, `da79297`) already on `origin/e2e-certification-rebuild`** — their fragments remain in that history; removing them would require a force-push history rewrite, which was not performed without explicit authorization since it rewrites shared branch history.
 
 ## Why `phpunit.xml` is not part of this commit
 
