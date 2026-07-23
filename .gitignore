@@ -56,3 +56,11 @@ id_rsa_utf8
 release_artifacts_20260720/*.apk
 *.apk
 
+# Playwright run artifacts (may contain staging emails, cookies, session
+# tokens from failure screenshots/traces/reports) -- access-controlled,
+# short-retention, never committed.
+tests/playwright-report/
+tests/playwright-artifacts/
+tests/Browser/test-results/
+tests/playwright/test-results/
+

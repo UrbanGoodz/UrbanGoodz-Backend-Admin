@@ -415,6 +415,54 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $this->assertGuest('admin');
     }
 
+    public function test_unknown_email_and_wrong_password_produce_identical_responses(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+
+        $unknownEmailResponse = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => 'no-such-admin@urban-goodz.test',
+                'password' => 'whatever-password',
+                'role' => 'admin',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $unknownEmailErrors = session('errors')->getBag('default')->all();
+
+        $wrongPasswordResponse = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'wrong-password',
+                'role' => 'admin',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $wrongPasswordErrors = session('errors')->getBag('default')->all();
+
+        $unknownEmailResponse->assertRedirect('/login/admin');
+        $wrongPasswordResponse->assertRedirect('/login/admin');
+        $unknownEmailResponse->assertSessionHasErrors();
+        $wrongPasswordResponse->assertSessionHasErrors();
+
+        $this->assertSame($unknownEmailErrors, $wrongPasswordErrors);
+        $this->assertSame(['Invalid email or password.'], $unknownEmailErrors);
+
+        $this->assertNull(session()->getOldInput('password'));
+        $this->assertGuest('admin');
+
+        // Both branches must record identical rate-limiter treatment
+        // (one hit per attempt each), not just an identical error string.
+        $this->assertTrue(RateLimiter::tooManyAttempts('login-attempts:127.0.0.1', 2));
+    }
+
     public function test_successful_admin_login_reaches_the_dashboard_redirect(): void
     {
         $this->bootSqliteAdminSchema();

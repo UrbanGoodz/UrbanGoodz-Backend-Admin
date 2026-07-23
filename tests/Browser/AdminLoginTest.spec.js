@@ -11,10 +11,15 @@ const { test, expect } = require('@playwright/test');
  *
  * Required:
  *   ADMIN_TEST_EMAIL / ADMIN_TEST_PASSWORD
- *     - an Admin account with urban_goodz_view permission (role_id 1 or an
- *       admin_role whose modules include "urban_goodz_view").
+ *     - a non-primary Admin account (role_id != 1) whose admin_role.modules
+ *       includes "urban_goodz_view".
  *   ADMIN_RESTRICTED_TEST_EMAIL / ADMIN_RESTRICTED_TEST_PASSWORD
- *     - an Admin account whose role does NOT include urban_goodz_view.
+ *     - a non-primary Admin account whose admin_role is otherwise identical
+ *       but does NOT include "urban_goodz_view".
+ *   These two accounts must differ ONLY in that module permission, so the
+ *   authorization tests prove module:urban_goodz_view (ModulePermissionMiddleware
+ *   / Helpers::module_permission_check) itself, not the unrelated role_id===1
+ *   gate that controls the dashboard's "Urban Goodz Command Center" panel.
  *
  * The custom-CAPTCHA "approved test mechanism" relies on APP_MODE=dev on the
  * target environment, which causes the server to pre-fill the custom-CAPTCHA
@@ -48,12 +53,13 @@ function requireCredentials(...values) {
   }
 }
 
-// The card header rendered only inside the role_id===1 branch of
-// admin-views/dashboard.blade.php -- the one DOM element that distinguishes
-// an authorized vs. unauthorized Admin on the post-login dashboard.
-function urbanGoodzPanel(page) {
-  return page.locator('.card-header-title', { hasText: 'Urban Goodz Command Center' });
-}
+// Gated purely by the `module:urban_goodz_view` route-group middleware
+// (routes/admin.php) -- UrbanGoodzBusinessClientController@index has no
+// internal role_id check of its own, unlike the dashboard panel or
+// UrbanGoodzAdminController@index. This is the actual permission boundary
+// under review, independent of the primary-admin role_id gate.
+const PROTECTED_MODULE_ROUTE = '/admin/urban-goodz/business-clients';
+const PROTECTED_MODULE_HEADING = 'Business Clients';
 
 async function fillCustomCaptcha(page) {
   // Relies on APP_MODE=dev pre-filling the correct phrase server-side.
@@ -166,22 +172,30 @@ test.describe('Admin login page', () => {
     await expect(page.locator('body')).not.toContainText('Stack trace');
   });
 
-  test('Admin with urban_goodz_view permission sees the Urban Goodz Command Center panel', async ({ page }) => {
+  test('Admin with urban_goodz_view permission reaches the module-protected Urban Goodz route', async ({ page }) => {
     requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
     await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'valid' });
-
     await expect(page).toHaveURL(/\/admin(\/|$)/);
-    await expect(urbanGoodzPanel(page)).toBeVisible();
+
+    const response = await page.goto(PROTECTED_MODULE_ROUTE, { waitUntil: 'domcontentloaded' });
+    expect(response.status()).toBe(200);
+    expect(page.url()).toContain(PROTECTED_MODULE_ROUTE);
+    await expect(page.locator('h1,h3', { hasText: PROTECTED_MODULE_HEADING })).toBeVisible();
   });
 
-  test('Admin without urban_goodz_view permission does not see the Urban Goodz Command Center panel', async ({ page }) => {
+  test('Admin without urban_goodz_view permission is denied the module-protected Urban Goodz route', async ({ page }) => {
     requireCredentials(RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
     await submitLogin(page, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD, { captcha: 'valid' });
-
     await expect(page).toHaveURL(/\/admin(\/|$)/);
-    const response = await page.goto(page.url());
-    expect(response.status()).toBe(200);
-    await expect(urbanGoodzPanel(page)).toHaveCount(0);
+
+    const response = await page.goto(PROTECTED_MODULE_ROUTE, { waitUntil: 'domcontentloaded' });
+    expect(response.status()).not.toBe(500);
+
+    // ModulePermissionMiddleware bounces denied requests away with
+    // Toastr::error + back() -- the protected route/heading/data must not
+    // be reachable, regardless of exactly where the bounce lands.
+    expect(page.url()).not.toContain(PROTECTED_MODULE_ROUTE);
+    await expect(page.locator('h1,h3', { hasText: PROTECTED_MODULE_HEADING })).toHaveCount(0);
   });
 
   test('session survives a refresh and logout invalidates it', async ({ page }) => {

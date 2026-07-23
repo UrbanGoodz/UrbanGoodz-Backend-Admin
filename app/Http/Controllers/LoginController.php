@@ -225,7 +225,7 @@ class LoginController extends Controller
             if (!$data) {
                 RateLimiter::hit($key, $decayMinutes * 60);
                 return redirect()->back()->withInput($request->only('email', 'remember'))
-                    ->withErrors(['Email does not match.']);
+                    ->withErrors(['Invalid email or password.']);
             }
         }
         elseif ($request->role == 'admin') {
@@ -233,7 +233,7 @@ class LoginController extends Controller
             if (!$data) {
                 RateLimiter::hit($key, $decayMinutes * 60);
                 return redirect()->back()->withInput($request->only('email', 'remember'))
-                    ->withErrors(['Email does not match.']);
+                    ->withErrors(['Invalid email or password.']);
             }
         }
         elseif ($request->role == 'vendor') {
@@ -327,7 +327,7 @@ class LoginController extends Controller
         }
         RateLimiter::hit($key, $decayMinutes * 60);
         return redirect()->back()->withInput($request->only('email', 'remember'))
-            ->withErrors(['Password does not match.']);
+            ->withErrors(['Invalid email or password.']);
     }
 
     public function reloadCaptcha()
