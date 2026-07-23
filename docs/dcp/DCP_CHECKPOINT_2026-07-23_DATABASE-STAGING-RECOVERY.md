@@ -123,7 +123,125 @@ Only false positives found (`oauth_access_tokens`, `oauth_refresh_tokens`,
 
 ---
 
-## 7. Constraints honored
+## 7. Execution phase — zero-disk vendor junction
+
+Composer was **not** run in any form. Dependencies were reused from the main repository
+through a read-only Windows directory junction.
+
+| Item | Value |
+|---|---|
+| Junction | `<GITHUB_ROOT>\AdminPanel_Codex_Platform_Audit\vendor` |
+| Target | `<GITHUB_ROOT>\AdminPanel_Update_V39\vendor` |
+| Type | Directory / ReparsePoint / Junction |
+
+`<GITHUB_ROOT>` is the local GitHub checkout directory. The literal absolute path is
+deliberately not recorded here — it contains the workstation user name. Both worktrees
+live side by side under the same root, so the junction is reproducible from that fact
+alone.
+| Disk cost | **0 bytes** (3.98 GB free before and after) |
+| Composer commands run | **NONE** |
+
+`composer.lock` equivalence proven before linking:
+
+- Working-tree bytes differ (552,383 vs 567,320) purely from `core.autocrlf`.
+- CRLF delta is 14,937 bytes against exactly 14,937 lines.
+- After CRLF→LF normalization both hash to `B53EC365…`.
+- `git hash-object` returns `8d03498…` for both, identical to the HEAD blob.
+
+Bootstrap verified through the junction:
+
+| Check | Result |
+|---|---|
+| `vendor/autoload.php` | AUTOLOAD_OK |
+| Laravel application class | resolves |
+| PHPUnit class | resolves |
+| Packages installed vs lock | 207 / 207, 0 missing, 0 absent dirs |
+| `php artisan --version` | Laravel Framework 12.50.0 |
+| `vendor/phpunit` version | PHPUnit 11.5.50 |
+| `php artisan migrate:status --env=testing` | connects; all migrations Pending |
+
+Artisan initially failed with "Please provide a valid cache path". Cause: the gitignored
+`storage/framework/*` and `bootstrap/cache` directories do not exist in a fresh worktree.
+Created as empty directories; no tracked file touched.
+
+## 8. Execution phase — three database paths
+
+Full detail: `docs/audit/DATABASE_RECOVERY_PATH_RESULTS.md`.
+
+| Path | Database | Result |
+|---|---|---|
+| A — empty + migrations | `urbangoodz_migrations_only_20260723` | **FAILED as predicted** — 17/337, 16 tables, no `orders` |
+| B — candidate baseline | `urbangoodz_candidate_baseline_20260723` | **PASSED** — 242 tables, 0 rows, 84 FKs, 542 indexes |
+| C — baseline + migrations | `urbangoodz_baseline_plus_migrations_20260723` | **classified, NOT executed** (disk halt) |
+
+Path A first failure, verbatim:
+
+```
+SQLSTATE[42S02]: Base table or view not found: 1146
+Table 'urbangoodz_migrations_only_20260723.orders' doesn't exist
+SQL: alter table `orders` add `dm_tips` double not null default '0'
+```
+
+Path C classification of all 337 migrations against the imported baseline:
+**281 ALREADY REPRESENTED, 34 APPLICABLE AFTER BASELINE, 6 DUPLICATE ALTER,
+16 UNKNOWN, 0 CONFLICTS.** Per-migration detail in
+`docs/audit/migration_classification.csv`.
+
+Every APPLICABLE migration is dated 2026-07-12 or later; every migration dated
+2026-07-09 or earlier is already represented. This dates the baseline snapshot to
+**between 2026-07-09 and 2026-07-12** on schema evidence alone.
+
+## 9. Orders baseline reconciliation
+
+Full detail: `docs/audit/ORDERS_BASELINE_RECONCILIATION.md`.
+
+Candidate `orders` = 79 columns.
+
+- Columns the 22 orders ALTER migrations would add: 29 — **0 absent from baseline**.
+- `Order` model references: 33 — 1 absent, `details_count`, which is an Eloquent
+  `withCount` aggregate alias and not a column. **Not a schema gap.**
+- 32 baseline columns trace to no migration; these define the absent original
+  `create_orders` migration and are enumerated in the reconciliation document.
+
+No orders schema was invented. No executable migration is proposed, because three of the
+four required gates (production comparison, passing tests, independent review) are unmet.
+
+`adjusment` is misspelled in the live schema; any reconstruction must preserve it.
+
+## 10. HALT — disk threshold breached
+
+Free disk fell to **3.36 GB**, below the mandated 3.5 GB hard stop, immediately after
+Path B. Execution halted there.
+
+**Not executed:** Path C import and migration run, backend tests, authorization tests,
+wallet/ledger/order tests, fixture account creation, production schema comparison.
+
+**No test was run, so nothing is certified.** No certification claim is made.
+
+Targeted read-only investigation of the drain:
+
+| Source | Size |
+|---|---|
+| All four isolated databases combined | ~17 MB |
+| MySQL data directory | ~157 MB |
+| InnoDB redo | 100 MB |
+| Application log | 0 MB |
+
+The drain is **not** attributable to this lane. Free space kept falling while the session
+was idle (3.36 → 3.31 GB). An external process is consuming disk and needs separate
+investigation. Nothing was deleted; no cleanup was performed without approval.
+
+## 11. Additional finding — local MySQL root has no password
+
+While establishing database-creation access, `root@localhost` was found to authenticate
+with an **empty password**. The stale `root` credential in
+`AdminPanel_Update_V39\.env.testing` fails (ERROR 1045), but passwordless root succeeds.
+
+Any local process can therefore read and drop every local database, including the
+isolated staging databases. This was not changed — altering local MySQL authentication is
+outside this lane and would break other tooling. **Flagged for a decision.**
+
+## 12. Constraints honored
 
 - No deployment.
 - No production data modified; no production database contacted.
