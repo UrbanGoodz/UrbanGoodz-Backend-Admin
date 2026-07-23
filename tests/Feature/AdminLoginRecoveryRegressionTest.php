@@ -2,16 +2,388 @@
 
 namespace Tests\Feature;
 
+use App\CentralLogics\Helpers;
 use App\Http\Middleware\ActivationCheckMiddleware;
 use App\Models\Admin;
+use App\Models\AdminRole;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AdminLoginRecoveryRegressionTest extends TestCase
 {
+    private const CSRF_TOKEN = 'regression-csrf-token';
+
+    private function bootSqliteAdminSchema(): void
+    {
+        config()->set('database.default', 'sqlite');
+        config()->set('database.connections.sqlite.url', null);
+        config()->set('database.connections.sqlite.database', ':memory:');
+        DB::purge('sqlite');
+        DB::reconnect('sqlite');
+        DB::connection('sqlite')->setReadPdo(DB::connection('sqlite')->getPdo());
+
+        Schema::connection('sqlite')->create('admins', function (Blueprint $table): void {
+            $table->id();
+            $table->string('f_name')->nullable();
+            $table->string('l_name')->nullable();
+            $table->string('email')->unique();
+            $table->string('phone')->nullable();
+            $table->string('password')->nullable();
+            $table->unsignedBigInteger('role_id')->nullable();
+            $table->string('image')->nullable();
+            $table->boolean('is_logged_in')->default(false);
+            $table->string('login_remember_token')->nullable();
+            $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::connection('sqlite')->create('admin_roles', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->text('modules')->nullable();
+            $table->boolean('status')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::connection('sqlite')->create('translations', function (Blueprint $table): void {
+            $table->id();
+            $table->string('translationable_type');
+            $table->unsignedBigInteger('translationable_id');
+            $table->string('locale')->nullable();
+            $table->string('key')->nullable();
+            $table->text('value')->nullable();
+        });
+
+        Schema::connection('sqlite')->create('data_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->string('key')->nullable();
+            $table->text('value')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::connection('sqlite')->create('storages', function (Blueprint $table): void {
+            $table->id();
+            $table->string('data_type')->nullable();
+            $table->unsignedBigInteger('data_id')->nullable();
+            $table->string('key')->nullable();
+            $table->text('value')->nullable();
+        });
+
+        $this->withoutMiddleware(ActivationCheckMiddleware::class);
+    }
+
+    private function disableGoogleRecaptcha(): void
+    {
+        config()->set('recaptcha_conf', [
+            'value' => json_encode(['status' => 0], JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    private function enableGoogleRecaptcha(): void
+    {
+        config()->set('recaptcha_conf', [
+            'value' => json_encode([
+                'status' => 1,
+                'secret_key' => 'test-secret-key',
+                'site_key' => 'test-site-key',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    private function createAdmin(array $overrides = []): Admin
+    {
+        return Admin::create(array_merge([
+            'f_name' => 'Regression',
+            'l_name' => 'Admin',
+            'email' => 'regression-admin@urban-goodz.test',
+            'phone' => '15555550199',
+            'password' => bcrypt('valid-password'),
+            'role_id' => 1,
+            'is_logged_in' => 0,
+        ], $overrides));
+    }
+
+    public function test_omitted_custom_captcha_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_missing_custom_captcha_session_phrase_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'custome_recaptcha' => 'ANYTHING',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_missing_google_recaptcha_token_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake();
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+        Http::assertNothingSent();
+    }
+
+    public function test_failed_google_recaptcha_verification_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => false], 200),
+        ]);
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'g-recaptcha-response' => 'fake-token',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_verification_timeout_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake(function () {
+            throw new ConnectionException('Connection timed out');
+        });
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'g-recaptcha-response' => 'fake-token',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_invalid_credentials_are_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'wrong-password',
+                'role' => 'admin',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_successful_admin_login_reaches_the_dashboard_redirect(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+
+        $response = $this
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $response->assertRedirect(route('admin.dashboard'));
+        $this->assertAuthenticatedAs($admin->fresh(), 'admin');
+    }
+
+    public function test_logout_invalidates_the_admin_session(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin');
+        $this->assertAuthenticated('admin');
+
+        $response = $this->get('/logout');
+
+        $response->assertRedirect();
+        $this->assertGuest('admin');
+    }
+
+    public function test_repeated_failed_attempts_are_rate_limited(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this
+                ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+                ->post('/login_submit', [
+                    '_token' => self::CSRF_TOKEN,
+                    'email' => 'nobody@urban-goodz.test',
+                    'password' => 'irrelevant',
+                    'role' => 'admin',
+                    'custome_recaptcha' => 'CORRECT',
+                ]);
+            $response->assertSessionHasErrors();
+        }
+
+        $response = $this
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => 'nobody@urban-goodz.test',
+                'password' => 'irrelevant',
+                'role' => 'admin',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $response->assertSessionHasErrors();
+        $errors = session('errors')->getBag('default')->all();
+        $this->assertNotEmpty(array_filter($errors, fn ($message) => str_contains($message, 'Too many login attempts')));
+        $this->assertGuest('admin');
+    }
+
+    public function test_module_permission_check_grants_urban_goodz_view_to_the_primary_admin(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $admin = $this->createAdmin(['role_id' => 1]);
+        $this->actingAs($admin, 'admin');
+
+        $this->assertTrue(Helpers::module_permission_check('urban_goodz_view'));
+    }
+
+    public function test_module_permission_check_grants_urban_goodz_view_when_role_includes_it(): void
+    {
+        $this->bootSqliteAdminSchema();
+        AdminRole::create(['name' => 'placeholder-role-1', 'modules' => json_encode([]), 'status' => true]);
+        $role = AdminRole::create([
+            'name' => 'Urban Goodz Operator',
+            'modules' => json_encode(['urban_goodz_view', 'order_management']),
+            'status' => true,
+        ]);
+        $admin = $this->createAdmin([
+            'email' => 'ug-operator@urban-goodz.test',
+            'role_id' => $role->id,
+        ]);
+        $this->actingAs($admin, 'admin');
+
+        $this->assertTrue(Helpers::module_permission_check('urban_goodz_view'));
+    }
+
+    public function test_module_permission_check_denies_urban_goodz_view_when_role_excludes_it(): void
+    {
+        $this->bootSqliteAdminSchema();
+        AdminRole::create(['name' => 'placeholder-role-1', 'modules' => json_encode([]), 'status' => true]);
+        $role = AdminRole::create([
+            'name' => 'Support Staff',
+            'modules' => json_encode(['order_management']),
+            'status' => true,
+        ]);
+        $admin = $this->createAdmin([
+            'email' => 'support-staff@urban-goodz.test',
+            'role_id' => $role->id,
+        ]);
+        $this->actingAs($admin, 'admin');
+
+        $this->assertFalse(Helpers::module_permission_check('urban_goodz_view'));
+    }
+
+    public function test_dashboard_controller_gates_urban_goodz_data_behind_module_permission_check(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/DashboardController.php'));
+
+        $this->assertStringContainsString(
+            "auth('admin')->check() && Helpers::module_permission_check('urban_goodz_view')",
+            $controller
+        );
+    }
+
+    public function test_settings_dashboard_is_restricted_to_the_primary_admin_role(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/DashboardController.php'));
+
+        $this->assertStringContainsString(
+            "auth('admin')->check() && auth('admin')->user()->role_id == 1",
+            $controller
+        );
+        $this->assertStringContainsString(
+            "redirect()->route('admin.business-settings.business-setup')",
+            $controller
+        );
+    }
+
     public function test_valid_admin_credentials_with_invalid_custom_captcha_are_rejected_cleanly(): void
     {
         config()->set('database.default', 'sqlite');

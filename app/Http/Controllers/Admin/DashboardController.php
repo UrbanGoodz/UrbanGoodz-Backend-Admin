@@ -345,7 +345,7 @@ class DashboardController extends Controller
         $module_type = Config::get('module.current_module_type');
 
         $ugData = [];
-        if (auth('admin')->check()) {
+        if (auth('admin')->check() && Helpers::module_permission_check('urban_goodz_view')) {
             $ugData = [
                 'order_anywhere_count' => Schema::hasTable('order_anywhere_requests') ? OrderAnywhereRequest::count() : 0,
                 'fashion_fit_count' => Schema::hasTable('urban_goodz_measurement_requests') ? MeasurementRequest::count() : 0,
@@ -378,7 +378,10 @@ class DashboardController extends Controller
         }
 
         if ($module_type == 'settings') {
-            return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData'));
+            if (auth('admin')->check() && auth('admin')->user()->role_id == 1) {
+                return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData'));
+            }
+            return redirect()->route('admin.business-settings.business-setup');
         }
         if ($module_type == 'ride-share' && addon_published_status('RideShare') == 1) {
             return redirect()->route('admin.ride-share.dashboard');
