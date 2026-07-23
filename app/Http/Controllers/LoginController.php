@@ -279,12 +279,7 @@ class LoginController extends Controller
             } catch (\Throwable $e) {
                 // Ignore if is_logged_in column is missing in schema
             }
-            $modules = Module::Active()->get();
-            if (isset($modules) && ($modules->count() > 0)) {
-
-                return redirect()->route('admin.dashboard')->withCookies($forgetCookies);
-            }
-            return redirect()->route('admin.business-settings.business-setup')->withCookies($forgetCookies);
+            return redirect()->route('admin.dashboard')->withCookies($forgetCookies);
         }
         if ($data == 'vendor') {
             if ($request->role === 'vendor_employee') {
