@@ -389,3 +389,24 @@
 - **Deployment status**: NOT STARTED.
 - **Next exact action**: commit and push this DCP checkpoint, then fast-forward the live checkout to that exact final pushed SHA without reset or file copying.
 - **DO NOT REPEAT**: local focused test, root-cause proof, branding proof, backup, or diff review unless deployment verification contradicts current evidence.
+
+### M6 deployed invalid-CAPTCHA pass and visual rejection
+
+- **Deployed SHA**: `356bf36a28dbab812b2396ec6cbe99c122f83b43`; exact pushed/live match.
+- **Post-deploy invalid-CAPTCHA test**: `2026-07-23T05:43:06.926Z`.
+- **Browser result**: `GET /login/admin` 200; `POST /login_submit` 302; `GET /login/admin` 200.
+- **Visible validation**: `ReCAPTCHA Failed`.
+- **Final URL/status**: `/login/admin`, HTTP 200.
+- **HTTP 500 / failed network / console errors**: none.
+- **Authenticated session**: not created; a protected `/admin` request returned 302 to `/login/admin`.
+- **Brand asset**: `/public/assets/admin/svg/logos/urban-goodz.svg` HTTP 200 and visibly rendered.
+- **Legacy branding**: not found in DOM or visible response.
+- **Colors**: computed login background `linear-gradient(135deg, rgb(237,153,20), rgb(226,211,191))`.
+- **Screenshot**: `storage/framework/cache/admin500-browser-evidence/invalid-captcha-postfix-20260723-0540/final-redacted.png` (ignored runtime evidence; credentials redacted).
+- **Access-log correlation**: matching 01:43 -0400 requests were successful; the SVG and CSS returned 200.
+- **Laravel-log correlation**: no ERROR at the matching timestamp. Separate pre-existing SMTP decryption warnings remain out of this incident scope.
+- **Owner visual acceptance**: FAIL. Owner states the deployed split-screen page is not the original Admin login previously used.
+- **Targeted history result**: the repository contains only the initial stock split-screen login and its July 15 orange/canvas recolor; no third/original Admin login implementation or screenshot exists in current branches/history.
+- **Valid CAPTCHA/authenticated test**: paused until the correct original login design is identified; dashboard repair remains deployed.
+- **Next exact action**: obtain one visual reference for the original Admin login, then restore that exact presentation without changing the proven CAPTCHA/authentication logic.
+- **DO NOT REPEAT**: invalid-CAPTCHA submission, log correlation, full history scans, or speculative visual redesign.
