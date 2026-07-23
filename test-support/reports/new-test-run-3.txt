@@ -1,0 +1,35 @@
+PHPUnit 11.5.50 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.30
+Configuration: <repo>\phpunit.xml
+
+.[36;1mS[0m[36;1mS[0m..............[36;1mS[0m....                                            22 / 22 (100%)
+
+Time: 00:25.466, Memory: 80.00 MB
+
+[4mUrban Goodz Public Surface Validation Boundary (Tests\Feature\UrbanGoodzPublicSurfaceValidationBoundary)[0m
+[32m ✔ [0mPublic root redirects to the registered login route
+[36m ↩ [0mPublic informational pages render the configured landing view[2m with [22m[36mterms-and-conditions[0m
+[36m ↩ [0mPublic informational pages render the configured landing view[2m with [22m[36mabout-us[0m
+[32m ✔ [0mPublic informational pages 404 cleanly when landing page is unconfigured
+[32m ✔ [0mPublic zone list api returns json
+[32m ✔ [0mUnknown public route falls back to the home redirect not a silent 200
+[32m ✔ [0mVendor registration rejects submission missing all required fields
+[32m ✔ [0mVendor registration requires zone id specifically
+[32m ✔ [0mVendor registration requires a logo upload
+[32m ✔ [0mZone scoped module dropdown only returns modules mapped to that zone
+[32m ✔ [0mModule zone dependency check reflects real mapping
+[32m ✔ [0mBusiness login rejects empty submission with validation errors
+[32m ✔ [0mBusiness login rejects invalid credentials without revealing account existence
+[32m ✔ [0mUnauthenticated business dashboard redirects to business login
+[32m ✔ [0mUnauthenticated dispatcher dashboard redirects to business login
+[32m ✔ [0mUnauthenticated admin route redirects to admin login not an open page
+[32m ✔ [0mAuthenticated business user cannot access admin guarded routes
+[36m ↩ [0mAuthenticated business user can reach business scoped routes
+[32m ✔ [0mCustomer api login rejects missing login type
+[32m ✔ [0mCustomer api login rejects invalid login type
+[32m ✔ [0mBusiness login route is covered by csrf middleware
+[32m ✔ [0mVendor registration route is covered by csrf middleware
+
+[30;43mOK, but there were issues![0m
+[30;43mTests: 22[0m[30;43m, Assertions: 73[0m[30;43m, PHPUnit Deprecations: 2[0m[30;43m, Skipped: 3[0m[30;43m.[0m
