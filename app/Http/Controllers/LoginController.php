@@ -184,12 +184,12 @@ class LoginController extends Controller
                     ->withErrors(['ReCAPTCHA verification failed. Please try again.']);
             }
 
-            if (isset($body['score']) && $body['score'] < 0.5) {
+            if (!isset($body['score']) || !is_numeric($body['score']) || $body['score'] < 0.5) {
                 return redirect()->back()->withInput($request->only('email', 'remember'))
                     ->withErrors(['ReCAPTCHA verification failed. Please try again.']);
             }
 
-            if (isset($body['action']) && $body['action'] !== 'submit') {
+            if (!isset($body['action']) || $body['action'] !== 'submit') {
                 return redirect()->back()->withInput($request->only('email', 'remember'))
                     ->withErrors(['ReCAPTCHA verification failed. Please try again.']);
             }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\CentralLogics\Helpers;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Middleware\ActivationCheckMiddleware;
 use App\Models\Admin;
 use App\Models\AdminRole;
@@ -94,6 +95,31 @@ class AdminLoginRecoveryRegressionTest extends TestCase
                 'site_key' => 'test-site-key',
             ], JSON_THROW_ON_ERROR),
         ]);
+    }
+
+    private function enableGoogleRecaptchaWithoutSecret(): void
+    {
+        config()->set('recaptcha_conf', [
+            'value' => json_encode([
+                'status' => 1,
+                'secret_key' => '',
+                'site_key' => 'test-site-key',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    private function postGoogleRecaptchaLogin(Admin $admin, array $extra = [])
+    {
+        return $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN])
+            ->post('/login_submit', array_merge([
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'g-recaptcha-response' => 'fake-token',
+            ], $extra));
     }
 
     private function createAdmin(array $overrides = []): Admin
@@ -223,6 +249,148 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $response->assertRedirect('/login/admin');
         $response->assertSessionHasErrors();
         $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_missing_secret_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptchaWithoutSecret();
+        $admin = $this->createAdmin();
+        Http::fake();
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+        Http::assertNothingSent();
+    }
+
+    public function test_google_recaptcha_non_success_http_status_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'score' => 0.9, 'action' => 'submit'], 500),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_generic_exception_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake(function () {
+            throw new \RuntimeException('unexpected transport failure');
+        });
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_missing_score_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'action' => 'submit'], 200),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_non_numeric_score_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'score' => 'not-a-number', 'action' => 'submit'], 200),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_low_score_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'score' => 0.49, 'action' => 'submit'], 200),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_missing_action_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'score' => 0.9], 200),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_wrong_action_is_rejected(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'score' => 0.9, 'action' => 'homepage'], 200),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_google_recaptcha_valid_response_at_score_threshold_succeeds(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->enableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true, 'score' => 0.5, 'action' => 'submit'], 200),
+        ]);
+
+        $response = $this->postGoogleRecaptchaLogin($admin);
+
+        $response->assertRedirect(route('admin.dashboard'));
+        $this->assertAuthenticatedAs($admin->fresh(), 'admin');
     }
 
     public function test_invalid_credentials_are_rejected(): void
@@ -360,14 +528,80 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $this->assertFalse(Helpers::module_permission_check('urban_goodz_view'));
     }
 
+    public function test_urban_goodz_dashboard_data_is_empty_for_a_guest(): void
+    {
+        $this->bootSqliteAdminSchema();
+
+        $data = DashboardController::urban_goodz_dashboard_data();
+
+        $this->assertSame([], $data);
+    }
+
+    public function test_urban_goodz_dashboard_data_is_empty_for_an_admin_without_the_permission(): void
+    {
+        $this->bootSqliteAdminSchema();
+        AdminRole::create(['name' => 'placeholder-role-1', 'modules' => json_encode([]), 'status' => true]);
+        $role = AdminRole::create([
+            'name' => 'Support Staff',
+            'modules' => json_encode(['order_management']),
+            'status' => true,
+        ]);
+        $admin = $this->createAdmin([
+            'email' => 'support-staff-dashboard@urban-goodz.test',
+            'role_id' => $role->id,
+        ]);
+        $this->actingAs($admin, 'admin');
+
+        $data = DashboardController::urban_goodz_dashboard_data();
+
+        $this->assertSame([], $data);
+    }
+
+    public function test_urban_goodz_dashboard_data_is_populated_for_the_primary_admin(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $admin = $this->createAdmin(['role_id' => 1]);
+        $this->actingAs($admin, 'admin');
+
+        $data = DashboardController::urban_goodz_dashboard_data();
+
+        $this->assertNotSame([], $data);
+        $this->assertCount(25, $data);
+        $this->assertArrayHasKey('order_anywhere_count', $data);
+        $this->assertArrayHasKey('business_clients_count', $data);
+        $this->assertSame(0, $data['order_anywhere_count']);
+    }
+
+    public function test_urban_goodz_dashboard_data_is_populated_for_a_role_with_the_permission(): void
+    {
+        $this->bootSqliteAdminSchema();
+        AdminRole::create(['name' => 'placeholder-role-1', 'modules' => json_encode([]), 'status' => true]);
+        $role = AdminRole::create([
+            'name' => 'Urban Goodz Operator',
+            'modules' => json_encode(['urban_goodz_view']),
+            'status' => true,
+        ]);
+        $admin = $this->createAdmin([
+            'email' => 'ug-operator-dashboard@urban-goodz.test',
+            'role_id' => $role->id,
+        ]);
+        $this->actingAs($admin, 'admin');
+
+        $data = DashboardController::urban_goodz_dashboard_data();
+
+        $this->assertNotSame([], $data);
+        $this->assertCount(25, $data);
+    }
+
     public function test_dashboard_controller_gates_urban_goodz_data_behind_module_permission_check(): void
     {
         $controller = file_get_contents(app_path('Http/Controllers/Admin/DashboardController.php'));
 
         $this->assertStringContainsString(
-            "auth('admin')->check() && Helpers::module_permission_check('urban_goodz_view')",
+            "!auth('admin')->check() || !Helpers::module_permission_check('urban_goodz_view')",
             $controller
         );
+        $this->assertStringContainsString('self::urban_goodz_dashboard_data()', $controller);
     }
 
     public function test_settings_dashboard_is_restricted_to_the_primary_admin_role(): void

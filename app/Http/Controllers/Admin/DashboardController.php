@@ -326,6 +326,43 @@ class DashboardController extends Controller
         return view($viewName, compact('data', 'active_deliveryman', 'deliveryMen', 'unavailable_deliveryman', 'available_deliveryman', 'inactive_deliveryman', 'module_type', 'suspend_deliveryman'));
     }
 
+    public static function urban_goodz_dashboard_data(): array
+    {
+        if (!auth('admin')->check() || !Helpers::module_permission_check('urban_goodz_view')) {
+            return [];
+        }
+
+        return [
+            'order_anywhere_count' => Schema::hasTable('order_anywhere_requests') ? OrderAnywhereRequest::count() : 0,
+            'fashion_fit_count' => Schema::hasTable('urban_goodz_measurement_requests') ? MeasurementRequest::count() : 0,
+            'payment_ledgers_count' => Schema::hasTable('urban_goodz_payment_ledgers') ? UrbanGoodzPaymentLedger::count() : 0,
+            'rental_assets_count' => Schema::hasTable('urban_goodz_rental_assets') ? UrbanGoodzRentalAsset::count() : 0,
+            'rental_bookings_count' => Schema::hasTable('urban_goodz_rental_bookings') ? UrbanGoodzRentalBooking::count() : 0,
+            'logistics_jobs_count' => Schema::hasTable('urban_goodz_logistics_jobs') ? UrbanGoodzLogisticsJob::count() : 0,
+            'medical_courier_jobs_count' => Schema::hasTable('urban_goodz_medical_courier_jobs') ? UrbanGoodzMedicalCourierJob::count() : 0,
+            'events_count' => Schema::hasTable('urban_goodz_events') ? UrbanGoodzEvent::count() : 0,
+            'ai_conversations_count' => Schema::hasTable('urban_goodz_ai_conversations') ? UrbanGoodzAIConversation::count() : 0,
+            'earn_opportunities_count' => Schema::hasTable('urban_goodz_earn_money_opportunities') ? UrbanGoodzEarnMoneyOpportunity::count() : 0,
+            'creator_applications_count' => Schema::hasTable('urban_goodz_creator_applications') ? UrbanGoodzCreatorApplication::count() : 0,
+            'creator_campaigns_count' => Schema::hasTable('urban_goodz_creator_campaigns') ? UrbanGoodzCreatorCampaign::count() : 0,
+            'creator_revenue' => Schema::hasTable('urban_goodz_creator_earnings') ? UrbanGoodzCreatorEarning::where('status', 'paid')->sum('amount') : 0,
+            'creator_business_leads_count' => Schema::hasTable('urban_goodz_creator_business_leads') ? UrbanGoodzCreatorBusinessLead::count() : 0,
+            'community_posts_count' => Schema::hasTable('urban_goodz_community_posts') ? UrbanGoodzCommunityPost::count() : 0,
+            'discovery_searches_count' => Schema::hasTable('urban_goodz_discovery_searches') ? UrbanGoodzDiscoverySearch::count() : 0,
+            'business_clients_count' => Schema::hasTable('urban_goodz_business_clients') ? UrbanGoodzBusinessClient::count() : 0,
+            'business_portal_users_count' => Schema::hasTable('urban_goodz_business_client_users') ? UrbanGoodzBusinessClientUser::count() : 0,
+            'dedicated_routes_count' => Schema::hasTable('urban_goodz_dedicated_routes') ? UrbanGoodzDedicatedRoute::count() : 0,
+            'route_packages_count' => Schema::hasTable('urban_goodz_route_packages') ? UrbanGoodzRoutePackage::count() : 0,
+            'driver_earnings_count' => Schema::hasTable('urban_goodz_driver_earnings') ? UrbanGoodzDriverEarning::count() : 0,
+            'driver_payouts_count' => Schema::hasTable('urban_goodz_driver_payout_requests') ? UrbanGoodzDriverPayoutRequest::count() : 0,
+            'total_revenue' => Schema::hasTable('urban_goodz_payment_ledgers')
+                ? UrbanGoodzPaymentLedger::where('event_type', 'capture')->sum('amount') : 0,
+            'pending_refunds' => Schema::hasTable('urban_goodz_payment_ledgers')
+                ? UrbanGoodzPaymentLedger::where('event_type', 'refund')->where('payment_status', 'pending')->count() : 0,
+            'load_board_count' => Schema::hasTable('urban_goodz_load_board_loads') ? UrbanGoodzLoadBoardLoad::count() : 0,
+        ];
+    }
+
     public function dashboard(Request $request)
     {
         $params = [
@@ -344,38 +381,7 @@ class DashboardController extends Controller
         $label = $data['label'];
         $module_type = Config::get('module.current_module_type');
 
-        $ugData = [];
-        if (auth('admin')->check() && Helpers::module_permission_check('urban_goodz_view')) {
-            $ugData = [
-                'order_anywhere_count' => Schema::hasTable('order_anywhere_requests') ? OrderAnywhereRequest::count() : 0,
-                'fashion_fit_count' => Schema::hasTable('urban_goodz_measurement_requests') ? MeasurementRequest::count() : 0,
-                'payment_ledgers_count' => Schema::hasTable('urban_goodz_payment_ledgers') ? UrbanGoodzPaymentLedger::count() : 0,
-                'rental_assets_count' => Schema::hasTable('urban_goodz_rental_assets') ? UrbanGoodzRentalAsset::count() : 0,
-                'rental_bookings_count' => Schema::hasTable('urban_goodz_rental_bookings') ? UrbanGoodzRentalBooking::count() : 0,
-                'logistics_jobs_count' => Schema::hasTable('urban_goodz_logistics_jobs') ? UrbanGoodzLogisticsJob::count() : 0,
-                'medical_courier_jobs_count' => Schema::hasTable('urban_goodz_medical_courier_jobs') ? UrbanGoodzMedicalCourierJob::count() : 0,
-                'events_count' => Schema::hasTable('urban_goodz_events') ? UrbanGoodzEvent::count() : 0,
-                'ai_conversations_count' => Schema::hasTable('urban_goodz_ai_conversations') ? UrbanGoodzAIConversation::count() : 0,
-                'earn_opportunities_count' => Schema::hasTable('urban_goodz_earn_money_opportunities') ? UrbanGoodzEarnMoneyOpportunity::count() : 0,
-                'creator_applications_count' => Schema::hasTable('urban_goodz_creator_applications') ? UrbanGoodzCreatorApplication::count() : 0,
-                'creator_campaigns_count' => Schema::hasTable('urban_goodz_creator_campaigns') ? UrbanGoodzCreatorCampaign::count() : 0,
-                'creator_revenue' => Schema::hasTable('urban_goodz_creator_earnings') ? UrbanGoodzCreatorEarning::where('status', 'paid')->sum('amount') : 0,
-                'creator_business_leads_count' => Schema::hasTable('urban_goodz_creator_business_leads') ? UrbanGoodzCreatorBusinessLead::count() : 0,
-                'community_posts_count' => Schema::hasTable('urban_goodz_community_posts') ? UrbanGoodzCommunityPost::count() : 0,
-                'discovery_searches_count' => Schema::hasTable('urban_goodz_discovery_searches') ? UrbanGoodzDiscoverySearch::count() : 0,
-                'business_clients_count' => Schema::hasTable('urban_goodz_business_clients') ? UrbanGoodzBusinessClient::count() : 0,
-                'business_portal_users_count' => Schema::hasTable('urban_goodz_business_client_users') ? UrbanGoodzBusinessClientUser::count() : 0,
-                'dedicated_routes_count' => Schema::hasTable('urban_goodz_dedicated_routes') ? UrbanGoodzDedicatedRoute::count() : 0,
-                'route_packages_count' => Schema::hasTable('urban_goodz_route_packages') ? UrbanGoodzRoutePackage::count() : 0,
-                'driver_earnings_count' => Schema::hasTable('urban_goodz_driver_earnings') ? UrbanGoodzDriverEarning::count() : 0,
-                'driver_payouts_count' => Schema::hasTable('urban_goodz_driver_payout_requests') ? UrbanGoodzDriverPayoutRequest::count() : 0,
-                'total_revenue' => Schema::hasTable('urban_goodz_payment_ledgers')
-                    ? UrbanGoodzPaymentLedger::where('event_type', 'capture')->sum('amount') : 0,
-                'pending_refunds' => Schema::hasTable('urban_goodz_payment_ledgers')
-                    ? UrbanGoodzPaymentLedger::where('event_type', 'refund')->where('payment_status', 'pending')->count() : 0,
-                'load_board_count' => Schema::hasTable('urban_goodz_load_board_loads') ? UrbanGoodzLoadBoardLoad::count() : 0,
-            ];
-        }
+        $ugData = self::urban_goodz_dashboard_data();
 
         if ($module_type == 'settings') {
             if (auth('admin')->check() && auth('admin')->user()->role_id == 1) {

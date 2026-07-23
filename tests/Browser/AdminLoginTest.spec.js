@@ -4,25 +4,56 @@ const { test, expect } = require('@playwright/test');
 /**
  * Admin login / dashboard authorization regression suite.
  *
- * No credentials are hardcoded here. Populate these before running:
+ * No credentials are hardcoded here. This is a certification gate: the
+ * credentialed tests FAIL (not skip) if the required environment variables
+ * are absent, so a green run is proof that login/authorization actually
+ * ran, never a silently-skipped no-op.
+ *
+ * Required:
  *   ADMIN_TEST_EMAIL / ADMIN_TEST_PASSWORD
  *     - an Admin account with urban_goodz_view permission (role_id 1 or an
  *       admin_role whose modules include "urban_goodz_view").
- *   ADMIN_RESTRICTED_TEST_EMAIL / ADMIN_RESTRICTED_TEST_PASSWORD (optional)
+ *   ADMIN_RESTRICTED_TEST_EMAIL / ADMIN_RESTRICTED_TEST_PASSWORD
  *     - an Admin account whose role does NOT include urban_goodz_view.
- *       The "unauthorized admin denied" test is skipped if these are unset.
  *
  * The custom-CAPTCHA "approved test mechanism" relies on APP_MODE=dev on the
  * target environment, which causes the server to pre-fill the custom-CAPTCHA
  * input with the correct session phrase (see resources/views/admin-views/
- * partials/_recaptcha.blade.php). Run this suite only against a dev/staging
- * deployment configured that way -- never against production.
+ * partials/_recaptcha.blade.php). playwright.config.js refuses to run this
+ * suite against the production hostname unless ALLOW_PRODUCTION_BASE_URL=true
+ * is explicitly set -- run it against a dev/staging deployment instead.
+ *
+ * Traces are disabled for this file specifically: form fills (including the
+ * password field) can otherwise be captured in retained trace/video
+ * artifacts. Screenshots-on-failure remain enabled; treat any retained
+ * artifact from this suite as secret-bearing regardless.
  */
+
+test.use({ trace: 'off' });
 
 const ADMIN_EMAIL = process.env.ADMIN_TEST_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_TEST_PASSWORD;
 const RESTRICTED_ADMIN_EMAIL = process.env.ADMIN_RESTRICTED_TEST_EMAIL;
 const RESTRICTED_ADMIN_PASSWORD = process.env.ADMIN_RESTRICTED_TEST_PASSWORD;
+
+function requireCredentials(...values) {
+  for (const value of values) {
+    if (!value) {
+      throw new Error(
+        'Missing required test credentials: set ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD, ' +
+        'ADMIN_RESTRICTED_TEST_EMAIL, and ADMIN_RESTRICTED_TEST_PASSWORD before running this suite. ' +
+        'This is a certification gate and must fail, not skip, when credentials are absent.'
+      );
+    }
+  }
+}
+
+// The card header rendered only inside the role_id===1 branch of
+// admin-views/dashboard.blade.php -- the one DOM element that distinguishes
+// an authorized vs. unauthorized Admin on the post-login dashboard.
+function urbanGoodzPanel(page) {
+  return page.locator('.card-header-title', { hasText: 'Urban Goodz Command Center' });
+}
 
 async function fillCustomCaptcha(page) {
   // Relies on APP_MODE=dev pre-filling the correct phrase server-side.
@@ -66,33 +97,54 @@ test.describe('Admin login page', () => {
 
   test('required fields are enforced', async ({ page }) => {
     await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
-    await page.locator('#signInBtn').click();
-    await page.waitForTimeout(500);
 
-    // Native HTML5 validation or a server round trip should keep us on the login page.
-    expect(page.url()).toContain('login');
+    const emailInput = page.locator('input[name="email"]');
+    const passwordInput = page.locator('input[name="password"]');
+
+    // Assert the fields actually declare themselves required, rather than
+    // inferring it from a post-submit URL check.
+    await expect(emailInput).toHaveAttribute('required', /.*/);
+    await expect(passwordInput).toHaveAttribute('required', /.*/);
+
+    await page.locator('#signInBtn').click();
+    await page.waitForTimeout(300);
+
+    // Native HTML5 validation must block the submission client-side.
+    const emailValidationMessage = await emailInput.evaluate((el) => el.validationMessage);
+    expect(emailValidationMessage).not.toBe('');
+    expect(page.url()).toContain('/login/admin');
   });
 
   test('omitted CAPTCHA is rejected', async ({ page }) => {
-    test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'ADMIN_TEST_EMAIL/ADMIN_TEST_PASSWORD not set');
+    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
     await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'omitted' });
 
     expect(page.url()).toContain('/login/admin');
-    const response = await page.goto(page.url());
-    expect(response.status()).not.toBe(500);
     const body = await page.content();
     expect(body.toLowerCase()).toContain('captcha');
+
+    const response = await page.goto(page.url());
+    expect(response.status()).not.toBe(500);
   });
 
-  test('wrong CAPTCHA is rejected without a server error', async ({ page }) => {
-    test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'ADMIN_TEST_EMAIL/ADMIN_TEST_PASSWORD not set');
+  test('wrong CAPTCHA is rejected with a visible error and no session is created', async ({ page }) => {
+    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
     const response = await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
     expect(response.status()).toBe(200);
 
     await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'wrong' });
 
+    expect(response.status()).not.toBe(500);
     expect(page.url()).toContain('/login/admin');
-    expect(page.url()).not.toContain('500');
+
+    const body = await page.content();
+    expect(body.toLowerCase()).toMatch(/captcha/);
+
+    // No session should have been created: the protected dashboard route
+    // must still bounce back to the login page.
+    const dashboardAttempt = await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+    expect(dashboardAttempt.status()).not.toBe(500);
+    expect(page.url()).toContain('/login');
   });
 
   test('invalid credentials are rejected', async ({ page }) => {
@@ -104,7 +156,7 @@ test.describe('Admin login page', () => {
   });
 
   test('valid Admin login reaches the authenticated dashboard', async ({ page }) => {
-    test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'ADMIN_TEST_EMAIL/ADMIN_TEST_PASSWORD not set');
+    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
     await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'valid' });
 
     await expect(page).toHaveURL(/\/admin(\/|$)/);
@@ -114,29 +166,26 @@ test.describe('Admin login page', () => {
     await expect(page.locator('body')).not.toContainText('Stack trace');
   });
 
-  test('Admin with urban_goodz_view permission sees the Urban Goodz dashboard section', async ({ page }) => {
-    test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'ADMIN_TEST_EMAIL/ADMIN_TEST_PASSWORD not set');
+  test('Admin with urban_goodz_view permission sees the Urban Goodz Command Center panel', async ({ page }) => {
+    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
     await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'valid' });
 
     await expect(page).toHaveURL(/\/admin(\/|$)/);
-    const body = await page.content();
-    expect(body).toMatch(/urban[\s-]?goodz/i);
+    await expect(urbanGoodzPanel(page)).toBeVisible();
   });
 
-  test('Admin without urban_goodz_view permission is denied that section', async ({ page }) => {
-    test.skip(
-      !RESTRICTED_ADMIN_EMAIL || !RESTRICTED_ADMIN_PASSWORD,
-      'ADMIN_RESTRICTED_TEST_EMAIL/ADMIN_RESTRICTED_TEST_PASSWORD not set'
-    );
+  test('Admin without urban_goodz_view permission does not see the Urban Goodz Command Center panel', async ({ page }) => {
+    requireCredentials(RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
     await submitLogin(page, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD, { captcha: 'valid' });
 
     await expect(page).toHaveURL(/\/admin(\/|$)/);
     const response = await page.goto(page.url());
     expect(response.status()).toBe(200);
+    await expect(urbanGoodzPanel(page)).toHaveCount(0);
   });
 
   test('session survives a refresh and logout invalidates it', async ({ page }) => {
-    test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'ADMIN_TEST_EMAIL/ADMIN_TEST_PASSWORD not set');
+    requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
     await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, { captcha: 'valid' });
     await expect(page).toHaveURL(/\/admin(\/|$)/);
 
