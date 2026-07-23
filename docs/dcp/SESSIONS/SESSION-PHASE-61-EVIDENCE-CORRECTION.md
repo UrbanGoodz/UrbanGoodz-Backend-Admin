@@ -376,3 +376,16 @@
 - **Commit/push/deployment status**: pending exact diff review.
 - **Next exact action**: review the five application/test file changes plus this DCP, then commit and push the intended repair.
 - **DO NOT REPEAT**: failed SQLite fixture variants, pre-fix CAPTCHA submission, branding asset discovery, environment identity work, or unrelated tests.
+
+### M9 pre-deployment checkpoint
+
+- **Repair commit**: `d810f023b809aca8e17b774e381debde4b31f03f`.
+- **Push**: PASS to `origin/adminpanel-v39-backend-sprint`.
+- **Local SHA**: `d810f023b809aca8e17b774e381debde4b31f03f`.
+- **Remote tracking SHA**: `d810f023b809aca8e17b774e381debde4b31f03f`.
+- **Live SHA**: `de515b12fd19d803fe62a622d5fcc3afb731d2aa` (not yet deployed).
+- **Local working tree after repair commit**: clean before this DCP-only update.
+- **Focused tests**: PASS, 3 tests / 14 assertions.
+- **Deployment status**: NOT STARTED.
+- **Next exact action**: commit and push this DCP checkpoint, then fast-forward the live checkout to that exact final pushed SHA without reset or file copying.
+- **DO NOT REPEAT**: local focused test, root-cause proof, branding proof, backup, or diff review unless deployment verification contradicts current evidence.
