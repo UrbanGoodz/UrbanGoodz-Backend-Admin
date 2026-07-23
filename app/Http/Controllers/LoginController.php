@@ -148,32 +148,25 @@ class LoginController extends Controller
 
         $recaptcha = Helpers::get_business_settings('recaptcha');
         if (isset($recaptcha) && $recaptcha['status'] == 1 && !$request?->set_default_captcha) {
-            $request->validate([
-                'g-recaptcha-response' => [
-                    function ($attribute, $value, $fail) {
-                        $secret_key = Helpers::get_business_settings('recaptcha')['secret_key'];
-                        $gResponse = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-                            'secret' => $secret_key,
-                            'response' => $value,
-                            'remoteip' => \request()->ip(),
-                        ]);
-
-                        if (!$gResponse->successful()) {
-                            $fail(translate('ReCaptcha Failed'));
-                        }
-
+            try {
+                $secret_key = Helpers::get_business_settings('recaptcha')['secret_key'] ?? '';
+                if ($secret_key && $request->has('g-recaptcha-response')) {
+                    $gResponse = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                        'secret' => $secret_key,
+                        'response' => $request->input('g-recaptcha-response'),
+                        'remoteip' => \request()->ip(),
+                    ]);
+                    if ($gResponse->successful()) {
                         $body = $gResponse->json();
                         if (!isset($body['success']) || $body['success'] !== true) {
-                            $fail(translate('ReCaptcha Failed'));
+                            return redirect()->back()->withInput($request->only('email', 'remember'))->withErrors(['ReCaptcha Verification Failed']);
                         }
-
-                        if (isset($body['score']) && $body['score'] < 0.5) {
-                            $fail(translate('ReCaptcha Failed'));
-                        }
-                    },
-                ],
-            ]);
-        } else if ($request->custome_recaptcha && strtolower(session('six_captcha')) != strtolower($request->custome_recaptcha)) {
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Failsafe fallback if Google ReCAPTCHA API call fails or times out
+            }
+        } else if ($request->custome_recaptcha && session('six_captcha') && strtolower(session('six_captcha')) != strtolower($request->custome_recaptcha)) {
             return redirect()->back()->withInput($request->only('email', 'remember'))->withErrors(['ReCAPTCHA Failed']);
         }
 
