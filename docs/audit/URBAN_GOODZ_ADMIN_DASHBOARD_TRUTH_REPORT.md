@@ -90,6 +90,19 @@ However:
 
 Verdict: newer features are present in source, but the dashboard is not a trustworthy, modern Urban Goodz operational command surface.
 
+## Competing dashboard systems
+
+Urban Goodz currently exposes two competing Admin concepts:
+
+1. The inherited `/admin` dashboard remains the primary landing experience and is dominated by legacy marketplace cards and queries.
+2. New Urban Goodz operations are distributed across Command Center/Revenue partials, dedicated routes, JSON endpoints, settings pages, AI pages, pricing/payout screens, dispatch/load-sourcing pages, and Business Portal workspaces.
+
+They do not share one declared metric registry, population/scope policy, money reconciliation service, data-provenance rule, or authoritative workflow state. As a result, a similarly named count or amount can be computed from different tables and filters.
+
+There is no single canonical control center for pricing, payments, payouts, dispatch, AI recommendations/approvals, operational health, and financial reconciliation.
+
+**Decision:** consolidate navigation into one role-aware Urban Goodz Operations Command Center. Move inherited marketplace reporting into a clearly identified Marketplace module when it still serves an active business purpose. Establish one owner, query, scope, freshness rule, reconciliation rule, and drill-through target for each metric before removing or replacing any existing card.
+
 ## Purpose decision
 
 The legacy marketplace analytics can serve a purpose only if Urban Goodz still operates that store/item/order marketplace and a named role needs those KPIs. If so, it should move to a separate “Legacy Marketplace Analytics” route with consistent module/zone filters and reconciled data.
@@ -109,4 +122,4 @@ The primary Admin landing page should be role-aware and exception-first:
 7. **Data trust:** production/demo/import provenance, orphan counts, stale records, unmatched payments, last reconciliation.
 8. **Drill-through:** every KPI opens the exact filtered records that produced it.
 
-The modern design is P0-29 in the recovery sprint. Implementation must follow metric reconciliation and data provenance work; visual polish cannot make inconsistent data trustworthy.
+The modern design is P0-29 in the recovery sprint. P0-25 establishes the authoritative metric/query registry; P1-13 separates or retires the legacy module; P1-14 replaces misleading cards. Implementation must follow metric reconciliation and data provenance work; visual polish cannot make inconsistent data trustworthy.

@@ -31,9 +31,9 @@ Direct source census:
 | LEGACY BUT STILL REFERENCED | 7 |
 | LEGACY DATA | 4 |
 | DEMO OR TEST DATA | 4 |
-| DUPLICATE IMPLEMENTATION | 2 |
+| DUPLICATE IMPLEMENTATION | 3 |
 | OBSOLETE | 4 |
-| UNSAFE | 10 |
+| UNSAFE | 12 |
 | UNKNOWN | 4 |
 
 The counts are component families in the CSV, not source-file counts.
@@ -56,6 +56,9 @@ The inherited module-permission helper is `CUSTOMIZED AND ACTIVE`. It is the aut
 6. The default Laravel `DatabaseSeeder` calls synthetic user, test-vendor, live-tester, and load-board seeders. A normal seed command can therefore contaminate any connected database.
 7. The test-vendor and legacy Admin seeders contain fixed, disclosed credentials.
 8. `script.sh` targets a legacy MAMP `Backend-6amMart` cron path and is unsafe as an operational script.
+9. Competing inherited SMS gateway implementations can drift, and 2Factor can report transport success without provider acceptance.
+10. The Admin custom CAPTCHA fallback is client-selectable, reusable, and outside the login-attempt limiter on invalid challenges.
+11. The inherited filesystem/S3 selector always resolves to local, while private-media paths and public business/driver document storage are inconsistent.
 
 These are blockers; none were modified because this phase was an audit and several require product, signing, infrastructure, or data-migration decisions.
 

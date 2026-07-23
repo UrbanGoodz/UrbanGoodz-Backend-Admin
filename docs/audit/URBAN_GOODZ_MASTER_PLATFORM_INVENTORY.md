@@ -35,7 +35,7 @@ The row-level source of truth is [URBAN_GOODZ_MASTER_PLATFORM_INVENTORY.csv](URB
 
 The generated static census contains 19,421 UI-control rows across seven surfaces and 285 inferred database-table rows. These are discovery counts, not behavioral pass counts.
 
-The master inventory now contains 118 feature rows: 98 have source at score 2 or higher, 68 have a plausible UI/backend chain at score 3 or higher, 6 have focused local evidence at score 4 or higher, and none has staging or current-live certification.
+The master inventory now contains 127 feature rows: 107 have source at score 2 or higher, 72 have a plausible UI/backend chain at score 3 or higher, 7 have focused local evidence at score 4 or higher, and none has staging or current-live certification.
 
 ## Platform truth by surface
 
@@ -51,6 +51,19 @@ The master inventory now contains 118 feature rows: 98 have source at score 2 or
 | Payments | provider manager, ledgers, split logic | Adyen validation is fail-open when HMAC is absent; live credentials and reconciliation unproven |
 | Load sourcing | internal/manual/email plus selected partner adapters | DAT/Truckstop need credentials; five other adapters intentionally fail closed |
 | Notifications/realtime/queues | source exists | production worker, transport credentials, and device delivery unproven |
+
+## SMS, CAPTCHA, and media-storage P0 finding
+
+The dedicated [SMS, CAPTCHA, and storage readiness report](URBAN_GOODZ_SMS_CAPTCHA_STORAGE_READINESS_REPORT.md) records the actor-by-actor delivery and privacy boundary.
+
+- Twilio and 2Factor production status are not independently proven; the user reports both inactive/apparently unconfigured.
+- Shopper and driver server paths can choose Firebase OTP or SMS, Business password reset is email-based, and Vendor/standalone-app OTP recovery is not established.
+- Duplicate SMS gateway implementations exist, and 2Factor can report success from transport success without parsing provider rejection.
+- Google reCAPTCHA v3 has meaningful local controller tests, but current live keys/domain/action behavior are unproven and the user reports it appears disabled.
+- The custom CAPTCHA is client-selectable as a fallback, reusable, and not protected by the login-attempt limiter on invalid-CAPTCHA failures.
+- The filesystem selection expression always chooses local storage; the S3 setting cannot become the default through that path.
+- Business and driver documents are written to the public disk. Fashion Fit mixes a stronger owned-download flow with legacy ownership/link defects.
+- No media backup/restore system or production-grade Reels transcoding/CDN/lifecycle chain was found.
 
 ## AI Chief of Staff P0 finding
 
@@ -95,6 +108,8 @@ This surface is distinct from AI Copilot, Urban Goodz Genie, dynamic pricing, lo
 **LIVE OPERATIONAL:** Unproven.
 
 **BLOCKERS:** No menu entry; no dedicated permission; unsafe writes on GET; undefined `Vendor` reference; synthetic inventory signal; no provider/model/tool integration; no audit log, job boundary, or approval enforcement; no trustworthy browser or live evidence.
+
+The visible **AI Setup** observation is consistent with source configuration plumbing: the third-party configuration stores/tests an OpenAI provider key, while a separate AI Copilot settings page contains feature settings. Neither is the missing Chief of Staff command interface. A configured key does not prove a model selection policy, prompts/tools, operational data bindings, action permissions, approvals, usage/token/cost tracking, spending limits, job execution, audit records, or error operations. The relationship between that key and load sourcing, dynamic pricing, driver matching, support, analytics, and operational briefings remains unproven.
 
 ### Required action taxonomy
 
@@ -151,7 +166,7 @@ Dispatcher workspace truth:
 
 ## Legacy 6amMart contamination truth
 
-The dedicated [6amMart contamination audit](URBAN_GOODZ_6AMMART_CONTAMINATION_AUDIT.md) and its 53-row component register distinguish required compatibility foundations from runtime defects.
+The dedicated [6amMart contamination audit](URBAN_GOODZ_6AMMART_CONTAMINATION_AUDIT.md) and its 56-row component register distinguish required compatibility foundations from runtime defects.
 
 Do not globally delete or rename the inherited route/controller/model/middleware foundation, module-permission helper, Tax project discriminator, or Shopper `sixam_mart` package namespace. They remain active compatibility components.
 
@@ -178,4 +193,5 @@ The Vendor and Driver standalone apps contain no direct 6amMart identifier in in
 7. Mobile apps and browser evidence do not establish production readiness.
 8. Default database seeding is unsafe for a non-disposable environment.
 9. Shopper credential storage, iOS identity/Firebase, and realtime defaults block mobile certification.
+10. OTP delivery, CAPTCHA downgrade control, private-media authorization, S3 selection, and media restore evidence are not production-safe.
 10. Current live branding records, deployed copy, and cache identity remain unproven.

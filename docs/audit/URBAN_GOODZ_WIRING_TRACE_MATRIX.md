@@ -90,3 +90,15 @@ Three additional P0 chains were added:
 3. Shopper iOS build identity and Firebase configuration remain bound to a legacy 6amTech bundle/project.
 
 These are direct source defects. They do not prove production has been seeded, that a device currently retains a password, or that an iOS build was published. Each claim stops at the evidence boundary.
+
+## SMS, CAPTCHA, and storage chains
+
+Five additional boundary chains were added:
+
+1. Actor recovery/verification selects Firebase or the first active SMS provider, but production selection and delivery are unproven; Business recovery is email and Vendor/standalone-app OTP is not established.
+2. 2Factor treats a cURL transport success as delivery success without validating the provider response, while duplicate gateway implementations can drift.
+3. Admin login can use strongly checked Google reCAPTCHA v3, but a client-controlled field can select the reusable, separately unthrottled custom fallback.
+4. The configured S3 selector always resolves to local storage; private-file URL construction and public-disk business/driver documents violate a coherent private-media boundary.
+5. Reels upload/range streaming exists, but storage remains local and no certified scan/transcode/CDN/backup/restore pipeline was found.
+
+The full direct evidence and claim boundaries are in `URBAN_GOODZ_SMS_CAPTCHA_STORAGE_READINESS_REPORT.md`.

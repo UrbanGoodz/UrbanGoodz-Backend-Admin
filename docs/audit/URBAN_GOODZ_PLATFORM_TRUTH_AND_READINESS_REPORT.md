@@ -10,26 +10,26 @@ Audit branch: `codex-full-platform-audit-sprint`
 
 Urban Goodz is a large, partially wired platform built on an active 6amMart marketplace foundation. It is not a clean-sheet replacement and is not ready for a trustworthy full-platform certification.
 
-The source inventory has 118 feature rows:
+The source inventory has 127 feature rows:
 
 | Evidence threshold | Result |
 |---|---:|
-| Built/source exists (score at least 2) | 98 / 118 |
-| Plausibly UI-to-backend wired (score at least 3) | 68 / 118 |
-| Focused local behavioral evidence (score at least 4) | 6 / 118 |
-| Staging E2E evidence (score at least 5) | 0 / 118 |
-| Current live certification (score 6) | 0 / 118 |
+| Built/source exists (score at least 2) | 107 / 127 |
+| Plausibly UI-to-backend wired (score at least 3) | 72 / 127 |
+| Focused local behavioral evidence (score at least 4) | 7 / 127 |
+| Staging E2E evidence (score at least 5) | 0 / 127 |
+| Current live certification (score 6) | 0 / 127 |
 
 Current-state distribution:
 
 | State | Count |
 |---|---:|
-| PARTIALLY WIRED | 61 |
-| BROKEN | 26 |
+| PARTIALLY WIRED | 62 |
+| BROKEN | 33 |
 | BACKEND ONLY | 9 |
 | MOCK DATA ONLY | 9 |
 | PLACEHOLDER | 6 |
-| TESTED LOCALLY | 4 |
+| TESTED LOCALLY | 5 |
 | BLOCKED | 2 |
 | UNKNOWN | 1 |
 
@@ -71,19 +71,23 @@ These values are source/evidence classifications, not a launch percentage.
 10. Two mail classes can expose `6am Mart` as a fallback.
 11. The Admin dashboard mixes inconsistent legacy scopes and unreconciled money/ranking data.
 12. Current live SHA, cache identity, worker/cron state, and duplicate-copy state are unproven.
+13. SMS/OTP delivery is not certified; 2Factor can falsely report delivery success from transport success and duplicate gateway implementations can drift.
+14. Google reCAPTCHA live configuration is unproven, while the custom fallback is client-selectable, reusable, and not covered by the login-attempt limiter on invalid CAPTCHA.
+15. The S3 selection expression always resolves to local storage; business/driver documents use public storage and private-file URL/ownership paths are contradictory.
+16. No coordinated database/media backup, off-site retention, or isolated restore drill is evidenced; Reels processing/delivery is not production-certified.
 
 ## Legacy 6amMart disposition
 
-The dedicated [legacy contamination audit](URBAN_GOODZ_6AMMART_CONTAMINATION_AUDIT.md) classifies 53 component families:
+The dedicated [legacy contamination audit](URBAN_GOODZ_6AMMART_CONTAMINATION_AUDIT.md) classifies 56 component families:
 
 - 8 required foundations;
 - 10 customized and active components;
 - 7 legacy but referenced components;
 - 4 legacy-data families;
 - 4 demo/test-data families;
-- 2 duplicate implementations;
+- 3 duplicate implementations;
 - 4 obsolete components;
-- 10 unsafe components;
+- 12 unsafe components;
 - 4 unknown components.
 
 The safe strategy is selective isolation and migration, not global deletion. The inherited routes, models, middleware, module permission helper, Tax project discriminator, and Shopper Dart import namespace are compatibility foundations.
@@ -118,6 +122,18 @@ The visible 130 vendors/providers versus 0 stores is explained by inconsistent q
 
 `Demo Product` and `Carrot Imported` are visibly non-production-like ranking records. Their exact creation path, store ownership, and orphan status remain unproven until a read-only data audit.
 
+The system currently has two competing dashboard concepts: the inherited `/admin` marketplace landing page and fragmented Urban Goodz command/revenue/routes/settings/JSON surfaces. They lack one metric registry and canonical control center. The approved direction is one role-aware Urban Goodz Operations Command Center, with legacy marketplace reporting isolated as a named module only after every dependency and replacement metric is traced and tested.
+
+## SMS, CAPTCHA, and media-storage truth
+
+The dedicated [SMS, CAPTCHA, and storage report](URBAN_GOODZ_SMS_CAPTCHA_STORAGE_READINESS_REPORT.md) records direct source paths and evidence limits.
+
+- Live Twilio/2Factor status is user-reported, not independently proven. Actor recovery channels differ; Business reset is email and Vendor/standalone-app OTP is not established.
+- Google reCAPTCHA v3 has focused fail-closed controller evidence, but live status, key/domain restrictions, and browser behavior are unproven.
+- Custom CAPTCHA fallback can be selected by a client field; the phrase is reusable and invalid CAPTCHA does not hit the login-attempt limiter.
+- The configured third-party storage selector always chooses local. Private Fashion Fit has one strong owned-download path, but legacy association/link paths and public business/driver document storage block a platform privacy claim.
+- No application media backup/restore system was found. Reels upload/range streaming exists, but scanning, transcoding, CDN, lifecycle, restore, and live operation are unproven.
+
 ## Test-integrity truth
 
 - Admin auth focused PHP evidence: 33 tests, 134 assertions, 0 failures/errors/skips in the reviewed artifact.
@@ -138,15 +154,15 @@ Each entry is `built / total; wired / total; locally tested / total; live certif
 |---|---|
 | Public website | 10/10; 10/10; 1/10; 0/10 |
 | Admin Portal | 15/15; 13/15; 2/15; 0/15 |
-| Business Portal | 7/7; 7/7; 0/7; 0/7 |
+| Business Portal | 8/8; 8/8; 0/8; 0/8 |
 | Dispatcher Portal | 5/5; 5/5; 0/5; 0/5 |
 | Vendor Web Portal | 5/5; 5/5; 0/5; 0/5 |
 | Shopper app | 9/14; 7/14; 0/14; 0/14 |
 | Vendor app | 1/7; 1/7; 0/7; 0/7 |
 | Driver app | 4/8; 3/8; 0/8; 0/8 |
 | Payments | 5/5; 3/5; 1/5; 0/5 |
-| Security | 7/7; 1/7; 1/7; 0/7 |
-| Notifications | 3/3; 0/3; 0/3; 0/3 |
+| Security | 9/9; 2/9; 2/9; 0/9 |
+| Notifications | 5/5; 0/5; 0/5; 0/5 |
 | Realtime | 2/2; 0/2; 0/2; 0/2 |
 | Database | 4/4; 1/4; 0/4; 0/4 |
 | AI Operations | 1/1; 0/1; 0/1; 0/1 |
@@ -186,15 +202,15 @@ Release-signoff testers cannot yet rely on:
 
 ## Effort and dependencies
 
-The 64-task recovery plan estimates:
+The 73-task recovery plan estimates:
 
-- P0: 872 engineering hours;
-- P1: 624 hours;
+- P0: 1,064 engineering hours;
+- P1: 736 hours;
 - P2: 320 hours;
 - P3: 80 hours;
-- total: 1,896 engineering hours before contingency.
+- total: 2,200 engineering hours before contingency.
 
-Parallel lanes reduce calendar time but not evidence requirements. Core tester readiness is approximately the P0 program plus the relevant P1 portal/mobile work: roughly 1,000-1,300 engineering hours depending on schema recovery and external-access latency. Full feature readiness is the full 1,896-hour backlog. Trustworthy certification adds staging execution, evidence review, production backup/deployment, and live verification after implementation.
+Parallel lanes reduce calendar time but not evidence requirements. Core tester readiness is approximately the P0 program plus the relevant P1 portal/mobile work: roughly 1,200-1,500 engineering hours depending on schema recovery and external-access latency. Full feature readiness is the full 2,200-hour backlog. Trustworthy certification adds staging execution, evidence review, production backup/deployment, and live verification after implementation.
 
 Critical external blockers:
 

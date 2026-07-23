@@ -180,6 +180,22 @@ The source/evidence audit is complete enough for a bounded recovery plan. It is 
 - Recovery sprint: 64 tasks: 35 P0, 17 P1, 8 P2, 4 P3.
 - Estimated backlog: 1,896 engineering hours before contingency.
 
+### Focused SMS, CAPTCHA, dashboard, and storage extension
+
+- Master inventory: 127 feature rows; 107 source-built; 72 plausibly wired; 7 with focused local evidence; zero staging/live-certified.
+- Current states: 62 partially wired, 33 broken, 9 backend only, 9 mock-data only, 6 placeholder, 5 tested locally, 2 blocked, 1 unknown.
+- Wiring matrix: 35 workflows.
+- Permission matrix: 31 role/route/action rows.
+- Recovery sprint: 73 tasks: 42 P0, 19 P1, 8 P2, 4 P3.
+- Estimated backlog: 2,200 engineering hours: P0 1,064; P1 736; P2 320; P3 80.
+- New detailed artifact: `docs/audit/URBAN_GOODZ_SMS_CAPTCHA_STORAGE_READINESS_REPORT.md`.
+- SMS/OTP: duplicate dispatch implementations exist; 2Factor does not parse provider rejection; actor channels differ; live delivery is unproven.
+- CAPTCHA: Google v3 controller checks have focused evidence; production configuration is unproven; client-selected custom fallback, challenge replay, and rate-limit gaps remain.
+- Storage: filesystem selection always resolves to local; private media paths are contradictory; business/driver documents use public storage; medical policy and backup/restore evidence are absent.
+- Reels: upload/range-stream source exists, but scan/transcode/CDN/lifecycle/restore/live operation are unproven.
+- Dashboard: inherited `/admin` and fragmented Urban Goodz surfaces are competing systems without one metric registry or canonical control center.
+- No runtime, authentication, schema, environment, database, cache, provider, server, or production change was made.
+
 ### P0 truth added during focused additions
 
 AI Chief of Staff:

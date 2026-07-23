@@ -1,6 +1,6 @@
 # Urban Goodz Full Platform Recovery Sprint
 
-The executable backlog is [URBAN_GOODZ_FULL_PLATFORM_RECOVERY_SPRINT.csv](URBAN_GOODZ_FULL_PLATFORM_RECOVERY_SPRINT.csv). It contains 64 bounded tasks with evidence and acceptance criteria.
+The executable backlog is [URBAN_GOODZ_FULL_PLATFORM_RECOVERY_SPRINT.csv](URBAN_GOODZ_FULL_PLATFORM_RECOVERY_SPRINT.csv). It contains 73 bounded tasks with evidence and acceptance criteria.
 
 ## Release gate
 
@@ -33,6 +33,10 @@ No controlled deployment is eligible until all P0 tasks that touch the intended 
 6. Reconcile the dashboard and production-data boundaries: P0-25 through P0-30.
 7. Close mobile credential/identity/realtime and runtime branding risks: P0-31 through P0-34.
 8. Prove the exact production deployment, branding, duplicate-copy, and cache identity read-only: P0-35.
+9. Certify SMS/OTP and CAPTCHA fail-closed behavior: P0-36 through P0-39.
+10. Repair storage selection, private-media authorization, and disaster recovery: P0-40 through P0-42.
+
+P1-18 and P1-19 then migrate media to protected object storage and establish a production-grade Reels processing/delivery pipeline.
 
 ## Legacy-foundation rule
 
@@ -75,3 +79,7 @@ The central control center must identify the rule version, source inputs, approv
 - No critical test is silently skipped.
 - Evidence is redacted, checksummed, and retained in restricted short-lived paths.
 - Independent review approves one exact SHA and file list.
+- OTP provider acceptance is parsed and actor-specific delivery paths are behaviorally proven.
+- CAPTCHA fallback is server-controlled, one-time, rate-limited, and cannot be selected by the client.
+- Private uploads are never directly web-addressable; record ownership and download authorization are tested negatively.
+- Media and database backups have an isolated restore-drill artifact with declared RPO/RTO.
