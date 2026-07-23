@@ -195,6 +195,7 @@ The source/evidence audit is complete enough for a bounded recovery plan. It is 
 - Reels: upload/range-stream source exists, but scan/transcode/CDN/lifecycle/restore/live operation are unproven.
 - Dashboard: inherited `/admin` and fragmented Urban Goodz surfaces are competing systems without one metric registry or canonical control center.
 - No runtime, authentication, schema, environment, database, cache, provider, server, or production change was made.
+- Documentation-only extension commit: `b0db4900fac18619dfda4e2d388a50fe676eab40`.
 
 ### P0 truth added during focused additions
 
