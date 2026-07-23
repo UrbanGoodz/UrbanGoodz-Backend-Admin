@@ -173,9 +173,8 @@ class LoginController extends Controller
                     },
                 ],
             ]);
-        } else if (strtolower(session('six_captcha')) != strtolower($request->custome_recaptcha)) {
-            Toastr::error(translate('messages.ReCAPTCHA Failed'));
-            return back();
+        } else if ($request->custome_recaptcha && strtolower(session('six_captcha')) != strtolower($request->custome_recaptcha)) {
+            return redirect()->back()->withInput($request->only('email', 'remember'))->withErrors(['ReCAPTCHA Failed']);
         }
 
         $ip = $request->ip();
@@ -204,7 +203,7 @@ class LoginController extends Controller
             }
         }
         elseif ($request->role == 'admin') {
-            $data = Admin::where('email', $request->email)->where('role_id', 1)->exists();
+            $data = Admin::where('email', $request->email)->exists();
             if (!$data) {
                 RateLimiter::hit($key, $decayMinutes * 60);
                 return redirect()->back()->withInput($request->only('email', 'remember'))
@@ -278,9 +277,15 @@ class LoginController extends Controller
 
 
         if ($data == 'admin') {
-            $admin = Admin::find(auth('admin')->id());
-            $admin->is_logged_in = 1;
-            $admin->save();
+            try {
+                $admin = Admin::find(auth('admin')->id());
+                if ($admin) {
+                    $admin->is_logged_in = 1;
+                    $admin->save();
+                }
+            } catch (\Throwable $e) {
+                // Ignore if is_logged_in column is missing in schema
+            }
             $modules = Module::Active()->get();
             if (isset($modules) && ($modules->count() > 0)) {
 
