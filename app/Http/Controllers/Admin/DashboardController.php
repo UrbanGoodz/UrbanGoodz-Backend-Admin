@@ -345,7 +345,7 @@ class DashboardController extends Controller
         $module_type = Config::get('module.current_module_type');
 
         $ugData = [];
-        if (auth('admin')->user()->role_id == 1 || Helpers::module_permission_check('urban_goodz_view')) {
+        if (auth('admin')->check()) {
             $ugData = [
                 'order_anywhere_count' => Schema::hasTable('order_anywhere_requests') ? OrderAnywhereRequest::count() : 0,
                 'fashion_fit_count' => Schema::hasTable('urban_goodz_measurement_requests') ? MeasurementRequest::count() : 0,
