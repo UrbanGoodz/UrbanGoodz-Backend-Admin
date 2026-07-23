@@ -65,7 +65,7 @@
                     <a href="{{ route('admin.urban-goodz.creator.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Creator Commerce') }}</a>
                     <a href="{{ route('admin.urban-goodz.service-requests.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Services') }}</a>
                     <a href="{{ route('admin.notification.add-new') }}" class="btn btn-outline-primary btn-sm">{{ translate('Notifications') }}</a>
-                    <a href="{{ route('admin.report.item-wise-report') }}" class="btn btn-outline-primary btn-sm">{{ translate('Reports') }}</a>
+                    <a href="{{ route('admin.transactions.report.item-wise-report') }}" class="btn btn-outline-primary btn-sm">{{ translate('Reports') }}</a>
                     <a href="{{ route('admin.business-settings.business-setup') }}" class="btn btn-outline-primary btn-sm">{{ translate('Settings') }}</a>
                     <a href="{{ url('/business/login') }}" class="btn btn-outline-secondary btn-sm" target="_blank">{{ translate('Business Portal Login') }}</a>
                 </div>
@@ -280,7 +280,7 @@
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
-                        <a class="order--card h-100" href="{{ route('admin.report.item-wise-report') }}">
+                        <a class="order--card h-100" href="{{ route('admin.transactions.report.item-wise-report') }}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="card-subtitle m-0">{{ translate('Reports') }}</h6>
                                 <span class="card-title text-info">{{ translate('View') }}</span>

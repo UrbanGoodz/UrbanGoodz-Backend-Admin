@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Artisan;
 
 
 Route::get('/', function () {
-    return redirect()->route('admin.auth.login');
+    return redirect()->route('login', ['tab' => 'admin']);
 })->name('home');
 Route::get('lang/{locale}', 'HomeController@lang')->name('lang');
 Route::get('terms-and-conditions', 'HomeController@terms_and_conditions')->name('terms-and-conditions');

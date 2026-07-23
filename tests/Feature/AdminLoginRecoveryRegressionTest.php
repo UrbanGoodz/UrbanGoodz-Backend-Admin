@@ -69,7 +69,16 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $this->assertNull(session()->getOldInput('password'));
     }
 
-    public function test_dashboard_driver_links_use_the_registered_delivery_man_route(): void
+    public function test_admin_hostname_root_redirects_to_the_registered_admin_login_route(): void
+    {
+        $this->assertTrue(Route::has('login'));
+        $this->assertFalse(Route::has('admin.auth.login'));
+
+        $this->get('https://admin.urbangoodzdelivery.com/')
+            ->assertRedirect('https://admin.urbangoodzdelivery.com/login/admin');
+    }
+
+    public function test_dashboard_links_use_registered_route_names(): void
     {
         $dashboard = file_get_contents(resource_path('views/admin-views/dashboard.blade.php'));
 
@@ -77,15 +86,34 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $this->assertFalse(Route::has('admin.delivery-man.list'));
         $this->assertSame(2, substr_count($dashboard, "route('admin.users.delivery-man.list')"));
         $this->assertStringNotContainsString("route('admin.delivery-man.list')", $dashboard);
+        $this->assertTrue(Route::has('admin.transactions.report.item-wise-report'));
+        $this->assertFalse(Route::has('admin.report.item-wise-report'));
+        $this->assertSame(2, substr_count($dashboard, "route('admin.transactions.report.item-wise-report')"));
+        $this->assertStringNotContainsString("route('admin.report.item-wise-report')", $dashboard);
     }
 
-    public function test_admin_login_uses_only_the_urban_goodz_logo_asset(): void
+    public function test_admin_login_uses_the_approved_command_center_assets(): void
     {
         $login = file_get_contents(resource_path('views/auth/login.blade.php'));
 
-        $this->assertSame(2, substr_count($login, 'public/assets/admin/svg/logos/urban-goodz.svg'));
+        $this->assertStringContainsString('public/assets/admin/img/admin-command-center-reference.png', $login);
+        $this->assertStringContainsString('public/assets/admin/svg/logos/urban-goodz.svg', $login);
+        $this->assertStringContainsString('Admin Login', $login);
+        $this->assertStringContainsString('Security Verification', $login);
         $this->assertStringNotContainsString('public/assets/admin/img/favicon.png', $login);
         $this->assertStringNotContainsString('6amMart', $login);
+        $this->assertFileExists(public_path('assets/admin/img/admin-command-center-reference.png'));
         $this->assertFileExists(public_path('assets/admin/svg/logos/urban-goodz.svg'));
+    }
+
+    public function test_business_login_uses_the_approved_operations_hub_assets(): void
+    {
+        $login = file_get_contents(resource_path('views/business/auth/login.blade.php'));
+
+        $this->assertStringContainsString('public/assets/admin/img/business-operations-hub-reference.png', $login);
+        $this->assertStringContainsString('Business Portal Login', $login);
+        $this->assertStringContainsString("route('business.login.submit')", $login);
+        $this->assertStringContainsString('@csrf', $login);
+        $this->assertFileExists(public_path('assets/admin/img/business-operations-hub-reference.png'));
     }
 }
