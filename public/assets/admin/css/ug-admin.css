@@ -129,6 +129,16 @@
 .auth-wrapper-left .auth-left-cont p {
   color: rgba(255,255,255,.85) !important;
 }
+.auth-wrapper-left .auth-left-cont .ug-login-logo {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+}
+.ug-login-logo--mobile {
+  width: 160px;
+  max-width: 60vw;
+  height: auto;
+}
 
 /* ---- Footer ---- */
 .footer {

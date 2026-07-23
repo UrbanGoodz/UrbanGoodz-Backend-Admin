@@ -294,3 +294,85 @@
 - **Admin authentication testing**: remains STOPPED pending the next explicit continuation after this identity report.
 - **Next exact action**: commit/push this final checkpoint, fast-forward the nested checkout to the exact DCP commit, then resume M2 only when explicitly directed.
 - **DO NOT REPEAT**: document-root discovery, application-copy enumeration, marker probes, view marker proof, cache rebuild, or unauthenticated identity regressions.
+
+## 9. 2026-07-23 M2 CAPTCHA / POST-AUTH FAILURE SEPARATION
+
+- **Local branch**: `adminpanel-v39-backend-sprint`
+- **Local SHA**: `de515b12fd19d803fe62a622d5fcc3afb731d2aa`
+- **Remote tracking SHA**: `de515b12fd19d803fe62a622d5fcc3afb731d2aa`
+- **Live SHA**: `de515b12fd19d803fe62a622d5fcc3afb731d2aa`
+- **Working tree before this checkpoint**: clean.
+- **Controlled invalid-CAPTCHA test start**: `2026-07-23T05:18:51.908Z` (`2026-07-23 01:18:51 -0400` server time).
+- **Controlled invalid-CAPTCHA result**: `GET /login/admin` 200; `POST /login_submit` 302 to `/login/admin`; final `GET /login/admin` 200; no HTTP 500 response, failed request, or console error.
+- **Harness-only issue**: evidence collection attempted to read the unavailable body of the 302 response and exited before its screenshot step. The captured production request/status sequence remains valid. Do not repeat the pre-fix invalid submission.
+- **Owner access-log correlation**:
+  - `01:10:35 -0400`: `POST /login_submit` 302, then `GET /login/admin` 200.
+  - `01:10:47 -0400`: `POST /login_submit` 302, then `GET /login/admin` 200.
+  - `01:10:53 -0400`: `POST /login_submit` 302, then `GET /admin` 500.
+- **Failure separation**: invalid CAPTCHA is handled by a controlled redirect to the login page. The HTTP 500 is a later, separate post-authentication `GET /admin` failure after CAPTCHA acceptance.
+- **Exact Laravel exception**: `Illuminate\View\ViewException`: `Route [admin.delivery-man.list] not defined. (View: /home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39/resources/views/admin-views/dashboard.blade.php)`.
+- **Exception timestamp**: `[2026-07-23 05:10:53]` Laravel log time, correlated to `01:10:53 -0400` in the domain access log.
+- **Framework throw site**: `vendor/laravel/framework/src/Illuminate/Routing/UrlGenerator.php:526`.
+- **Application source defect**: `resources/views/admin-views/dashboard.blade.php` references nonexistent `admin.delivery-man.list` at lines 53 and 219.
+- **Correct registered route**: `admin.users.delivery-man.list`, URI `admin/users/delivery-man`, controller `App\Http\Controllers\Admin\DeliveryMan\DeliveryManController@index`.
+- **Route proof**: live route collection reports `admin.delivery-man.list=false` and `admin.users.delivery-man.list=true`; existing controller redirects already use `admin.users.delivery-man.list`.
+- **Proven primary root cause**: two stale dashboard Blade route-name references cause URL generation to throw while rendering the authenticated Admin dashboard.
+- **CAPTCHA root-cause status**: rejected by direct evidence; no CAPTCHA-path exception was observed.
+- **Branding evidence so far**: the rendered login page uses `resources/views/auth/login.blade.php`, contains Urban Goodz text and CSS, and renders `/public/assets/admin/img/favicon.png` as both its resolved and fallback logo source. Exact asset identity and approved-logo replacement proof remain pending.
+- **Files inspected**: narrow access-log window; narrow Laravel-log exception; `resources/views/admin-views/dashboard.blade.php`; `routes/admin/routes.php`; `resources/views/auth/login.blade.php`.
+- **Files changed**: this DCP checkpoint only.
+- **Tests completed**: one controlled invalid-CAPTCHA browser submission; live route-name existence proof; timestamp-correlated access/Laravel log proof.
+- **Backup path**: pending exact affected-file backup before source modification.
+- **Rollback command**: pending backup creation.
+- **Commit/push/deployment status**: no application change yet.
+- **Remaining blocker**: prove whether the rendered favicon is the legacy asset and locate the approved official Urban Goodz logo before changing branding.
+- **CONTINUE FROM MILESTONE**: M2C-2 branding asset proof, then M5 minimal route-name repair.
+- **PROVEN ROOT CAUSE**: authenticated dashboard Blade calls nonexistent route `admin.delivery-man.list`; correct route is `admin.users.delivery-man.list`.
+- **CURRENT FILE CHANGES**: this DCP checkpoint only.
+- **LAST PASSING TEST**: invalid CAPTCHA returned `302 -> /login/admin -> 200` without HTTP 500.
+- **LAST FAILING TEST**: accepted login redirected to `GET /admin`, which returned HTTP 500 at `2026-07-23 01:10:53 -0400`.
+- **NEXT EXACT COMMAND**: enumerate logo/brand asset filenames only, inspect the rendered favicon and likely approved Urban Goodz logo candidates, and record live/Git checksums.
+- **DO NOT REPEAT**: environment identity work, redirects, full repository scans, historical log searches, the pre-fix invalid CAPTCHA submission, or DashboardController investigation.
+
+### M2C-2 branding proof and M5 local repair
+
+- **Exact rendered view chain**:
+  - `GET /login/{tab}` route `login`;
+  - `App\Http\Controllers\LoginController@login`;
+  - standalone view `auth.login`;
+  - file `resources/views/auth/login.blade.php`;
+  - no layout;
+  - partial `admin-views.partials._recaptcha`;
+  - compiled view `storage/framework/views/943751e10298ee12cbc16e8d3b325676.php`.
+- **Live/Git checksums before repair**:
+  - login Blade `657e77fcfc2a004b35635fecd220cba5e9a0f64f8d595939b6056d5e44071429`;
+  - dashboard Blade `207030c5b54e7047c922c22f7320fd9aeaeaecea1696eb2852fff08cb0b29110`;
+  - legacy favicon `cd25cd747c30f6bd61eb967aeda9959641f044fa840bd61b7cff24fbaf7e9835`;
+  - Urban Goodz CSS `e544e58db67746517be4fce4a8c6e983b1687ffc6fcb232fe555205ba9e7aba4`;
+  - compiled login view `94c20be620885ba4d29572d3464ccc09997e8f81d153b34c0271dbc6311a4494`.
+- **Legacy branding proof**: the rendered `/public/assets/admin/img/favicon.png` is visually the green shopping-bag “M” legacy marketplace mark.
+- **Live/Git mismatch**: NO.
+- **Stale compiled view**: NO.
+- **Missing Urban Goodz asset**: YES; filename-only current-tree and Git-history searches found no dedicated Urban Goodz logo.
+- **Wrong asset reference**: YES; both desktop and mobile login logos used the legacy favicon as the resolved/fallback source.
+- **Brand CSS**: `ug-admin.css` already uses Seasoning Orange `#ED9914`, Canvas `#E2D3BF`, Dijon `#E5E276`, UG Black `#161616`, and White `#FFFFFF`; login background is white/orange/canvas, not black.
+- **Backup path**: `/home/urbakkej/backups/admin_captcha_dashboard_branding_20260723_053000`.
+- **Backup archive SHA-256**: `30066d3a02b37db05823830d455f5725cc749976653a85e09a629d7afdc7d4a2`.
+- **Rollback command**: `tar -xpf /home/urbakkej/backups/admin_captcha_dashboard_branding_20260723_053000/affected-files-before.tar -C /home/urbakkej/admin.urbangoodzdelivery.com/AdminPanel_Update_V39`.
+- **Local application changes**:
+  - changed two `admin.delivery-man.list` calls to `admin.users.delivery-man.list`;
+  - replaced the two proven legacy login-logo references with `public/assets/admin/svg/logos/urban-goodz.svg`;
+  - added responsive login-logo sizing using existing approved color CSS;
+  - added a dedicated accessible Urban Goodz SVG wordmark using only approved colors;
+  - added `tests/Feature/AdminLoginRecoveryRegressionTest.php`.
+- **CAPTCHA code changes**: none. Direct browser evidence rejected CAPTCHA validation as the source of the HTTP 500.
+- **Focused regression result**: PASS, 3 tests / 14 assertions.
+- **Regression coverage**:
+  - a real test Admin with valid credentials plus invalid custom CAPTCHA receives a controlled redirect to `/login/admin`;
+  - no Admin session is created and password input is not flashed;
+  - the correct delivery-man route exists and both dashboard links use it;
+  - login view contains only the dedicated Urban Goodz logo asset and no legacy favicon/6amMart reference.
+- **Production application changes**: none; only the backup directory was created.
+- **Commit/push/deployment status**: pending exact diff review.
+- **Next exact action**: review the five application/test file changes plus this DCP, then commit and push the intended repair.
+- **DO NOT REPEAT**: failed SQLite fixture variants, pre-fix CAPTCHA submission, branding asset discovery, environment identity work, or unrelated tests.

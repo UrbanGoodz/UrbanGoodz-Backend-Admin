@@ -34,9 +34,8 @@
     <div class="auth-wrapper">
         <div class="auth-wrapper-left">
             <div class="auth-left-cont">
-                @php($store_logo = \App\Models\BusinessSetting::where(['key' => 'logo'])->first())
-                <img class="onerror-image"  data-onerror-image="{{asset('/public/assets/admin/img/favicon.png')}}"
-                src="{{\App\CentralLogics\Helpers::get_full_url('business', $store_logo?->value?? '', $store_logo?->storage[0]?->value ?? 'public','favicon')}}"  alt="public/img">
+                <img class="ug-login-logo" src="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}"
+                    alt="Urban Goodz">
                 <h2 class="title">Urban Goodz <span class="d-block">{{translate('Admin Panel')}}</span></h2>
             </div>
         </div>
@@ -48,8 +47,8 @@
             <!-- Card -->
             <div class="auth-wrapper-form">
                 <div class="d-sm-none flex-grow-1 mb-2">
-                    <img class="w-50px img-fluid" class="onerror-image"  data-onerror-image="{{asset('/public/assets/admin/img/favicon.png')}}"
-                        src="{{\App\CentralLogics\Helpers::get_full_url('business', $store_logo?->value?? '', $store_logo?->storage[0]?->value ?? 'public','favicon')}}"  alt="public/img">
+                    <img class="img-fluid ug-login-logo--mobile"
+                        src="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz">
                 </div>
                 <!-- Form -->
                 <form class="" action="{{route('login_post')}}" method="post" id="form-id">

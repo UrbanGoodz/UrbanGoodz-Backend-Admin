@@ -50,7 +50,7 @@
                     <a href="{{ route('admin.urban-goodz.business-clients.index') }}" class="btn btn-primary btn-sm">{{ translate('Business Clients') }}</a>
                     <a href="{{ route('admin.urban-goodz.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Command Center') }}</a>
                     <a href="{{ route('admin.store.list') }}" class="btn btn-outline-primary btn-sm">{{ translate('Vendors') }}</a>
-                    <a href="{{ route('admin.delivery-man.list') }}" class="btn btn-outline-primary btn-sm">{{ translate('Drivers') }}</a>
+                    <a href="{{ route('admin.users.delivery-man.list') }}" class="btn btn-outline-primary btn-sm">{{ translate('Drivers') }}</a>
                     <a href="{{ route('admin.order.list', ['all']) }}" class="btn btn-outline-primary btn-sm">{{ translate('Orders') }}</a>
                     <a href="{{ route('admin.urban-goodz.dispatcher-sourcing.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Dispatcher') }}</a>
                     <a href="{{ route('admin.urban-goodz.load-board.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Load Board') }}</a>
@@ -216,7 +216,7 @@
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
-                        <a class="order--card h-100" href="{{ route('admin.delivery-man.list') }}">
+                        <a class="order--card h-100" href="{{ route('admin.users.delivery-man.list') }}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="card-subtitle m-0">{{ translate('Drivers') }}</h6>
                                 <span class="card-title text-info">{{ $data['delivery_man'] ?? 0 }}</span>
