@@ -410,3 +410,17 @@
 - **Valid CAPTCHA/authenticated test**: paused until the correct original login design is identified; dashboard repair remains deployed.
 - **Next exact action**: obtain one visual reference for the original Admin login, then restore that exact presentation without changing the proven CAPTCHA/authentication logic.
 - **DO NOT REPEAT**: invalid-CAPTCHA submission, log correlation, full history scans, or speculative visual redesign.
+
+### Visual-reference handoff state
+
+- **Local/remote/live SHA before this handoff update**: `6b2a7d3e4b2b11feea2ebc38f82173b5829a5720`.
+- **Live working tree**: `M resources/lang/en/messages.php`, `?? error_log`, `?? public/storage`.
+- **Translation-file preservation**: the live-only diff appends 12 English fallback translation keys for Notifications, Services, AI Assistant, courier routing, users, locations, and team members. It does not overlap the Admin login repair and has not been reset, copied, or committed.
+- **Visual blocker**: the owner rejected the deployed split-screen presentation as not matching the original Admin login. Repository history provides no original alternative beyond the stock split-screen version and its July 15 recolor.
+- **Required next owner action**: provide one screenshot or photograph of the original Admin login page so its exact layout can be restored without speculative redesign.
+- **CONTINUE FROM MILESTONE**: M6 visual parity, then one valid-CAPTCHA owner/control flow.
+- **CURRENT FILE CHANGES**: DCP-only locally; live-only translation fallback additions preserved.
+- **LAST PASSING TEST**: post-deploy invalid CAPTCHA, branding, session rejection, and HTTP 500 checks.
+- **LAST FAILING TEST**: owner visual acceptance of the login page.
+- **NEXT EXACT COMMAND**: after receiving the reference, compare it only against `resources/views/auth/login.blade.php` and its direct CSS/assets, back up those exact files, and implement visual parity without changing form/CAPTCHA/authentication logic.
+- **DO NOT REPEAT**: environment identity, invalid CAPTCHA, dashboard root-cause proof, logo discovery, repository-wide searches, or unrelated tests.
