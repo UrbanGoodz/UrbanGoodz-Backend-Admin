@@ -39,20 +39,54 @@ in-memory SQLite schema per test and does not touch any MySQL database.
 | File | What it shows |
 |---|---|
 | `focused-admin-login-recovery.junit.xml` | Per-test results for the focused suite |
-| `full-suite-patched.junit.xml` | Per-test results for the whole Feature+Unit suite |
+| `full-suite-patched.junit.xml` | Per-test results, whole Feature+Unit suite, patched |
+| `full-suite-baseline.junit.xml` | Same suite at pre-patch `af5876e` |
+| `baseline-vs-patched.txt` | Failing-identity diff + root-cause taxonomy |
 | `full-suite-patched.summary.txt` | Inventory of the 119 pre-existing failing test IDs |
 | `staging-db-blocker.txt` | Reproduction of why the Playwright suite cannot run here |
+| `role-fixture-verification.json` | *(generated on staging)* attestation that the two Admin fixtures are non-primary and differ by exactly `urban_goodz_view` |
+
+All artifacts are path-sanitized. `scripts/sanitize-test-evidence.php` rewrites
+absolute paths to `[repo]` and scans for Windows/Unix home paths, private keys,
+AWS keys, bearer tokens, and password assignments. Re-run it after regenerating
+anything; `--check` scans without writing. PHPUnit re-introduces absolute paths
+on every run, so sanitization is a required post-processing step, not one-time.
 
 ## Results
 
 Focused suite: **33 tests, 134 assertions, 0 errors, 0 failures, 0 skipped.**
 
-Full suite: **388 tests, 112 errors, 7 failures** — unchanged from the
-pre-patch baseline measured in the same environment. These are pre-existing
-and unrelated to this work: Laravel Passport has no OAuth keys generated
-(`League\OAuth2\Server\CryptKey: Invalid key supplied`) and several feature
-areas reference tables the local database does not have. The per-test IDs are
-in the JUnit XML for anyone wanting to diff them against another run.
+Full suite: **388 tests, 112 errors, 7 failures.**
+
+Pre-patch baseline (`af5876e`), run back-to-back on the same machine with the
+same `vendor/`, `.env`, and `phpunit.xml`: **360 tests, 112 errors, 7
+failures.** The 28-test delta is exactly the tests added to the focused suite
+(33 − 5 original).
+
+Crucially, this is an **identity** comparison, not just a count comparison —
+see `baseline-vs-patched.txt`:
+
+```
+baseline failing cases: 119
+patched  failing cases: 119
+identical identity set: YES
+REGRESSIONS introduced by the patch: 0
+FIXED by the patch:                  0
+```
+
+### Root-cause taxonomy of the 119 shared failures
+
+| Category | Count | errors | failures |
+|---|---:|---:|---:|
+| missing DB column | 93 | 92 | 1 |
+| missing class / undefined method | 18 | 18 | 0 |
+| Passport OAuth keys absent | 3 | 0 | 3 |
+| foreign-key constraint | 2 | 2 | 0 |
+| other (stale assertions / schema) | 3 | 0 | 3 |
+
+Reconciles exactly to 112 errors + 7 failures. All 119 are environmental —
+this checkout cannot build its own schema (see below) — and every one of them
+fails identically before and after the patch.
 
 Note on assertion count: the focused suite went from 137 assertions to 134
 when `test_unknown_email_and_wrong_password_produce_identical_responses` was

@@ -1,0 +1,27 @@
+BASELINE vs PATCHED - failing-test identity comparison
+
+baseline: af5876e (pre-patch parent of the security series), same machine,
+          same vendor/, same .env, same phpunit.xml, run back-to-back.
+patched:  a7f8b96 + this correction round.
+
+baseline failing cases: 119
+patched  failing cases: 119
+identical identity set: YES
+
+REGRESSIONS introduced by the patch (failing now, passing before): 0
+
+FIXED by the patch (passing now, failing before): 0
+
+--- root-cause taxonomy of the 119 shared failures ---
+TOTAL failing cases: 119
+
+CATEGORY                    COUNT   errors failures
+----------------------------------------------------
+missing-column                 93       92        1
+missing-class-or-method        18       18        0
+other                           3        0        3
+passport-oauth-keys             3        0        3
+foreign-key-constraint          2        2        0
+
+--- 'other' bucket detail ---
+  [failure] Tests\Unit\CreatorCommerceContractTest::test_file_backed_tester_routes_are_removed

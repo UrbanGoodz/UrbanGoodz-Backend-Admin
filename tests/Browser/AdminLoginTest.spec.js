@@ -1,5 +1,8 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Admin login / dashboard authorization regression suite.
@@ -53,6 +56,46 @@ function requireCredentials(...values) {
   }
 }
 
+const ROLE_FIXTURE_ATTESTATION = path.join(
+  __dirname, '..', '..', 'docs', 'qa', 'evidence', 'role-fixture-verification.json'
+);
+
+/** Truncated SHA-256, matching accountRef() in verify-admin-role-fixture.php. */
+function accountRef(email) {
+  return crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex').slice(0, 16);
+}
+
+/**
+ * Requires the read-only attestation produced from the staging database by
+ * scripts/verify-admin-role-fixture.php. The browser cannot read
+ * admin_roles.modules, so permissions that render no link are invisible to
+ * it; without this, "the roles differ only by urban_goodz_view" would be an
+ * assumption rather than a verified precondition.
+ */
+function requireRoleFixtureAttestation() {
+  if (!fs.existsSync(ROLE_FIXTURE_ATTESTATION)) {
+    throw new Error(
+      `Missing role fixture attestation at ${ROLE_FIXTURE_ATTESTATION}. Run on the staging host:\n` +
+      '  php scripts/verify-admin-role-fixture.php --authorized=<email> --restricted=<email>\n' +
+      'The authorization tests cannot certify the urban_goodz_view boundary without it.'
+    );
+  }
+
+  const att = JSON.parse(fs.readFileSync(ROLE_FIXTURE_ATTESTATION, 'utf8'));
+
+  expect(att.verdict, `role fixture attestation failed: ${JSON.stringify(att.problems)}`).toBe('PASS');
+  expect(att.symmetric_module_difference, 'stored roles differ by more than urban_goodz_view')
+    .toEqual(['urban_goodz_view']);
+  expect(att.authorized.role_id_is_primary, 'authorized fixture is the primary Admin').toBe(false);
+  expect(att.restricted.role_id_is_primary, 'restricted fixture is the primary Admin').toBe(false);
+
+  // The attestation must describe the same accounts this run is testing.
+  expect(att.authorized.account_ref, 'attestation does not match ADMIN_TEST_EMAIL')
+    .toBe(accountRef(ADMIN_EMAIL));
+  expect(att.restricted.account_ref, 'attestation does not match ADMIN_RESTRICTED_TEST_EMAIL')
+    .toBe(accountRef(RESTRICTED_ADMIN_EMAIL));
+}
+
 // Gated purely by the `module:urban_goodz_view` route-group middleware
 // (routes/admin.php) -- UrbanGoodzBusinessClientController@index has no
 // internal role_id check of its own, unlike the dashboard panel or
@@ -104,6 +147,25 @@ async function submitLogin(page, email, password, { captcha = 'valid' } = {}) {
 
   await page.waitForLoadState('networkidle');
   return postResponse;
+}
+
+/**
+ * The complete set of error messages actually rendered to the user.
+ *
+ * The login Blade emits errors only through toastr.error(...) inside a
+ * <script> block, so searching page.content() matches the script source and
+ * passes even when the visible message has regressed. Reading the rendered
+ * toast elements is the only assertion that reflects what a user sees.
+ * Sorted so the comparison is set-equality rather than order-dependent.
+ */
+async function captureVisibleErrors(page) {
+  const toasts = page.locator('#toast-container .toast-message');
+  await expect(
+    toasts.first(),
+    'no toastr error element rendered; the login Blade surfaces errors only via toastr.error()'
+  ).toBeVisible();
+  const texts = await toasts.allInnerTexts();
+  return texts.map((t) => t.trim()).filter(Boolean).sort();
 }
 
 /** Sorted, deduped set of same-origin link paths visible to this account. */
@@ -185,30 +247,29 @@ test.describe('Admin login page', () => {
     });
   }
 
-  test('unknown email and wrong password show the identical generic error', async ({ page }) => {
+  test('unknown email and wrong password show byte-identical visible errors', async ({ page }) => {
     requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD);
 
     // Case 1: an account that does not exist.
     await submitLogin(page, 'nonexistent-regression@urban-goodz.test', 'wrong-password', { captcha: 'valid' });
     expect(page.url()).toContain('/login/admin');
-
-    // Asserted against visible text, not raw HTML: the login Blade always
-    // emits a toastr.error(...) call whenever any error exists, so a
-    // substring search over page.content() would pass even if the message
-    // regressed. toContainText also auto-waits for the toast to render.
-    await expect(page.locator('body')).toContainText(GENERIC_LOGIN_ERROR);
-    const unknownEmailText = await page.locator('body').innerText();
+    const unknownEmailErrors = await captureVisibleErrors(page);
 
     // Case 2: a real account with the wrong password.
     await submitLogin(page, ADMIN_EMAIL, 'definitely-not-the-right-password', { captcha: 'valid' });
     expect(page.url()).toContain('/login/admin');
-    await expect(page.locator('body')).toContainText(GENERIC_LOGIN_ERROR);
-    const wrongPasswordText = await page.locator('body').innerText();
+    const wrongPasswordErrors = await captureVisibleErrors(page);
 
-    // Neither branch may reveal which half of the credential pair was wrong.
-    for (const text of [unknownEmailText, wrongPasswordText]) {
-      expect(text).not.toContain('Email does not match');
-      expect(text).not.toContain('Password does not match');
+    // The two branches must be indistinguishable to the user: not merely
+    // "each contains the generic string somewhere on the page", but the
+    // same complete set of rendered error messages. An extra or differing
+    // toast on one branch would itself be an enumeration signal.
+    expect(unknownEmailErrors).toEqual(wrongPasswordErrors);
+    expect(unknownEmailErrors).toEqual([GENERIC_LOGIN_ERROR]);
+
+    for (const messages of [unknownEmailErrors, wrongPasswordErrors]) {
+      expect(messages.join('\n')).not.toContain('Email does not match');
+      expect(messages.join('\n')).not.toContain('Password does not match');
     }
   });
 
@@ -232,6 +293,11 @@ test.describe('Admin login page', () => {
   test('role fixture preflight: both accounts are non-primary and differ only by urban_goodz_view', async ({ browser }) => {
     requireCredentials(ADMIN_EMAIL, ADMIN_PASSWORD, RESTRICTED_ADMIN_EMAIL, RESTRICTED_ADMIN_PASSWORD);
 
+    // Authoritative check first, from stored admin_roles.modules rather than
+    // from anything the browser can see. Produced on the staging host by
+    // scripts/verify-admin-role-fixture.php.
+    requireRoleFixtureAttestation();
+
     const authorizedContext = await browser.newContext();
     const restrictedContext = await browser.newContext();
 
@@ -252,10 +318,10 @@ test.describe('Admin login page', () => {
         'ADMIN_RESTRICTED_TEST_EMAIL is a primary Admin (role_id=1)'
       ).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
 
-      // 2. The two roles must be otherwise identical. Using the set of
-      //    reachable admin link paths as a browser-observable proxy for the
-      //    role's module set: everything they disagree about must be an
-      //    urban-goodz path.
+      // 2. Corroborating (NOT authoritative) browser-side signal. Reachable
+      //    link paths only reveal permissions that render a link, so this
+      //    cannot by itself prove the roles differ by exactly one module --
+      //    that is what the attestation above establishes from stored data.
       const authorizedPaths = await visibleAdminPaths(authorizedPage);
       const restrictedPaths = await visibleAdminPaths(restrictedPage);
 
