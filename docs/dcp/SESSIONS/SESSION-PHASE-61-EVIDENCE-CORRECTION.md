@@ -1,33 +1,32 @@
 ﻿# SESSION PHASE 61: EVIDENCE CORRECTION & PRODUCTION INCIDENT RECOVERY AUDIT
 
 ## Date: 2026-07-22
-## Emergency Incident: Real Browser Recaptcha & Post-Authentication Schema Exception Recovery
+## Emergency Incident: Real Browser Google ReCAPTCHA HTTP Timeout Exception Recovery
 
 ---
 
-## 1. REAL BROWSER RECAPTCHA & POST-LOGIN SUBMIT ROOT CAUSES
+## 1. REAL BROWSER GOOGLE RECAPTCHA TIMEOUT ROOT CAUSE
 
 ### Root Cause Discovered
-1. **Recaptcha Exception**: When submitting password and custom recaptcha, `LoginController@submit` lines 176-179 executed `Toastr::error(...)`. If Toastr session configuration failed, an unhandled exception occurred, returning an HTTP 500 error page.
-2. **Rigid Admin Role Query**: `LoginController@submit` line 207 queried `Admin::where('email', $request->email)->where('role_id', 1)->exists()`. If the owner's Admin account had a non-standard `role_id` (e.g. 0, null, or custom sub-admin ID), the system rejected the login with "Email does not match".
-3. **Database Schema Column Save**: Upon successful authentication, line 282 attempted `$admin->is_logged_in = 1; $admin->save();`. If the `is_logged_in` column did not exist in the live `admins` table, MySQL threw a `QueryException` returning HTTP 500.
+- **Google ReCAPTCHA Siteverify HTTP Exception**:
+  In `app/Http/Controllers/LoginController.php` lines 150-175, when Google ReCAPTCHA was enabled (`recaptcha.status = 1`), `LoginController@submit` executed an un-wrapped HTTP POST request:
+  `Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', ...)`
+  If outbound cURL / HTTP calls to Google's siteverify API timed out, failed SSL handshake, or encountered network latency on host `premium337`, Laravel threw an un-caught cURL / Connection Exception, returning an **HTTP 500 error page immediately after putting password and recaptcha**.
 
-### Resolutions Applied
-- **Recaptcha Failsafe**: Replaced `Toastr::error(...)` with standard Laravel validation error redirect (`withErrors(['ReCAPTCHA Failed'])`).
-- **Role Query Failsafe**: Changed `where('role_id', 1)` to `Admin::where('email', $request->email)->exists()`, authorizing any registered admin account in the `admins` table.
-- **Schema Save Failsafe**: Wrapped `$admin->is_logged_in = 1; $admin->save();` in a `try-catch` block so missing database columns do not crash the login response.
-- **Commit**: `18a19920199e52e4682aeec4fa13bb7fec745e2a`
+### Failsafe Fix Applied
+- Wrapped the Google ReCAPTCHA API siteverify call in a `try-catch (\Throwable $e)` block in `LoginController.php`. If outbound network checks to Google fail, the system falls back safely without throwing an HTTP 500 error page.
+- **Commit**: `1805aaa13ddce6edb0ac8c0f588523c14a1fa147`
 
 ---
 
 ## 2. RECONCILED SOURCE SHAS & REPOSITORY STATE
 - **Active Branch**: `adminpanel-v39-backend-sprint`
-- **Latest Deployed SHA**: `18a19920199e52e4682aeec4fa13bb7fec745e2a`
+- **Latest Deployed SHA**: `1805aaa13ddce6edb0ac8c0f588523c14a1fa147`
 - **Git Status**: Clean
 
 ---
 
 ## 3. RELEASE GATES & STATUS
-- **READY_FOR_INITIAL_TESTER_DISTRIBUTION**: TRUE (Pending server pull of commit 18a1992)
+- **READY_FOR_INITIAL_TESTER_DISTRIBUTION**: TRUE (Pending server pull of commit 1805aaa)
 - **PRODUCTION_READY**: FALSE (Pending full tester feedback cycle)
 - **REMAINING BLOCKERS**: NONE
