@@ -11,7 +11,7 @@ Three, all relaunched 2026-07-25 after an accidental stop, all running with blan
 | Lane | Current task |
 |---|---|
 | Lane 1 — Vendor mobile | Finish `BACKEND_CONTRACTS.md`, write DCP for `945e4e9..c2ddf50`, build proof, push |
-| Lane 2 — Driver mobile | Recover ~332 uncommitted lines, finish marketplace delivery lifecycle, commit in chunks, test, push |
+| Lane 2 — Driver mobile | **COMPLETE — ACCEPTED.** `dd3c271` pushed, tree clean, 112/112 verified by PM from the committed tree |
 | Lane 3 — Backend/DB | Credential-scan and push `00f3769`, then staging → fixtures → backend P0 tests → enumeration fix → contract matrix → orders baseline |
 
 **Unstaffed:** Production Operations (Phase 5 gate). **Unowned:** Shopper app.
@@ -22,7 +22,8 @@ Three, all relaunched 2026-07-25 after an accidental stop, all running with blan
 3. `claude-shopper-p0-recovery` never pushed — exists on one disk only
 4. Backend P0 test suite (auth, authz, marketplace, money, document privacy) has never been run
 5. Vendor password-reset account enumeration unfixed
-6. Driver marketplace delivery lifecycle incomplete and untested
+6. ~~Driver marketplace delivery lifecycle~~ **CLOSED** — `dd3c271`, 13 transitions on verified routes, 112/112 tests
+7. **NEW — BLOCKER-0:** no working test driver account. No transition exercised end-to-end against live data with a real token; verification is route-existence + contract level only
 
 ## P1 BLOCKERS
 `revenueChart` has no backing endpoint · Driver backend contracts unresolved · 15 untracked audit docs in the mobile repo · CRLF churn on Windows generated plugin files
@@ -39,7 +40,7 @@ OD-1 pull stale tester builds · OD-2 approve backend deploy · OD-3 staff Produ
 | Branch | HEAD | Pushed |
 |---|---|---|
 | `claude-vendor-p0-recovery` | `c2ddf50` | YES |
-| `claude-vendor-driver-p0-recovery` | `76de2f8` | YES (+ uncommitted work in flight) |
+| `claude-vendor-driver-p0-recovery` | `dd3c271` | YES |
 | `claude-database-staging-recovery` | `00f3769` | **NO — ahead by 1** |
 | `claude-shopper-p0-recovery` | `33e8c4b` | **NO — never pushed** |
 | `adminpanel-v39-backend-sprint` | `46f2cc1` | pushed; **40 commits undeployed** |
@@ -52,7 +53,7 @@ Production `3037ce7e`, last deployed 2026-07-22. Nothing deployed since. No depl
 | Suite | Result | Basis |
 |---|---|---|
 | Vendor Flutter | 50 passed / 0 failed | agent-reported at `c2ddf50`; re-verification in flight |
-| Driver Flutter | 54 passed / 0 failed | agent-reported at `76de2f8`; excludes uncommitted work |
+| Driver Flutter | **112 passed / 0 failed** | **PM-verified** — re-run from committed tree `dd3c271` |
 | Shopper Flutter | not run | — |
 | Backend PHPUnit | **never run** | — |
 | Playwright (web) | **never run** | — |
@@ -76,4 +77,4 @@ Push `claude-shopper-p0-recovery` (closes P0-3, no dependencies, one command).
 Backup exists at `/home/urbakkej/backups/urban_goodz_deploy_20260722_074053`. **Restore procedure unproven.** Must be tested before any deployment is authorized.
 
 ## AGENT RESPONSE CLASSIFICATION
-No agent reports received since relaunch. Prior-session reports are treated as **PARTIALLY ACCEPTED**: their git state claims were independently verified and held, but their test totals are agent-reported prose and are pending re-verification from a committed tree.
+**Lane 2: ACCEPTED** (2026-07-25). PM re-ran the suite from the committed tree (112/112), confirmed SHA parity with origin, and reproduced the OPTIONS/Allow probe: real POST routes answer `GET,HEAD,POST`, nonexistent routes answer `GET,HEAD`, and `business-jobs/{id}/arrived` answers `GET,HEAD` — CONTRACT-8 confirmed. Lanes 1 and 3 still running. Prior-session reports are treated as **PARTIALLY ACCEPTED**: their git state claims were independently verified and held, but their test totals are agent-reported prose and are pending re-verification from a committed tree.
