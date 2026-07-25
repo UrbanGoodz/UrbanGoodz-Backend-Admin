@@ -67,3 +67,6 @@ tests/playwright/test-results/
 
 # Raw unsanitized schema export (never commit)
 database/baseline/raw_schema.sql
+
+# Debugbar runtime output (local/staging only)
+storage/debugbar/
