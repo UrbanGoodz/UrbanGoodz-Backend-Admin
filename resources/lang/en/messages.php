@@ -11811,4 +11811,8 @@ Smartly or Earn. ',
   'Send Reset Link' => 'Send Reset Link',
   'Back to Login' => 'Back to Login',
   'The login type field is required.' => 'The login type field is required.',
+  'The selected email is invalid.' => 'The selected email is invalid.',
+  'invalid_otp' => 'Invalid otp',
+  'If an account matches that email, a password reset code has been sent.' => 'If an account matches that email, a password reset code has been sent.',
+  'The active field must be true or false.' => 'The active field must be true or false.',
 );

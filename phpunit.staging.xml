@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Backend P0 suite, run against the ISOLATED staging database.
+
+    Separate from phpunit.xml on purpose: the default suite targets
+    urbangoodz_test, while these tests assert against the reconciled
+    242-table staging schema and its deterministic role fixtures.
+
+    APP_ENV=staging makes Laravel load .env.staging, which is untracked and
+    holds the database credentials - so no credential appears in this file.
+    Everything that could reach the outside world is pinned to a local driver.
+
+    Run:
+        APP_ENV=staging vendor/bin/phpunit -c phpunit.staging.xml
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/staging_bootstrap.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="StagingP0">
+            <directory suffix="Test.php">./tests/Feature/StagingP0</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <server name="APP_ENV" value="staging"/>
+        <server name="DB_CONNECTION" value="mysql"/>
+        <server name="DB_DATABASE" value="urbangoodz_isolated_staging_20260723"/>
+        <server name="MAIL_MAILER" value="array"/>
+        <server name="CACHE_DRIVER" value="array"/>
+        <server name="SESSION_DRIVER" value="array"/>
+        <server name="QUEUE_CONNECTION" value="sync"/>
+        <server name="TELESCOPE_ENABLED" value="false"/>
+        <server name="BCRYPT_ROUNDS" value="4"/>
+    </php>
+</phpunit>

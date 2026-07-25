@@ -279,8 +279,38 @@ class DeliverymanController extends Controller
 
     public function activeStatus(Request $request)
     {
-        $dm = DeliveryMan::with(['rating'])->where(['auth_token' => $request['token']])->first();
-        $dm->active = $dm->active ? 0 : 1;
+        // The dm.api middleware accepts the credential from either the
+        // Authorization: Bearer header or a `token` field, but only logs the
+        // driver into the guard - it never merges `token` back into the
+        // request. Re-querying on $request['token'] therefore returned null
+        // for every Bearer client (which is what the driver app sends), and
+        // the next line dereferenced null: going on/off duty 500'd. Resolve
+        // from the guard first and keep the token lookup as a fallback.
+        $dm = auth()->guard('delivery_men')->user()
+            ?: DeliveryMan::where('auth_token', $request['token'])->first();
+
+        if (! $dm) {
+            return response()->json(['errors' => [
+                ['code' => 'unauthorized', 'message' => translate('messages.unauthorized')]
+            ]], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            // Optional. Absent keeps the historical blind toggle; supplied
+            // makes the call idempotent, so a retry after a dropped response
+            // cannot silently put a driver off duty and starve them of work.
+            'active' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::error_processor($validator)], 403);
+        }
+
+        $dm = DeliveryMan::with(['rating'])->find($dm->id);
+
+        $dm->active = $request->has('active')
+            ? (int) $request->boolean('active')
+            : ($dm->active ? 0 : 1);
         $dm->save();
 
         if(addon_published_status('RideShare') && $dm->is_ride == 1){
