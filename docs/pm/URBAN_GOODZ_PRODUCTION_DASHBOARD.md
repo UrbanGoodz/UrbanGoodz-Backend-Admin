@@ -18,7 +18,7 @@ Three, all relaunched 2026-07-25 after an accidental stop, all running with blan
 
 ## P0 BLOCKERS
 1. Distributed tester APKs predate every mobile P0 fix; Vendor APK ships mock authentication
-2. 34 backend commits committed locally, never deployed (includes admin login repairs)
+2. 40 backend commits committed, never deployed (admin login repairs + fail-closed CAPTCHA, module authorization, admin login error normalization)
 3. `claude-shopper-p0-recovery` never pushed — exists on one disk only
 4. Backend P0 test suite (auth, authz, marketplace, money, document privacy) has never been run
 5. Vendor password-reset account enumeration unfixed
@@ -42,7 +42,7 @@ OD-1 pull stale tester builds · OD-2 approve backend deploy · OD-3 staff Produ
 | `claude-vendor-driver-p0-recovery` | `76de2f8` | YES (+ uncommitted work in flight) |
 | `claude-database-staging-recovery` | `00f3769` | **NO — ahead by 1** |
 | `claude-shopper-p0-recovery` | `33e8c4b` | **NO — never pushed** |
-| `adminpanel-v39-backend-sprint` | `af5876e5` | local; **34 commits undeployed** |
+| `adminpanel-v39-backend-sprint` | `46f2cc1` | pushed; **40 commits undeployed** |
 
 ## DEPLOYMENTS
 Production `3037ce7e`, last deployed 2026-07-22. Nothing deployed since. No deployment planned without OD-2.

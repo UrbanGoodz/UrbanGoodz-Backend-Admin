@@ -19,8 +19,10 @@ Mock authentication confirmed **present in the shipped Vendor APK source** at `c
 
 Severity **P0**. Any tester currently on these builds is testing mock auth and fabricated success states.
 
-### P0-2 — 34 backend commits committed locally but never deployed
-Deployed SHA `3037ce7e` is an ancestor of local branch head `af5876e5`; `git rev-list --count 3037ce7e..af5876e5` = **34**.
+### P0-2 — 40 backend commits committed but never deployed
+Deployed SHA `3037ce7e` is an ancestor of branch head `46f2cc1`; `git rev-list --count 3037ce7e..46f2cc1` = **41** (40 backend commits + 1 PM docs commit).
+
+**Correction to the PM brief:** the brief recorded the backend branch at `af5876e5`. `origin` was 6 commits ahead of that, carrying unreviewed security work: `4df8e55` fail-closed CAPTCHA + restored module authorization and license activation checks, `81960c1` CAPTCHA score/action gaps, `3b8d2e2` normalize admin login errors, `a7f8b96` close a BASE_URL test bypass, `6937e5d` sanitize committed artifacts. These are **also undeployed** and raise the security stakes of P0-2.
 
 Undeployed commits include admin-login-critical repairs: `1e1d19f` repair login and dashboard route references, `d5e4820` break infinite 302 redirect loop, `a4ed5fe` remove undefined `Helpers::module_permission_check` causing 500 on non-role-1 admin logins, `ebb7fbb` serve admin from Laravel public root.
 
@@ -65,7 +67,7 @@ Unauthenticated reachability only. **No authenticated session, role-permission, 
 | Gate | Value | Basis |
 |---|---|---|
 | LOCAL_CERTIFICATION_COMPLETE | **FALSE** | Backend P0 tests never run; Driver lifecycle incomplete |
-| BACKEND_DEPLOYED | **FALSE** | 34 commits undeployed |
+| BACKEND_DEPLOYED | **FALSE** | 40 commits undeployed, incl. security fixes |
 | READY_FOR_INITIAL_TESTERS | **FALSE** | Distributed APKs contain mock auth (P0-1) |
 | WAVE1_DISTRIBUTED | UNKNOWN | No Firebase distribution evidence observed |
 | WAVE1_ACTIVE | FALSE | — |

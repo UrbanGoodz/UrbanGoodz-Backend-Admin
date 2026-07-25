@@ -11,7 +11,7 @@ Options: (a) notify testers and pause until rebuilt, (b) let testing continue on
 **PM recommendation: (c), with (a) in the interim.**
 
 ### OD-2 — Approve deploying the 34 undeployed backend commits?
-Production runs `3037ce7e`; local is `af5876e5`, 34 commits ahead, including admin login repairs, an infinite-redirect fix, and a fix for a 500 on non-role-1 admin logins. Deployment requires a fresh backup and a proven rollback path — the existing backup `/home/urbakkej/backups/urban_goodz_deploy_20260722_074053` has **never been test-restored**.
+Production runs `3037ce7e`; the branch is now `46f2cc1`, **40 backend commits ahead**, including admin login repairs, an infinite-redirect fix, a fix for a 500 on non-role-1 admin logins, and a block of security work that was on `origin` and not in the PM brief: fail-closed CAPTCHA, restored module authorization and license activation checks, and normalized admin login errors. Every one of those security fixes is currently **not running in production**. Deployment requires a fresh backup and a proven rollback path — the existing backup `/home/urbakkej/backups/urban_goodz_deploy_20260722_074053` has **never been test-restored**.
 
 ### OD-3 — Who owns Production Operations?
 No agent owns deployment, backups, rollback, monitoring, cron/queue, Firebase/SMTP/SMS, payment configuration, or Play Store operational readiness. Phase 5 cannot start without this. Options: staff a 4th agent, reassign a lane after its P0 work closes, or you own it directly.
