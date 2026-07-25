@@ -159,3 +159,46 @@ Targeted read-only investigation of the drain:
 **The disk loss is not caused by this lane's work.** Free space continued falling while
 the session was idle. The drain is an external process and needs separate investigation.
 Nothing was deleted — no cleanup was performed without approval.
+
+---
+
+## Path C ledger vs. actual `migrations` batch distribution (cross-check)
+
+Verified against the live Path C database `urbangoodz_pathc_20260723` after execution.
+Every row in the `migrations` table is accounted for by a ledger decision or by a
+module migration; there are no unsourced rows.
+
+| Bucket | Count | Where it landed |
+| --- | --- | --- |
+| `RECORDED-NOT-EXECUTED` (represented, ledger-seeded) | 296 | batch 1, all 296 present, 0 elsewhere |
+| `LEFT-PENDING-WILL-EXECUTE` (run by `artisan migrate`) | 41 | batch 2, all 41 present, 0 absent |
+| Module migrations (`Modules/*/Database/Migrations`) | 25 | 23 in batch 1, 2 in batch 2 |
+| **Total rows in `migrations`** | **362** | 296 + 41 + 25 = 362 ✓ |
+
+Repository migration files on disk: 337 = 296 represented + 41 executed. ✓
+Module migration files on disk: 25 = 25 recorded. ✓
+
+Unsourced rows (in `migrations` but matching no file): **0**.
+Ledger rows missing from the database: **0**.
+
+Classifier verdict distribution in `docs/audit/pathc_migration_ledger.csv` (337 rows):
+REPRESENTED 285, APPLICABLE 33, NO-OP (DATA) 16, EXECUTED 3.
+The 3 formerly-UNRESOLVED rows now carry the `EXECUTED` verdict; zero UNRESOLVED remain.
+
+Tables in the executed Path C database: **306** (candidate baseline 242 + 64 created by
+the 43 executed migrations).
+
+### Credential handling
+
+The ledger scripts take their database login from the environment
+(`PATHC_DB_USER` / `PATHC_DB_PASS`, optionally `PATHC_DB_HOST` / `PATHC_DB_PORT`)
+via `pathc_pdo()` in `scripts/audit/pathc_ledger_lib.php`. No login is hardcoded and
+none is committed. `.env.staging` holds the staging credentials and is excluded by the
+`.env.*` rule in `.gitignore`.
+
+Run them as:
+
+```bash
+export PATHC_DB_USER=... PATHC_DB_PASS=...
+php scripts/audit/pathc_ledger.php urbangoodz_pathc_20260723 --write-ledger
+```
