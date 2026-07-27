@@ -416,7 +416,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('driver-matches/{loadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverMatchesBlade')->name('driver-matches-blade');
 
                 // ── JSON API ──
-                Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboard')->name('dashboard');
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('dashboard');
+                Route::get('api/dashboard', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboard')->name('api-dashboard');
                 Route::post('search', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchAllSources')->name('search');
                 Route::get('best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestLoads')->name('best-loads');
                 Route::get('best-for-driver/{driverId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestForDriver')->name('best-for-driver');

@@ -66,8 +66,8 @@ class UrbanGoodzLoadSourcingController extends Controller
             'cancelled'      => $el::where('status', 'cancelled')->count(),
             'pending_review' => $el::where('status', 'pending_review')->count(),
             'total_payout'   => (float) $el::whereNotNull('gross_rate')->sum('gross_rate'),
-            'avg_rate_per_mile' => (float) $el::where('rate_per_mile', '>', 0)->avg('rate_per_mile'),
-            'unassigned_count' => $el::where('status', 'available')->whereNull('assigned_driver_id')->count(),
+            'avg_rate_per_mile' => (float) $el::where('rate_per_loaded_mile', '>', 0)->avg('rate_per_loaded_mile'),
+            'unassigned_count' => $el::where('status', 'available')->where('is_duplicate', false)->count(),
             'by_state'       => $el::whereNotNull('origin_state')->where('is_duplicate', false)
                                     ->selectRaw('origin_state, count(*) as cnt')
                                     ->groupBy('origin_state')->orderByDesc('cnt')->pluck('cnt', 'origin_state')->toArray(),
@@ -555,7 +555,7 @@ class UrbanGoodzLoadSourcingController extends Controller
             'destination_lat' => $load->destination_lat,
             'destination_lng' => $load->destination_lng,
             'payout_amount' => $load->gross_rate,
-            'rate_per_mile' => $load->rate_per_mile,
+            'rate_per_mile' => $load->rate_per_loaded_mile,
             'equipment_type' => $load->equipment_type,
             'weight' => $load->weight,
             'commodity' => $load->commodity,
@@ -629,7 +629,7 @@ class UrbanGoodzLoadSourcingController extends Controller
                 'destination_lat' => $load->destination_lat,
                 'destination_lng' => $load->destination_lng,
                 'payout_amount' => $load->gross_rate,
-                'rate_per_mile' => $load->rate_per_mile,
+                'rate_per_mile' => $load->rate_per_loaded_mile,
                 'equipment_type' => $load->equipment_type,
                 'weight' => $load->weight,
                 'distance_miles' => $load->distance_miles,
