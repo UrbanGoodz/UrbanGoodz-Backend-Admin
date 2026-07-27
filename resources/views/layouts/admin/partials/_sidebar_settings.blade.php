@@ -65,6 +65,25 @@
                         </li>
                     @endif
 
+                    @if (\App\CentralLogics\Helpers::module_permission_check('urban_goodz_control_center'))
+                        <li class="nav-item">
+                            <small class="nav-subtitle" title="{{ translate('AI Operations') }}">
+                                {{ translate('AI Operations') }}
+                            </small>
+                            <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                        </li>
+                        <li
+                            class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-chief-of-staff') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link"
+                                href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}"
+                                title="{{ translate('AI Chief of Staff') }}">
+                                <i class="tio-user-big nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+                                    {{ translate('AI Chief of Staff') }} </span>
+                            </a>
+                        </li>
+                    @endif
+
                     <!-- Business Settings -->
                     <li class="nav-item">
                         <small class="nav-subtitle"
