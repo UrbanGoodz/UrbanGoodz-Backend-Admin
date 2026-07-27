@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryMan;
 use App\Models\DispatcherSavedSearch;
 use App\Models\DriverLoadPreference;
 use App\Models\ExternalLoad;
@@ -54,68 +55,313 @@ class UrbanGoodzLoadSourcingController extends Controller
         return array_map(fn($item) => $item + ['active' => $item['key'] === $active], $items);
     }
 
+    /**
+     * Aggregate statistics for the sourcing overview.
+     *
+     * Every column referenced here must exist on `external_loads`. Note that
+     * `rate_per_mile` and `assigned_driver_id` belong to
+     * `urban_goodz_load_board_loads`, NOT to `external_loads` — the sourcing
+     * table stores `rate_per_loaded_mile` and has no driver-assignment column
+     * at all (assignment only happens once a load is published to the board).
+     */
     private function loadOverviewStats(): array
     {
-        $el = ExternalLoad::class;
+        $statusCounts = ExternalLoad::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $byStatus = [];
+        foreach (ExternalLoad::STATUSES as $status) {
+            $byStatus[$status] = (int) ($statusCounts[$status] ?? 0);
+        }
+
         return [
-            'total_loads'    => $el::count(),
-            'available'      => $el::where('status', 'available')->where('is_duplicate', false)->count(),
-            'assigned'       => $el::where('status', 'assigned')->count(),
-            'in_transit'     => $el::where('status', 'in_transit')->count(),
-            'delivered'      => $el::where('status', 'delivered')->count(),
-            'cancelled'      => $el::where('status', 'cancelled')->count(),
-            'pending_review' => $el::where('status', 'pending_review')->count(),
-            'total_payout'   => (float) $el::whereNotNull('gross_rate')->sum('gross_rate'),
-            'avg_rate_per_mile' => (float) $el::where('rate_per_mile', '>', 0)->avg('rate_per_mile'),
-            'unassigned_count' => $el::where('status', 'available')->whereNull('assigned_driver_id')->count(),
-            'by_state'       => $el::whereNotNull('origin_state')->where('is_duplicate', false)
-                                    ->selectRaw('origin_state, count(*) as cnt')
-                                    ->groupBy('origin_state')->orderByDesc('cnt')->pluck('cnt', 'origin_state')->toArray(),
-            'by_equipment'   => $el::whereNotNull('equipment_type')->where('is_duplicate', false)
-                                    ->selectRaw('equipment_type, count(*) as cnt')
-                                    ->groupBy('equipment_type')->orderByDesc('cnt')->pluck('cnt', 'equipment_type')->toArray(),
+            'total_loads'       => (int) ExternalLoad::count(),
+            'by_status'         => $byStatus,
+            'available'         => (int) ExternalLoad::available()->count(),
+            'sourced'           => $byStatus['sourced'],
+            'pending_review'    => $byStatus['pending_review'],
+            'approved'          => $byStatus['approved'],
+            'bid_submitted'     => $byStatus['bid_submitted'],
+            'booked'            => $byStatus['booked'],
+            'expired'           => $byStatus['expired'],
+            'cancelled'         => $byStatus['cancelled'],
+            'duplicates'        => (int) ExternalLoad::where('is_duplicate', true)->count(),
+            'total_payout'      => (float) ExternalLoad::whereNotNull('gross_rate')->sum('gross_rate'),
+            'avg_gross_rate'    => (float) ExternalLoad::where('gross_rate', '>', 0)->avg('gross_rate'),
+            // `rate_per_loaded_mile` is the sourcing table's rate column.
+            'avg_rate_per_mile' => (float) ExternalLoad::where('rate_per_loaded_mile', '>', 0)
+                                        ->avg('rate_per_loaded_mile'),
+            'assigned_count'    => (int) ExternalLoad::available()
+                                        ->whereExists($this->boardAssignmentExistsQuery())->count(),
+            'unassigned_count'  => (int) ExternalLoad::available()
+                                        ->whereNotExists($this->boardAssignmentExistsQuery())->count(),
+            'loads_by_origin_state' => ExternalLoad::whereNotNull('origin_state')->notDuplicate()
+                                        ->selectRaw('origin_state, count(*) as count')
+                                        ->groupBy('origin_state')->orderByDesc('count')->limit(12)->get(),
+            'loads_by_equipment_type' => ExternalLoad::whereNotNull('equipment_type')->notDuplicate()
+                                        ->selectRaw('equipment_type, count(*) as count')
+                                        ->groupBy('equipment_type')->orderByDesc('count')->limit(12)->get(),
         ];
+    }
+
+    /**
+     * `external_loads` has no driver-assignment column. A sourced load counts as
+     * assigned only once it has been published to the load board AND a driver was
+     * assigned there, which we correlate through the shared fingerprint.
+     */
+    private function boardAssignmentExistsQuery(): \Closure
+    {
+        return function ($query) {
+            $query->select(DB::raw(1))
+                ->from('urban_goodz_load_board_loads')
+                ->whereColumn('urban_goodz_load_board_loads.fingerprint', 'external_loads.fingerprint')
+                ->whereNotNull('urban_goodz_load_board_loads.assigned_driver_id')
+                ->whereNull('urban_goodz_load_board_loads.deleted_at');
+        };
+    }
+
+    /**
+     * Per-source health, credential posture (never the secret values) and the
+     * moment each source is next due for a sync.
+     */
+    private function sourceHealthReport(int $refreshMinutes)
+    {
+        $sources = LoadSource::withCount(['externalLoads', 'syncRuns', 'errors', 'searches'])
+            ->with(['credentials' => fn($q) => $q->select(
+                'id', 'source_id', 'credential_key', 'status', 'expires_at', 'last_validated_at'
+            )])
+            ->orderBy('name')
+            ->get();
+
+        return $sources->map(function (LoadSource $source) use ($refreshMinutes) {
+            $metadata = is_array($source->metadata) ? $source->metadata : [];
+            $interval = (int) ($metadata['refresh_interval_minutes'] ?? $refreshMinutes);
+            $interval = $interval > 0 ? $interval : $refreshMinutes;
+            $nextDue = $source->last_sync_at ? $source->last_sync_at->copy()->addMinutes($interval) : null;
+
+            $credentials = $source->credentials->map(fn($c) => [
+                // Deliberately no `encrypted_value` / decrypted value: status only.
+                'key'               => $c->credential_key,
+                'status'            => $c->status,
+                'expires_at'        => $c->expires_at,
+                'last_validated_at' => $c->last_validated_at,
+                'is_expired'        => $c->expires_at ? $c->expires_at->isPast() : false,
+            ]);
+
+            return [
+                'source'              => $source,
+                'enabled'             => (bool) $source->enabled,
+                'api_status'          => $source->api_status,
+                'partnership_status'  => $source->partnership_status,
+                'credentials'         => $credentials,
+                'credential_count'    => $credentials->count(),
+                'has_credentials'     => $credentials->isNotEmpty(),
+                'credentials_healthy' => $credentials->isNotEmpty()
+                                        && $credentials->every(fn($c) => $c['status'] === 'active' && !$c['is_expired']),
+                'last_sync_at'        => $source->last_sync_at,
+                'last_success_at'     => $source->last_success_at,
+                'last_error_at'       => $source->last_error_at,
+                'last_error_message'  => $source->last_error_message,
+                'next_sync_due_at'    => $nextDue,
+                'refresh_minutes'     => $interval,
+                'is_overdue'          => $nextDue ? $nextDue->isPast() : (bool) $source->enabled,
+                'loads_sourced'       => (int) ($source->external_loads_count ?? 0),
+                'sync_count'          => (int) ($source->sync_runs_count ?? 0),
+                'search_count'        => (int) ($source->searches_count ?? 0),
+                'error_count'         => (int) ($source->errors_count ?? 0),
+            ];
+        });
     }
 
     // ────────────────────────────────────────────────────────
     // 9 BLADE PAGES
     // ────────────────────────────────────────────────────────
 
-    public function overview()
+    public function overview(Request $request)
     {
-        $stats = $this->loadOverviewStats();
-        $recentLoads = ExternalLoad::with('source')->latest()->limit(10)->get();
+        $filters = [
+            'status'         => $request->query('status'),
+            'source_id'      => $request->query('source_id'),
+            'equipment_type' => $request->query('equipment_type'),
+            'q'              => $request->query('q'),
+        ];
+
+        $overviewError = null;
+        $refreshMinutes = 30;
+        $settings = [];
+
+        try {
+            $settings = LoadSourcingSetting::getAll();
+            $refreshMinutes = (int) ($settings['default_source_refresh_minutes'] ?? 30);
+            $refreshMinutes = $refreshMinutes > 0 ? $refreshMinutes : 30;
+        } catch (\Throwable $e) {
+            // Settings are advisory; surface the problem instead of blanking the page.
+            $overviewError = 'Sourcing settings could not be loaded: ' . $e->getMessage();
+        }
+
+        $loadsQuery = ExternalLoad::with('source')->notDuplicate();
+        if (!empty($filters['status'])) {
+            $loadsQuery->where('status', $filters['status']);
+        }
+        if (!empty($filters['source_id'])) {
+            $loadsQuery->where('source_id', $filters['source_id']);
+        }
+        if (!empty($filters['equipment_type'])) {
+            $loadsQuery->where('equipment_type', $filters['equipment_type']);
+        }
+        if (!empty($filters['q'])) {
+            $term = '%' . $filters['q'] . '%';
+            $loadsQuery->where(function ($q) use ($term) {
+                $q->where('broker_name', 'like', $term)
+                  ->orWhere('origin_city', 'like', $term)
+                  ->orWhere('destination_city', 'like', $term)
+                  ->orWhere('commodity', 'like', $term)
+                  ->orWhere('external_id', 'like', $term);
+            });
+        }
+
+        $sourceHealth = $this->sourceHealthReport($refreshMinutes);
+        $nextScheduledSync = $sourceHealth
+            ->where('enabled', true)
+            ->pluck('next_sync_due_at')
+            ->filter()
+            ->sort()
+            ->first();
+
         return view('admin-views.urban-goodz.load-sourcing.overview', [
-            'nav' => $this->subNav('overview'),
-            'stats' => $stats,
-            'recentLoads' => $recentLoads,
+            'nav'               => $this->subNav('overview'),
+            'stats'             => $this->loadOverviewStats(),
+            'filters'           => $filters,
+            'statuses'          => ExternalLoad::STATUSES,
+            'sources'           => LoadSource::orderBy('name')->get(),
+            'sourceHealth'      => $sourceHealth,
+            'sourceSummary'     => [
+                'total'      => $sourceHealth->count(),
+                'enabled'    => $sourceHealth->where('enabled', true)->count(),
+                'disabled'   => $sourceHealth->where('enabled', false)->count(),
+                'connected'  => $sourceHealth->where('api_status', 'connected')->count(),
+                'errored'    => $sourceHealth->where('api_status', 'error')->count(),
+                'no_credentials' => $sourceHealth->where('has_credentials', false)->count(),
+            ],
+            'lastSyncAt'        => $sourceHealth->pluck('last_sync_at')->filter()->sortDesc()->first(),
+            'nextScheduledSync' => $nextScheduledSync,
+            'refreshMinutes'    => $refreshMinutes,
+            'settings'          => $settings,
+            'recentSearches'    => LoadSourceSearch::with('source')->latest()->limit(10)->get(),
+            'recentSyncRuns'    => LoadSourceSyncRun::with('source')->latest()->limit(10)->get(),
+            'syncFailures'      => LoadSourceError::with('source')->where('resolved', false)
+                                        ->latest()->limit(10)->get(),
+            'recentLoads'       => $loadsQuery->latest()->paginate(10, ['*'], 'loads_page')->withQueryString(),
+            'recentImports'     => LoadImport::with('source')->latest()->limit(10)->get(),
+            'duplicates'        => ExternalLoad::with(['source', 'deduplicatedTo'])
+                                        ->where('is_duplicate', true)->latest()->limit(10)->get(),
+            'recommendations'   => LoadRecommendation::with(['externalLoad', 'driver'])
+                                        ->orderByDesc('score')->limit(10)->get(),
+            'matchingDrivers'   => DriverLoadPreference::with('driver')->latest()->limit(10)->get(),
+            'auditTrail'        => $this->overviewAuditTrail(),
+            'overviewError'     => $overviewError,
         ]);
+    }
+
+    /**
+     * A unified, read-only activity trail assembled from the real sourcing
+     * records (searches, sync runs, imports, errors and admin approvals).
+     */
+    private function overviewAuditTrail(int $limit = 15): \Illuminate\Support\Collection
+    {
+        $events = collect();
+
+        foreach (LoadSourceSearch::with('source')->latest()->limit($limit)->get() as $s) {
+            $events->push([
+                'at' => $s->created_at, 'type' => 'search',
+                'actor' => trim(($s->searched_by_type ?? 'system') . ' #' . ($s->searched_by ?? '-')),
+                'summary' => 'Search on ' . ($s->source->name ?? 'all sources')
+                             . ' returned ' . (int) $s->result_count . ' load(s)',
+                'ok' => (bool) $s->completed,
+            ]);
+        }
+        foreach (LoadSourceSyncRun::with('source')->latest()->limit($limit)->get() as $r) {
+            $events->push([
+                'at' => $r->created_at, 'type' => 'sync',
+                'actor' => 'scheduler',
+                'summary' => 'Sync ' . $r->status . ' for ' . ($r->source->name ?? 'unknown source')
+                             . ' (' . (int) $r->loads_new . ' new, ' . (int) $r->loads_duplicate . ' dup)',
+                'ok' => $r->status === 'completed',
+            ]);
+        }
+        foreach (LoadImport::with('source')->latest()->limit($limit)->get() as $i) {
+            $events->push([
+                'at' => $i->created_at, 'type' => 'import',
+                'actor' => trim(($i->imported_by_type ?? 'system') . ' #' . ($i->imported_by ?? '-')),
+                'summary' => ucfirst((string) $i->import_method) . ' import: '
+                             . (int) $i->successful_rows . '/' . (int) $i->total_rows . ' rows',
+                'ok' => $i->status === 'completed',
+            ]);
+        }
+        foreach (LoadSourceError::with('source')->latest()->limit($limit)->get() as $e) {
+            $events->push([
+                'at' => $e->created_at, 'type' => 'error',
+                'actor' => ($e->source->name ?? 'unknown source'),
+                'summary' => '[' . $e->error_code . '] ' . \Illuminate\Support\Str::limit((string) $e->error_message, 120),
+                'ok' => false,
+            ]);
+        }
+        foreach (ExternalLoad::whereNotNull('approved_at')->latest('approved_at')->limit($limit)->get() as $l) {
+            $events->push([
+                'at' => $l->approved_at, 'type' => 'approval',
+                'actor' => trim(($l->approved_by_type ?? 'admin') . ' #' . ($l->approved_by ?? '-')),
+                'summary' => 'Load #' . $l->id . ' approved (' . $l->status . ')',
+                'ok' => true,
+            ]);
+        }
+
+        return $events->filter(fn($e) => $e['at'] !== null)
+            ->sortByDesc('at')
+            ->values()
+            ->take($limit);
     }
 
     public function sources()
     {
         $sources = LoadSource::withCount(['externalLoads', 'syncRuns', 'errors'])
-            ->with(['credentials' => fn($q) => $q->select('source_id', 'credential_key', 'status', 'expires_at', 'last_validated_at')])
+            ->with(['credentials' => fn($q) => $q->select(
+                'id', 'source_id', 'credential_key', 'status', 'expires_at', 'last_validated_at'
+            )])
             ->orderBy('name')
             ->get();
 
-        $sourceStats = $sources->map(function ($src) {
+        // The sources view reads these as attributes off each source, so derive
+        // them here. NOTE: `load_source_sync_runs` has no `completed_at` column —
+        // the run's `updated_at` is when it reached its terminal state.
+        $sources->each(function (LoadSource $src) {
             $lastRun = $src->syncRuns()->latest()->first();
             $lastSuccess = $src->syncRuns()->where('status', 'completed')->latest()->first();
-            return [
-                'source' => $src,
-                'credential_count' => $src->credentials->count(),
-                'has_credentials' => $src->credentials->count() > 0,
-                'all_active' => $src->credentials->every('status', 'active'),
-                'last_sync_at' => $lastRun?->created_at,
-                'last_success_at' => $lastSuccess?->completed_at,
-                'records_imported' => $src->external_loads_count ?? 0,
-                'error_count' => $src->errors_count ?? 0,
-            ];
+
+            $src->setAttribute('credential_status', $src->credentials->isEmpty()
+                ? 'missing'
+                : ($src->credentials->every(fn($c) => $c->status === 'active' && !$c->isExpired()) ? 'active' : 'expired'));
+            $src->setAttribute('credential_count', $src->credentials->count());
+            $src->setAttribute('last_successful_sync_at', $lastSuccess?->updated_at);
+            $src->setAttribute('last_run_at', $lastRun?->created_at);
+            $src->setAttribute('records_imported_count', (int) ($src->external_loads_count ?? 0));
         });
+
+        $sourceStats = $sources->map(fn(LoadSource $src) => [
+            'source'            => $src,
+            'credential_count'  => $src->credential_count,
+            'has_credentials'   => $src->credential_count > 0,
+            'all_active'        => $src->credential_status === 'active',
+            'last_sync_at'      => $src->last_sync_at,
+            'last_success_at'   => $src->last_successful_sync_at,
+            'records_imported'  => $src->records_imported_count,
+            'error_count'       => (int) ($src->errors_count ?? 0),
+        ]);
 
         return view('admin-views.urban-goodz.load-sourcing.sources', [
             'nav' => $this->subNav('sources'),
+            'sources' => $sources,
             'sourceStats' => $sourceStats,
         ]);
     }
@@ -156,6 +402,8 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.search', [
             'nav' => $this->subNav('search'),
+            // The view iterates `$searchResults`; `results` is kept for API parity.
+            'searchResults' => $results,
             'results' => $results,
             'searchId' => $searchId,
             'searchError' => $searchError,
@@ -196,6 +444,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.saved-searches', [
             'nav' => $this->subNav('saved'),
+            'savedSearches' => $searches,
             'searches' => $searches,
             'sources' => $sources,
         ]);
@@ -247,6 +496,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.sourced-loads', [
             'nav' => $this->subNav('sourced'),
+            'externalLoads' => $loads,
             'loads' => $loads,
             'sources' => $sources,
         ]);
@@ -271,6 +521,14 @@ class UrbanGoodzLoadSourcingController extends Controller
         return view('admin-views.urban-goodz.load-sourcing.recommendations', [
             'nav' => $this->subNav('recommendations'),
             'recommendations' => $recommendations,
+            // Driver filter dropdown: only drivers that actually have recommendations.
+            // DeliveryMan has no `name` attribute, so compose one for the <option> label.
+            'drivers' => DeliveryMan::whereIn(
+                    'id', LoadRecommendation::distinct()->pluck('delivery_man_id')->filter()
+                )->orderBy('f_name')->get()
+                ->each(fn($d) => $d->setAttribute(
+                    'name', trim(($d->f_name ?? '') . ' ' . ($d->l_name ?? '')) ?: ('Driver #' . $d->id)
+                )),
         ]);
     }
 
@@ -290,6 +548,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.sync-runs', [
             'nav' => $this->subNav('sync'),
+            'syncRuns' => $runs,
             'runs' => $runs,
             'sources' => $sources,
         ]);
@@ -309,9 +568,11 @@ class UrbanGoodzLoadSourcingController extends Controller
         $errors = $query->latest()->paginate(50);
         $sources = LoadSource::all();
 
+        // NOTE: `errors` is reserved by Blade for the ViewErrorBag and would be
+        // silently shadowed, so the view reads `errors_list`.
         return view('admin-views.urban-goodz.load-sourcing.errors', [
             'nav' => $this->subNav('errors'),
-            'errors' => $errors,
+            'errors_list' => $errors,
             'sources' => $sources,
         ]);
     }
@@ -357,6 +618,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.settings', [
             'nav' => $this->subNav('settings'),
+            'settings' => $existing,
             'existing' => $existing,
         ]);
     }
@@ -535,41 +797,9 @@ class UrbanGoodzLoadSourcingController extends Controller
             return back()->with('info', 'Load already published to Load Board.');
         }
 
-        $boardLoad = UrbanGoodzLoadBoardLoad::create([
-            'external_id' => $load->external_id,
-            'provider' => $load->source->source_key ?? 'sourced',
-            'source_id' => $load->source_id,
-            'fingerprint' => $load->fingerprint,
-            'load_number' => 'UGS-' . $load->id,
-            'status' => 'available',
-            'origin_name' => $load->origin_address,
-            'origin_city' => $load->origin_city,
-            'origin_state' => $load->origin_state,
-            'origin_zip' => $load->origin_zip,
-            'origin_lat' => $load->origin_lat,
-            'origin_lng' => $load->origin_lng,
-            'destination_name' => $load->destination_address,
-            'destination_city' => $load->destination_city,
-            'destination_state' => $load->destination_state,
-            'destination_zip' => $load->destination_zip,
-            'destination_lat' => $load->destination_lat,
-            'destination_lng' => $load->destination_lng,
-            'payout_amount' => $load->gross_rate,
-            'rate_per_mile' => $load->rate_per_mile,
-            'equipment_type' => $load->equipment_type,
-            'weight' => $load->weight,
-            'commodity' => $load->commodity,
-            'pickup_start' => $load->pickup_start,
-            'pickup_end' => $load->pickup_end,
-            'delivery_start' => $load->delivery_start,
-            'delivery_end' => $load->delivery_end,
-            'distance_miles' => $load->distance_miles,
-            'source_url' => $load->source_url,
-            'raw_source_payload' => $load->raw_source_payload,
-            'expires_at' => $load->expires_at,
-        ]);
+        $boardLoad = $this->createBoardLoadFrom($load);
 
-        $load->update(['status' => 'published']);
+        $load->update(['status' => 'booked']);
 
         return back()->with('success', "Load #{$load->id} published to Load Board as #{$boardLoad->id}.");
     }
@@ -611,35 +841,9 @@ class UrbanGoodzLoadSourcingController extends Controller
             $exists = UrbanGoodzLoadBoardLoad::where('fingerprint', $load->fingerprint)->exists();
             if ($exists) continue;
 
-            UrbanGoodzLoadBoardLoad::create([
-                'external_id' => $load->external_id,
-                'provider' => $load->source->source_key ?? 'sourced',
-                'source_id' => $load->source_id,
-                'fingerprint' => $load->fingerprint,
-                'load_number' => 'UGS-' . $load->id,
-                'status' => 'available',
-                'origin_city' => $load->origin_city,
-                'origin_state' => $load->origin_state,
-                'origin_zip' => $load->origin_zip,
-                'origin_lat' => $load->origin_lat,
-                'origin_lng' => $load->origin_lng,
-                'destination_city' => $load->destination_city,
-                'destination_state' => $load->destination_state,
-                'destination_zip' => $load->destination_zip,
-                'destination_lat' => $load->destination_lat,
-                'destination_lng' => $load->destination_lng,
-                'payout_amount' => $load->gross_rate,
-                'rate_per_mile' => $load->rate_per_mile,
-                'equipment_type' => $load->equipment_type,
-                'weight' => $load->weight,
-                'distance_miles' => $load->distance_miles,
-                'pickup_start' => $load->pickup_start,
-                'pickup_end' => $load->pickup_end,
-                'source_url' => $load->source_url,
-                'expires_at' => $load->expires_at,
-            ]);
+            $this->createBoardLoadFrom($load);
 
-            $load->update(['status' => 'published']);
+            $load->update(['status' => 'booked']);
             $published++;
         }
 
@@ -771,6 +975,64 @@ class UrbanGoodzLoadSourcingController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['retry' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Project an `external_loads` row onto the `urban_goodz_load_board_loads`
+     * schema. The two tables use different names for the same concepts
+     * (rate_per_loaded_mile→rate_per_mile, origin_latitude→origin_lat,
+     * distance_loaded→distance_miles, weight→weight_lbs,
+     * commodity→commodity_description, pickup_start→origin_ready_at,
+     * delivery_end→destination_due_at), and several real board columns are not
+     * mass-assignable, so they are set explicitly below. Without that,
+     * `fingerprint` was silently dropped and the duplicate guard never matched.
+     */
+    private function createBoardLoadFrom(ExternalLoad $load): UrbanGoodzLoadBoardLoad
+    {
+        $board = new UrbanGoodzLoadBoardLoad();
+
+        $board->fill([
+            'external_id'           => $load->external_id,
+            'provider'              => $load->source->source_key ?? 'sourced',
+            'load_number'           => 'UGS-' . $load->id,
+            'status'                => 'available',
+            'origin_name'           => $load->origin_address,
+            'origin_city'           => $load->origin_city,
+            'origin_state'          => $load->origin_state,
+            'origin_zip'            => $load->origin_zip,
+            'origin_lat'            => $load->origin_latitude,
+            'origin_lng'            => $load->origin_longitude,
+            'origin_ready_at'       => $load->pickup_start,
+            'destination_name'      => $load->destination_address,
+            'destination_city'      => $load->destination_city,
+            'destination_state'     => $load->destination_state,
+            'destination_zip'       => $load->destination_zip,
+            'destination_lat'       => $load->destination_latitude,
+            'destination_lng'       => $load->destination_longitude,
+            'destination_due_at'    => $load->delivery_end ?? $load->delivery_start,
+            'distance_miles'        => $load->distance_loaded,
+            'payout_amount'         => $load->gross_rate,
+            'rate_per_mile'         => $load->rate_per_loaded_mile,
+            'driver_payout_amount'  => $load->estimated_driver_net,
+            'processing_fee'        => $load->estimated_platform_fee,
+            'equipment_type'        => $load->equipment_type,
+            'weight_lbs'            => $load->weight,
+            'commodity_description' => $load->commodity,
+        ]);
+
+        // Real board columns that are deliberately absent from its $fillable.
+        $board->source_id  = $load->source_id;
+        $board->fingerprint = $load->fingerprint;
+        $board->source_url = $load->source_url;
+        $board->expires_at = $load->expires_at;
+        // The board model does not cast this column, so encode it here.
+        $board->raw_source_payload = is_array($load->raw_source_payload)
+            ? json_encode($load->raw_source_payload)
+            : $load->raw_source_payload;
+
+        $board->save();
+
+        return $board;
     }
 
     private function checkSourceCredentials(LoadSource $source): bool

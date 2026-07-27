@@ -288,8 +288,8 @@
                                 <td><small>{{ $load->pickup_date ? \Carbon\Carbon::parse($load->pickup_date)->format('M d, Y') : translate('N/A') }}</small></td>
                                 <td><small>{{ ucwords(str_replace('_', ' ', $load->equipment_type ?? 'N/A')) }}</small></td>
                                 <td><strong class="text-success">${{ number_format($load->payout_amount ?? 0, 2) }}</strong></td>
-                                <td>{{ number_format($load->distance_miles ?? 0) }} mi</td>
-                                <td>${{ number_format($load->rate_per_mile ?? 0, 2) }}/mi</td>
+                                <td>{{ number_format($load->distance_loaded ?? 0) }} mi</td>
+                                <td>${{ number_format($load->rate_per_loaded_mile ?? 0, 2) }}/mi</td>
                                 <td>{{ $load->deadhead_miles ?? '—' }} mi</td>
                                 <td><small class="text-muted">{{ $load->created_at ? $load->created_at->diffForHumans() : '—' }}</small></td>
                                 <td>

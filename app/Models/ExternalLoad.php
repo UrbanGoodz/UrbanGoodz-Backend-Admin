@@ -61,7 +61,10 @@ class ExternalLoad extends Model
     ];
 
     public function source(): BelongsTo { return $this->belongsTo(LoadSource::class, 'source_id'); }
-    public function assignedDriver(): BelongsTo { return $this->belongsTo(DeliveryMan::class, 'assigned_driver_id'); }
+    // NOTE: `external_loads` has no `assigned_driver_id` column — driver assignment
+    // only exists on `urban_goodz_load_board_loads`, after a sourced load is published.
+    // A belongsTo(...,'assigned_driver_id') relation here threw SQLSTATE[42S22] whenever
+    // it was eager-loaded, so it has been removed rather than left as a trap.
     public function recommendations(): HasMany { return $this->hasMany(LoadRecommendation::class, 'external_load_id'); }
     public function referrals(): HasMany { return $this->hasMany(LoadPartnerReferral::class, 'external_load_id'); }
     public function searchResults(): HasMany { return $this->hasMany(LoadSourceSearchResult::class, 'external_load_id'); }

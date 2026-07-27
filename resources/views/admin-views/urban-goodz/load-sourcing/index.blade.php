@@ -227,11 +227,11 @@
                                     {{ $load->origin_city }}, {{ $load->origin_state }}
                                     &rarr;
                                     {{ $load->destination_city }}, {{ $load->destination_state }}
-                                    <br><small class="text-muted">{{ number_format($load->distance_miles) }} mi</small>
+                                    <br><small class="text-muted">{{ number_format($load->distance_loaded ?? 0) }} mi</small>
                                 </td>
                                 <td><small>{{ ucwords(str_replace('_', ' ', $load->equipment_type ?? 'N/A')) }}</small></td>
                                 <td><strong class="text-success">${{ number_format($load->payout_amount, 2) }}</strong></td>
-                                <td><small>${{ number_format($load->rate_per_mile ?? 0, 2) }}/mi</small></td>
+                                <td><small>${{ number_format($load->rate_per_loaded_mile ?? 0, 2) }}/mi</small></td>
                                 <td>
                                     @if($load->is_duplicate)
                                         <span class="badge badge-soft-warning">{{ translate('Duplicate') }}</span>
