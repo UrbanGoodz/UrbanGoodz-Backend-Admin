@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class UrbanGoodzAiMigrationTest extends TestCase
@@ -11,6 +12,11 @@ class UrbanGoodzAiMigrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Config::set('database.default', 'sqlite');
+        Config::set('database.connections.sqlite.database', ':memory:');
+        DB::purge('sqlite');
+        DB::setDefaultConnection('sqlite');
     }
 
     public function test_migration_is_safe_and_handles_partial_state()

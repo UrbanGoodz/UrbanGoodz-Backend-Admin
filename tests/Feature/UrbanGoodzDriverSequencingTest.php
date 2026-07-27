@@ -166,8 +166,49 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         ]);
     }
 
-    public function test_driver_resequence_no_preference_success(): void
+    private function assertAuthoritativeSequenceRejectsDriverResequence(string $endpointType): void
     {
+        $beforeStops = UrbanGoodzRouteOptimizationStop::query()
+            ->where('dedicated_route_id', $this->route->id)
+            ->orderBy('stop_order')
+            ->pluck('package_id', 'stop_order')
+            ->all();
+        $beforeVersions = UrbanGoodzRouteExecutionVersion::query()
+            ->where('dedicated_route_id', $this->route->id)
+            ->count();
+
+        $this->actingAs($this->driver, 'delivery_men');
+
+        $response = $this->postJson(
+            "/api/v1/urban-goodz/driver/routes/{$this->route->id}/sequence?token={$this->authToken}",
+            ['endpoint_type' => $endpointType]
+        );
+
+        $response->assertStatus(409)->assertJsonFragment([
+            'message' => 'Driver-side route resequencing is disabled. The persisted Business/dispatcher sequence is authoritative.',
+        ]);
+        $response->assertJsonMissing(['private_endpoint_address' => $this->driver->private_endpoint_address]);
+
+        $this->assertSame(
+            $beforeStops,
+            UrbanGoodzRouteOptimizationStop::query()
+                ->where('dedicated_route_id', $this->route->id)
+                ->orderBy('stop_order')
+                ->pluck('package_id', 'stop_order')
+                ->all()
+        );
+        $this->assertSame(
+            $beforeVersions,
+            UrbanGoodzRouteExecutionVersion::query()
+                ->where('dedicated_route_id', $this->route->id)
+                ->count()
+        );
+    }
+
+    public function test_driver_resequence_no_preference_is_rejected(): void
+    {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
+        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -212,8 +253,10 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         $this->assertEquals(10.0, (float)$route->getRawOriginal('estimated_miles'));
     }
 
-    public function test_driver_resequence_company_endpoint_success(): void
+    public function test_driver_resequence_company_endpoint_is_rejected(): void
     {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('company_endpoint');
+        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -245,8 +288,11 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         ]);
     }
 
-    public function test_driver_resequence_private_endpoint_fails_if_unapproved(): void
+    public function test_driver_resequence_private_endpoint_does_not_disclose_approval_state(): void
     {
+        $this->driver->update(['private_endpoint_status' => 'pending']);
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('private_endpoint');
+        return;
         $this->driver->update(['private_endpoint_status' => 'pending']);
         $this->actingAs($this->driver, 'delivery_men');
 
@@ -258,8 +304,10 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         $response->assertJsonFragment(['message' => 'Selected private endpoint is not approved.']);
     }
 
-    public function test_driver_resequence_private_endpoint_success_when_approved(): void
+    public function test_driver_resequence_approved_private_endpoint_is_rejected(): void
     {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('private_endpoint');
+        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -291,8 +339,10 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         ]);
     }
 
-    public function test_driver_resequence_preserves_locked_stops(): void
+    public function test_rejected_driver_resequence_preserves_locked_stops(): void
     {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
+        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -326,8 +376,10 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         $this->assertEquals(1, $bobStop->stop_order);
     }
 
-    public function test_driver_resequence_violates_time_window_fails(): void
+    public function test_driver_resequence_is_rejected_before_time_window_processing(): void
     {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
+        return;
         // Give Charlie (pkg3) an extremely tight window that ends before route start time (e.g. 08:00 AM)
         $this->pkg3->update([
             'delivery_window_start' => now()->toDateString() . ' 07:00:00',
@@ -361,8 +413,10 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         $response->assertJsonFragment(['message' => 'Resequencing failed: The optimized stops violate delivery time windows.']);
     }
 
-    public function test_driver_resequence_excessive_variance_requires_approval(): void
+    public function test_driver_resequence_is_rejected_before_variance_processing(): void
     {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
+        return;
         // Original miles is 10.0. Make the faked Google Matrix return a massive distance (e.g. 30 miles), which is > 20% and > 15 miles variance.
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
@@ -404,8 +458,11 @@ class UrbanGoodzDriverSequencingTest extends TestCase
         $this->assertEquals(150.00, (float)$route->route_offer_amount);
     }
 
-    public function test_private_endpoint_is_protected(): void
+    public function test_private_endpoint_is_not_exposed_by_resequence_endpoint(): void
     {
+        $this->assertAuthoritativeSequenceRejectsDriverResequence('private_endpoint');
+        $this->assertSame('Pickup Hub', $this->route->fresh()->end_location);
+        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',

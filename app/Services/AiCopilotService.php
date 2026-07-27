@@ -1523,7 +1523,7 @@ class AiCopilotService
 
         $existing = AiCopilotRecommendation::where('recommendation_type', $type)
             ->where(function($q) use ($fingerprint, $relatable, $action) {
-                $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.fingerprint')) = ?", [$fingerprint]);
+                $q->where('metadata->fingerprint', $fingerprint);
                 if ($relatable) {
                     $q->orWhere(function($sub) use ($relatable, $action) {
                         $sub->where('relatable_type', get_class($relatable))

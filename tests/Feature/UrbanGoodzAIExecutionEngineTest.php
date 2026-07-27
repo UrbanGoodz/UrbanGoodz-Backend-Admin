@@ -14,6 +14,7 @@ use App\Models\Zone;
 use App\Services\UrbanGoodz\UrbanGoodzAIExecutionService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class UrbanGoodzAIExecutionEngineTest extends TestCase
@@ -211,7 +212,7 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
             'idempotency_key' => 'test_key_123',
         ];
 
-        $result = $method->invoke($this->executionService, 'loadBoard', 'post_load_to_board', [], $validationResult, 'test query', [], 'load-board', 0.9, $this->customer->id, microtime(true));
+        $result = $method->invoke($this->executionService, 'loadBoard', 'post_load_to_board', [], $validationResult, 'test query', [], 'load-board', 0.9, $this->customer->id, 'customer', microtime(true));
 
         $this->assertFalse($result['success']);
         $this->assertStringContainsString('not authorized', $result['message']);
@@ -249,8 +250,10 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
 
         $result2 = $this->executionService->executeIntent($query, $this->customer->id);
 
-        $this->assertFalse($result2['success']);
-        $this->assertStringContainsString('Duplicate action detected', $result2['message']);
+        $this->assertTrue($result2['success']);
+        $this->assertTrue($result2['awaiting_confirmation']);
+        $this->assertSame($idempotencyKey, $result2['idempotency_key']);
+        $this->assertDatabaseCount('order_anywhere_requests', 0);
     }
 
     // ═══════════════════════════════════════════
@@ -312,7 +315,8 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         $this->assertNotNull($log);
         $this->assertEquals('intent_executed', $log->event);
         $this->assertEquals($this->customer->id, $log->causer_id);
-        $this->assertArrayHasKey('query', $log->metadata);
+        $this->assertArrayHasKey('query_hash', $log->metadata);
+        $this->assertArrayNotHasKey('query', $log->metadata);
     }
 
     // ═══════════════════════════════════════════

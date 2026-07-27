@@ -59,11 +59,11 @@ Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'th
 });
 
 Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-    Route::get('featured-reels', 'Api\V1\CreatorCommerceTesterController@featuredReels');
-    Route::get('customer/applications', 'Api\V1\CreatorCommerceTesterController@customerApplications');
-    Route::post('applications', 'Api\V1\CreatorCommerceTesterController@storeApplication');
-    Route::get('promotions', 'Api\V1\CreatorCommerceTesterController@promotions');
-    Route::post('promotions', 'Api\V1\CreatorCommerceTesterController@storePromotion');
+    Route::get('featured-reels', 'Api\V1\CreatorCommerceController@featuredReels');
+    Route::get('customer/applications', 'Api\V1\CreatorCommerceController@customerApplications');
+    Route::post('applications', 'Api\V1\CreatorCommerceController@storeApplication');
+    Route::get('promotions', 'Api\V1\CreatorCommerceController@promotions');
+    Route::post('promotions', 'Api\V1\CreatorCommerceController@storePromotion');
 });
 
     // Creator Space AI

@@ -253,6 +253,7 @@ class UrbanGoodzAiWorkforceTest extends TestCase
         $this->assertNotEquals(500, $missingResponse->getStatusCode(), "Missing record deep link threw 500 error.");
 
         // Unauthenticated access check (302 login redirect required)
+        auth('admin')->logout();
         $unauthResponse = $this->get('/admin/urban-goodz/ai-operations/workforce/tasks?id=1');
         $this->assertEquals(302, $unauthResponse->getStatusCode(), "Unauthenticated request did not redirect to login.");
 

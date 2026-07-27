@@ -7,7 +7,7 @@ use App\Models\UrbanGoodzCreatorApplication;
 use App\Models\UrbanGoodzCreatorContent;
 use Illuminate\Http\Request;
 
-class CreatorCommerceTesterController extends Controller
+class CreatorCommerceController extends Controller
 {
     public function customerApplications(Request $request)
     {

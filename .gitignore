@@ -64,3 +64,6 @@ tests/playwright-artifacts/
 tests/Browser/test-results/
 tests/playwright/test-results/
 
+
+# Untracked local credential destination (never commit)
+locallt

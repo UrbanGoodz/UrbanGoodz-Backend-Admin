@@ -13,6 +13,7 @@ use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Services\AiCopilotService;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -22,7 +23,12 @@ class UrbanGoodzAiCopilotTest extends TestCase
     {
         parent::setUp();
 
-        // 1. Create all needed dummy tables in SQLite
+        Config::set('database.default', 'sqlite');
+        Config::set('database.connections.sqlite.database', ':memory:');
+        DB::purge('sqlite');
+        DB::setDefaultConnection('sqlite');
+
+        // 1. Create all needed dummy tables in isolated SQLite.
         $dummyTables = [
             'orders' => function ($table) {
                 $table->id();
