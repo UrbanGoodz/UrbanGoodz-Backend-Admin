@@ -3,7 +3,7 @@
 @section('content')
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
     <div>
-        <a href="{{ route('dispatcher.loads') }}" class="text-muted"><i class="tio-arrow-left"></i> {{ translate('Back to Loads') }}</a>
+        <a href="{{ route('business.dispatcher.loads') }}" class="text-muted"><i class="tio-arrow-left"></i> {{ translate('Back to Loads') }}</a>
         <h1 class="page-header-title mt-1">{{ $load->load_number ?? 'Load #'.$load->id }}</h1>
     </div>
     <div class="d-flex gap-2">
@@ -94,7 +94,7 @@
         <div class="card mb-3">
             <div class="card-header"><h5 class="mb-0">{{ translate('Assign Driver') }}</h5></div>
             <div class="card-body">
-                <form method="POST" action="{{ route('dispatcher.loads.assign-driver', $load->id) }}">
+                <form method="POST" action="{{ route('business.dispatcher.loads.assign-driver', $load->id) }}">
                     @csrf
                     <div class="form-group mb-3">
                         <select name="driver_id" class="form-control" required>
@@ -116,7 +116,7 @@
         <div class="card mb-3">
             <div class="card-header"><h5 class="mb-0">{{ translate('Update Status') }}</h5></div>
             <div class="card-body">
-                <form method="POST" action="{{ route('dispatcher.loads.status', $load->id) }}">
+                <form method="POST" action="{{ route('business.dispatcher.loads.status', $load->id) }}">
                     @csrf
                     @method('PATCH')
                     <div class="form-group mb-3">

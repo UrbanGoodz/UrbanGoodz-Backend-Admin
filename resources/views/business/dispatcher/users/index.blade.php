@@ -4,7 +4,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
     <h1 class="page-header-title">{{ translate('Team Members') }}</h1>
     @if(auth('business')->user()->hasDispatchPermission('dispatch_users_manage'))
-    <a href="{{ route('dispatcher.users.create') }}" class="btn btn--primary"><i class="tio-add"></i> {{ translate('Add Member') }}</a>
+    <a href="{{ route('business.dispatcher.users.create') }}" class="btn btn--primary"><i class="tio-add"></i> {{ translate('Add Member') }}</a>
     @endif
 </div>
 
@@ -44,9 +44,9 @@
                         @if(auth('business')->user()->hasDispatchPermission('dispatch_users_manage'))
                         <td>
                             @if($u->role !== 'dispatch_owner')
-                            <a href="{{ route('dispatcher.users.edit', $u->id) }}" class="btn btn-sm btn-outline--primary"><i class="tio-edit"></i></a>
+                            <a href="{{ route('business.dispatcher.users.edit', $u->id) }}" class="btn btn-sm btn-outline--primary"><i class="tio-edit"></i></a>
                             @if($u->id !== auth('business')->id())
-                            <form method="POST" action="{{ route('dispatcher.users.deactivate', $u->id) }}" class="d-inline" onsubmit="return confirm('{{ translate('Deactivate this user?') }}')">
+                            <form method="POST" action="{{ route('business.dispatcher.users.deactivate', $u->id) }}" class="d-inline" onsubmit="return confirm('{{ translate('Deactivate this user?') }}')">
                                 @csrf
                                 <button type="submit" class="btn btn-sm btn-outline--danger"><i class="tio-delete"></i></button>
                             </form>

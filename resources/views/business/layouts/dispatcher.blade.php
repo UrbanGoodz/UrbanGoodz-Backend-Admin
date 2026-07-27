@@ -86,7 +86,7 @@
 
     <nav class="navbar navbar-expand-lg navbar-dispatcher">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ route('dispatcher.dashboard') }}">
+            <a class="navbar-brand" href="{{ route('business.dispatcher.dashboard') }}">
                 <strong>{{ translate('Urban Goodz') }}</strong> {{ translate('Dispatcher') }}
                 <span class="workspace-badge ms-2">{{ translate('WORKSPACE') }}</span>
             </a>
@@ -97,31 +97,31 @@
                 <ul class="navbar-nav me-auto">
                     @php($user = auth('business')->user())
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dispatcher.dashboard') ? 'active' : '' }}" href="{{ route('dispatcher.dashboard') }}">{{ translate('Dashboard') }}</a>
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.dashboard') ? 'active' : '' }}" href="{{ route('business.dispatcher.dashboard') }}">{{ translate('Dashboard') }}</a>
                     </li>
                     @if($user->hasDispatchPermission('dispatch_loads_view'))
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dispatcher.loads.*') ? 'active' : '' }}" href="{{ route('dispatcher.loads') }}">{{ translate('Loads') }}</a>
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.loads.*') ? 'active' : '' }}" href="{{ route('business.dispatcher.loads') }}">{{ translate('Loads') }}</a>
                     </li>
                     @endif
                     @if($user->hasDispatchPermission('dispatch_drivers_view'))
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dispatcher.drivers') ? 'active' : '' }}" href="{{ route('dispatcher.drivers') }}">{{ translate('Drivers') }}</a>
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.drivers') ? 'active' : '' }}" href="{{ route('business.dispatcher.drivers') }}">{{ translate('Drivers') }}</a>
                     </li>
                     @endif
                     @if($user->hasDispatchPermission('dispatch_commissions_view'))
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dispatcher.commissions') ? 'active' : '' }}" href="{{ route('dispatcher.commissions') }}">{{ translate('Commissions') }}</a>
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.commissions') ? 'active' : '' }}" href="{{ route('business.dispatcher.commissions') }}">{{ translate('Commissions') }}</a>
                     </li>
                     @endif
                     @if($user->hasDispatchPermission('dispatch_territory_manage'))
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dispatcher.territory') ? 'active' : '' }}" href="{{ route('dispatcher.territory') }}">{{ translate('Territory') }}</a>
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.territory') ? 'active' : '' }}" href="{{ route('business.dispatcher.territory') }}">{{ translate('Territory') }}</a>
                     </li>
                     @endif
                     @if($user->hasDispatchPermission('dispatch_users_manage'))
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dispatcher.users.*') ? 'active' : '' }}" href="{{ route('dispatcher.users') }}">{{ translate('Team') }}</a>
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.users.*') ? 'active' : '' }}" href="{{ route('business.dispatcher.users') }}">{{ translate('Team') }}</a>
                     </li>
                     @endif
                 </ul>

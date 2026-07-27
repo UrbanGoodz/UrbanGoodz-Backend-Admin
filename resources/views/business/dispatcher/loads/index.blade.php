@@ -66,7 +66,7 @@
                     @forelse($loads as $load)
                     <tr>
                         <td>
-                            <a href="{{ route('dispatcher.loads.show', $load->id) }}" class="fw-bold">
+                            <a href="{{ route('business.dispatcher.loads.show', $load->id) }}" class="fw-bold">
                                 {{ $load->load_number ?? '#'.$load->id }}
                             </a>
                         </td>

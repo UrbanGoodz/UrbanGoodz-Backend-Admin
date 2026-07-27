@@ -69,7 +69,7 @@
                     <tr>
                         <td>
                             @if($c->load)
-                            <a href="{{ route('dispatcher.loads.show', $c->load_id) }}">{{ $c->load->load_number ?? '#'.$c->load_id }}</a>
+                            <a href="{{ route('business.dispatcher.loads.show', $c->load_id) }}">{{ $c->load->load_number ?? '#'.$c->load_id }}</a>
                             @else
                             <span class="text-muted">#{{ $c->load_id }}</span>
                             @endif

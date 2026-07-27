@@ -3,12 +3,12 @@
 @section('content')
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
     <h1 class="page-header-title">{{ translate('Edit Team Member') }}</h1>
-    <a href="{{ route('dispatcher.users') }}" class="btn btn-outline--primary"><i class="tio-arrow-left"></i> {{ translate('Back') }}</a>
+    <a href="{{ route('business.dispatcher.users') }}" class="btn btn-outline--primary"><i class="tio-arrow-left"></i> {{ translate('Back') }}</a>
 </div>
 
 <div class="card">
     <div class="card-body">
-        <form method="POST" action="{{ route('dispatcher.users.update', $editUser->id) }}">
+        <form method="POST" action="{{ route('business.dispatcher.users.update', $editUser->id) }}">
             @csrf
             <div class="row g-3">
                 <div class="col-md-6">

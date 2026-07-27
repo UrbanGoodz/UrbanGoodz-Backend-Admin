@@ -10,7 +10,7 @@
         <h5 class="mb-0">{{ translate('Assigned States') }}</h5>
     </div>
     <div class="card-body">
-        <form method="POST" action="{{ route('dispatcher.territory.update') }}">
+        <form method="POST" action="{{ route('business.dispatcher.territory.update') }}">
             @csrf
             <p class="text-muted mb-3">{{ translate('Select the states where your dispatch company operates. Loads originating or terminating in these states will be visible to your team.') }}</p>
 
@@ -35,7 +35,7 @@
         <h5 class="mb-0">{{ translate('Custom Corridors') }}</h5>
     </div>
     <div class="card-body">
-        <form method="POST" action="{{ route('dispatcher.territory.update') }}">
+        <form method="POST" action="{{ route('business.dispatcher.territory.update') }}">
             @csrf
             <p class="text-muted mb-3">{{ translate('Define specific corridors (e.g., TX-LA, LA-MS). These are used for route-based filtering.') }}</p>
 

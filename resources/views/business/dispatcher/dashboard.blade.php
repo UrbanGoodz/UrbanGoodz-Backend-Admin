@@ -5,7 +5,7 @@
     <h1 class="page-header-title">{{ translate('Dispatcher Dashboard') }}</h1>
     <div class="d-flex gap-2">
         @if(auth('business')->user()->hasDispatchPermission('dispatch_loads_view'))
-        <a href="{{ route('dispatcher.loads') }}" class="btn btn--primary">
+        <a href="{{ route('business.dispatcher.loads') }}" class="btn btn--primary">
             <i class="tio-truck"></i> {{ translate('View Loads') }}
         </a>
         @endif
@@ -95,7 +95,7 @@
                     @forelse($recentLoads as $load)
                     <tr>
                         <td>
-                            <a href="{{ route('dispatcher.loads.show', $load->id) }}" class="fw-bold">
+                            <a href="{{ route('business.dispatcher.loads.show', $load->id) }}" class="fw-bold">
                                 {{ $load->load_number ?? '#'.$load->id }}
                             </a>
                         </td>
