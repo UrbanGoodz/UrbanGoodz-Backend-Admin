@@ -121,7 +121,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command('queue:work', [
             '--queue' => 'payments,notifications,ai,load-sourcing,default',
-            '--stop-when-empty' => true,
+            '--stop-when-empty',
             '--tries' => 3,
             '--backoff' => 30,
         ])
