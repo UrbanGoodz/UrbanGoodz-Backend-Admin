@@ -78,6 +78,11 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         //dashboard
         Route::get('/', 'DashboardController@dashboard')->name('dashboard');
 
+        // Kept outside the legacy module-permission middleware so the controller
+        // can return a true HTTP 403 instead of silently redirecting unauthorized users.
+        Route::get('urban-goodz/vendors', 'UrbanGoodz\UrbanGoodzVendorBusinessController@index')
+            ->name('urban-goodz.vendors.index');
+
         Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
             Route::group(['prefix' => 'creator-commerce', 'as' => 'creator.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzCreatorController@dashboard')->name('dashboard');

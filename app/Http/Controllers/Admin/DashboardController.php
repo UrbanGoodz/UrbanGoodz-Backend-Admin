@@ -38,6 +38,7 @@ use App\Models\UrbanGoodzRoutePackage;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Services\UrbanGoodz\VendorBusinessDirectoryService;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Config;
@@ -382,10 +383,13 @@ class DashboardController extends Controller
         $module_type = Config::get('module.current_module_type');
 
         $ugData = self::urban_goodz_dashboard_data();
+        $vendorDirectorySummary = $ugData
+            ? app(VendorBusinessDirectoryService::class)->summary()
+            : [];
 
         if ($module_type == 'settings') {
             if (auth('admin')->check() && auth('admin')->user()->role_id == 1) {
-                return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData'));
+                return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData', 'vendorDirectorySummary'));
             }
             return redirect()->route('admin.business-settings.business-setup');
         }
@@ -401,7 +405,7 @@ class DashboardController extends Controller
             return view('errors.404');
         }
         $viewName = (empty($module_type) || !view()->exists("admin-views.dashboard-{$module_type}")) ? "admin-views.dashboard" : "admin-views.dashboard-{$module_type}";
-        return view($viewName, compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData'));
+        return view($viewName, compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData', 'vendorDirectorySummary'));
     }
 
     public function order(Request $request)
