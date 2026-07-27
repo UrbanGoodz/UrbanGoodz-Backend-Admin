@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Models\OrderAnywhereRequest;
 use Illuminate\Support\Facades\Log;
+use LogicException;
 use Stripe\Checkout\Session as CheckoutSession;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\Exception\ApiErrorException;
@@ -52,21 +53,18 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
     public function isEnabled(): bool
     {
-        return $this->enabled;
+        return $this->enabled && ! empty($this->secretKey);
     }
 
     public function createPaymentLink(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array
     {
-        if (! $this->enabled || empty($this->secretKey)) {
-            return $this->stagedTestFallback($amount, $currency, $reference);
-        }
+        $this->assertConfigured();
 
         try {
             $amountMinor = $this->toMinorUnits($amount, $currency);
 
             $params = [
-                'payment_method_types' => ['card'],
-                'mode' => $this->captureMethod === 'automatic' ? 'payment' : 'setup',
+                'mode' => 'payment',
                 'success_url' => ($returnUrl ?? $this->successUrl) . '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $this->cancelUrl,
                 'metadata' => [
@@ -136,9 +134,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
     public function authorize(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array
     {
-        if (! $this->enabled || empty($this->secretKey)) {
-            return $this->stagedTestAuthorize($amount, $currency, $reference);
-        }
+        $this->assertConfigured();
 
         try {
             $sessionId = $context ?? $request->psp_reference ?? $reference;
@@ -182,9 +178,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
     public function capture(OrderAnywhereRequest $request, float $amount, string $currency, string $reference): array
     {
-        if (! $this->enabled || empty($this->secretKey)) {
-            return $this->stagedTestCapture($amount, $currency, $reference);
-        }
+        $this->assertConfigured();
 
         try {
             $paymentIntentId = $request->psp_reference ?? $reference;
@@ -232,9 +226,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
     public function refund(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array
     {
-        if (! $this->enabled || empty($this->secretKey)) {
-            return $this->stagedTestRefund($amount, $currency, $reference);
-        }
+        $this->assertConfigured();
 
         try {
             $paymentIntentId = $request->psp_reference ?? $request->capture_reference ?? $reference;
@@ -277,16 +269,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
     public function cancel(OrderAnywhereRequest $request, ?string $reference = null): array
     {
-        if (! $this->enabled || empty($this->secretKey)) {
-            return [
-                'success' => true,
-                'provider' => $this->providerName(),
-                'provider_reference' => $request->psp_reference,
-                'merchant_reference' => $reference ?? $request->request_number,
-                'status' => 'canceled',
-                'staged_test' => true,
-            ];
-        }
+        $this->assertConfigured();
 
         try {
             $paymentIntentId = $request->psp_reference ?? $reference;
@@ -366,16 +349,21 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
         return [
             [
+                'event_id' => $event['id'] ?? null,
                 'event_code' => $event['type'],
                 'success' => in_array($event['type'], [
                     'checkout.session.completed',
                     'payment_intent.succeeded',
                     'charge.succeeded',
                     'refund.succeeded',
+                    'charge.refunded',
                 ]),
-                'provider_reference' => $object['id'] ?? null,
+                'resource_reference' => $object['id'] ?? null,
+                'provider_reference' => $object['payment_intent'] ?? $object['id'] ?? null,
                 'merchant_reference' => $object['metadata']['merchant_reference'] ?? $object['client_reference_id'] ?? null,
-                'amount_minor' => (int) ($object['amount_total'] ?? $object['amount'] ?? 0),
+                'amount_minor' => (int) ($event['type'] === 'charge.refunded'
+                    ? ($object['amount_refunded'] ?? 0)
+                    : ($object['amount_total'] ?? $object['amount'] ?? 0)),
                 'currency' => strtoupper($object['currency'] ?? 'usd'),
                 'raw' => $object,
             ],
@@ -436,61 +424,10 @@ class StripePaymentGateway implements PaymentGatewayInterface
 
     // ─── Staged Test Mode Fallbacks ───────────────────────────────────────
 
-    private function stagedTestFallback(float $amount, string $currency, string $reference): array
+    private function assertConfigured(): void
     {
-        return [
-            'success' => true,
-            'provider' => $this->providerName(),
-            'provider_reference' => 'STG_STRIPE_' . bin2hex(random_bytes(16)),
-            'merchant_reference' => $reference,
-            'payment_link_id' => 'STG_STRIPE_LINK_' . bin2hex(random_bytes(16)),
-            'payment_url' => "/admin/urban-goodz/order-anywhere?staged_test=1&provider=stripe&ref=" . urlencode($reference),
-            'status' => 'active',
-            'amount' => $amount,
-            'currency' => $currency,
-            'staged_test' => true,
-        ];
-    }
-
-    private function stagedTestAuthorize(float $amount, string $currency, string $reference): array
-    {
-        return [
-            'success' => true,
-            'provider' => $this->providerName(),
-            'provider_reference' => 'STG_STRIPE_' . bin2hex(random_bytes(12)),
-            'merchant_reference' => $reference,
-            'status' => 'authorized',
-            'amount' => $amount,
-            'currency' => $currency,
-            'staged_test' => true,
-        ];
-    }
-
-    private function stagedTestCapture(float $amount, string $currency, string $reference): array
-    {
-        return [
-            'success' => true,
-            'provider' => $this->providerName(),
-            'provider_reference' => 'STG_STRIPE_' . bin2hex(random_bytes(12)),
-            'merchant_reference' => $reference,
-            'status' => 'captured',
-            'amount' => $amount,
-            'currency' => $currency,
-            'staged_test' => true,
-        ];
-    }
-
-    private function stagedTestRefund(float $amount, string $currency, string $reference): array
-    {
-        return [
-            'success' => true,
-            'provider' => $this->providerName(),
-            'provider_reference' => 'STG_STRIPE_' . bin2hex(random_bytes(12)),
-            'merchant_reference' => $reference,
-            'status' => 'refunded',
-            'amount' => $amount,
-            'currency' => $currency,
-            'staged_test' => true,
-        ];
+        if (! $this->isEnabled()) {
+            throw new LogicException('Stripe is disabled or its secret key is not configured.');
+        }
     }
 }
