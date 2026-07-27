@@ -29,6 +29,20 @@
         <div class="card card-body">
             <div class="d-flex align-items-center flex-wrap justify-content-end gap-3 mb-20">
                 <h4 class="m-0 text-capitalize flex-grow-1">{{translate('language_content_table')}}</h4>
+                <a class="btn btn-outline-primary"
+                   href="{{ route('admin.business-settings.language.runtime-export', [$lang]) }}">
+                    {{ translate('Export runtime translations') }}
+                </a>
+                <form method="POST"
+                      action="{{ route('admin.business-settings.language.runtime-import', [$lang]) }}"
+                      enctype="multipart/form-data"
+                      class="d-flex align-items-center gap-2">
+                    @csrf
+                    <input type="file" name="catalog" accept="application/json,.json" class="form-control" required>
+                    <button type="submit" class="btn btn-outline-primary">
+                        {{ translate('Import runtime translations') }}
+                    </button>
+                </form>
                 <form class="search-form min--260">
                     <!-- Search -->
                     <div class="input-group input--group">

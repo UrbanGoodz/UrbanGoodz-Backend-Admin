@@ -13,9 +13,14 @@ use RecursiveIteratorIterator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\Translations\RuntimeTranslationRepository;
 
 class LanguageController extends Controller
 {
+    public function __construct(private readonly RuntimeTranslationRepository $runtimeTranslations)
+    {
+    }
+
     public function index()
     {       $language = BusinessSetting::where('key', 'system_language')->exists();
         if(!$language){
@@ -48,14 +53,6 @@ class LanguageController extends Controller
             }
         }
         array_push($codes, $request['code']);
-
-        if (!file_exists(base_path('resources/lang/' . $request['code']))) {
-            mkdir(base_path('resources/lang/' . $request['code']), 0777, true);
-        }
-
-        $lang_file = fopen(base_path('resources/lang/' . $request['code'] . '/' . 'messages.php'), "w") or die("Unable to open file!");
-        $read = file_get_contents(base_path('resources/lang/en/messages.php'));
-        fwrite($lang_file, $read);
 
         $lang_array[] = [
             'id' => $request['code'].count(json_decode($language['value'], true)) + 1,
@@ -197,11 +194,7 @@ class LanguageController extends Controller
         ]);
 
         if($request->code != $request->old_code){
-            $dir = base_path('resources/lang/' . $request['old_code']);
-            if (File::isDirectory($dir)) {
-                rename($dir, base_path('resources/lang/' . $request['code']));
-            }
-
+            $this->runtimeTranslations->renameLocale($request['old_code'], $request['code']);
             $codes = [];
             foreach ($lang_array as $key => $data) {
                 array_push($codes, $data['code']);
@@ -229,7 +222,7 @@ class LanguageController extends Controller
     public function translate(Request $request,$lang)
     {
         $searchTerm =$request['search'];
-        $full_data = include(base_path('resources/lang/' . $lang . '/messages.php'));
+        $full_data = $this->messageCatalog($lang);
         $full_data = array_filter($full_data, fn($value) => !is_null($value) && $value !== '');
 
         if (!empty($searchTerm)) {
@@ -247,38 +240,22 @@ class LanguageController extends Controller
 
     public function translate_key_remove(Request $request, $lang)
     {
-        $full_data = include(base_path('resources/lang/' . $lang . '/messages.php'));
-        unset($full_data[$request['key']]);
-        $str = "<?php return " . var_export($full_data, true) . ";";
-        file_put_contents(base_path('resources/lang/' . $lang . '/messages.php'), $str);
+        $this->runtimeTranslations->remove($lang, 'messages', (string) $request['key']);
     }
 
     public function translate_submit(Request $request, $lang)
     {
-        $full_data = include(base_path('resources/lang/' . $lang . '/messages.php'));
-        $data_filtered = [];
-        foreach ($full_data as $key => $data) {
-            $data_filtered[$key] = $data;
-        }
-        $data_filtered[$request['key']] = $request['value'];
-        $str = "<?php return " . var_export($data_filtered, true) . ";";
-        file_put_contents(base_path('resources/lang/' . $lang . '/messages.php'), $str);
+        $request->validate(['key' => 'required|string|max:191', 'value' => 'required|string|max:10000']);
+        $this->runtimeTranslations->put($lang, 'messages', $request['key'], $request['value']);
     }
 
     public function auto_translate(Request $request, $lang): \Illuminate\Http\JsonResponse
     {
         $lang_code = Helpers::getLanguageCode($lang);
 
-        $full_data = include(base_path('resources/lang/' . $lang . '/messages.php'));
-        $data_filtered = [];
-        foreach ($full_data as $key => $data) {
-            $data_filtered[$key] = $data;
-        }
         $translated=  str_replace('_', ' ', Helpers::remove_invalid_charcaters($request['key']));
         $translated = Helpers::auto_translator($translated, 'en', $lang);
-        $data_filtered[$request['key']] = $translated;
-        $str = "<?php return " . var_export($data_filtered, true) . ";";
-        file_put_contents(base_path('resources/lang/' . $lang . '/messages.php'), $str);
+        $this->runtimeTranslations->put($lang, 'messages', $request['key'], $translated);
 
         return response()->json([
             'translated_data' => $translated
@@ -287,89 +264,29 @@ class LanguageController extends Controller
     public function auto_translate_all(Request $request, $lang): \Illuminate\Http\JsonResponse
     {
         try {
-            $translating_count= $request?->translating_count <= 0 ? 1: $request->translating_count ;
-            $lang_code = Helpers::getLanguageCode($lang);
-
             if($lang === 'en'){
                 return response()->json([
                     'message' => translate('All_datas_are_translated') , 'data' => 'success'
                 ]);
             }
 
-            $data_filtered = [];
-            $data_filtered_2 = [];
-            $new_messages_path = base_path('resources/lang/' . $lang . '/new-messages.php');
-            $count=0;
-            $start_time = now();
-            $items_processed = 20;
-            if(!file_exists($new_messages_path)){
-                $str = "<?php return " . var_export($data_filtered, true) . ";";
-                file_put_contents(base_path('resources/lang/' . $lang . '/new-messages.php'), $str);
+            $source = $this->messageCatalog('en');
+            $overrides = $this->runtimeTranslations->all($lang, 'messages');
+            $pending = array_diff_key($source, $overrides);
+            $batch = array_slice($pending, 0, 20, true);
+
+            foreach ($batch as $key => $value) {
+                $translated = Helpers::auto_translator((string) $value, 'en', $lang);
+                $this->runtimeTranslations->put($lang, 'messages', $key, $translated);
             }
 
-            $translated_data = include(base_path('resources/lang/' . $lang . '/new-messages.php'));
-            $full_data = include(base_path('resources/lang/' . $lang . '/messages.php'));
-            $translated_data_count= count($translated_data);
+            $remaining = max(0, count($pending) - count($batch));
+            $total = max(1, count($source));
+            $percentage = round((($total - $remaining) / $total) * 100, 1);
 
-            if($translated_data_count > 0){
-                foreach ($translated_data as $key_1 => $data_1) {
-                    if($count > $items_processed){
-                        break;
-                    }
-                    $translated=  str_replace('_', ' ', Helpers::remove_invalid_charcaters($key_1));
-                    if(strlen($translated) > 0){
-                        $translated = Helpers::auto_translator($translated, 'en', $lang);
-                    }
-                    $data_filtered_2[$key_1] = $translated;
-                    unset($translated_data[$key_1]);
-                    $count++;
-                }
-
-
-                $str = "<?php return " . var_export($translated_data, true) . ";";
-                file_put_contents(base_path('resources/lang/' . $lang . '/new-messages.php'), $str);
-                $merged_data = array_replace($full_data, $data_filtered_2);
-
-                $str = "<?php\n\nreturn " . var_export($merged_data, true) . ";\n";
-                file_put_contents(base_path('resources/lang/' . $lang . '/messages.php'), $str);
-                $renmaining_translated_data_count= count($translated_data);
-                $percentage =  $renmaining_translated_data_count > 0 && $translating_count > 0 ?  100 - ( ($renmaining_translated_data_count/$translating_count)* 100) : 0;
-
-
-                $percentage= $percentage > 0 ? $percentage : 1;
-
-                $end_time =now();
-                $time_taken = $start_time->diffInSeconds($end_time);
-                $rate_per_second = $time_taken > 0 ? $items_processed / $time_taken : 0.01;
-                $total_time_needed = $renmaining_translated_data_count > 0 ? $renmaining_translated_data_count / $rate_per_second : 1;
-
-                $hours = floor($total_time_needed / 3600);
-                $minutes = floor( 2 + (($total_time_needed % 3600) / 60));
-                $seconds = $total_time_needed % 60;
-
-
-                return response()->json([
-                    'message' =>  translate('translating') , 'data' => 'translating', 'total' => $translated_data_count, 'percentage'=> round($percentage,1), 'hours' => $hours, 'minutes' => $minutes, 'seconds' => $seconds,
-                    'status' =>  $renmaining_translated_data_count > 0 ? 'pending' : 'done'
-                ]);
-
-            } else{
-
-                    foreach ($full_data as $key => $data) {
-                        if (preg_match('/^[\x20-\x7E\x{2019}]+$/u', $data)) {
-                            $data_filtered[$key] = $data;
-                            $str = "<?php return " . var_export($data_filtered, true) . ";";
-                            file_put_contents(base_path('resources/lang/' . $lang . '/new-messages.php'), $str);
-                            }
-                    }
-                    return response()->json([
-                        'message' =>  translate('data_prepared') , 'data' => 'data_prepared' , 'total' => count($data_filtered)
-                    ]);
-
-            }
-            return response()->json([
-                'message' => translate('All_datas_are_translated') , 'data' => 'success'
-            ]);
+            return response()->json($remaining > 0
+                ? ['message' => translate('translating'), 'data' => 'translating', 'total' => $total, 'percentage' => $percentage, 'hours' => 0, 'minutes' => 1, 'seconds' => 0, 'status' => 'pending']
+                : ['message' => translate('All_datas_are_translated'), 'data' => 'success', 'status' => 'done']);
         } catch (\Exception $exception) {
             return response()->json([
                 'message' => $exception->getMessage() , 'data' => 'error'
@@ -406,19 +323,7 @@ class LanguageController extends Controller
             'value' => $lang_array
         ]);
 
-        $dir = base_path('resources/lang/' . $lang);
-        if (File::isDirectory($dir)) {
-            $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
-            $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
-            foreach ($files as $file) {
-                if ($file->isDir()) {
-                    rmdir($file->getRealPath());
-                } else {
-                    unlink($file->getRealPath());
-                }
-            }
-            rmdir($dir);
-        }
+        $this->runtimeTranslations->deleteLocale($lang);
 
 
         $languages = array();
@@ -456,5 +361,45 @@ class LanguageController extends Controller
         session()->put('local', $local);
         session()->put('site_direction', $direction);
         return redirect()->back();
+    }
+
+    public function exportRuntime($lang)
+    {
+        $payload = json_encode(
+            $this->runtimeTranslations->all($lang, 'messages'),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+        );
+
+        return response()->streamDownload(
+            fn () => print($payload.PHP_EOL),
+            "urban-goodz-runtime-translations-{$lang}.json",
+            ['Content-Type' => 'application/json']
+        );
+    }
+
+    public function importRuntime(Request $request, $lang)
+    {
+        $request->validate(['catalog' => 'required|file|max:2048']);
+        $decoded = json_decode((string) file_get_contents($request->file('catalog')->getRealPath()), true);
+        if (! is_array($decoded)) {
+            return back()->withErrors(['catalog' => 'The runtime translation catalog must be a JSON object.']);
+        }
+
+        $count = $this->runtimeTranslations->import($lang, 'messages', $decoded);
+        Toastr::success("{$count} runtime translations imported.");
+
+        return back();
+    }
+
+    private function messageCatalog(string $lang): array
+    {
+        $path = base_path("resources/lang/{$lang}/messages.php");
+        if (! is_file($path)) {
+            $path = base_path('resources/lang/en/messages.php');
+        }
+
+        $source = include $path;
+
+        return $this->runtimeTranslations->merge(is_array($source) ? $source : [], $lang, 'messages');
     }
 }

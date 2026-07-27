@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Session;
+use App\Services\Translations\RuntimeTranslationRepository;
 
 if (!function_exists('translate')) {
     function translate($key): string
@@ -9,20 +10,21 @@ if (!function_exists('translate')) {
         $local = getDefaultLanguage();
         App::setLocale($local);
 
+        $key = removeSpecialCharacters($key);
+        $processed_key = ucfirst(str_replace('_', ' ', $key));
+        $translation_key = 'messages.'.$key;
+
         try {
-            $lang_array = include(base_path('resources/lang/' . $local . '/messages.php'));
-            $processed_key = ucfirst(str_replace('_', ' ', removeSpecialCharacters($key)));
-            $key = removeSpecialCharacters($key);
-            if (!array_key_exists($key, $lang_array)) {
-                $lang_array[$key] = $processed_key;
-                $str = "<?php return " . var_export($lang_array, true) . ";";
-                file_put_contents(base_path('resources/lang/' . $local . '/messages.php'), $str);
-                $result = $processed_key;
-            } else {
-                $result = __('messages.' . $key);
+            $translator = app('translator');
+            if (! $translator->hasForLocale($translation_key, $local)) {
+                app(RuntimeTranslationRepository::class)->put($local, 'messages', $key, $processed_key);
+                $translator->addLines([$translation_key => $processed_key], $local);
             }
-        } catch (\Exception $exception) {
-            $result = __('messages.' . $key);
+
+            $result = $translator->get($translation_key, [], $local, false);
+        } catch (\Throwable $exception) {
+            report($exception);
+            $result = $processed_key;
         }
 
         return $result;

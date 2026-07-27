@@ -167,3 +167,24 @@ php artisan test tests/Feature/UrbanGoodzPaymentAuditTest.php --log-junit storag
 - Booking records must preserve provider, licensed broker where applicable, carrier, dispatcher, driver, provider load ID, rate, rate confirmation, booking authority, and audit history.
 - Provider credentials must not be scraped, shared, exposed, or treated as belonging to the dispatcher personally.
 - Partner application priority: Direct Freight, 123Loadboard, Uber Freight vendor/technology partnership, then a licensed regional broker-of-record.
+
+### Deferred provider-specific implementations
+
+- 123Loadboard temporary mode is `external_portal`, never API-connected: open a new tab, allow manual candidate/booking/rate-confirmation capture, and create an Urban Goodz external-load record only after a dispatcher selects and books a load for a verified carrier. Future `partner_api` remains disabled until written API and display permission.
+- Trulos is the priority controlled connector. Adapter verdict must remain `IMPLEMENTED_AWAITING_PROVIDER_APPROVAL` until written commercial-use, authentication, limits, display/retention, attribution, support, and production-availability terms are received and a real authorized response succeeds.
+- Trulos search must be dispatcher-initiated, use documented JSON only, map approved equipment, display attribution/timestamp, and persist only selected candidates. Do not scrape or permanently import every result.
+- Fallback portals: TB Load and PickaTruckload are external portals. C.H. Robinson and Amazon Relay require carrier-connected accounts. External portals must never be presented as API-connected.
+
+## Runtime translation source-mutation repair
+
+- Root cause: Composer loads `app/helpers.php` before `app/Utils/language.php`; the active global `translate()` rewrote tracked `resources/lang/{locale}/messages.php` for every missing key during ordinary page rendering.
+- A second unsafe writer existed in `app/Traits/Processor.php` for payment error translations, and explicit admin translation operations also wrote or deleted tracked language files.
+- Replacement: a locked JSON catalog under `storage/app/runtime-translations/{locale}/{group}.json`, merged through Laravel's translation loader. Normal translation discovery, payment errors, admin edits, locale rename/delete, and bulk translation no longer mutate source files.
+- Admin translation pages provide explicit JSON import/export controls.
+- The 204 production-added English keys were exported and preserved at `/home/urbakkej/ug_runtime_translations_en_20260727.json` and installed at `storage/app/runtime-translations/en/messages.json`.
+- Export SHA-256: `20433a6772347f99773ae973ad30ba25744644afcbbdd8316220aff99ac5a6aa`.
+- Local evidence: `C:\Users\D'Andre Good\evidence\translation-source-repair-20260727\runtime-translations-en-204.json`.
+- Focused source-safety result: 3 passed, 9 assertions.
+- Broader regression result: 57 passed, 244 assertions.
+- Complete working-tree result: 427 passed, 2,722 assertions, 0 failures, 0 errors, 0 skipped.
+- Full-suite JUnit: `storage/app/test-evidence/runtime-translation-full-backend-junit.xml`.

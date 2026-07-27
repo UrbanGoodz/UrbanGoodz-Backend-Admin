@@ -1117,6 +1117,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('translate/{lang}', 'LanguageController@translate')->name('translate');
                 Route::post('translate-submit/{lang}', 'LanguageController@translate_submit')->name('translate-submit');
                 Route::post('remove-key/{lang}', 'LanguageController@translate_key_remove')->name('remove-key');
+                Route::get('runtime-export/{lang}', 'LanguageController@exportRuntime')->name('runtime-export');
+                Route::post('runtime-import/{lang}', 'LanguageController@importRuntime')->name('runtime-import');
                 Route::get('delete/{lang}', 'LanguageController@delete')->name('delete');
                 Route::any('auto-translate/{lang}', 'LanguageController@auto_translate')->name('auto-translate');
                 Route::get('auto-translate-all/{lang}', 'LanguageController@auto_translate_all')->name('auto_translate_all');

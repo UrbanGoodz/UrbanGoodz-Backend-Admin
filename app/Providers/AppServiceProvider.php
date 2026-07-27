@@ -8,6 +8,8 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Config;
 use App\CentralLogics\Helpers;
 use Illuminate\Http\Request;
+use App\Services\Translations\RuntimeTranslationLoader;
+use App\Services\Translations\RuntimeTranslationRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
+        $this->app->singleton(RuntimeTranslationRepository::class);
+        $this->app->extend('translation.loader', fn ($loader, $app) => new RuntimeTranslationLoader(
+            $loader,
+            $app->make(RuntimeTranslationRepository::class),
+        ));
+
         $this->app->bind(
             \App\Contracts\FashionFitMeasurementProvider::class,
             \App\Services\FashionFit\HttpFashionFitMeasurementProvider::class,

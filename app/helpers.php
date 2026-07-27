@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\SubscriptionBillingAndRefundHistory;
 use Brian2694\Toastr\Facades\Toastr;
 use Modules\Rental\Entities\Trips;
+use App\Services\Translations\RuntimeTranslationRepository;
 
 if (! function_exists('translate')) {
     function translate($key, $replace = [])
@@ -27,21 +28,20 @@ if (! function_exists('translate')) {
 
         $key = strpos($key, 'messages.') === 0?substr($key,9):$key;
         $local = app()->getLocale();
-        try {
-            $lang_array = include(base_path('resources/lang/' . $local . '/messages.php'));
-            $processed_key = ucfirst(str_replace('_', ' ', Helpers::remove_invalid_charcaters($key)));
+        $processed_key = ucfirst(str_replace('_', ' ', Helpers::remove_invalid_charcaters($key)));
+        $translation_key = 'messages.'.$key;
 
-            if (!array_key_exists($key, $lang_array)) {
-                $lang_array[$key] = $processed_key;
-                $str = "<?php return " . var_export($lang_array, true) . ";";
-                file_put_contents(base_path('resources/lang/' . $local . '/messages.php'), $str);
-                $result = $processed_key;
-            } else {
-                $result = trans('messages.' . $key, $replace);
+        try {
+            $translator = app('translator');
+            if (! $translator->hasForLocale($translation_key, $local)) {
+                app(RuntimeTranslationRepository::class)->put($local, 'messages', $key, $processed_key);
+                $translator->addLines([$translation_key => $processed_key], $local);
             }
-        } catch (\Exception $exception) {
-            info($exception->getMessage());
-            $result = trans('messages.' . $key, $replace);
+
+            $result = $translator->get($translation_key, $replace, $local, false);
+        } catch (\Throwable $exception) {
+            report($exception);
+            $result = strtr($processed_key, $replace);
         }
 
         return $result;
