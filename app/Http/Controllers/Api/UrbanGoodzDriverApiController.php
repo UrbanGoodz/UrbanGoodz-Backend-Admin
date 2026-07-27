@@ -186,6 +186,13 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('assigned_driver_id', $driver->id)
             ->firstOrFail();
 
+        return response()->json([
+            'message' => 'Driver-side route resequencing is disabled. The persisted Business/dispatcher sequence is authoritative.',
+            'route_id' => $route->id,
+            'optimization_status' => $route->optimization_status,
+            'optimization_version' => $route->optimization_version,
+        ], 409);
+
         $startLocation = [
             'lat' => (float)$route->pickup_lat,
             'lng' => (float)$route->pickup_lng,

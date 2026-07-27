@@ -112,7 +112,9 @@ class DedicatedRouteOptimizationService
                             ? $savedIndex + 1
                             : $original->search(fn ($item) => $item->id === $package->id) + 1,
                         'estimated_distance_from_prev' => round($leg->distanceMiles, 2),
-                        'estimated_duration_from_prev' => (int) round($leg->durationMinutes ?? 0),
+                        'estimated_duration_from_prev' => $leg->durationMinutes === null
+                            ? null
+                            : (int) round($leg->durationMinutes),
                         'status' => 'pending',
                     ]);
 
