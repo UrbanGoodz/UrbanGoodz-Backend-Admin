@@ -67,3 +67,5 @@ tests/playwright/test-results/
 
 # Untracked local credential destination (never commit)
 locallt
+.phpunit.cache/
+storage/app/test-evidence/
