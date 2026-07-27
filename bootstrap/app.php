@@ -120,7 +120,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->when(fn () => config('urban_goodz_load_board.sync.enabled', true));
 
         $schedule->command('queue:work', [
-            '--queue' => 'notifications',
+            '--queue' => 'payments,notifications,ai,load-sourcing,default',
             '--stop-when-empty' => true,
             '--tries' => 3,
             '--backoff' => 30,
