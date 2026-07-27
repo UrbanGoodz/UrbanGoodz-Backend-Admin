@@ -36,6 +36,8 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
         Route::get('routes/{id}/packages/upload', [BusinessPortalController::class, 'routePackageUpload'])->name('routes.packages.upload');
         Route::post('routes/{id}/packages/upload', [BusinessPortalController::class, 'routePackageBulkStore'])->name('routes.packages.bulk-store');
         Route::post('routes/{id}/optimize', [BusinessPortalController::class, 'routeOptimize'])->name('routes.optimize');
+        Route::post('routes/{id}/manual-order', [BusinessPortalController::class, 'routeManualOrder'])->name('routes.manual-order');
+        Route::post('routes/{id}/restore-original', [BusinessPortalController::class, 'routeRestoreOriginal'])->name('routes.restore-original');
 
         Route::get('packages/scan', [BusinessPortalController::class, 'scanPackages'])->name('packages.scan');
         Route::post('packages/scan', [BusinessPortalController::class, 'scanStore'])->name('packages.scan.store');
@@ -156,6 +158,8 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
             Route::patch('/loads/{id}/status', [DispatcherPortalController::class, 'updateLoadStatus'])->name('loads.status');
 
             Route::get('/drivers', [DispatcherPortalController::class, 'drivers'])->name('drivers');
+            Route::get('/routes', [DispatcherPortalController::class, 'routes'])->name('routes');
+            Route::get('/routes/{id}', [DispatcherPortalController::class, 'showRoute'])->name('routes.show');
 
             Route::get('/commissions', [DispatcherPortalController::class, 'commissions'])->name('commissions');
 

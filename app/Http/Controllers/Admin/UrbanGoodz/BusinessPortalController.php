@@ -15,6 +15,7 @@ use App\Models\UrbanGoodzClientInvoice;
 use App\Models\UrbanGoodzBusinessClientJob;
 use App\Models\UrbanGoodzManifest;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Services\UrbanGoodz\DedicatedRouteOptimizationService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -96,7 +97,12 @@ class BusinessPortalController extends Controller
             'route_name' => 'required|string|max:255',
             'route_type' => 'required|in:logistics,medical_courier,load_board,bulk_delivery',
             'pickup_location' => 'required|string|max:255',
+            'pickup_lat' => 'nullable|numeric|between:-90,90',
+            'pickup_lng' => 'nullable|numeric|between:-180,180',
             'end_location' => 'nullable|string|max:255',
+            'end_lat' => 'nullable|numeric|between:-90,90|required_with:end_lng',
+            'end_lng' => 'nullable|numeric|between:-180,180|required_with:end_lat',
+            'return_to_origin' => 'nullable|boolean',
             'scheduled_date' => 'required|date|after_or_equal:today',
             'stops' => 'required|array|min:1',
             'stops.*.dropoff_address' => 'required|string|max:255',
@@ -104,6 +110,8 @@ class BusinessPortalController extends Controller
             'stops.*.contact_phone' => 'nullable|string|max:50',
             'stops.*.package_type' => 'nullable|string|in:parcel,document,specimen,supply,pallet,envelope',
             'stops.*.delivery_notes' => 'nullable|string',
+            'stops.*.dropoff_lat' => 'nullable|numeric|between:-90,90|required_with:stops.*.dropoff_lng',
+            'stops.*.dropoff_lng' => 'nullable|numeric|between:-180,180|required_with:stops.*.dropoff_lat',
         ]);
 
         $route = UrbanGoodzDedicatedRoute::create([
@@ -111,7 +119,12 @@ class BusinessPortalController extends Controller
             'route_name' => $request->route_name,
             'route_type' => $request->route_type,
             'pickup_location' => $request->pickup_location,
-            'end_location' => $request->end_location,
+            'pickup_lat' => $request->pickup_lat,
+            'pickup_lng' => $request->pickup_lng,
+            'end_location' => $request->boolean('return_to_origin') ? $request->pickup_location : $request->end_location,
+            'end_lat' => $request->boolean('return_to_origin') ? $request->pickup_lat : $request->end_lat,
+            'end_lng' => $request->boolean('return_to_origin') ? $request->pickup_lng : $request->end_lng,
+            'return_to_origin' => $request->boolean('return_to_origin'),
             'scheduled_date' => $request->scheduled_date,
             'status' => 'pending',
             'created_by' => auth('business')->id(),
@@ -127,6 +140,8 @@ class BusinessPortalController extends Controller
                 'dropoff_name' => $stop['recipient_name'] ?? null,
                 'dropoff_address' => $stop['dropoff_address'],
                 'dropoff_phone' => $stop['contact_phone'] ?? null,
+                'dropoff_lat' => $stop['dropoff_lat'] ?? null,
+                'dropoff_lng' => $stop['dropoff_lng'] ?? null,
                 'package_type' => $stop['package_type'] ?? 'parcel',
                 'notes' => $stop['delivery_notes'] ?? null,
                 'stop_order' => $i + 1,
@@ -142,10 +157,14 @@ class BusinessPortalController extends Controller
     {
         $clientId = $this->getClientId();
         $route = UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
-            ->with(['packages', 'batches', 'driver'])
+            ->with(['packages', 'batches', 'driver', 'optimizationStops.package'])
             ->findOrFail($id);
 
-        return view('business.routes.show', compact('route'));
+        $locations = UrbanGoodzBusinessClientLocation::where('business_client_id', $clientId)
+            ->where('is_active', true)
+            ->get();
+
+        return view('business.routes.show', compact('route', 'locations'));
     }
 
     public function routeEdit($id)
@@ -182,14 +201,25 @@ class BusinessPortalController extends Controller
             'route_name' => 'required|string|max:255',
             'route_type' => 'required|in:logistics,medical_courier,load_board,bulk_delivery',
             'pickup_location' => 'required|string|max:255',
+            'pickup_lat' => 'nullable|numeric|between:-90,90',
+            'pickup_lng' => 'nullable|numeric|between:-180,180',
             'end_location' => 'nullable|string|max:255',
+            'end_lat' => 'nullable|numeric|between:-90,90|required_with:end_lng',
+            'end_lng' => 'nullable|numeric|between:-180,180|required_with:end_lat',
+            'return_to_origin' => 'nullable|boolean',
             'scheduled_date' => 'required|date',
         ]);
 
         $route->update($request->only([
             'route_name', 'route_type', 'pickup_location',
-            'end_location', 'scheduled_date',
+            'pickup_lat', 'pickup_lng', 'end_location', 'end_lat', 'end_lng', 'scheduled_date',
         ]));
+        $route->update([
+            'return_to_origin' => $request->boolean('return_to_origin'),
+            'end_location' => $request->boolean('return_to_origin') ? $request->pickup_location : $request->end_location,
+            'end_lat' => $request->boolean('return_to_origin') ? $request->pickup_lat : $request->end_lat,
+            'end_lng' => $request->boolean('return_to_origin') ? $request->pickup_lng : $request->end_lng,
+        ]);
 
         Toastr::success(translate('Route updated successfully'));
         return redirect()->route('business.routes.show', $id);
@@ -742,74 +772,83 @@ class BusinessPortalController extends Controller
         return redirect()->route('business.packages.pool');
     }
 
-    public function routeOptimize($id, Request $request)
+    public function routeOptimize(
+        $id,
+        Request $request,
+        DedicatedRouteOptimizationService $optimizer
+    )
     {
+        $this->requirePermission('scan_packages');
         $clientId = $this->getClientId();
         $route = UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
-            ->with('packages')
             ->findOrFail($id);
 
-        $endLocation = $request->end_location ?? $route->end_location;
-        if ($endLocation && $endLocation !== $route->end_location) {
-            $route->update(['end_location' => $endLocation]);
+        $data = $request->validate([
+            'end_location' => ['nullable', 'string', 'max:255'],
+            'end_lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:end_lng'],
+            'end_lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:end_lat'],
+            'return_to_origin' => ['nullable', 'boolean'],
+        ]);
+
+        $returnToOrigin = $request->boolean('return_to_origin');
+        $route->update([
+            'end_location' => $returnToOrigin ? $route->pickup_location : ($data['end_location'] ?? $route->end_location),
+            'end_lat' => $returnToOrigin ? $route->pickup_lat : ($data['end_lat'] ?? $route->end_lat),
+            'end_lng' => $returnToOrigin ? $route->pickup_lng : ($data['end_lng'] ?? $route->end_lng),
+            'return_to_origin' => $returnToOrigin,
+        ]);
+
+        try {
+            $result = $optimizer->optimize(
+                $route->fresh(),
+                $returnToOrigin,
+                'business',
+                auth('business')->id()
+            );
+            $message = $result['changed']
+                ? translate('Route optimized and saved')
+                : translate('Route measured successfully; no shorter valid order was found');
+            Toastr::success($message);
+        } catch (\Throwable $exception) {
+            Toastr::error(translate('Route optimization failed: ') . $exception->getMessage());
         }
-
-        $packages = $route->packages()->whereIn('status', ['pending', 'picked_up', 'in_transit'])->get();
-
-        if ($packages->isEmpty()) {
-            Toastr::info(translate('No packages to optimize'));
-            return back();
-        }
-
-        UrbanGoodzRouteOptimizationStop::where('dedicated_route_id', $route->id)->delete();
-
-        $packagesHaveCoords = $packages->contains(function ($pkg) {
-            return !is_null($pkg->dropoff_lat) && !is_null($pkg->dropoff_lng);
-        });
-
-        $endLat = $route->end_lat ?? $route->pickup_lat;
-        $endLng = $route->end_lng ?? $route->pickup_lng;
-
-        if ($packagesHaveCoords && $endLat && $endLng) {
-            $sorted = $packages->sortBy(function ($pkg) use ($endLat, $endLng) {
-                return $this->haversineDistance($endLat, $endLng, $pkg->dropoff_lat, $pkg->dropoff_lng);
-            }, SORT_REGULAR, true);
-        } else {
-            $sorted = $packages->sort(function ($a, $b) {
-                if ($a->priority === 'urgent' || $a->priority === 'medical') return -1;
-                if ($b->priority === 'urgent' || $b->priority === 'medical') return 1;
-                return $a->id <=> $b->id;
-            });
-        }
-
-        $stopOrder = 1;
-        foreach ($sorted as $pkg) {
-            $pkg->stop_order = $stopOrder;
-            $pkg->save();
-
-            UrbanGoodzRouteOptimizationStop::create([
-                'dedicated_route_id' => $route->id,
-                'package_id' => $pkg->id,
-                'stop_order' => $stopOrder,
-                'status' => 'pending',
-            ]);
-            $stopOrder++;
-        }
-
-        Toastr::success(translate('Route stops optimized'));
         return redirect()->route('business.routes.show', $route->id);
     }
 
-    private function haversineDistance($lat1, $lng1, $lat2, $lng2): float
+    public function routeManualOrder(
+        $id,
+        Request $request,
+        DedicatedRouteOptimizationService $optimizer
+    )
     {
-        if (is_null($lat1) || is_null($lng1) || is_null($lat2) || is_null($lng2)) {
-            return 0;
+        $this->requirePermission('scan_packages');
+        $route = UrbanGoodzDedicatedRoute::where('business_client_id', $this->getClientId())->findOrFail($id);
+        $data = $request->validate([
+            'package_order' => ['required', 'array', 'min:1'],
+            'package_order.*' => ['required', 'integer'],
+        ]);
+        try {
+            $optimizer->applyManualOrder($route, $data['package_order'], 'business', auth('business')->id());
+            Toastr::success(translate('Manual stop order saved'));
+        } catch (\Throwable $exception) {
+            Toastr::error(translate('Manual reorder failed: ') . $exception->getMessage());
         }
-        $earthRadius = 3959;
-        $dLat = deg2rad((float) $lat2 - (float) $lat1);
-        $dLng = deg2rad((float) $lng2 - (float) $lng1);
-        $a = sin($dLat / 2) ** 2 + cos(deg2rad((float) $lat1)) * cos(deg2rad((float) $lat2)) * sin($dLng / 2) ** 2;
-        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return redirect()->route('business.routes.show', $route->id);
+    }
+
+    public function routeRestoreOriginal(
+        $id,
+        DedicatedRouteOptimizationService $optimizer
+    ) {
+        $this->requirePermission('scan_packages');
+        $route = UrbanGoodzDedicatedRoute::where('business_client_id', $this->getClientId())->findOrFail($id);
+        try {
+            $optimizer->restoreOriginalOrder($route, 'business', auth('business')->id());
+            Toastr::success(translate('Original stop order restored'));
+        } catch (\Throwable $exception) {
+            Toastr::error(translate('Restore failed: ') . $exception->getMessage());
+        }
+        return redirect()->route('business.routes.show', $route->id);
     }
 
     // =========================================================
