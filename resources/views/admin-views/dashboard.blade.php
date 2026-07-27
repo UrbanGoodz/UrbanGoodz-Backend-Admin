@@ -67,7 +67,13 @@
                     <a href="{{ route('admin.notification.add-new') }}" class="btn btn-outline-primary btn-sm">{{ translate('Notifications') }}</a>
                     <a href="{{ route('admin.transactions.report.item-wise-report') }}" class="btn btn-outline-primary btn-sm">{{ translate('Reports') }}</a>
                     <a href="{{ route('admin.business-settings.business-setup') }}" class="btn btn-outline-primary btn-sm">{{ translate('Settings') }}</a>
-                    <a href="{{ url('/business/login') }}" class="btn btn-outline-secondary btn-sm" target="_blank">{{ translate('Business Portal Login') }}</a>
+                    {{-- Business Portal Login. Was `btn-outline-secondary` (#868e96 muted grey),
+                         which read as a disabled control next to the blue buttons above even
+                         though the link has always been live. Resolved from the named route so a
+                         missing route fails loudly instead of silently 404ing, and forced to
+                         HTTPS whenever the app URL is HTTPS. --}}
+                    @php($businessPortalLoginUrl = \Illuminate\Support\Str::startsWith(config('app.url'), 'https://') ? secure_url(route('business.login', [], false)) : route('business.login'))
+                    <a href="{{ $businessPortalLoginUrl }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener noreferrer">{{ translate('Business Portal Login') }}</a>
                 </div>
 
                 <div class="row g-3">

@@ -407,28 +407,41 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('store', 'UrbanGoodz\UrbanGoodzDispatchController@store')->name('store');
             });
 
+            /*
+             * Dispatcher Load Sourcing — WEB surface only.
+             *
+             * Every GET below renders a Blade page in the admin layout and every POST/DELETE
+             * redirects back with a flash message. The JSON equivalents live in
+             * routes/api/v1/admin_dispatcher_sourcing.php under the api/v1/admin prefix.
+             *
+             * Previously `GET /` was bound to the JSON @dashboard action, so opening the
+             * Dispatcher Load Sourcing page in a browser rendered a raw JSON document.
+             */
             Route::group(['prefix' => 'dispatcher-sourcing', 'as' => 'dispatcher-sourcing.'], function () {
-                // ── Blade views ──
-                Route::get('dashboard', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('dashboard-blade');
+                // ── HTML pages ──
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('index');
+                Route::get('dashboard', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('dashboard');
+                Route::match(['get','post'], 'search', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchBlade')->name('search');
+                Route::get('saved-searches', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@savedSearchesBlade')->name('saved-searches');
+                Route::get('assignments', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignmentsBlade')->name('assignments');
+                // Historic name kept: the Blade nav labels this tab "My Assignments".
+                Route::get('best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignmentsBlade')->name('best-loads');
+                Route::get('driver-matches/{loadId?}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverMatchesBlade')->name('driver-matches');
+
+                // Legacy *-blade aliases so any bookmark or cached link keeps working.
+                Route::get('dashboard-blade', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('dashboard-blade');
                 Route::match(['get','post'], 'search-form', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchBlade')->name('search-blade');
                 Route::match(['get','post'], 'saved-form', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@savedSearchesBlade')->name('saved-blade');
-                Route::match(['get','post'], 'assignments', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignmentsBlade')->name('assignments-blade');
-                Route::get('driver-matches/{loadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverMatchesBlade')->name('driver-matches-blade');
+                Route::get('assignments-blade', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignmentsBlade')->name('assignments-blade');
+                Route::get('driver-matches-blade/{loadId?}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverMatchesBlade')->name('driver-matches-blade');
 
-                // ── JSON API ──
-                Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboard')->name('dashboard');
-                Route::post('search', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchAllSources')->name('search');
-                Route::get('best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestLoads')->name('best-loads');
-                Route::get('best-for-driver/{driverId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestForDriver')->name('best-for-driver');
-                Route::post('saved-searches', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@saveSearch')->name('save-search');
-                Route::get('saved-searches', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@savedSearches')->name('saved-searches');
-                Route::delete('saved-searches/{id}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@deleteSavedSearch')->name('delete-search');
-                Route::post('saved-searches/{id}/run', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@runSavedSearch')->name('run-search');
-                Route::post('assign/{externalLoadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignLoadToDriver')->name('assign');
-                Route::get('open-external/{externalLoadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@openExternalLoad')->name('open-external');
-                Route::post('confirm-booking/{referralId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@confirmBooking')->name('confirm-booking');
-                Route::get('driver-preferences/{driverId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverPreferences')->name('driver-preferences');
-                Route::post('driver-preferences/{driverId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverPreferences')->name('driver-preferences-update');
+                // ── HTML form mutations (redirect back, never JSON) ──
+                Route::post('saved-searches', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@saveSearchWeb')->name('save-search');
+                Route::post('saved-searches/{id}/run', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@runSavedSearchWeb')->name('run-search');
+                Route::delete('saved-searches/{id}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@deleteSavedSearchWeb')->name('delete-search');
+                Route::post('assign/{externalLoadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignLoadToDriverWeb')->name('assign');
+                Route::delete('assignments/{recommendationId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@cancelAssignmentWeb')->name('cancel-assignment');
+                Route::get('open-external/{externalLoadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@openExternalLoadWeb')->name('open-external');
             });
 
             Route::group(['prefix' => 'medical-courier', 'as' => 'medical-courier.'], function () {
