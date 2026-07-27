@@ -47,9 +47,11 @@
                                 <option value="">{{ translate('Select a location') }}</option>
                                 @foreach($locations as $location)
                                     @php($locValue = $location->name . ' - ' . $location->address)
-                                    <option value="{{ $locValue }}" {{ old('pickup_location', $route->pickup_location) === $locValue ? 'selected' : '' }}>{{ $location->name }} - {{ $location->city }}, {{ $location->state }}</option>
+                                    <option value="{{ $locValue }}" data-lat="{{ $location->latitude }}" data-lng="{{ $location->longitude }}" {{ old('pickup_location', $route->pickup_location) === $locValue ? 'selected' : '' }}>{{ $location->name }} - {{ $location->city }}, {{ $location->state }}</option>
                                 @endforeach
                             </select>
+                            <input type="hidden" name="pickup_lat" id="pickup_lat" value="{{ old('pickup_lat', $route->pickup_lat) }}">
+                            <input type="hidden" name="pickup_lng" id="pickup_lng" value="{{ old('pickup_lng', $route->pickup_lng) }}">
                         </div>
                     </div>
 
@@ -64,8 +66,16 @@
                     <div class="col-12">
                         <div class="form-group mb-0">
                             <label class="input-label" for="end_location">{{ translate('End Location (Optional)') }}</label>
-                            <input type="text" class="form-control" name="end_location" id="end_location" value="{{ old('end_location', $route->end_location) }}" placeholder="{{ translate('Home address, warehouse, or return-to point') }}">
-                            <small class="text-muted" style="color: #6c757d !important;">{{ translate('Driver will end here. Route stops are sorted furthest-to-closest from this point.') }}</small>
+                            <select class="form-control" name="end_location" id="end_location">
+                                <option value="">{{ translate('No fixed endpoint') }}</option>
+                                @foreach($locations as $location)
+                                    @php($endValue = $location->name.' - '.$location->address)
+                                    <option value="{{ $endValue }}" data-lat="{{ $location->latitude }}" data-lng="{{ $location->longitude }}" @selected(old('end_location', $route->end_location) === $endValue)>{{ $location->name }} — {{ $location->city }}, {{ $location->state }}</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="end_lat" id="end_lat" value="{{ old('end_lat', $route->end_lat) }}">
+                            <input type="hidden" name="end_lng" id="end_lng" value="{{ old('end_lng', $route->end_lng) }}">
+                            <label class="mt-2"><input type="checkbox" name="return_to_origin" value="1" @checked(old('return_to_origin', $route->return_to_origin))> {{ translate('Return to pickup location') }}</label>
                         </div>
                     </div>
                 </div>
@@ -79,3 +89,15 @@
     </form>
     @endif
 @endsection
+
+@push('script')
+<script>
+    function syncRouteLocation(selectId, latId, lngId) {
+        const selected = document.getElementById(selectId).selectedOptions[0];
+        document.getElementById(latId).value = selected.dataset.lat || '';
+        document.getElementById(lngId).value = selected.dataset.lng || '';
+    }
+    document.getElementById('pickup_location')?.addEventListener('change', () => syncRouteLocation('pickup_location', 'pickup_lat', 'pickup_lng'));
+    document.getElementById('end_location')?.addEventListener('change', () => syncRouteLocation('end_location', 'end_lat', 'end_lng'));
+</script>
+@endpush

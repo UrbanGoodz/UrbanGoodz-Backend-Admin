@@ -35,6 +35,13 @@ class UrbanGoodzDriverApiController extends Controller
         return $driver;
     }
 
+    private function assignedRouteOrFail($routeId, DeliveryMan $driver): UrbanGoodzDedicatedRoute
+    {
+        return UrbanGoodzDedicatedRoute::where('id', $routeId)
+            ->where('assigned_driver_id', $driver->id)
+            ->firstOrFail();
+    }
+
     public function assignedRoutes(Request $request)
     {
         $driver = $this->authDriver($request);
@@ -88,10 +95,13 @@ class UrbanGoodzDriverApiController extends Controller
                 $pkg = $stop->package;
                 return [
                     'stop_order' => $stop->stop_order,
+                    'sequence_number' => $stop->stop_order,
+                    'stop_type' => 'dropoff',
                     'package_id' => $pkg?->id,
                     'tracking_id' => $pkg?->tracking_id,
                     'barcode' => $pkg?->barcode,
                     'dropoff_name' => $pkg?->dropoff_name,
+                    'contact_phone' => $pkg?->dropoff_phone,
                     'dropoff_address' => $pkg?->dropoff_address,
                     'dropoff_lat' => $pkg?->dropoff_lat,
                     'dropoff_lng' => $pkg?->dropoff_lng,
@@ -101,6 +111,19 @@ class UrbanGoodzDriverApiController extends Controller
                     'requires_signature' => $pkg?->requires_signature,
                     'requires_photo' => $pkg?->requires_photo,
                     'requires_custody' => $pkg?->requires_custody,
+                    'proof_requirements' => array_values(array_filter([
+                        $pkg?->requires_signature ? 'signature' : null,
+                        $pkg?->requires_photo ? 'photo' : null,
+                        $pkg?->requires_custody ? 'chain_of_custody' : null,
+                        $pkg?->requires_id_verification ? 'id_verification' : null,
+                    ])),
+                    'contact_instructions' => $pkg?->notes,
+                    'exception_requirements' => [
+                        'report_reason' => true,
+                        'photo_supported' => true,
+                    ],
+                    'return_required' => (bool) $pkg?->return_required,
+                    'return_location' => $pkg?->return_location,
                     'package_type' => $pkg?->package_type,
                     'weight' => $pkg?->weight,
                     'status' => $pkg?->status,
@@ -130,6 +153,16 @@ class UrbanGoodzDriverApiController extends Controller
                 'instant_payout_allowed' => $route->instant_payout_allowed,
                 'weekly_payout_allowed' => $route->weekly_payout_allowed,
                 'vehicle_type_required' => $route->vehicle_type_required,
+                'end_location' => $route->end_location,
+                'end_lat' => $route->end_lat,
+                'end_lng' => $route->end_lng,
+                'return_to_origin' => (bool) $route->return_to_origin,
+                'optimization_status' => $route->optimization_status,
+                'optimization_version' => $route->optimization_version,
+                'optimization_method' => $route->optimization_method,
+                'optimization_provider' => $route->optimization_provider,
+                'estimated_miles' => $route->optimized_distance_miles ?? $route->estimated_miles,
+                'estimated_duration_minutes' => $route->optimized_duration_minutes ?? $route->estimated_duration,
             ],
             'stops' => $stops,
         ]);
@@ -314,6 +347,8 @@ class UrbanGoodzDriverApiController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $this->assignedRouteOrFail($routeId, $driver);
+
         $package = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->where(function ($q) use ($request) {
                 if ($request->tracking_id) $q->where('tracking_id', $request->tracking_id);
@@ -397,6 +432,8 @@ class UrbanGoodzDriverApiController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $route = $this->assignedRouteOrFail($routeId, $driver);
+
         $package = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->where(function ($q) use ($request) {
                 if ($request->tracking_id) $q->where('tracking_id', $request->tracking_id);
@@ -416,13 +453,33 @@ class UrbanGoodzDriverApiController extends Controller
             return response()->json(['error' => 'Age verification required before delivery completion'], 409);
         }
 
+        $currentStop = $package->optimizationStop;
+        if ($currentStop) {
+            $unfinishedPriorStop = \App\Models\UrbanGoodzRouteOptimizationStop::query()
+                ->where('dedicated_route_id', $routeId)
+                ->where('stop_order', '<', $currentStop->stop_order)
+                ->whereHas('package', function ($query) {
+                    $query->whereNotIn('status', [
+                        'delivered', 'failed', 'unable_to_deliver',
+                        'returned_to_pickup', 'returned_to_hub', 'returned_to_business', 'completed',
+                    ]);
+                })
+                ->orderBy('stop_order')
+                ->first();
+            if ($unfinishedPriorStop) {
+                return response()->json([
+                    'error' => 'Complete or record an exception for the preceding stop before this delivery.',
+                    'expected_stop_order' => $unfinishedPriorStop->stop_order,
+                    'attempted_stop_order' => $currentStop->stop_order,
+                ], 409);
+            }
+        }
+
         DB::beginTransaction();
         try {
             $package->status = 'delivered';
             $package->dropoff_scanned_at = now();
             $package->dropoff_scanned_by = $driver->id;
-            $package->dropoff_lat = $request->latitude;
-            $package->dropoff_lng = $request->longitude;
             $package->proof_photo = $request->photo ?? $package->proof_photo;
             $package->recipient_signature = $request->signature ?? $package->recipient_signature;
             $package->save();
@@ -453,13 +510,9 @@ class UrbanGoodzDriverApiController extends Controller
                 ]);
             }
 
-            $route = UrbanGoodzDedicatedRoute::find($routeId);
-            if ($route) {
-                $route->increment('completed_packages');
-            }
+            $route->increment('completed_packages');
 
-            $route = UrbanGoodzDedicatedRoute::find($routeId);
-            if ($route && $route->driver_pay_per_package > 0) {
+            if ($route->driver_pay_per_package > 0) {
                 $amount = $route->driver_pay_per_package;
                 if ($package->priority === 'high' || $package->priority === 'urgent' || $package->priority === 'medical') {
                     $amount += $route->priority_package_bonus;
@@ -511,6 +564,8 @@ class UrbanGoodzDriverApiController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
+
+        $this->assignedRouteOrFail($routeId, $driver);
 
         $package = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->where(function ($q) use ($request) {

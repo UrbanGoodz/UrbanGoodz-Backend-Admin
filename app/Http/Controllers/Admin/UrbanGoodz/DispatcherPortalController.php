@@ -8,6 +8,7 @@ use App\Models\UrbanGoodzBusinessClientUser;
 use App\Models\UrbanGoodzDispatchCommission;
 use App\Models\UrbanGoodzDispatchAuditLog;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\UrbanGoodzDedicatedRoute;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -295,6 +296,27 @@ class DispatcherPortalController extends Controller
         $drivers = $this->getAvailableDrivers();
 
         return view('business.dispatcher.drivers.index', compact('drivers'));
+    }
+
+    public function routes()
+    {
+        $this->requireDispatchPermission('dispatch_loads_view');
+        $routes = UrbanGoodzDedicatedRoute::where('business_client_id', $this->companyId())
+            ->with('driver')
+            ->latest()
+            ->paginate(25);
+
+        return view('business.dispatcher.routes.index', compact('routes'));
+    }
+
+    public function showRoute($id)
+    {
+        $this->requireDispatchPermission('dispatch_loads_view');
+        $route = UrbanGoodzDedicatedRoute::where('business_client_id', $this->companyId())
+            ->with(['driver', 'optimizationStops.package'])
+            ->findOrFail($id);
+
+        return view('business.dispatcher.routes.show', compact('route'));
     }
 
     public function commissions(Request $request)

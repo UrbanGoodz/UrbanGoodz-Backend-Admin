@@ -14,9 +14,12 @@
                 <a href="{{ route('admin.urban-goodz.dedicated-routes.packages', $route->id) }}" class="btn btn-outline-primary">
                     <i class="tio-parcel"></i> {{ translate('Packages') }}
                 </a>
-                <a href="{{ route('admin.urban-goodz.dedicated-routes.optimize', $route->id) }}" class="btn btn-outline-warning" onclick="return confirm('{{ translate('Optimize route stops and batches?') }}')">
-                    <i class="tio-route"></i> {{ translate('Optimize') }}
-                </a>
+                <form action="{{ route('admin.urban-goodz.dedicated-routes.optimize', $route->id) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ translate('Optimize and persist this route stop order?') }}')">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-warning">
+                        <i class="tio-route"></i> {{ translate('Optimize') }}
+                    </button>
+                </form>
                 <a href="{{ route('admin.urban-goodz.dedicated-routes.report', $route->id) }}" class="btn btn-outline-secondary">
                     <i class="tio-document"></i> {{ translate('Report') }}
                 </a>
@@ -42,6 +45,12 @@
                             <div class="col-md-4"><strong>{{ translate('Pickup') }}:</strong> {{ $route->pickup_location ?? 'Not set' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Scheduled') }}:</strong> {{ $route->scheduled_date?->format('M d, Y') ?? '—' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Vehicle') }}:</strong> {{ $route->vehicle_type_required ?? 'Any' }}</div>
+                            <div class="col-md-4"><strong>{{ translate('Optimization') }}:</strong> {{ ucwords(str_replace('_', ' ', $route->optimization_status ?? 'not_optimized')) }}</div>
+                            <div class="col-md-4"><strong>{{ translate('Method') }}:</strong> {{ $route->optimization_method ?? '—' }}</div>
+                            <div class="col-md-4"><strong>{{ translate('Provider') }}:</strong> {{ $route->optimization_provider ?? '—' }}</div>
+                            <div class="col-md-4"><strong>{{ translate('Original Distance') }}:</strong> {{ $route->original_distance_miles !== null ? number_format($route->original_distance_miles, 2).' mi' : '—' }}</div>
+                            <div class="col-md-4"><strong>{{ translate('Optimized Distance') }}:</strong> {{ $route->optimized_distance_miles !== null ? number_format($route->optimized_distance_miles, 2).' mi' : '—' }}</div>
+                            <div class="col-md-4"><strong>{{ translate('Estimated Duration') }}:</strong> {{ $route->optimized_duration_minutes !== null ? $route->optimized_duration_minutes.' min' : '—' }}</div>
                             <div class="col-12"><strong>{{ translate('Progress') }}:</strong>
                                 <div class="progress" style="height: 10px; max-width: 300px;">
                                     <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $route->progressPercent() }}%">{{ $route->progressPercent() }}%</div>

@@ -53,9 +53,11 @@
                             <select class="form-control" name="pickup_location" id="pickup_location" required>
                                 <option value="">{{ translate('Select a location') }}</option>
                                 @foreach($locations as $location)
-                                    <option value="{{ $location->name }} - {{ $location->address }}" {{ old('pickup_location') === $location->name . ' - ' . $location->address ? 'selected' : '' }}>{{ $location->name }} - {{ $location->city }}, {{ $location->state }}</option>
+                                    <option value="{{ $location->name }} - {{ $location->address }}" data-lat="{{ $location->latitude }}" data-lng="{{ $location->longitude }}" {{ old('pickup_location') === $location->name . ' - ' . $location->address ? 'selected' : '' }}>{{ $location->name }} - {{ $location->city }}, {{ $location->state }}</option>
                                 @endforeach
                             </select>
+                            <input type="hidden" name="pickup_lat" id="pickup_lat" value="{{ old('pickup_lat') }}">
+                            <input type="hidden" name="pickup_lng" id="pickup_lng" value="{{ old('pickup_lng') }}">
                         </div>
                     </div>
 
@@ -70,8 +72,16 @@
                     <div class="col-12">
                         <div class="form-group mb-0">
                             <label class="input-label" for="end_location">{{ translate('End Location (Optional)') }}</label>
-                            <input type="text" class="form-control" name="end_location" id="end_location" value="{{ old('end_location') }}" placeholder="{{ translate('Home address, warehouse, or return-to point') }}">
-                            <small class="text-muted" style="color: #6c757d !important;">{{ translate('Driver will end here. Route stops are sorted furthest-to-closest from this point.') }}</small>
+                            <select class="form-control" name="end_location" id="end_location">
+                                <option value="">{{ translate('No fixed endpoint') }}</option>
+                                @foreach($locations as $location)
+                                    @php($endValue = $location->name.' - '.$location->address)
+                                    <option value="{{ $endValue }}" data-lat="{{ $location->latitude }}" data-lng="{{ $location->longitude }}" @selected(old('end_location') === $endValue)>{{ $location->name }} — {{ $location->city }}, {{ $location->state }}</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="end_lat" id="end_lat" value="{{ old('end_lat') }}">
+                            <input type="hidden" name="end_lng" id="end_lng" value="{{ old('end_lng') }}">
+                            <label class="mt-2"><input type="checkbox" name="return_to_origin" value="1" @checked(old('return_to_origin'))> {{ translate('Return to pickup location') }}</label>
                         </div>
                     </div>
                 </div>
@@ -130,6 +140,14 @@
                                         <label class="small">{{ translate('Drop-off Address') }} <span class="text-danger">*</span></label>
                                         <input type="text" class="form-control form-control-sm" name="stops[{{ $index }}][dropoff_address]" value="{{ $stop['dropoff_address'] ?? '' }}" placeholder="123 Main St, City, State ZIP" {{ $index === 0 ? 'required' : '' }}>
                                     </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="small">{{ translate('Latitude') }}</label>
+                                    <input type="number" step="0.0000001" min="-90" max="90" class="form-control form-control-sm" name="stops[{{ $index }}][dropoff_lat]" value="{{ $stop['dropoff_lat'] ?? '' }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="small">{{ translate('Longitude') }}</label>
+                                    <input type="number" step="0.0000001" min="-180" max="180" class="form-control form-control-sm" name="stops[{{ $index }}][dropoff_lng]" value="{{ $stop['dropoff_lng'] ?? '' }}" required>
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-0">
@@ -200,6 +218,15 @@
 <script>
     let stopIndex = {{ count($oldStops) }};
 
+    function syncRouteLocation(selectId, latId, lngId) {
+        const selected = document.getElementById(selectId).selectedOptions[0];
+        document.getElementById(latId).value = selected.dataset.lat || '';
+        document.getElementById(lngId).value = selected.dataset.lng || '';
+    }
+
+    document.getElementById('pickup_location')?.addEventListener('change', () => syncRouteLocation('pickup_location', 'pickup_lat', 'pickup_lng'));
+    document.getElementById('end_location')?.addEventListener('change', () => syncRouteLocation('end_location', 'end_lat', 'end_lng'));
+
     function addStop() {
         const container = document.getElementById('stops-container');
         const idx = stopIndex++;
@@ -245,6 +272,14 @@
                             <label class="small">${'{{ translate('Drop-off Address') }}'} <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm" name="stops[${idx}][dropoff_address]" placeholder="123 Main St, City, State ZIP" required>
                         </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small">${'{{ translate('Latitude') }}'}</label>
+                        <input type="number" step="0.0000001" min="-90" max="90" class="form-control form-control-sm" name="stops[${idx}][dropoff_lat]" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small">${'{{ translate('Longitude') }}'}</label>
+                        <input type="number" step="0.0000001" min="-180" max="180" class="form-control form-control-sm" name="stops[${idx}][dropoff_lng]" required>
                     </div>
                     <div class="col-12">
                         <div class="form-group mb-0">

@@ -169,7 +169,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('{id}/update', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@update')->name('update');
                 Route::post('{id}/assign-driver', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@assignDriver')->name('assign-driver');
                 Route::delete('{id}', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@destroy')->name('destroy');
-                Route::get('{id}/optimize', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@optimize')->name('optimize');
+                Route::post('{id}/optimize', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@optimize')->name('optimize');
                 Route::get('{id}/packages', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packages')->name('packages');
                 Route::post('packages/store', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageStore')->name('package-store');
                 Route::post('packages/bulk-store', 'UrbanGoodz\UrbanGoodzDedicatedRouteController@packageBulkStore')->name('package-bulk-store');

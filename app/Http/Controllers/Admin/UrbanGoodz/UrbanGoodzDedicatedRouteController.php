@@ -17,6 +17,7 @@ use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\DeliveryMan;
 use App\Models\Admin;
 use App\Services\UrbanGoodzDriverDispatchNotificationService;
+use App\Services\UrbanGoodz\DedicatedRouteOptimizationService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -546,94 +547,24 @@ class UrbanGoodzDedicatedRouteController extends Controller
 
     // ===== OPTIMIZATION =====
 
-    public function optimize($id)
+    public function optimize($id, DedicatedRouteOptimizationService $optimizer)
     {
-        $route = UrbanGoodzDedicatedRoute::with('packages')->findOrFail($id);
-        $packages = $route->packages()->whereIn('status', ['pending', 'picked_up', 'in_transit'])->get();
-
-        if ($packages->isEmpty()) {
-            Toastr::info(translate('No packages to optimize'));
-            return back();
-        }
-
-        UrbanGoodzRouteOptimizationStop::where('dedicated_route_id', $route->id)->delete();
-
-        $sorted = $this->optimizeStopOrder($packages, $route);
-        $batchSize = $route->max_packages_per_batch ?: 50;
-        $batches = $sorted->chunk($batchSize);
-
-        DB::beginTransaction();
+        $route = UrbanGoodzDedicatedRoute::findOrFail($id);
         try {
-            $batchNumber = 1;
-            foreach ($batches as $batchPackages) {
-                $batch = UrbanGoodzRouteBatch::create([
-                    'dedicated_route_id' => $route->id,
-                    'batch_number' => 'BATCH-' . str_pad($batchNumber, 3, '0', STR_PAD_LEFT),
-                    'package_count' => $batchPackages->count(),
-                    'status' => 'pending',
-                ]);
-
-                $stopOrder = 1;
-                foreach ($batchPackages as $pkg) {
-                    $pkg->route_batch_id = $batch->id;
-                    $pkg->save();
-
-                    UrbanGoodzRouteOptimizationStop::create([
-                        'dedicated_route_id' => $route->id,
-                        'package_id' => $pkg->id,
-                        'stop_order' => $stopOrder,
-                        'status' => 'pending',
-                    ]);
-                    $stopOrder++;
-                }
-                $batchNumber++;
-            }
-            DB::commit();
-
-            Toastr::success(translate('Route optimized into ') . ($batchNumber - 1) . translate(' batches'));
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Toastr::error(translate('Optimization failed: ') . $e->getMessage());
+            $result = $optimizer->optimize(
+                $route,
+                (bool) $route->return_to_origin,
+                'admin',
+                auth('admin')->id()
+            );
+            Toastr::success($result['changed']
+                ? translate('Route optimized and persisted')
+                : translate('Route measured; no shorter valid order was found'));
+        } catch (\Throwable $exception) {
+            Toastr::error(translate('Optimization failed: ') . $exception->getMessage());
         }
 
         return back();
-    }
-
-    private function optimizeStopOrder($packages, $route)
-    {
-        $originLat = $route->pickup_lat;
-        $originLng = $route->pickup_lng;
-
-        $sorted = $packages->sort(function ($a, $b) use ($originLat, $originLng) {
-            if ($b->priority === 'urgent' || $b->priority === 'medical') return 1;
-            if ($a->priority === 'urgent' || $a->priority === 'medical') return -1;
-
-            if ($a->priority === 'high' && $b->priority !== 'high') return -1;
-            if ($b->priority === 'high' && $a->priority !== 'high') return 1;
-
-            if ($a->delivery_window_start && $b->delivery_window_start) {
-                return $a->delivery_window_start->timestamp <=> $b->delivery_window_start->timestamp;
-            }
-
-            if ($originLat && $originLng && $a->dropoff_lat && $b->dropoff_lat) {
-                $distA = $this->haversine($originLat, $originLng, $a->dropoff_lat, $a->dropoff_lng);
-                $distB = $this->haversine($originLat, $originLng, $b->dropoff_lat, $b->dropoff_lng);
-                return $distA <=> $distB;
-            }
-
-            return $a->id <=> $b->id;
-        });
-
-        return $sorted->values();
-    }
-
-    private function haversine($lat1, $lng1, $lat2, $lng2): float
-    {
-        $earthRadius = 3959;
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-        return $earthRadius * 2 * asin(sqrt($a));
     }
 
     // ===== REPORTS =====

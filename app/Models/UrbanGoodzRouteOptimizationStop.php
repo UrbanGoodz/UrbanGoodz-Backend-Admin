@@ -9,7 +9,7 @@ class UrbanGoodzRouteOptimizationStop extends Model
     const STATUSES = ['pending', 'completed', 'skipped'];
 
     protected $fillable = [
-        'dedicated_route_id', 'package_id', 'stop_order',
+        'dedicated_route_id', 'package_id', 'stop_order', 'original_stop_order',
         'estimated_distance_from_prev', 'estimated_duration_from_prev', 'status',
     ];
 
