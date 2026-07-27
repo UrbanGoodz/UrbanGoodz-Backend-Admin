@@ -36,7 +36,9 @@ class UrbanGoodzPaymentService
 
     private function assertPaymentsEnabled(): void
     {
-        if (OrderAnywhereRequest::isPaymentDisabled() || $this->providerManager->isDisabled()) {
+        if (OrderAnywhereRequest::isPaymentDisabled()
+            || $this->providerManager->isDisabled()
+            || ! $this->gateway->isEnabled()) {
             abort(403, 'Payments are currently disabled.');
         }
     }
@@ -859,6 +861,7 @@ class UrbanGoodzPaymentService
     public function captureCustomerPayment(OrderAnywhereRequest $request, array $data = []): OrderAnywhereRequest
     {
         $this->assertPaymentsEnabled();
+        $gateway = $this->gatewayForRequest($request);
 
         if ($request->payment_status !== 'authorized') {
             throw new \InvalidArgumentException('Cannot capture: payment status is ' . $request->payment_status . '. Must be authorized.');
@@ -881,7 +884,7 @@ class UrbanGoodzPaymentService
             $this->assertLiveAmountWithinCap($amount, $request->customer_id);
         }
 
-        return DB::transaction(function () use ($request, $data, $amount) {
+        return DB::transaction(function () use ($request, $data, $amount, $gateway) {
             if (! UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                 ->where('payable_id', $request->id)
                 ->exists()) {
@@ -893,7 +896,7 @@ class UrbanGoodzPaymentService
             }
 
             $reference = $data['capture_reference'] ?? 'manual-capture-' . Str::uuid();
-            $idempotencyKey = $data['capture_idempotency_key'] ?? "capture:{$this->gateway->providerName()}:{$request->id}:" . md5($amount . $reference);
+            $idempotencyKey = $data['capture_idempotency_key'] ?? "capture:{$gateway->providerName()}:{$request->id}:" . md5($amount . $reference);
 
             // Idempotency check
             $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
@@ -902,12 +905,16 @@ class UrbanGoodzPaymentService
             }
 
             // Call gateway if enabled and not webhook
-            if ($this->gateway->isEnabled() && ($data['source'] ?? null) !== 'webhook') {
-                $gatewayResult = $this->gateway->capture($request, $amount, config('urban_goodz_payments.currency', 'USD'), $reference);
+            if (($data['source'] ?? null) !== 'webhook') {
+                if (! $gateway->isEnabled()) {
+                    abort(503, 'The original payment provider is unavailable; capture was not recorded.');
+                }
+
+                $gatewayResult = $gateway->capture($request, $amount, config('urban_goodz_payments.currency', 'USD'), $reference);
 
                 if (! $gatewayResult['success']) {
                     Log::critical('CAPTURE FAILED', [
-                        'provider' => $this->gateway->providerName(),
+                        'provider' => $gateway->providerName(),
                         'request_id' => $request->id,
                     ]);
                     abort(500, 'Payment capture failed. Please try again.');
@@ -975,10 +982,12 @@ class UrbanGoodzPaymentService
 
             // After authorization but before capture: void authorization + reverse pending splits
             if (in_array($paymentStatus, ['authorized', 'capture_pending'], true)) {
+                $gateway = $this->gatewayForRequest($request);
+
                 // Void authorization via provider if possible
-                if ($this->gateway->isEnabled() && $request->psp_reference) {
+                if ($gateway->isEnabled() && $request->psp_reference) {
                     try {
-                        $this->gateway->void($request, $request->psp_reference);
+                        $gateway->cancel($request, $request->psp_reference);
                     } catch (\Exception $e) {
                         Log::warning('Authorization void failed', ['error' => $e->getMessage()]);
                     }
@@ -1030,7 +1039,7 @@ class UrbanGoodzPaymentService
             $currentRefunded = (float) $fresh->refunded_amount;
             $amount = (float) ($data['refund_amount'] ?? $capturedAmount - $currentRefunded);
 
-            if (! in_array($fresh->payment_status, ['captured', 'partially_captured'], true)) {
+            if (! in_array($fresh->payment_status, ['captured', 'partially_captured', 'partially_refunded'], true)) {
                 throw new \InvalidArgumentException('Cannot refund: payment status is ' . $fresh->payment_status . '. Must be captured.');
             }
 
@@ -1045,8 +1054,10 @@ class UrbanGoodzPaymentService
                 throw new \InvalidArgumentException("Refund amount \${$amount} exceeds remaining capturable amount of \${$remaining}.");
             }
             // Provider-correct refund: use the same provider that authorized/captured
-            $provider = $fresh->payment_provider;
-            $idempotencyKey = $data['refund_idempotency_key'] ?? "refund:{$provider}:{$fresh->id}:" . md5($amount . now()->timestamp);
+            $gateway = $this->gatewayForRequest($fresh);
+            $provider = $gateway->providerName();
+            $idempotencyKey = $data['refund_idempotency_key']
+                ?? "refund:{$provider}:{$fresh->id}:" . hash('sha256', $amount . '|' . ($data['refund_reference'] ?? ''));
             $refundReference = (string) ($data['refund_reference']
                 ?? $fresh->refund_reference
                 ?? ('refund-' . $fresh->id . '-' . Str::uuid()));
@@ -1058,8 +1069,19 @@ class UrbanGoodzPaymentService
             }
 
             // Call gateway
-            if ($this->gateway->isEnabled()) {
-                $gatewayResult = $this->gateway->refund($fresh, $amount, config('urban_goodz_payments.currency', 'USD'), $refundReference);
+            $gatewayResult = [];
+            if (($data['source'] ?? null) !== 'webhook') {
+                if (! $gateway->isEnabled()) {
+                    abort(503, 'The original payment provider is unavailable; refund was not recorded.');
+                }
+
+                $gatewayResult = $gateway->refund(
+                    $fresh,
+                    $amount,
+                    config('urban_goodz_payments.currency', 'USD'),
+                    $refundReference,
+                    $data['reason'] ?? null
+                );
 
                 if (! $gatewayResult['success']) {
                     Log::critical('REFUND FAILED', [
@@ -1254,6 +1276,21 @@ class UrbanGoodzPaymentService
     // ═══════════════════════════════════════════════════════════════════════
     // PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════════════
+
+    private function gatewayForRequest(OrderAnywhereRequest $request): PaymentGatewayInterface
+    {
+        $provider = $request->payment_provider;
+
+        if (! $provider) {
+            return $this->gateway;
+        }
+
+        if (! in_array($provider, ['adyen', 'stripe', 'staged_test', 'disabled'], true)) {
+            throw new \LogicException("Unsupported stored payment provider [{$provider}].");
+        }
+
+        return $this->providerManager->resolveProvider($provider);
+    }
 
     private function ledger(OrderAnywhereRequest $request, string $event, string $direction, float $amount, string $status, array $options = []): UrbanGoodzPaymentLedger
     {

@@ -63,6 +63,7 @@ class PaymentWebhookController extends Controller
 
         foreach ($events as $event) {
             $eventCode = $event['event_code'] ?? '';
+            $eventId = $event['event_id'] ?? null;
             $merchantReference = $event['merchant_reference'] ?? null;
             $providerReference = $event['provider_reference'] ?? null;
 
@@ -81,11 +82,13 @@ class PaymentWebhookController extends Controller
             // Webhook idempotency protection: check if event has already been recorded in payment ledgers
             $eventType = $this->mapWebhookEventToLedgerType($eventCode, $provider, (bool) ($event['success'] ?? false));
             if ($eventType) {
-                $existingLedger = \App\Models\UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
-                    ->where('payable_id', $requestModel->id)
-                    ->where('event_type', $eventType)
-                    ->where('reference', $providerReference)
-                    ->first();
+                $existingLedger = $eventId
+                    ? \App\Models\UrbanGoodzPaymentLedger::where('idempotency_key', "webhook:{$provider}:{$eventId}")->first()
+                    : \App\Models\UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                        ->where('payable_id', $requestModel->id)
+                        ->where('event_type', $eventType)
+                        ->where('reference', $providerReference)
+                        ->first();
                 if ($existingLedger) {
                     Log::info("Webhook event {$eventCode} with reference {$providerReference} already processed. Skipping.");
                     $handled[] = $eventCode;
@@ -179,7 +182,17 @@ class PaymentWebhookController extends Controller
 
         $handled = match ($provider) {
             'adyen', 'staged_test' => $this->processAdyenEvent($eventCode, $success, $providerReference, $amount, $currency, $provider, $requestModel, $payments),
-            'stripe' => $this->processStripeEvent($eventCode, $success, $providerReference, $amount, $currency, $requestModel, $payments),
+            'stripe' => $this->processStripeEvent(
+                $eventCode,
+                $success,
+                $providerReference,
+                $amount,
+                $currency,
+                $requestModel,
+                $payments,
+                $event['event_id'] ?? null,
+                $event['resource_reference'] ?? null
+            ),
             default => false,
         };
 
@@ -240,24 +253,35 @@ class PaymentWebhookController extends Controller
         float $amount,
         string $currency,
         OrderAnywhereRequest $request,
-        UrbanGoodzPaymentService $payments
+        UrbanGoodzPaymentService $payments,
+        ?string $eventId,
+        ?string $resourceReference
     ): bool {
         return match ($eventCode) {
             'checkout.session.completed',
             'payment_intent.succeeded',
-            'charge.succeeded' => $this->captureFromWebhook($request, $payments, $amount, $providerReference),
+            'charge.succeeded' => $this->captureFromWebhook(
+                $request,
+                $payments,
+                $amount,
+                $providerReference,
+                $eventId ? "webhook:stripe:{$eventId}" : null
+            ),
             'payment_intent.payment_failed',
             'charge.failed' => $this->markFailed($request, $payments, 'payment_failed', $providerReference, $amount, 'stripe'),
             'payment_intent.canceled' => in_array($request->status, ['pending_review', 'reviewing', 'quote_needed'])
                 ? (bool) $request->transitionTo('cancelled')
                 : false,
             'charge.refunded',
-            'refund.succeeded' => (bool) $payments->refundCustomerPayment($request, [
-                'refund_amount' => $amount,
-                'refund_reference' => $providerReference,
-                'psp_reference' => $providerReference,
-                'source' => 'webhook',
-            ]),
+            'refund.succeeded' => $this->refundFromStripeWebhook(
+                $eventCode,
+                $request,
+                $payments,
+                $amount,
+                $providerReference,
+                $eventId,
+                $resourceReference
+            ),
             'refund.failed' => $this->markFailed($request, $payments, 'refund_failed', $providerReference, $amount, 'stripe'),
             'charge.dispute.created' => (bool) $request->update([
                 'payment_status' => 'disputed',
@@ -270,8 +294,14 @@ class PaymentWebhookController extends Controller
         OrderAnywhereRequest $request,
         UrbanGoodzPaymentService $payments,
         float $amount,
-        ?string $providerReference
+        ?string $providerReference,
+        ?string $idempotencyKey = null
     ): bool {
+        if ($request->payment_status === 'captured'
+            && abs((float) $request->captured_amount - $amount) < 0.01) {
+            return true;
+        }
+
         if ($request->payment_status !== 'authorized') {
             $request->update([
                 'authorized_amount' => $amount,
@@ -287,7 +317,44 @@ class PaymentWebhookController extends Controller
             'capture_reference' => $providerReference,
             'psp_reference' => $providerReference,
             'source' => 'webhook',
+            'capture_idempotency_key' => $idempotencyKey,
         ]);
+    }
+
+    private function refundFromStripeWebhook(
+        string $eventCode,
+        OrderAnywhereRequest $request,
+        UrbanGoodzPaymentService $payments,
+        float $eventAmount,
+        ?string $providerReference,
+        ?string $eventId,
+        ?string $resourceReference
+    ): bool {
+        if ($request->payment_status === 'refunded'
+            || ($eventCode === 'refund.succeeded'
+                && $resourceReference
+                && $request->refund_reference === $resourceReference)) {
+            return true;
+        }
+
+        $alreadyRefunded = (float) $request->refunded_amount;
+        $amount = $eventCode === 'charge.refunded'
+            ? $eventAmount - $alreadyRefunded
+            : $eventAmount;
+
+        if ($amount <= 0.001) {
+            return true;
+        }
+
+        $payments->refundCustomerPayment($request, [
+            'refund_amount' => $amount,
+            'refund_reference' => $resourceReference ?? $providerReference,
+            'refund_idempotency_key' => $eventId ? "webhook:stripe:{$eventId}" : null,
+            'psp_reference' => $providerReference,
+            'source' => 'webhook',
+        ]);
+
+        return true;
     }
 
     private function markFailed(
