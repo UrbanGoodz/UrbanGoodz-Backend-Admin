@@ -38,6 +38,10 @@ use App\Models\UrbanGoodzRoutePackage;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
 use App\Models\UrbanGoodzLoadBoardLoad;
+use App\Models\UrbanGoodzDriverPricingPolicy;
+use App\Models\UrbanGoodzServiceRequest;
+use App\Models\UrbanGoodzNotification;
+use App\Models\ExternalLoad;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Config;
@@ -355,12 +359,125 @@ class DashboardController extends Controller
             'route_packages_count' => Schema::hasTable('urban_goodz_route_packages') ? UrbanGoodzRoutePackage::count() : 0,
             'driver_earnings_count' => Schema::hasTable('urban_goodz_driver_earnings') ? UrbanGoodzDriverEarning::count() : 0,
             'driver_payouts_count' => Schema::hasTable('urban_goodz_driver_payout_requests') ? UrbanGoodzDriverPayoutRequest::count() : 0,
-            'total_revenue' => Schema::hasTable('urban_goodz_payment_ledgers')
-                ? UrbanGoodzPaymentLedger::where('event_type', 'capture')->sum('amount') : 0,
+            // NET ledger revenue: captures minus refunds, restricted to the platform
+            // currency so mixed-currency rows are never summed together.
+            // Previously this summed captures only and ignored refunds entirely.
+            'total_revenue' => self::ug_ledger_net_revenue(),
+            'ledger_currency' => self::ug_platform_currency(),
+            'ledger_has_mixed_currency' => self::ug_ledger_has_mixed_currency(),
+
+            // Marketplace (6amMart core `orders`) revenue. This is a DIFFERENT
+            // source from the Urban Goodz payment ledger; the two are reported
+            // separately so an empty ledger can never be mistaken for "no sales".
+            'marketplace_revenue' => self::ug_marketplace_revenue(false),
+            'marketplace_revenue_excluding_demo' => self::ug_marketplace_revenue(true),
+
             'pending_refunds' => Schema::hasTable('urban_goodz_payment_ledgers')
                 ? UrbanGoodzPaymentLedger::where('event_type', 'refund')->where('payment_status', 'pending')->count() : 0,
             'load_board_count' => Schema::hasTable('urban_goodz_load_board_loads') ? UrbanGoodzLoadBoardLoad::count() : 0,
+
+            // --- Keys below were referenced by dashboard.blade.php but never
+            // --- produced here, so those tiles silently rendered a hardcoded 0
+            // --- via the `?? 0` fallback regardless of real data.
+            'load_sourcing_count' => Schema::hasTable('external_loads')
+                ? ExternalLoad::where('is_duplicate', false)->count() : 0,
+            'driver_pricing_count' => Schema::hasTable('urban_goodz_driver_pricing_policies')
+                ? UrbanGoodzDriverPricingPolicy::count() : 0,
+            'service_requests_count' => Schema::hasTable('urban_goodz_service_requests')
+                ? UrbanGoodzServiceRequest::count() : 0,
+            'notifications_count' => Schema::hasTable('urban_goodz_notifications')
+                ? UrbanGoodzNotification::count() : 0,
+            // Dispatcher tile previously reused dedicated_routes_count, which is a
+            // different concept. Dispatch activity = route packages awaiting dispatch.
+            'dispatcher_count' => Schema::hasTable('urban_goodz_route_packages')
+                ? UrbanGoodzRoutePackage::count() : 0,
         ];
+    }
+
+    /**
+     * Platform reporting currency. Ledger rows in any other currency are
+     * excluded from aggregate revenue rather than silently added together.
+     */
+    protected static function ug_platform_currency(): string
+    {
+        return strtoupper((string) (Helpers::get_business_settings('currency') ?: 'USD'));
+    }
+
+    /**
+     * True when the ledger holds more than one currency, meaning the headline
+     * revenue figure is a partial view and the UI should say so.
+     */
+    protected static function ug_ledger_has_mixed_currency(): bool
+    {
+        if (!Schema::hasTable('urban_goodz_payment_ledgers')) {
+            return false;
+        }
+
+        return UrbanGoodzPaymentLedger::query()
+            ->whereNotNull('currency')
+            ->distinct()
+            ->count('currency') > 1;
+    }
+
+    /**
+     * Net Urban Goodz ledger revenue: successful captures minus refunds,
+     * single-currency, excluding rows that never completed.
+     */
+    protected static function ug_ledger_net_revenue(): float
+    {
+        if (!Schema::hasTable('urban_goodz_payment_ledgers')) {
+            return 0.0;
+        }
+
+        $currency = self::ug_platform_currency();
+
+        $scope = fn ($q) => $q
+            ->where(fn ($w) => $w->whereNull('currency')->orWhere('currency', $currency))
+            ->where(fn ($w) => $w->whereNull('payment_status')->orWhereIn('payment_status', ['completed', 'succeeded', 'paid', 'success']));
+
+        $captured = (float) UrbanGoodzPaymentLedger::query()
+            ->where('event_type', 'capture')->tap($scope)->sum('amount');
+
+        $refunded = (float) UrbanGoodzPaymentLedger::query()
+            ->where('event_type', 'refund')->tap($scope)->sum('amount');
+
+        return round($captured - abs($refunded), 2);
+    }
+
+    /**
+     * Marketplace revenue from the core `orders` table.
+     *
+     * Counts only money actually collected: payment_status = paid and the order
+     * not canceled / refunded / failed.
+     *
+     * @param bool $excludeDemo drop orders belonging to disabled modules or the
+     *                          seeded Demo Zone, which are fixtures, not sales.
+     */
+    protected static function ug_marketplace_revenue(bool $excludeDemo = true): float
+    {
+        if (!Schema::hasTable('orders')) {
+            return 0.0;
+        }
+
+        $query = Order::query()
+            ->where('payment_status', 'paid')
+            ->whereNotIn('order_status', ['canceled', 'refunded', 'failed']);
+
+        if ($excludeDemo) {
+            $demoModuleIds = Schema::hasTable('modules')
+                ? DB::table('modules')->where('status', 0)->pluck('id')->all() : [];
+            $demoZoneIds = Schema::hasTable('zones')
+                ? DB::table('zones')->where('name', 'like', '%Demo%')->pluck('id')->all() : [];
+
+            if ($demoModuleIds) {
+                $query->whereNotIn('module_id', $demoModuleIds);
+            }
+            if ($demoZoneIds) {
+                $query->whereNotIn('zone_id', $demoZoneIds);
+            }
+        }
+
+        return round((float) $query->sum('order_amount'), 2);
     }
 
     public function dashboard(Request $request)

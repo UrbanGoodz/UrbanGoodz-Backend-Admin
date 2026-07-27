@@ -191,11 +191,28 @@
                             </div>
                         </a>
                     </div>
+                    {{-- Ledger revenue and marketplace revenue come from two different
+                         sources and are shown separately on purpose: an empty Urban Goodz
+                         payment ledger must never be displayed as "no sales" while the
+                         core orders table holds paid orders. --}}
                     <div class="col-sm-6 col-lg-3">
                         <a class="order--card h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
                             <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="card-subtitle m-0">{{ translate('Total Revenue') }}</h6>
+                                <h6 class="card-subtitle m-0">
+                                    {{ translate('Ledger Revenue') }}
+                                    @if($ugData['ledger_has_mixed_currency'] ?? false)
+                                        <span class="text-warning" title="{{ translate('Ledger holds multiple currencies; only') }} {{ $ugData['ledger_currency'] ?? 'USD' }} {{ translate('is totalled here') }}">*</span>
+                                    @endif
+                                </h6>
                                 <span class="card-title text-success">{{ \App\CentralLogics\Helpers::format_currency($ugData['total_revenue'] ?? 0) }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="order--card h-100" href="{{ route('admin.order.list', ['all']) }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-subtitle m-0">{{ translate('Marketplace Revenue') }}</h6>
+                                <span class="card-title text-success">{{ \App\CentralLogics\Helpers::format_currency($ugData['marketplace_revenue_excluding_demo'] ?? 0) }}</span>
                             </div>
                         </a>
                     </div>
@@ -235,7 +252,7 @@
                         <a class="order--card h-100" href="{{ route('admin.urban-goodz.dispatcher-sourcing.dashboard') }}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="card-subtitle m-0">{{ translate('Dispatcher') }}</h6>
-                                <span class="card-title text-info">{{ $ugData['dedicated_routes_count'] ?? 0 }}</span>
+                                <span class="card-title text-info">{{ $ugData['dispatcher_count'] ?? 0 }}</span>
                             </div>
                         </a>
                     </div>
@@ -243,7 +260,7 @@
                         <a class="order--card h-100" href="{{ route('admin.urban-goodz.load-sourcing.index') }}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="card-subtitle m-0">{{ translate('Load Sourcing') }}</h6>
-                                <span class="card-title text-info">{{ $ugData['load_board_count'] ?? 0 }}</span>
+                                <span class="card-title text-info">{{ $ugData['load_sourcing_count'] ?? 0 }}</span>
                             </div>
                         </a>
                     </div>
