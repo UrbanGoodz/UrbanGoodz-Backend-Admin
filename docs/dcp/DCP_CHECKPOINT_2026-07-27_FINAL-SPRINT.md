@@ -188,3 +188,16 @@ php artisan test tests/Feature/UrbanGoodzPaymentAuditTest.php --log-junit storag
 - Broader regression result: 57 passed, 244 assertions.
 - Complete working-tree result: 427 passed, 2,722 assertions, 0 failures, 0 errors, 0 skipped.
 - Full-suite JUnit: `storage/app/test-evidence/runtime-translation-full-backend-junit.xml`.
+- Implementation commit: `19636b424957908d93bdd0508cc5aeb24b920765`.
+- Runtime-artifact ignore commit and final deployed SHA: `d01bb98f5055c9f24eb97d83c1c0c45e384defd4`.
+- Post-deployment authenticated Command Center and admin translation-page probes passed. Runtime catalog remained at 204 keys, tracked language hashes remained stable, and production `git status --short` was empty.
+- No new production exception followed the deployment; the last displayed scheduler exception predates the corrected scheduler SHA.
+
+### Trulos manual-first contract for the later Dispatcher gate
+
+- Immediate mode: `external_portal_manual`. Search opens Trulos externally; Urban Goodz provides manual candidate/contact/negotiation/booking/rate-confirmation capture and owns all post-discovery operations.
+- Future mode: `approved_partner_feed`, disabled until written integration and display approval plus a successful authorized response.
+- Manual records require provider/reference, pickup, origin/destination, equipment, rate, weight, load size, poster/contact, commodity, notes, and connected carrier.
+- Required progression: `candidate -> saved -> contacted -> negotiating -> booked_external -> carrier_verified -> driver_assigned -> dispatched -> picked_up -> in_transit -> delivered -> proof_received -> settled`.
+- `booked_external` requires explicit dispatcher confirmation. Dispatch requires a rate confirmation unless an administrator records an audited exception.
+- Keep Trulos attribution on every selected/imported record. Do not scrape HTML, iframe, automate login, bulk-copy results, or redirect post-selection operations to a third-party dispatch product.
