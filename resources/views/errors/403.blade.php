@@ -1,5 +1,5 @@
-@extends('errors::minimal')
-
-@section('title', translate('Forbidden'))
-@section('code', '403')
-@section('message', translate($exception->getMessage() ?: 'Forbidden'))
+@include('errors.ug-error', [
+    'ugCode' => 403,
+    'ugHeading' => 'You do not have access to this page',
+    'ugMessage' => 'Your Urban Goodz account does not have permission to view this area. If you believe this is a mistake, ask a platform administrator to review your role.',
+])

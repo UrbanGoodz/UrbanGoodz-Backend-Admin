@@ -12,11 +12,12 @@ $countryCode = strtolower($country ? $country : 'auto');
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="csrf-token" id="csrf-token" content="{{ csrf_token() }}">
     <!-- Title -->
-    <title>@yield('title')</title>
+    <title>@hasSection('title')@yield('title') &middot; @endif{{ translate('Urban Goodz Admin') }}</title>
     <!-- Favicon -->
     @php($logo = \App\Models\BusinessSetting::where(['key' => 'icon'])->first())
-    {{--
-    <link rel="shortcut icon" href=""> --}}
+    {{-- Urban Goodz brand mark. Declared first and as SVG so supporting
+         browsers prefer it over the legacy raster icon below. --}}
+    <link rel="icon" type="image/svg+xml" href="{{asset('public/assets/admin/img/ug-favicon.svg')}}">
     <link rel="icon" type="image/x-icon"
         href="{{\App\CentralLogics\Helpers::get_full_url('business', $logo?->value ?? '', $logo?->storage[0]?->value ?? 'public', 'favicon')}}">
     <!-- Font -->

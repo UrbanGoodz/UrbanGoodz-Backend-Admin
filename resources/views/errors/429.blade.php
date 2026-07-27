@@ -1,5 +1,5 @@
-@extends('errors::minimal')
-
-@section('title', translate('Too Many Requests'))
-@section('code', '429')
-@section('message', translate('Too Many Requests'))
+@include('errors.ug-error', [
+    'ugCode' => 429,
+    'ugHeading' => 'Too many requests',
+    'ugMessage' => 'We received too many requests from this session in a short period. Please wait a moment and try again.',
+])

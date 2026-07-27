@@ -1,5 +1,5 @@
-@extends('errors::minimal')
-
-@section('title', translate('Service Unavailable'))
-@section('code', '503')
-@section('message', translate($exception->getMessage() ?: 'Service Unavailable'))
+@include('errors.ug-error', [
+    'ugCode' => 503,
+    'ugHeading' => 'Urban Goodz Admin is temporarily unavailable',
+    'ugMessage' => 'The platform is undergoing brief maintenance. Please try again in a few minutes.',
+])

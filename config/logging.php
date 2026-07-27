@@ -45,6 +45,7 @@ return [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
+            'tap' => [App\Logging\UgRequestIdTap::class],
         ],
 
         'daily' => [
@@ -52,6 +53,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 14,
+            'tap' => [App\Logging\UgRequestIdTap::class],
         ],
 
         'slack' => [

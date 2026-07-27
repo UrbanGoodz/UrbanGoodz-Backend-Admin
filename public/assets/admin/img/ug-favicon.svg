@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Urban Goodz">
+  <rect width="64" height="64" rx="14" fill="#161616"/>
+  <rect x="6" y="6" width="52" height="52" rx="11" fill="#ED9914"/>
+  <text x="32" y="42" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
+        font-size="27" font-weight="bold" fill="#161616" letter-spacing="-1.5">UG</text>
+</svg>

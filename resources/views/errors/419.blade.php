@@ -1,5 +1,5 @@
-@extends('errors::minimal')
-
-@section('title', translate('Page Expired'))
-@section('code', '419')
-@section('message', translate('Page Expired'))
+@include('errors.ug-error', [
+    'ugCode' => 419,
+    'ugHeading' => 'Your session expired',
+    'ugMessage' => 'For your security this page expired before the form was submitted. Reload the page and try again.',
+])

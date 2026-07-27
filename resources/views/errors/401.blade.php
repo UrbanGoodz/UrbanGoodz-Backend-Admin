@@ -1,5 +1,5 @@
-@extends('errors::minimal')
-
-@section('title', translate('Unauthorized'))
-@section('code', '401')
-@section('message', translate('Unauthorized'))
+@include('errors.ug-error', [
+    'ugCode' => 401,
+    'ugHeading' => 'Please sign in to continue',
+    'ugMessage' => 'Your session is no longer valid. Sign in to the Urban Goodz admin panel again to continue where you left off.',
+])
