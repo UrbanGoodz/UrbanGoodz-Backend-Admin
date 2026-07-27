@@ -2,8 +2,6 @@
 
 namespace App\Broadcasting;
 
-use App\Models\User;
-
 class DmLocationChannel
 {
     /**
@@ -17,8 +15,8 @@ class DmLocationChannel
     /**
      * Authenticate the user's access to the channel.
      */
-    public function join(User $user): array|bool
+    public function join($user, int $id): array|bool
     {
-        return true;
+        return app(UrbanGoodzChannelAuthorizer::class)->driver($user, $id);
     }
 }
