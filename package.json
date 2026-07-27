@@ -10,6 +10,7 @@
         "production": "mix --production"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.0",
         "axios": "^0.21",
         "laravel-echo": "^2.2.4",
         "laravel-mix": "^6.0.6",
