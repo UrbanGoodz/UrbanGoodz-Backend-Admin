@@ -860,9 +860,6 @@ class UrbanGoodzPaymentService
      */
     public function captureCustomerPayment(OrderAnywhereRequest $request, array $data = []): OrderAnywhereRequest
     {
-        $this->assertPaymentsEnabled();
-        $gateway = $this->gatewayForRequest($request);
-
         if ($request->payment_status !== 'authorized') {
             throw new \InvalidArgumentException('Cannot capture: payment status is ' . $request->payment_status . '. Must be authorized.');
         }
@@ -883,6 +880,9 @@ class UrbanGoodzPaymentService
         if (($data['source'] ?? null) !== 'webhook') {
             $this->assertLiveAmountWithinCap($amount, $request->customer_id);
         }
+
+        $this->assertPaymentsEnabled();
+        $gateway = $this->gatewayForRequest($request);
 
         return DB::transaction(function () use ($request, $data, $amount, $gateway) {
             if (! UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
