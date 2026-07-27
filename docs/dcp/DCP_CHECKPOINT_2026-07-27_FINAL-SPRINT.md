@@ -91,3 +91,79 @@
 - These commits passed the complete backend suite, were pushed, and were deployed in `8f38b283e846b11dce98e5016883a90087591c40`.
 
 Do not enable live Stripe, mutate reconciled vendor/store records, enable production Pusher, or label a city "Now Serving" until the corresponding acceptance gates pass.
+
+## Accepted deployment checkpoint
+
+- Final pushed/deployed backend SHA: `32c0d8ec6c20c6e8fc8fa5e348527f8c0589ced2`.
+- Complete committed-tree backend suite: 424 passed, 2,713 assertions, 0 failures, 0 errors, 0 skipped.
+- Gemini: configured through the shared gateway; sanitized synthetic health passed with `gemini-3.5-flash-lite`.
+- Pusher: intentionally disabled until production environment installation, private-channel authorization, mobile clients, unauthorized-subscription tests, and controlled role events all pass.
+- Production Playwright smoke: 4 passed. Full authenticated role-fixture certification remains open.
+- Production route compilation and caches passed; scheduler runs every minute with the corrected `--stop-when-empty` flag; no failed jobs.
+- Production requests currently append runtime translation keys to tracked `resources/lang/en/messages.php`. Preserve the 204 observed keys and replace this source mutation before further major feature work.
+
+### Ordered remaining release gates
+
+1. Commit and push the reconciled mobile trees.
+2. Install Pusher credentials and certify private channels.
+3. Complete authenticated Playwright certification.
+4. Certify sandbox payment, signed webhook, and balanced ledger.
+5. Run physical-device tests.
+6. Complete Order Anywhere.
+7. Complete Services.
+8. Complete Car Rental.
+9. Complete Creator Commerce.
+10. Complete Dispatcher trial/load booking.
+11. Run final cross-role certification.
+
+### Exact continuation commands
+
+Backend:
+
+```powershell
+Set-Location "C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39"
+git status --short
+git rev-parse HEAD
+php artisan test --log-junit storage/app/test-evidence/final-committed-full-backend-junit.xml
+```
+
+Mobile reconciliation:
+
+```powershell
+Set-Location "C:\Users\D'Andre Good\Documents\GitHub\UrbanGoodz_Vendor_Driver_Sprint"
+git status --short
+git branch -vv
+git diff --check
+flutter test --no-pub test\shopper_realtime_contract_test.dart --reporter compact
+Set-Location vendor_app
+flutter test --no-pub test\vendor_realtime_contract_test.dart test\vendor_api_client_test.dart test\vendor_login_contract_test.dart --reporter compact
+Set-Location ..\driver_app
+flutter test --no-pub test\driver_realtime_contract_test.dart test\driver_auth_session_test.dart --reporter compact
+```
+
+Authenticated browser gate:
+
+```powershell
+Set-Location "C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39"
+$env:BASE_URL='https://admin.urbangoodzdelivery.com'
+$env:ALLOW_PRODUCTION_BASE_URL='true'
+npx playwright test -c tests/Browser/playwright.config.js tests/Browser/AdminLoginTest.spec.js
+```
+
+Payment/ledger focused gate:
+
+```powershell
+Set-Location "C:\Users\D'Andre Good\Documents\GitHub\AdminPanel_Update_V39"
+php artisan test tests/Feature/UrbanGoodzPaymentAuditTest.php --log-junit storage/app/test-evidence/payment-ledger-gate-junit.xml
+```
+
+## External load-sourcing operating constraint
+
+- Urban Goodz is the technology platform, not the motor carrier or silent broker.
+- Supported connection modes must be `partner_api_plus_carrier_token`, `broker_of_record`, `carrier_portal_deeplink`, `search_only`, or `disabled`.
+- A dispatcher may browse limited/redacted loads before connecting a carrier.
+- Booking requires a verified carrier client, written dispatcher/carrier authorization, applicable active authority, current insurance/compliance, and provider credentials owned by or delegated by that carrier.
+- The trial includes two confirmed bookings; the third requires an explicit upgrade with no surprise charge.
+- Booking records must preserve provider, licensed broker where applicable, carrier, dispatcher, driver, provider load ID, rate, rate confirmation, booking authority, and audit history.
+- Provider credentials must not be scraped, shared, exposed, or treated as belonging to the dispatcher personally.
+- Partner application priority: Direct Freight, 123Loadboard, Uber Freight vendor/technology partnership, then a licensed regional broker-of-record.
