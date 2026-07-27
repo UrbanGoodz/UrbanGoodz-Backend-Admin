@@ -441,8 +441,7 @@ class AiOperationsController extends Controller
 
     public function briefs(Request $request)
     {
-        $chiefOfStaff = new AiChiefOfStaffService();
-        $chiefOfStaff->runDiagnosticScan();
+        $chiefOfStaff = app(AiChiefOfStaffService::class);
 
         $selectedRole = $request->get('role', 'Executive');
         

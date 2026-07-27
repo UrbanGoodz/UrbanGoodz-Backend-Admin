@@ -32,9 +32,18 @@ class UrbanGoodzAIService
 
     public function chat(string $systemPrompt, string $userMessage, array $context = []): string
     {
+        return $this->chatResult($systemPrompt, $userMessage, $context)['response'];
+    }
+
+    public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
+    {
         if (!$this->isConfigured()) {
             Log::warning('UrbanGoodz AI: OpenAI API key not configured');
-            return 'AI service is not yet configured. Please set OPENAI_API_KEY in .env';
+            return [
+                'success' => false,
+                'response' => 'AI assistance is currently unavailable. No action was taken.',
+                'error_code' => 'provider_not_configured',
+            ];
         }
 
         $messages = [
@@ -61,18 +70,34 @@ class UrbanGoodzAIService
 
             if ($response->successful()) {
                 $body = $response->json();
-                return $body['choices'][0]['message']['content'] ?? 'I could not generate a response.';
+                $content = trim((string) ($body['choices'][0]['message']['content'] ?? ''));
+
+                return $content !== ''
+                    ? ['success' => true, 'response' => $content, 'error_code' => null]
+                    : [
+                        'success' => false,
+                        'response' => 'AI assistance returned no usable response. No action was taken.',
+                        'error_code' => 'empty_provider_response',
+                    ];
             }
 
             Log::error('UrbanGoodz AI: OpenAI API error', [
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'provider_request_id' => $response->header('x-request-id'),
             ]);
-            return 'I apologize — I encountered an error processing your request. A team member will follow up shortly.';
+            return [
+                'success' => false,
+                'response' => 'AI assistance could not process this request. No action was taken.',
+                'error_code' => 'provider_error',
+            ];
 
-        } catch (\Exception $e) {
-            Log::error('UrbanGoodz AI: Exception calling OpenAI', ['error' => $e->getMessage()]);
-            return 'I apologize — I am temporarily unavailable. A team member will follow up shortly.';
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodz AI: Exception calling OpenAI', ['exception' => $e::class]);
+            return [
+                'success' => false,
+                'response' => 'AI assistance is temporarily unavailable. No action was taken.',
+                'error_code' => 'provider_unavailable',
+            ];
         }
     }
 

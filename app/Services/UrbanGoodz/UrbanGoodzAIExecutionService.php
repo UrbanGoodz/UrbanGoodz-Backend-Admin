@@ -47,7 +47,7 @@ class UrbanGoodzAIExecutionService
 
     // ─── MAIN ENTRY POINT ─────────────────────────────────────────────
 
-    public function executeIntent(string $query, int $customerId = null): array
+    public function executeIntent(string $query, ?int $customerId = null, ?string $actorRole = null): array
     {
         $startTime = microtime(true);
 
@@ -86,7 +86,12 @@ class UrbanGoodzAIExecutionService
                 ], [], []);
             }
 
-            $validationResult = $this->actionRegistry->validateUserCanExecute($intentSlug, $actionName, $customerId);
+            $validationResult = $this->actionRegistry->validateUserCanExecute(
+                $intentSlug,
+                $actionName,
+                $customerId,
+                $actorRole
+            );
             
             if (!$validationResult['allowed']) {
                 Log::warning('UrbanGoodzAIExecutionService: Action blocked by authorization', [
@@ -116,6 +121,7 @@ class UrbanGoodzAIExecutionService
                 $intentSlug,
                 $confidence,
                 $customerId,
+                $actorRole,
                 $startTime
             );
 
@@ -123,15 +129,14 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeIntent failed', [
-                'query' => $query,
                 'customer_id' => $customerId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'query_hash' => hash('sha256', $query),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
-                'message' => 'I encountered an unexpected error processing your request. Our team has been notified.',
-                'error' => $e->getMessage(),
+                'message' => 'I encountered an unexpected error processing your request. No action was taken.',
+                'error_code' => 'execution_failed',
             ], [
                 ['label' => 'Try again', 'action' => 'retry'],
                 ['label' => 'Contact support', 'action' => 'contact_support'],
@@ -149,9 +154,15 @@ class UrbanGoodzAIExecutionService
         string $intentSlug,
         float $confidence,
         ?int $customerId,
+        ?string $actorRole,
         float $startTime
     ): array {
-        $validationResult = $this->actionRegistry->validateUserCanExecute($intentSlug, $actionName, $customerId);
+        $validationResult = $this->actionRegistry->validateUserCanExecute(
+            $intentSlug,
+            $actionName,
+            $customerId,
+            $actorRole
+        );
         if (! ($validationResult['allowed'] ?? false)) {
             return $this->buildResult(false, [
                 'message' => ($validationResult['duplicate'] ?? false)
@@ -167,14 +178,11 @@ class UrbanGoodzAIExecutionService
         $requiresConfirmation = $validationResult['requires_confirmation'] ?? false;
         $requiresHumanReview = $validationResult['requires_human_review'] ?? false;
         $idempotencyKey = $validationResult['idempotency_key'] ?? null;
+        $params['_actor_role'] = $validationResult['actor_role'] ?? $actorRole;
 
         $awaitingConfirmation = $requiresConfirmation && ($params['confirmed'] ?? false) !== true;
         $awaitingReview = $requiresHumanReview && ($params['reviewed'] ?? false) !== true;
         $elapsed = round((microtime(true) - $startTime) * 1000, 1);
-
-        if ($idempotencyKey && ($awaitingConfirmation || $awaitingReview)) {
-            $this->actionRegistry->markIdempotencyKeyUsed($idempotencyKey);
-        }
 
         if ($awaitingConfirmation) {
             $this->logAction([
@@ -186,7 +194,11 @@ class UrbanGoodzAIExecutionService
                 'confidence' => $confidence,
                 'success' => true,
                 'execution_time_ms' => $elapsed,
-                'metadata' => ['query' => $query, 'entities' => $entities, 'idempotency_key' => $idempotencyKey],
+                'metadata' => [
+                    'query_hash' => hash('sha256', $query),
+                    'entity_fields' => array_keys($entities),
+                    'idempotency_key' => $idempotencyKey,
+                ],
             ]);
 
             return $this->buildResult(true, [
@@ -244,6 +256,10 @@ class UrbanGoodzAIExecutionService
             ], [], []),
         };
 
+        if ($idempotencyKey && ($executionResult['success'] ?? false)) {
+            $this->actionRegistry->markIdempotencyKeyUsed($idempotencyKey);
+        }
+
         $this->logAction([
             'event' => 'intent_executed',
             'intent_slug' => $intentSlug,
@@ -254,9 +270,9 @@ class UrbanGoodzAIExecutionService
             'success' => $executionResult['success'] ?? false,
             'execution_time_ms' => $elapsed,
             'metadata' => [
-                'query' => $query,
-                'entities' => $entities,
-                'params' => $params,
+                'query_hash' => hash('sha256', $query),
+                'entity_fields' => array_keys($entities),
+                'parameter_fields' => array_keys($params),
                 'idempotency_key' => $idempotencyKey,
                 'required_confirmation' => $requiresConfirmation,
                 'required_human_review' => $requiresHumanReview,
@@ -308,7 +324,7 @@ class UrbanGoodzAIExecutionService
             if ($storeFound) {
                 $store = $matchedStores[0];
                 $itemDetails = $parsed['parsed']['item_details'] ?? $params['items'] ?? 'Items from ' . $storeName;
-                $deliveryAddress = $parsed['parsed']['customer_phone'] ?? $params['delivery_address'] ?? null;
+                $deliveryAddress = $params['delivery_address'] ?? null;
                 $budgetEstimate = $parsed['parsed']['budget_estimate'] ?? $params['budget_max'] ?? null;
 
                 $requestNumber = 'OAW-' . strtoupper(uniqid());
@@ -323,16 +339,16 @@ class UrbanGoodzAIExecutionService
                     'updated_at' => now(),
                 ]);
 
-                $estimatedDelivery = now()->addHours(2)->format('g:i A');
-                $estimatedTotal = $budgetEstimate ? '$' . number_format($budgetEstimate, 2) : 'Pending store confirmation';
+                $budgetMaximum = $budgetEstimate ? '$' . number_format($budgetEstimate, 2) : null;
 
                 return $this->buildResult(true, [
                     'request_id' => $orderId,
                     'request_number' => $requestNumber,
                     'store' => $store,
                     'item_details' => $itemDetails,
-                    'estimated_total' => $estimatedTotal,
-                    'estimated_delivery_time' => $estimatedDelivery,
+                    'budget_maximum' => $budgetMaximum,
+                    'quote_status' => 'pending_store_confirmation',
+                    'estimated_delivery_time' => null,
                     'store_found' => true,
                 ], [
                     ['label' => 'Confirm order', 'action' => 'confirm_order', 'params' => ['request_id' => $orderId]],
@@ -380,8 +396,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeOrderAnywhere failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -486,8 +502,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeFashionFit failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -581,8 +597,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeBookServices failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -669,8 +685,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeRentals failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -723,8 +739,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeMarketplaceSearch failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -813,8 +829,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeMedicalCourier failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -946,8 +962,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeLoadBoard failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -966,18 +982,41 @@ class UrbanGoodzAIExecutionService
         try {
             $orderId = $params['order_id'] ?? $params['request_id'] ?? null;
             $orderNumber = $params['order_number'] ?? null;
+            $actorId = $params['customer_id'] ?? null;
+            $actorRole = $params['_actor_role'] ?? null;
 
-            $order = null;
+            $orderQuery = Order::query();
             if ($orderId) {
-                $order = Order::find($orderId);
+                $orderQuery->whereKey($orderId);
             } elseif ($orderNumber) {
-                $order = Order::where('order_number', $orderNumber)->first();
+                $orderQuery->where('order_number', $orderNumber);
+            } else {
+                return $this->buildResult(false, [
+                    'delivery_status' => 'missing_identifier',
+                    'message' => 'Provide an order identifier to check delivery status.',
+                ]);
             }
 
+            if (!$actorId || !$actorRole) {
+                return $this->buildResult(false, [
+                    'message' => 'Authenticated ownership could not be verified. No order data was returned.',
+                ]);
+            }
+
+            match ($actorRole) {
+                'customer' => $orderQuery->where('user_id', $actorId),
+                'driver' => $orderQuery->where('delivery_man_id', $actorId),
+                'vendor' => $orderQuery->whereHas('store', fn($query) => $query->where('vendor_id', $actorId)),
+                'admin' => null,
+                default => $orderQuery->whereRaw('1 = 0'),
+            };
+
+            $order = $orderQuery->first();
+
             if (!$order) {
-                return $this->buildResult(true, [
+                return $this->buildResult(false, [
                     'delivery_status' => 'not_found',
-                    'message' => 'I could not find a delivery matching that order number. Please check and try again.',
+                    'message' => 'No delivery matching that identifier belongs to the authenticated account.',
                 ], [
                     ['label' => 'Try a different order number', 'action' => 'retry'],
                     ['label' => 'View all orders', 'action' => 'view_orders'],
@@ -993,14 +1032,9 @@ class UrbanGoodzAIExecutionService
                     $driverInfo = [
                         'id' => $driver->id,
                         'name' => $driver->name,
-                        'phone' => $driver->phone,
+                        'contact_available' => true,
                     ];
                 }
-            }
-
-            $eta = null;
-            if (in_array($order->order_status, ['confirmed', 'processing', 'picked_up', 'on_the_way'])) {
-                $eta = 'Estimated arrival: 30-45 minutes';
             }
 
             return $this->buildResult(true, [
@@ -1008,8 +1042,8 @@ class UrbanGoodzAIExecutionService
                 'order_number' => $order->order_number,
                 'delivery_status' => $order->order_status,
                 'driver_info' => $driverInfo,
-                'eta' => $eta,
-                'delivery_address' => $order->delivery_address,
+                'eta' => null,
+                'eta_status' => 'not_calculated',
                 'order_amount' => '$' . number_format($order->order_amount, 2),
             ], [
                 ['label' => 'Track on map', 'action' => 'track_map'],
@@ -1019,13 +1053,13 @@ class UrbanGoodzAIExecutionService
             ], [
                 'show_tracking' => true,
                 'show_driver_info' => $driverInfo !== null,
-                'show_eta' => $eta !== null,
+                'show_eta' => false,
             ]);
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeDelivery failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -1142,8 +1176,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeCreatorCommerce failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -1228,8 +1262,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeCommunity failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -1288,8 +1322,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeEarnMoney failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
@@ -1363,8 +1397,8 @@ class UrbanGoodzAIExecutionService
 
         } catch (\Exception $e) {
             Log::error('UrbanGoodzAIExecutionService: executeEvents failed', [
-                'params' => $params,
-                'error' => $e->getMessage(),
+                'parameter_fields' => array_keys($params),
+                'exception' => $e::class,
             ]);
 
             return $this->buildResult(false, [
