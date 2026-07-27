@@ -7205,15 +7205,13 @@ class BusinessSettingsController extends Controller
             return response()->json(['success' => false, 'message' => translate('messages.access_denied')]);
         }
 
-        $config = BusinessSetting::where(['key' => 'openai_config'])->first();
-        $data = $config ? json_decode($config['value'], true) : null;
-
-        if (empty($data['OPENAI_API_KEY'])) {
+        $apiKey = (string) config('openai.api_key', '');
+        if ($apiKey === '') {
             return response()->json(['success' => false, 'message' => translate('No API key configured')]);
         }
 
         try {
-            $client = \OpenAI::client($data['OPENAI_API_KEY']);
+            $client = \OpenAI::client($apiKey);
             $response = $client->chat()->create([
                 'model' => 'gpt-4o-mini',
                 'messages' => [
@@ -7231,7 +7229,14 @@ class BusinessSettingsController extends Controller
 
             return response()->json(['success' => false, 'message' => translate('Unexpected response') . ': ' . $reply]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+            logger()->warning('OpenAI configuration health check failed.', [
+                'exception' => $e::class,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => translate('Connection failed. Verify the configured credential, project access, and billing.'),
+            ]);
         }
     }
 

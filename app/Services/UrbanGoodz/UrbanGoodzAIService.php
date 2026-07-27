@@ -61,7 +61,7 @@ class UrbanGoodzAIService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(60)->post($this->getBaseUrl() . '/chat/completions', [
+            ])->timeout((int) config('openai.request_timeout', 60))->post($this->getBaseUrl() . '/chat/completions', [
                 'model' => $this->model,
                 'messages' => $messages,
                 'temperature' => $this->temperature,

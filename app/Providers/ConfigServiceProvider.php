@@ -247,8 +247,14 @@ class ConfigServiceProvider extends ServiceProvider
             $openAi = BusinessSetting::where(['key' => 'openai_config'])->first();
             $openAi = $openAi ? json_decode($openAi['value'], true) : null;
             if ($openAi) {
-                Config::set('openai.api_key', $openAi['OPENAI_API_KEY']);
-                Config::set('openai.organization', $openAi['OPENAI_ORGANIZATION']);
+                // Environment configuration is the secure production authority.
+                // The legacy database setting remains a backwards-compatible fallback.
+                if (empty(config('openai.api_key'))) {
+                    Config::set('openai.api_key', $openAi['OPENAI_API_KEY'] ?? null);
+                }
+                if (empty(config('openai.organization'))) {
+                    Config::set('openai.organization', $openAi['OPENAI_ORGANIZATION'] ?? null);
+                }
             }
             
         } catch (\Exception $exception) {
