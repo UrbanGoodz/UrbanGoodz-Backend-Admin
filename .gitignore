@@ -69,3 +69,9 @@ tests/playwright/test-results/
 locallt
 .phpunit.cache/
 storage/app/test-evidence/
+
+# Production runtime state (never source-controlled)
+/.deploy-sha
+/error_log
+/public/storage
+/storage/app/runtime-translations/
