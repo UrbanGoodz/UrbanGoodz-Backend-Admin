@@ -160,7 +160,7 @@
                 </a>
             </div>
             <div class="col-md-3 col-6">
-                <a href="{{ route('admin.urban-goodz.dispatcher-sourcing.best-for-driver', ['driverId' => 0]) }}" class="card text-decoration-none h-100">
+                <a href="{{ route('admin.urban-goodz.dispatcher-sourcing.driver-matches') }}" class="card text-decoration-none h-100">
                     <div class="card-body text-center py-3">
                         <i class="tio-users" style="font-size:1.5rem;color:#28a745;"></i>
                         <h6 class="mt-2 mb-0">{{ translate('Driver Matches') }}</h6>

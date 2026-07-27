@@ -159,7 +159,7 @@
                                         </form>
                                         @endif
                                         @if(in_array($rec->status, ['pending']))
-                                        <form method="POST" action="{{ route('admin.urban-goodz.dispatcher-sourcing.delete-search', $rec->id) }}" class="d-inline" onsubmit="return confirm('{{ translate('Cancel this assignment?') }}')">
+                                        <form method="POST" action="{{ route('admin.urban-goodz.dispatcher-sourcing.cancel-assignment', $rec->id) }}" class="d-inline" onsubmit="return confirm('{{ translate('Cancel this assignment?') }}')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ translate('Cancel') }}">

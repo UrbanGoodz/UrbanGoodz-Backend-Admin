@@ -109,6 +109,13 @@ class RouteServiceProvider extends ServiceProvider
             Route::middleware('web')
                 ->namespace($this->namespace)
                 ->group(base_path('routes/business.php'));
+
+            // Dispatcher Load Sourcing JSON API. Session-backed admin guard, so it uses
+            // the `web` group plus `admin`, exactly like routes/admin_ai_operations.php.
+            Route::prefix('api/v1/admin')
+                ->middleware(['web', 'admin'])
+                ->namespace($this->namespace . '\Admin')
+                ->group(base_path('routes/api/v1/admin_dispatcher_sourcing.php'));
         });
     }
 
