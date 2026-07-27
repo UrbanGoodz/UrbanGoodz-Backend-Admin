@@ -2,32 +2,40 @@
 
 namespace App\Services\UrbanGoodz;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Contracts\AI\AIProviderInterface;
+use App\Services\UrbanGoodz\AI\AIProviderManager;
 
 class UrbanGoodzAIService
 {
-    private string $apiKey;
-    private string $model;
-    private float $temperature;
-    private int $maxTokens;
+    private AIProviderInterface $provider;
 
-    public function __construct()
+    public function __construct(?AIProviderManager $providers = null)
     {
-        $this->apiKey = (string) (config('openai.api_key', env('OPENAI_API_KEY')) ?? '');
-        $this->model = config('urban_goodz.ai_model', 'gpt-4o');
-        $this->temperature = (float) config('urban_goodz.ai_temperature', 0.4);
-        $this->maxTokens = (int) config('urban_goodz.ai_max_tokens', 1500);
+        $this->provider = ($providers ?? new AIProviderManager)->resolve();
     }
 
     public function getBaseUrl(): string
     {
-        return config('openai.base_url', 'https://api.openai.com/v1');
+        return match ($this->provider->name()) {
+            'gemini' => (string) config('urban_goodz_ai.providers.gemini.base_url'),
+            'openrouter' => (string) config('urban_goodz_ai.providers.openrouter.base_url'),
+            default => (string) config('openai.base_url', config('urban_goodz_ai.providers.openai.base_url')),
+        };
     }
 
     public function isConfigured(): bool
     {
-        return !empty($this->apiKey) && strlen($this->apiKey) > 10;
+        return $this->provider->isConfigured();
+    }
+
+    public function providerName(): string
+    {
+        return $this->provider->name();
+    }
+
+    public function healthCheck(): array
+    {
+        return $this->provider->healthCheck();
     }
 
     public function chat(string $systemPrompt, string $userMessage, array $context = []): string
@@ -37,68 +45,7 @@ class UrbanGoodzAIService
 
     public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
     {
-        if (!$this->isConfigured()) {
-            Log::warning('UrbanGoodz AI: OpenAI API key not configured');
-            return [
-                'success' => false,
-                'response' => 'AI assistance is currently unavailable. No action was taken.',
-                'error_code' => 'provider_not_configured',
-            ];
-        }
-
-        $messages = [
-            ['role' => 'system', 'content' => $systemPrompt],
-        ];
-
-        if (!empty($context)) {
-            $contextMessage = "Here is relevant data to help you answer:\n\n" . json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-            $messages[] = ['role' => 'system', 'content' => $contextMessage];
-        }
-
-        $messages[] = ['role' => 'user', 'content' => $userMessage];
-
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->timeout((int) config('openai.request_timeout', 60))->post($this->getBaseUrl() . '/chat/completions', [
-                'model' => $this->model,
-                'messages' => $messages,
-                'temperature' => $this->temperature,
-                'max_tokens' => $this->maxTokens,
-            ]);
-
-            if ($response->successful()) {
-                $body = $response->json();
-                $content = trim((string) ($body['choices'][0]['message']['content'] ?? ''));
-
-                return $content !== ''
-                    ? ['success' => true, 'response' => $content, 'error_code' => null]
-                    : [
-                        'success' => false,
-                        'response' => 'AI assistance returned no usable response. No action was taken.',
-                        'error_code' => 'empty_provider_response',
-                    ];
-            }
-
-            Log::error('UrbanGoodz AI: OpenAI API error', [
-                'status' => $response->status(),
-                'provider_request_id' => $response->header('x-request-id'),
-            ]);
-            return [
-                'success' => false,
-                'response' => 'AI assistance could not process this request. No action was taken.',
-                'error_code' => 'provider_error',
-            ];
-
-        } catch (\Throwable $e) {
-            Log::error('UrbanGoodz AI: Exception calling OpenAI', ['exception' => $e::class]);
-            return [
-                'success' => false,
-                'response' => 'AI assistance is temporarily unavailable. No action was taken.',
-                'error_code' => 'provider_unavailable',
-            ];
-        }
+        return $this->provider->chatResult($systemPrompt, $userMessage, $context);
     }
 
     public function classifyIntent(string $query, array $possibleIntents): ?array
@@ -107,7 +54,7 @@ class UrbanGoodzAIService
             return $this->classifyIntentWithRules($query);
         }
 
-        $intentList = collect($possibleIntents)->map(fn($i) => "- {$i['slug']}: {$i['description']}")->implode("\n");
+        $intentList = collect($possibleIntents)->map(fn ($i) => "- {$i['slug']}: {$i['description']}")->implode("\n");
 
         $systemPrompt = "You are an intent classifier for Urban Goodz, a delivery and logistics platform.
 Classify the customer query into one of these intents:
@@ -122,6 +69,7 @@ Do not add any explanation. Return only valid JSON.";
         $json = json_decode(trim($result), true);
         if (json_last_error() === JSON_ERROR_NONE && isset($json['intent'])) {
             $json['intent'] = str_replace('_', '-', (string) $json['intent']);
+
             return $json;
         }
 
@@ -188,40 +136,42 @@ Do not add any explanation. Return only valid JSON.";
 
     public function analyzeLoadPricing(array $loadData): array
     {
-        $prompt = "Analyze this freight load and provide pricing intelligence. Return JSON:
+        $prompt = 'Analyze this freight load and provide pricing intelligence. Return JSON:
 {
-  \"fair_market_value\": number,
-  \"our_price_assessment\": \"underpriced\"|\"fair\"|\"overpriced\",
-  \"recommendation\": string,
-  \"confidence\": 0.0-1.0,
-  \"market_notes\": string
-}";
+  "fair_market_value": number,
+  "our_price_assessment": "underpriced"|"fair"|"overpriced",
+  "recommendation": string,
+  "confidence": 0.0-1.0,
+  "market_notes": string
+}';
 
         $result = $this->chat($prompt, json_encode($loadData));
         $json = json_decode(trim($result), true);
+
         return json_last_error() === JSON_ERROR_NONE ? $json : ['recommendation' => 'Unable to analyze', 'confidence' => 0];
     }
 
     public function suggestDriverAssignment(array $loadData, array $drivers): array
     {
-        $prompt = "Match the best driver(s) for this load. Consider proximity, equipment, availability, and ratings. Return JSON:
+        $prompt = 'Match the best driver(s) for this load. Consider proximity, equipment, availability, and ratings. Return JSON:
 {
-  \"assignments\": [{\"driver_id\": number, \"reason\": string, \"score\": 0.0-1.0}],
-  \"notes\": string
-}";
+  "assignments": [{"driver_id": number, "reason": string, "score": 0.0-1.0}],
+  "notes": string
+}';
 
         $context = ['load' => $loadData, 'available_drivers' => $drivers];
-        $result = $this->chat($prompt, "Suggest driver assignments for this load.", $context);
+        $result = $this->chat($prompt, 'Suggest driver assignments for this load.', $context);
         $json = json_decode(trim($result), true);
+
         return json_last_error() === JSON_ERROR_NONE ? $json : ['assignments' => [], 'notes' => 'Unable to suggest assignments'];
     }
 
     public function generateOpsSummary(array $data): string
     {
-        $prompt = "You are an operations analyst for Urban Goodz logistics platform.
+        $prompt = 'You are an operations analyst for Urban Goodz logistics platform.
 Generate a concise daily operations briefing based on this data.
 Include: key metrics, alerts, recommended actions, and opportunities.
-Be specific with numbers. Format for admin dashboard display.";
+Be specific with numbers. Format for admin dashboard display.';
 
         return $this->chat($prompt, "Generate today's operations briefing.", $data);
     }

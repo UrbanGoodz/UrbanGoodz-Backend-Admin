@@ -7205,32 +7205,23 @@ class BusinessSettingsController extends Controller
             return response()->json(['success' => false, 'message' => translate('messages.access_denied')]);
         }
 
-        $apiKey = (string) config('openai.api_key', '');
-        if ($apiKey === '') {
-            return response()->json(['success' => false, 'message' => translate('No API key configured')]);
-        }
-
         try {
-            $client = \OpenAI::client($apiKey);
-            $response = $client->chat()->create([
-                'model' => 'gpt-4o-mini',
-                'messages' => [
-                    ['role' => 'system', 'content' => 'Reply with exactly: OK'],
-                    ['role' => 'user', 'content' => 'Test'],
-                ],
-                'max_tokens' => 10,
+            $health = app(\App\Services\UrbanGoodz\UrbanGoodzAIService::class)->healthCheck();
+
+            return response()->json([
+                'success' => (bool) $health['healthy'],
+                'message' => $health['healthy']
+                    ? translate('Connection successful')
+                    : translate('Connection failed. Verify the configured provider, credential, model access, and billing.'),
+                'provider' => $health['provider'],
+                'model' => $health['model'],
+                'configured' => $health['configured'],
+                'error_code' => $health['error_code'],
+                'checked_at' => $health['checked_at'],
             ]);
-
-            $reply = $response->choices[0]->message->content ?? '';
-
-            if (str_contains($reply, 'OK')) {
-                return response()->json(['success' => true, 'message' => translate('Connection successful')]);
-            }
-
-            return response()->json(['success' => false, 'message' => translate('Unexpected response') . ': ' . $reply]);
-        } catch (\Exception $e) {
-            logger()->warning('OpenAI configuration health check failed.', [
-                'exception' => $e::class,
+        } catch (\Throwable $exception) {
+            logger()->warning('AI configuration health check failed.', [
+                'exception' => $exception::class,
             ]);
 
             return response()->json([
