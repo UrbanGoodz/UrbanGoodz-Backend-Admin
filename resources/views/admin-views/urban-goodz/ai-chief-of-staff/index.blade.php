@@ -31,6 +31,10 @@
                     <span class="badge badge-ug ml-2">{{ translate('Active Copilot') }}</span>
                 </h1>
                 <p class="page-header-text">{{ translate('Executive Operations Center, Today’s Brief, Action Center & Real-Time Record Links') }}</p>
+                <small class="text-muted">
+                    {{ translate('Grounded from live database records at') }}
+                    {{ $brief['generated_at'] ?? now()->toIso8601String() }}
+                </small>
             </div>
         </div>
     </div>
@@ -63,6 +67,49 @@
     </div>
 
     <div class="row mt-3">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title"><i class="tio-warning mr-1"></i> {{ translate('Grounded Operational Alerts') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{{ translate('Condition') }}</th>
+                                    <th>{{ translate('Count') }}</th>
+                                    <th>{{ translate('Source') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach(($brief['operational_alerts'] ?? []) as $alert)
+                                    <tr>
+                                        <td>{{ $alert['label'] }}</td>
+                                        <td>
+                                            @if($alert['available'])
+                                                <span class="badge badge-soft-{{ $alert['count'] > 0 ? ($alert['severity'] === 'high' ? 'danger' : 'warning') : 'success' }}">
+                                                    {{ $alert['count'] }}
+                                                </span>
+                                            @else
+                                                <span class="badge badge-soft-secondary">{{ translate('Unavailable') }}</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($alert['available'])
+                                                <a href="{{ url($alert['url']) }}" class="btn btn-xs btn-outline-primary">{{ translate('View Records') }}</a>
+                                            @else
+                                                <span class="text-muted">{{ translate('Module table not deployed') }}</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="col-md-8">
             <div class="card mb-4">
                 <div class="card-header">

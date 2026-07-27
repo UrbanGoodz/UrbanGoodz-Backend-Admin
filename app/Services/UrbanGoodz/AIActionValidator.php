@@ -174,7 +174,7 @@ class AIActionValidator
         if (!empty($errors)) {
             Log::warning('AIActionValidator: Validation failed', [
                 'errors' => $errors,
-                'ai_result' => $aiResult,
+                'received_fields' => array_keys($aiResult),
             ]);
             return [
                 'valid' => false,

@@ -328,7 +328,12 @@ class AllowedActionRegistry
         ],
     ];
 
-    public function validateUserCanExecute(string $intentSlug, string $actionName, ?int $userId): array
+    public function validateUserCanExecute(
+        string $intentSlug,
+        string $actionName,
+        ?int $userId,
+        ?string $actorRole = null
+    ): array
     {
         if (!isset(self::ACTION_DEFINITIONS[$actionName])) {
             return [
@@ -350,7 +355,16 @@ class AllowedActionRegistry
             ];
         }
 
-        $userRole = $this->getUserRole($userId);
+        $userRole = $actorRole ?? $this->getUserRole($userId);
+
+        if ($actorRole !== null && !$this->roleRecordExists($actorRole, $userId)) {
+            return [
+                'allowed' => false,
+                'reason' => "Authenticated {$actorRole} record was not found",
+                'requires_confirmation' => $definition['requires_confirmation'] ?? false,
+                'requires_human_review' => $definition['requires_human_review'] ?? false,
+            ];
+        }
 
         if (!in_array($userRole, $definition['roles'], true)) {
             return [
@@ -386,6 +400,7 @@ class AllowedActionRegistry
             'idempotency_key' => $idempotencyKey,
             'max_retries' => $definition['max_retries'] ?? 3,
             'timeout_seconds' => $definition['timeout_seconds'] ?? 30,
+            'actor_role' => $userRole,
         ];
     }
 
@@ -443,6 +458,18 @@ class AllowedActionRegistry
             
             return 'unknown';
         });
+    }
+
+    private function roleRecordExists(string $role, int $userId): bool
+    {
+        return match ($role) {
+            'admin' => Admin::whereKey($userId)->exists(),
+            'driver' => DeliveryMan::whereKey($userId)->exists(),
+            'vendor' => Vendor::whereKey($userId)->exists(),
+            'business_client' => UrbanGoodzBusinessClientUser::whereKey($userId)->exists(),
+            'customer' => User::whereKey($userId)->exists(),
+            default => false,
+        };
     }
 
     private function generateIdempotencyKey(string $intentSlug, string $actionName, int $userId): string

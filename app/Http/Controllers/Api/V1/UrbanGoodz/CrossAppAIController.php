@@ -71,13 +71,13 @@ class CrossAppAIController extends Controller
         $result = $this->executionService->executeIntent(
             $data['query'],
             $customerId,
-            $data['context'] ?? []
+            'customer'
         );
 
         return response()->json([
-            'success' => true,
+            'success' => (bool) ($result['success'] ?? false),
             'data' => $result,
-        ]);
+        ], ($result['success'] ?? false) ? 200 : 422);
     }
 
     /**
@@ -402,7 +402,8 @@ class CrossAppAIController extends Controller
 
         $summary = $this->executionService->executeIntent(
             "Give me my daily summary",
-            $driverId
+            $driverId,
+            'driver'
         );
 
         return response()->json([
@@ -429,7 +430,8 @@ class CrossAppAIController extends Controller
 
         $result = $this->executionService->executeIntent(
             "Optimize my route {$data['route_id']} for " . ($data['preference'] ?? 'time'),
-            $driverId
+            $driverId,
+            'driver'
         );
 
         return response()->json([

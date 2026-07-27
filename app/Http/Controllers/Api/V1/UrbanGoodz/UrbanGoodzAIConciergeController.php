@@ -45,8 +45,10 @@ class UrbanGoodzAIConciergeController extends Controller
             }
         }
 
+        $successful = $conversation->status !== 'failed';
+
         return response()->json([
-            'success' => true,
+            'success' => $successful,
             'data' => [
                 'conversation_id' => $conversation->id,
                 'query' => $conversation->query_text,
@@ -58,7 +60,7 @@ class UrbanGoodzAIConciergeController extends Controller
                 'suggested_route' => $suggestedRoute,
                 'created_at' => $conversation->created_at?->toIso8601String(),
             ],
-        ]);
+        ], $successful ? 200 : 503);
     }
 
     public function history(Request $request)
