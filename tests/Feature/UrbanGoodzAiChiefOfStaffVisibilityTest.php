@@ -183,6 +183,9 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
             $this->markTestSkipped('urban_goodz_dedicated_routes table not present');
         }
 
+        $service = app(AiChiefOfStaffService::class);
+        $before = $service->getRouteAndExceptionSummary()['active_routes']['count'];
+
         $clientId = DB::table('urban_goodz_business_clients')->insertGetId([
             'company_name' => 'COS Test Client',
             'account_type' => 'business',
@@ -221,25 +224,32 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
             'optimization_status' => 'not_optimized',
         ]);
 
-        $service = app(AiChiefOfStaffService::class);
         $result = $service->getRouteAndExceptionSummary();
 
         $this->assertArrayHasKey('active_routes', $result);
         $this->assertTrue($result['active_routes']['available']);
-        $this->assertSame(2, $result['active_routes']['count']);
+        $this->assertSame($before + 2, $result['active_routes']['count']);
+        $this->assertArrayHasKey('scheduled_routes', $result);
+        $this->assertArrayHasKey('unassigned_routes', $result);
+        $this->assertArrayHasKey('late_routes', $result);
+        $this->assertArrayHasKey('returned_packages', $result);
+        $this->assertArrayHasKey('redelivery_requirements', $result);
+        $this->assertArrayHasKey('medical_handoff_exceptions', $result);
+        $this->assertArrayHasKey('logistics_exceptions', $result);
     }
 
-    public function test_route_summary_returns_unavailable_when_table_missing(): void
+    public function test_route_summary_truthfully_marks_unsupported_incident_source_unavailable(): void
     {
         $service = app(AiChiefOfStaffService::class);
+        $result = $service->getRouteAndExceptionSummary();
 
-        if (!Schema::hasTable('urban_goodz_dedicated_routes')) {
-            $result = $service->getRouteAndExceptionSummary();
-            $this->assertFalse($result['active_routes']['available']);
-            $this->assertNull($result['active_routes']['count']);
-        } else {
-            $this->markTestSkipped('urban_goodz_dedicated_routes table exists; cannot test unavailable');
-        }
+        $this->assertFalse($result['courier_incidents']['available']);
+        $this->assertNull($result['courier_incidents']['count']);
+        $this->assertSame('unavailable', $result['courier_incidents']['state']);
+        $this->assertSame(
+            'No supported courier incident source is deployed.',
+            $result['courier_incidents']['reason']
+        );
     }
 
     public function test_driver_issue_summary_returns_grounded_counts(): void
@@ -269,8 +279,20 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $this->assertTrue($result['total_drivers']['available']);
         $this->assertGreaterThanOrEqual(2, $result['total_drivers']['count']);
 
-        $this->assertTrue($result['pending_applications']['available']);
-        $this->assertGreaterThanOrEqual(1, $result['pending_applications']['count']);
+        $this->assertTrue($result['incomplete_onboarding']['available']);
+        $this->assertGreaterThanOrEqual(1, $result['incomplete_onboarding']['count']);
+        $this->assertArrayHasKey('inactive_drivers', $result);
+        $this->assertArrayHasKey('suspended_drivers', $result);
+        $this->assertArrayHasKey('missing_vehicle_data', $result);
+        $this->assertArrayHasKey('expired_documents', $result);
+        $this->assertArrayHasKey('payout_issues', $result);
+        $this->assertArrayHasKey('failed_assignments', $result);
+        $this->assertArrayHasKey('late_deliveries', $result);
+        $this->assertArrayHasKey('unassigned_work', $result);
+        $this->assertArrayHasKey('repeated_cancellations', $result);
+        $this->assertArrayHasKey('medical_eligibility_gaps', $result);
+        $this->assertArrayHasKey('logistics_capability_gaps', $result);
+        $this->assertFalse($result['unresolved_incidents']['available']);
     }
 
     public function test_provider_health_when_not_configured(): void
@@ -284,16 +306,16 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
 
         $this->assertTrue($result['available']);
         $this->assertFalse($result['configured']);
-        $this->assertFalse($result['enabled']);
+        $this->assertTrue($result['enabled']);
         $this->assertFalse($result['healthy']);
         $this->assertSame('gemini', $result['provider']);
         $this->assertSame('NO', $result['credentials_present']);
         $this->assertSame('not_configured', $result['connectivity_state']);
-        $this->assertSame('not_configured', $result['error_code']);
-        $this->assertSame('disabled_provider_active', $result['fallback_state']);
+        $this->assertSame('provider_not_configured', $result['error_code']);
+        $this->assertSame('deterministic_only', $result['fallback_state']);
         $this->assertNull($result['last_success']);
-        $this->assertNull($result['last_failure_category']);
-        $this->assertSame('No AI provider credentials configured', $result['reason']);
+        $this->assertSame('provider_not_configured', $result['last_failure_category']);
+        $this->assertSame('AI provider credentials are not configured.', $result['reason']);
     }
 
     public function test_provider_health_when_configured_and_healthy(): void
@@ -348,7 +370,7 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $this->assertSame('disconnected', $result['connectivity_state']);
         $this->assertNull($result['last_success']);
         $this->assertSame('connection_refused', $result['last_failure_category']);
-        $this->assertSame('fallback_available', $result['fallback_state']);
+        $this->assertSame('deterministic_fallback', $result['fallback_state']);
     }
 
     public function test_provider_health_when_service_not_injected(): void
@@ -361,7 +383,7 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $this->assertFalse($result['available']);
         $this->assertSame('NO', $result['credentials_present']);
         $this->assertSame('unavailable', $result['connectivity_state']);
-        $this->assertSame('no_service', $result['fallback_state']);
+        $this->assertSame('deterministic_only', $result['fallback_state']);
         $this->assertNotNull($result['reason']);
     }
 
@@ -386,6 +408,25 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $this->assertStringNotContainsString('secret', $serialized, 'Secret must not appear.');
     }
 
+    public function test_provider_health_exception_is_sanitized(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('healthCheck')->willThrowException(
+            new \RuntimeException('Bearer sk-owner-secret-token')
+        );
+
+        $service = new AiChiefOfStaffService($mockService);
+        $result = $service->getProviderHealth();
+        $serialized = json_encode($result);
+
+        $this->assertSame('health_check_exception', $result['last_failure_category']);
+        $this->assertSame('Provider health check failed.', $result['reason']);
+        $this->assertStringNotContainsString('sk-owner-secret-token', $serialized);
+        $this->assertStringNotContainsString('Bearer', $serialized);
+    }
+
     public function test_recommendations_include_deterministic_when_alerts_exist(): void
     {
         $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
@@ -407,20 +448,55 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $service = new AiChiefOfStaffService($mockService);
         $result = $service->getRecommendations();
 
-        $this->assertNull($result['ai_analysis']);
+        $this->assertFalse($result['ai_analysis']['available']);
+        $this->assertSame('not_configured', $result['ai_analysis']['status']);
+        $this->assertSame('provider_not_configured', $result['ai_analysis']['failure_category']);
+        $this->assertNotNull($result['ai_analysis']['generated_at']);
+        $this->assertSame([], $result['ai_analysis']['items']);
     }
 
     public function test_no_fabricated_zero_for_missing_tables(): void
     {
         $service = app(AiChiefOfStaffService::class);
-        $orders = $service->getOrdersAndFulfillment();
+        $sections = [
+            $service->getOrdersAndFulfillment(),
+            $service->getRouteAndExceptionSummary(),
+            $service->getDriverIssueSummary(),
+            $service->getVendorAndBusinessSummary(),
+            $service->getPaymentsAndLedger(),
+            $service->getLoadSourcingStatus(),
+        ];
 
-        foreach ($orders as $key => $item) {
-            $this->assertArrayHasKey('available', $item, "Section item '{$key}' must declare availability.");
-            $this->assertArrayHasKey('count', $item, "Section item '{$key}' must have a count.");
-            if (!$item['available']) {
-                $this->assertNull($item['count'], "Section item '{$key}' must use null, not 0, for missing data.");
+        foreach ($sections as $section) {
+            foreach ($section as $key => $item) {
+                $this->assertArrayHasKey('available', $item, "Section item '{$key}' must declare availability.");
+                $this->assertArrayHasKey('count', $item, "Section item '{$key}' must have a count.");
+                $this->assertArrayHasKey('state', $item, "Section item '{$key}' must declare a state.");
+                if (!$item['available']) {
+                    $this->assertNull($item['count'], "Section item '{$key}' must use null, not 0, for missing data.");
+                    $this->assertSame('unavailable', $item['state']);
+                    $this->assertNotEmpty($item['reason']);
+                }
             }
+        }
+    }
+
+    public function test_section_states_do_not_classify_healthy_fact_totals_as_incidents(): void
+    {
+        $service = app(AiChiefOfStaffService::class);
+
+        $drivers = $service->getDriverIssueSummary();
+        $vendors = $service->getVendorAndBusinessSummary();
+        $payments = $service->getPaymentsAndLedger();
+
+        if ($drivers['total_drivers']['available'] && $drivers['total_drivers']['count'] > 0) {
+            $this->assertSame('healthy', $drivers['total_drivers']['state']);
+        }
+        if ($vendors['total_vendors']['available'] && $vendors['total_vendors']['count'] > 0) {
+            $this->assertSame('healthy', $vendors['total_vendors']['state']);
+        }
+        if ($payments['captured']['available'] && $payments['captured']['count'] > 0) {
+            $this->assertSame('healthy', $payments['captured']['state']);
         }
     }
 
@@ -443,6 +519,19 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
                 $this->assertStringStartsWith('/', $item['url'], "URL for '{$key}' must start with /.");
             }
         }
+
+        $this->assertSame(
+            '/admin/urban-goodz/dedicated-routes',
+            $service->getRouteAndExceptionSummary()['active_routes']['url']
+        );
+        $this->assertSame(
+            '/admin/urban-goodz/business-clients',
+            $service->getVendorAndBusinessSummary()['business_clients']['url']
+        );
+        $this->assertSame(
+            '/admin/urban-goodz/driver-payouts',
+            $service->getDriverIssueSummary()['pending_payouts']['url']
+        );
     }
 
     public function test_no_secret_exposure_in_view(): void
@@ -548,6 +637,10 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $this->assertSame('ai_generated', $result['ai_analysis']['type']);
         $this->assertSame('openai', $result['ai_analysis']['provider']);
         $this->assertSame('gpt-4o', $result['ai_analysis']['model']);
+        $this->assertSame('available', $result['ai_analysis']['status']);
+        $this->assertTrue($result['ai_analysis']['available']);
+        $this->assertNotNull($result['ai_analysis']['generated_at']);
+        $this->assertNull($result['ai_analysis']['failure_category']);
         $this->assertCount(2, $result['ai_analysis']['items']);
         $this->assertSame('Review expired certifications', $result['ai_analysis']['items'][0]['title']);
         $this->assertSame('high', $result['ai_analysis']['items'][0]['priority']);
@@ -558,7 +651,9 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
         $mockService->method('isConfigured')->willReturn(true);
         $mockService->method('providerName')->willReturn('openai');
-        $mockService->method('chatResult')->willThrowException(new \RuntimeException('Provider timeout'));
+        $mockService->method('chatResult')->willThrowException(
+            new \RuntimeException('Provider timeout with Bearer sk-owner-secret-token')
+        );
 
         $service = new AiChiefOfStaffService($mockService);
         $result = $service->getRecommendations();
@@ -568,7 +663,84 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $this->assertNotNull($result['ai_analysis']);
         $this->assertSame('ai_generated', $result['ai_analysis']['type']);
         $this->assertFalse($result['ai_analysis']['available'] ?? true);
-        $this->assertStringContainsString('Provider timeout', $result['ai_analysis']['error']);
+        $this->assertSame('failed', $result['ai_analysis']['status']);
+        $this->assertSame('generation_exception', $result['ai_analysis']['failure_category']);
+        $this->assertSame(
+            'AI analysis generation failed; deterministic recommendations remain active.',
+            $result['ai_analysis']['reason']
+        );
+        $serialized = json_encode($result['ai_analysis']);
+        $this->assertStringNotContainsString('sk-owner-secret-token', $serialized);
+        $this->assertStringNotContainsString('Bearer', $serialized);
+    }
+
+    public function test_ai_failure_result_uses_sanitized_deterministic_fallback(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('gemini');
+        $mockService->method('chatResult')->willReturn([
+            'success' => false,
+            'response' => 'raw provider response with sk-owner-secret-token',
+            'error_code' => 'provider_unavailable',
+            'provider' => 'gemini',
+            'model' => 'gemini-2.5-flash',
+        ]);
+
+        $result = (new AiChiefOfStaffService($mockService))->getRecommendations();
+        $serialized = json_encode($result);
+
+        $this->assertIsArray($result['deterministic']);
+        $this->assertFalse($result['ai_analysis']['available']);
+        $this->assertSame('provider_unavailable', $result['ai_analysis']['failure_category']);
+        $this->assertStringNotContainsString('raw provider response', $serialized);
+        $this->assertStringNotContainsString('sk-owner-secret-token', $serialized);
+    }
+
+    public function test_invalid_ai_response_fails_closed_without_breaking_deterministic_brief(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('chatResult')->willReturn([
+            'success' => true,
+            'response' => '{"unexpected":"object"}',
+            'error_code' => null,
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+        ]);
+
+        $result = (new AiChiefOfStaffService($mockService))->getRecommendations();
+
+        $this->assertIsArray($result['deterministic']);
+        $this->assertFalse($result['ai_analysis']['available']);
+        $this->assertSame('invalid_provider_response', $result['ai_analysis']['failure_category']);
+    }
+
+    public function test_ai_recommendation_text_redacts_secret_patterns(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('chatResult')->willReturn([
+            'success' => true,
+            'response' => json_encode([[
+                'title' => 'Rotate sk-owner-secret-token',
+                'detail' => 'Authorization: Bearer owner-token-value',
+                'priority' => 'high',
+            ]]),
+            'error_code' => null,
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+        ]);
+
+        $result = (new AiChiefOfStaffService($mockService))->getRecommendations();
+        $serialized = json_encode($result['ai_analysis']);
+
+        $this->assertTrue($result['ai_analysis']['available']);
+        $this->assertStringContainsString('[redacted]', $serialized);
+        $this->assertStringNotContainsString('sk-owner-secret-token', $serialized);
+        $this->assertStringNotContainsString('owner-token-value', $serialized);
     }
 
     public function test_provider_health_section_exposes_no_secrets_in_rendered_page(): void

@@ -31,6 +31,21 @@
 @endpush
 
 @section('content')
+@php
+    $stateBadgeClass = static fn (string $state): string => match ($state) {
+        'healthy' => 'healthy',
+        'warning' => 'warning',
+        'critical' => 'critical',
+        'not-configured' => 'not-configured',
+        default => 'unavailable',
+    };
+    $copilotState = ($provider_health['configured'] ?? false)
+        ? (($provider_health['healthy'] ?? false) ? 'healthy' : 'warning')
+        : 'not-configured';
+    $copilotLabel = ($provider_health['configured'] ?? false)
+        ? (($provider_health['healthy'] ?? false) ? translate('AI Online') : translate('Deterministic Fallback'))
+        : translate('Deterministic Only');
+@endphp
 <div class="content container-fluid">
     {{-- 1. Executive Briefing --}}
     <div class="page-header">
@@ -38,7 +53,7 @@
             <div class="col-sm mb-2 mb-sm-0">
                 <h1 class="page-header-title">
                     <i class="tio-user-big mr-1"></i> {{ translate('Urban Goodz AI Chief of Staff') }}
-                    <span class="badge badge-ug ml-2">{{ translate('Active Copilot') }}</span>
+                    <span class="badge badge-{{ $stateBadgeClass($copilotState) }} ml-2">{{ $copilotLabel }}</span>
                 </h1>
                 <p class="page-header-text">{{ translate('Executive Operations Center, Today\'s Brief, Action Center & Real-Time Record Links') }}</p>
                 <small class="text-muted">
@@ -53,25 +68,41 @@
         <div class="col-md-3">
             <div class="card-stat">
                 <h5>{{ translate('Completed Tasks') }}</h5>
-                <h2 class="text-success">{{ $summary['completed'] ?? 0 }}</h2>
+                @if(array_key_exists('completed', $summary) && $summary['completed'] !== null)
+                    <h2 class="text-success">{{ $summary['completed'] }}</h2>
+                @else
+                    <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
+                @endif
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stat">
                 <h5>{{ translate('In Progress') }}</h5>
-                <h2 class="text-primary">{{ $summary['in_progress'] ?? 0 }}</h2>
+                @if(array_key_exists('in_progress', $summary) && $summary['in_progress'] !== null)
+                    <h2 class="text-primary">{{ $summary['in_progress'] }}</h2>
+                @else
+                    <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
+                @endif
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stat">
                 <h5>{{ translate('Human Actions Required') }}</h5>
-                <h2 class="text-warning">{{ $summary['human_actions_required'] ?? 0 }}</h2>
+                @if(array_key_exists('human_actions_required', $summary) && $summary['human_actions_required'] !== null)
+                    <h2 class="text-warning">{{ $summary['human_actions_required'] }}</h2>
+                @else
+                    <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
+                @endif
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stat">
                 <h5>{{ translate('Pending Approvals') }}</h5>
-                <h2 class="text-info">{{ $summary['approvals'] ?? 0 }}</h2>
+                @if(array_key_exists('approvals', $summary) && $summary['approvals'] !== null)
+                    <h2 class="text-info">{{ $summary['approvals'] }}</h2>
+                @else
+                    <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
+                @endif
             </div>
         </div>
     </div>
@@ -84,7 +115,9 @@
                 </div>
                 <div class="card-body">
                     <h6>{{ translate('Active Business Needs') }}</h6>
-                    @if(empty($brief['business_needs']) || count($brief['business_needs']) == 0)
+                    @if(!($brief['source_availability']['business_needs'] ?? false))
+                        <div class="alert alert-soft-secondary">{{ translate('Business-needs source unavailable.') }}</div>
+                    @elseif(count($brief['business_needs']) === 0)
                         <div class="alert alert-soft-success">{{ translate('No critical business needs detected. System operating smoothly.') }}</div>
                     @else
                         <div class="table-responsive">
@@ -123,15 +156,15 @@
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{{ route('admin.urban-goodz.ai-operations.workforce.tasks') }}">{{ translate('Review Pending AI Tasks') }}</a>
-                            <span class="badge badge-primary badge-pill">{{ $summary['planned'] ?? 0 }}</span>
+                            <span class="badge badge-primary badge-pill">{{ $summary['planned'] ?? translate('Unavailable') }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{{ route('admin.urban-goodz.ai-operations.workforce.approvals') }}">{{ translate('Supervised Approvals Queue') }}</a>
-                            <span class="badge badge-info badge-pill">{{ $summary['approvals'] ?? 0 }}</span>
+                            <span class="badge badge-info badge-pill">{{ $summary['approvals'] ?? translate('Unavailable') }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{{ route('admin.urban-goodz.ai-operations.workforce.prospects') }}">{{ translate('Merchant Prospects Qualified') }}</a>
-                            <span class="badge badge-success badge-pill">{{ $summary['results']['prospects_qualified'] ?? 0 }}</span>
+                            <span class="badge badge-success badge-pill">{{ $summary['results']['prospects_qualified'] ?? translate('Unavailable') }}</span>
                         </li>
                     </ul>
                 </div>
@@ -162,7 +195,7 @@
                                         <td>{{ $alert['label'] }}</td>
                                         <td>
                                             @if($alert['available'])
-                                                <span class="badge badge-soft-{{ $alert['count'] > 0 ? ($alert['severity'] === 'high' ? 'danger' : 'warning') : 'success' }}">
+                                                <span class="badge badge-{{ $stateBadgeClass($alert['state'] ?? 'unavailable') }}">
                                                     {{ $alert['count'] }}
                                                 </span>
                                             @else
@@ -173,7 +206,7 @@
                                             @if($alert['available'])
                                                 <a href="{{ url($alert['url']) }}" class="btn btn-xs btn-outline-primary">{{ translate('View Records') }}</a>
                                             @else
-                                                <span class="unavailable-note">{{ translate('Module table not deployed') }}</span>
+                                                <span class="unavailable-note">{{ $alert['reason'] ?? translate('Source unavailable') }}</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -200,10 +233,13 @@
                             <tbody>
                                 @foreach($orders_fulfillment as $item)
                                 <tr>
-                                    <td class="section-label">{{ translate($item['label']) }}</td>
+                                    <td class="section-label">
+                                        {{ translate($item['label']) }}
+                                        @if(!$item['available'])<br><small class="unavailable-note">{{ $item['reason'] }}</small>@endif
+                                    </td>
                                     <td>
                                         @if($item['available'])
-                                            <span class="badge badge-soft-{{ $item['count'] > 0 ? 'danger' : 'success' }}">{{ $item['count'] }}</span>
+                                            <span class="badge badge-{{ $stateBadgeClass($item['state'] ?? 'unavailable') }}">{{ $item['count'] }}</span>
                                         @else
                                             <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
                                         @endif
@@ -233,10 +269,13 @@
                             <tbody>
                                 @foreach($routes_exceptions as $item)
                                 <tr>
-                                    <td class="section-label">{{ translate($item['label']) }}</td>
+                                    <td class="section-label">
+                                        {{ translate($item['label']) }}
+                                        @if(!$item['available'])<br><small class="unavailable-note">{{ $item['reason'] }}</small>@endif
+                                    </td>
                                     <td>
                                         @if($item['available'])
-                                            <span class="badge badge-soft-{{ $item['count'] > 0 ? 'warning' : 'success' }}">{{ $item['count'] }}</span>
+                                            <span class="badge badge-{{ $stateBadgeClass($item['state'] ?? 'unavailable') }}">{{ $item['count'] }}</span>
                                         @else
                                             <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
                                         @endif
@@ -266,10 +305,13 @@
                             <tbody>
                                 @foreach($driver_issues as $item)
                                 <tr>
-                                    <td class="section-label">{{ translate($item['label']) }}</td>
+                                    <td class="section-label">
+                                        {{ translate($item['label']) }}
+                                        @if(!$item['available'])<br><small class="unavailable-note">{{ $item['reason'] }}</small>@endif
+                                    </td>
                                     <td>
                                         @if($item['available'])
-                                            <span class="badge badge-soft-{{ $item['count'] > 0 ? 'warning' : 'success' }}">{{ $item['count'] }}</span>
+                                            <span class="badge badge-{{ $stateBadgeClass($item['state'] ?? 'unavailable') }}">{{ $item['count'] }}</span>
                                         @else
                                             <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
                                         @endif
@@ -299,10 +341,13 @@
                             <tbody>
                                 @foreach($vendor_business as $item)
                                 <tr>
-                                    <td class="section-label">{{ translate($item['label']) }}</td>
+                                    <td class="section-label">
+                                        {{ translate($item['label']) }}
+                                        @if(!$item['available'])<br><small class="unavailable-note">{{ $item['reason'] }}</small>@endif
+                                    </td>
                                     <td>
                                         @if($item['available'])
-                                            <span class="badge badge-soft-{{ $item['count'] > 0 ? 'warning' : 'success' }}">{{ $item['count'] }}</span>
+                                            <span class="badge badge-{{ $stateBadgeClass($item['state'] ?? 'unavailable') }}">{{ $item['count'] }}</span>
                                         @else
                                             <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
                                         @endif
@@ -332,10 +377,13 @@
                             <tbody>
                                 @foreach($payments_ledger as $item)
                                 <tr>
-                                    <td class="section-label">{{ translate($item['label']) }}</td>
+                                    <td class="section-label">
+                                        {{ translate($item['label']) }}
+                                        @if(!$item['available'])<br><small class="unavailable-note">{{ $item['reason'] }}</small>@endif
+                                    </td>
                                     <td>
                                         @if($item['available'])
-                                            <span class="badge badge-soft-{{ $item['count'] > 0 ? 'danger' : 'success' }}">{{ $item['count'] }}</span>
+                                            <span class="badge badge-{{ $stateBadgeClass($item['state'] ?? 'unavailable') }}">{{ $item['count'] }}</span>
                                         @else
                                             <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
                                         @endif
@@ -365,10 +413,13 @@
                             <tbody>
                                 @foreach($load_sourcing as $item)
                                 <tr>
-                                    <td class="section-label">{{ translate($item['label']) }}</td>
+                                    <td class="section-label">
+                                        {{ translate($item['label']) }}
+                                        @if(!$item['available'])<br><small class="unavailable-note">{{ $item['reason'] }}</small>@endif
+                                    </td>
                                     <td>
                                         @if($item['available'])
-                                            <span class="badge badge-soft-{{ $item['count'] > 0 ? 'warning' : 'success' }}">{{ $item['count'] }}</span>
+                                            <span class="badge badge-{{ $stateBadgeClass($item['state'] ?? 'unavailable') }}">{{ $item['count'] }}</span>
                                         @else
                                             <span class="badge badge-unavailable">{{ translate('Unavailable') }}</span>
                                         @endif
@@ -496,14 +547,18 @@
                     @endif
 
                     <h6>{{ translate('AI-Generated Analysis') }}</h6>
-                    @if(($recommendations['ai_analysis']['available'] ?? true) === false)
-                        <div class="alert alert-soft-secondary">{{ translate('AI analysis unavailable') }}: {{ $recommendations['ai_analysis']['error'] ?? translate('Provider not configured or health check failed') }}</div>
-                    @elseif(isset($recommendations['ai_analysis']['items']) && count($recommendations['ai_analysis']['items']) > 0)
+                    @php($aiAnalysis = $recommendations['ai_analysis'] ?? [])
+                    @if(!($aiAnalysis['available'] ?? false))
+                        <div class="alert alert-soft-secondary">
+                            <strong>{{ translate('AI analysis unavailable') }}</strong>
+                            — {{ $aiAnalysis['reason'] ?? translate('Deterministic recommendations remain active.') }}
+                        </div>
+                    @elseif(count($aiAnalysis['items'] ?? []) > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead><tr><th>{{ translate('Recommendation') }}</th><th>{{ translate('Detail') }}</th><th>{{ translate('Priority') }}</th></tr></thead>
                                 <tbody>
-                                    @foreach($recommendations['ai_analysis']['items'] as $aiRec)
+                                    @foreach($aiAnalysis['items'] as $aiRec)
                                     <tr>
                                         <td class="section-label">{{ $aiRec['title'] }}</td>
                                         <td>{{ $aiRec['detail'] }}</td>
@@ -513,10 +568,19 @@
                                 </tbody>
                             </table>
                         </div>
-                        <small class="text-muted">{{ translate('Provider') }}: {{ $recommendations['ai_analysis']['provider'] ?? 'N/A' }} | {{ translate('Model') }}: {{ $recommendations['ai_analysis']['model'] ?? 'N/A' }}</small>
                     @else
-                        <div class="alert alert-soft-secondary">{{ translate('No AI-generated recommendations available. AI provider may not be configured.') }}</div>
+                        <div class="alert alert-soft-success">{{ translate('AI analysis completed without additional recommendations.') }}</div>
                     @endif
+
+                    <small class="text-muted d-block mt-2">
+                        {{ translate('Status') }}: {{ $aiAnalysis['status'] ?? translate('Unavailable') }}
+                        | {{ translate('Provider') }}: {{ $aiAnalysis['provider'] ?? translate('N/A') }}
+                        | {{ translate('Model') }}: {{ $aiAnalysis['model'] ?? translate('N/A') }}
+                        | {{ translate('Timestamp') }}: {{ $aiAnalysis['generated_at'] ?? translate('N/A') }}
+                        @if($aiAnalysis['failure_category'] ?? false)
+                            | {{ translate('Failure Category') }}: {{ $aiAnalysis['failure_category'] }}
+                        @endif
+                    </small>
                 </div>
             </div>
         </div>
