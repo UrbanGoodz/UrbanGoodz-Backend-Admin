@@ -120,10 +120,27 @@ return [
     |
     */
     'issuing' => [
-        'provider' => env('URBAN_GOODZ_ISSUING_PROVIDER', 'manual'),
+        'provider' => env('URBAN_GOODZ_ISSUING_PROVIDER', 'disabled'),
         'mode' => env('URBAN_GOODZ_CARDS_MODE', 'sandbox'),
         'max_driver_card_amount' => (float) env('URBAN_GOODZ_MAX_DRIVER_CARD_AMOUNT', 50.00),
         'driver_card_buffer_percent' => (float) env('URBAN_GOODZ_DRIVER_CARD_BUFFER_PERCENT', 10),
         'default_expiry_minutes' => (int) env('URBAN_GOODZ_DRIVER_CARD_DEFAULT_EXPIRY_MINUTES', 120),
+        'stripe_webhook_secret' => env('STRIPE_ISSUING_WEBHOOK_SECRET', ''),
+        'stripe_api_version' => env('STRIPE_ISSUING_API_VERSION', '2026-06-24.dahlia'),
+        'allowed_card_presences' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', env('STRIPE_ISSUING_ALLOWED_CARD_PRESENCES', 'not_present'))
+        ))),
+        'allowed_merchant_countries' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', env('STRIPE_ISSUING_ALLOWED_MERCHANT_COUNTRIES', 'US'))
+        ))),
+        'billing_address' => [
+            'line1' => env('URBAN_GOODZ_ISSUING_BILLING_LINE1', ''),
+            'city' => env('URBAN_GOODZ_ISSUING_BILLING_CITY', ''),
+            'state' => env('URBAN_GOODZ_ISSUING_BILLING_STATE', ''),
+            'postal_code' => env('URBAN_GOODZ_ISSUING_BILLING_POSTAL_CODE', ''),
+            'country' => env('URBAN_GOODZ_ISSUING_BILLING_COUNTRY', 'US'),
+        ],
     ],
 ];
