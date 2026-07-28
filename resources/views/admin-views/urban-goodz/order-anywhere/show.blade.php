@@ -185,10 +185,27 @@
                             </span>
                         </div>
                         <div class="card-body">
+                            <div class="alert {{ $issuingProviderStatus === 'CONFIGURED' ? 'alert-success' : 'alert-warning' }} py-2">
+                                <strong>{{ translate('Issuing Provider') }}:</strong>
+                                {{ $issuingProviderStatus }}
+                                @if($issuingProvider !== 'unconfigured')
+                                    ({{ $issuingProvider }})
+                                @endif
+                            </div>
+                            @if(auth('admin')->user()->role_id == 1)
+                            <form action="{{ route('admin.urban-goodz.order-anywhere.card-emergency-disable') }}" method="POST" class="mb-3">
+                                @csrf
+                                <input type="hidden" name="disabled" value="{{ $cardEmergencyDisabled ? 0 : 1 }}">
+                                <button type="submit" class="btn {{ $cardEmergencyDisabled ? 'btn-success' : 'btn-danger' }} btn-sm"
+                                        onclick="return confirm('{{ $cardEmergencyDisabled ? translate('Clear the emergency disable? Pending eligible requests will resume automatically.') : translate('Emergency-disable all Order Anywhere cards? Active cards will be revoked.') }}')">
+                                    {{ $cardEmergencyDisabled ? translate('Clear Emergency Disable') : translate('Emergency Disable Cards') }}
+                                </button>
+                            </form>
+                            @endif
                             <div class="row g-2">
                                 <div class="col-6">
                                     <label class="font-weight-bold small">{{ translate('Provider') }}</label>
-                                    <p class="mb-1">{{ $cardRequest->provider ?? translate('N/A') }}</p>
+                                    <p class="mb-1">{{ $cardRequest->provider === 'unconfigured' ? translate('NOT CONFIGURED') : ($cardRequest->provider ?? translate('N/A')) }}</p>
                                 </div>
                                 <div class="col-6">
                                     <label class="font-weight-bold small">{{ translate('Assigned Driver') }}</label>
@@ -220,7 +237,7 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="font-weight-bold small">{{ translate('Single Use') }}</label>
-                                    <p class="mb-1">{{ $cardRequest->single_use ? translate('Yes') : translate('No') }}</p>
+                                    <p class="mb-1">{{ $cardRequest->payment_count_limit === 1 ? translate('Cancel after one payment') : translate('Provider lifecycle controlled') }}</p>
                                 </div>
                                 @if($cardRequest->expires_at)
                                 <div class="col-6">
@@ -240,11 +257,13 @@
                                     <p class="mb-1 text-danger">{{ $cardRequest->failure_reason }}</p>
                                 </div>
                                 @endif
-                                @if($cardRequest->card_status === 'provider_pending')
+                                @if(in_array($cardRequest->card_status, ['provider_pending', 'awaiting_provider_configuration', 'issuance_pending', 'issuance_retry_pending']))
                                 <div class="col-12">
                                     <div class="alert alert-warning mb-0 py-2 small">
                                         <i class="tio-info-outined"></i>
-                                        {{ translate('This card is pending the issuing provider. It is not yet usable for purchases.') }}
+                                        {{ $cardRequest->card_status === 'awaiting_provider_configuration'
+                                            ? translate('The workflow is eligible and waiting for owner provider configuration. No card credentials exist.')
+                                            : translate('Automatic card issuance is pending. It is not yet usable for purchases.') }}
                                     </div>
                                 </div>
                                 @endif
@@ -268,33 +287,33 @@
 
                             <div class="d-flex flex-wrap gap-2">
                                 @if(in_array($cardRequest->card_status, ['requested', 'provider_pending', 'issued', 'active']))
-                                    @can('urban_goodz_order_anywhere_freeze_card')
+                                    @if(auth('admin')->user()->role_id == 1 || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere_freeze_card'))
                                     <form action="{{ route('admin.urban-goodz.order-anywhere.freeze-card', $request->id) }}" method="POST" class="d-inline">
                                         @csrf
                                         <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('{{ translate('Freeze this driver card?') }}')">
                                             <i class="tio-pause"></i> {{ translate('Freeze Card') }}
                                         </button>
                                     </form>
-                                    @endcan
+                                    @endif
                                 @endif
 
                                 @if(!in_array($cardRequest->card_status, ['cancelled', 'used', 'reconciled']))
-                                    @can('urban_goodz_order_anywhere_cancel_card')
+                                    @if(auth('admin')->user()->role_id == 1 || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere_cancel_card'))
                                     <form action="{{ route('admin.urban-goodz.order-anywhere.cancel-card', $request->id) }}" method="POST" class="d-inline">
                                         @csrf
                                         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ translate('Cancel this driver card? This cannot be undone.') }}')">
                                             <i class="tio-delete"></i> {{ translate('Cancel Card') }}
                                         </button>
                                     </form>
-                                    @endcan
+                                    @endif
                                 @endif
 
                                 @if(in_array($cardRequest->card_status, ['used', 'frozen']))
-                                    @can('urban_goodz_order_anywhere_reconcile_card')
+                                    @if(auth('admin')->user()->role_id == 1 || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_order_anywhere_reconcile_card'))
                                     <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#reconcileCardModal">
                                         <i class="tio-checkmark"></i> {{ translate('Reconcile Card') }}
                                     </button>
-                                    @endcan
+                                    @endif
                                 @endif
                             </div>
                         </div>
@@ -338,12 +357,12 @@
                     </div>
                     @endif
 
-                    @can('urban_goodz_order_anywhere_request_card')
+                    @if(auth('admin')->user()->role_id == 1)
                     @if(!$cardRequest || in_array($cardRequest->card_status, ['cancelled', 'expired', 'used', 'reconciled', 'failed']))
                         @if(in_array($request->payment_status, ['captured', 'authorized']) && $request->assigned_delivery_man_id)
                         <div class="card mt-3">
                             <div class="card-header">
-                                <h5>{{ translate('Request New Driver Card') }}</h5>
+                                <h5>{{ translate('Owner Recovery') }}</h5>
                             </div>
                             <div class="card-body">
                                 @if($issuingMode === 'disabled')
@@ -364,8 +383,8 @@
                                                 {{ translate('Live mode: max $') }}{{ number_format($liveMaxAmount ?? 50, 2) }}
                                             </div>
                                         @endif
-                                        <button type="submit" class="btn btn--primary btn-block">
-                                            <i class="tio-card"></i> {{ translate('Request Driver Card') }}
+                                        <button type="submit" class="btn btn--primary btn-block" onclick="return confirm('{{ translate('Re-run the automatic eligibility and idempotency checks?') }}')">
+                                            <i class="tio-refresh"></i> {{ translate('Retry Automatic Issuance') }}
                                         </button>
                                     </form>
                                 @endif
@@ -382,7 +401,7 @@
                         </div>
                         @endif
                     @endif
-                    @endcan
+                    @endif
                 @else
                     <div class="card mt-3">
                         <div class="card-header">
@@ -395,7 +414,7 @@
                                     {{ translate('Card issuing is currently disabled on this platform.') }}
                                 </div>
                             @else
-                                @can('urban_goodz_order_anywhere_request_card')
+                                @if(auth('admin')->user()->role_id == 1)
                                 @if(in_array($request->payment_status, ['captured', 'authorized']) && $request->assigned_delivery_man_id)
                                     <form action="{{ route('admin.urban-goodz.order-anywhere.request-card', $request->id) }}" method="POST">
                                         @csrf
@@ -409,8 +428,8 @@
                                                 {{ translate('Live mode: max $') }}{{ number_format($liveMaxAmount ?? 50, 2) }}
                                             </div>
                                         @endif
-                                        <button type="submit" class="btn btn--primary btn-block">
-                                            <i class="tio-card"></i> {{ translate('Request Driver Card') }}
+                                        <button type="submit" class="btn btn--primary btn-block" onclick="return confirm('{{ translate('Re-run the automatic eligibility and idempotency checks?') }}')">
+                                            <i class="tio-refresh"></i> {{ translate('Retry Automatic Issuance') }}
                                         </button>
                                     </form>
                                 @else
@@ -423,8 +442,46 @@
                                     <div class="text-muted small">
                                         {{ translate('You do not have permission to request driver cards.') }}
                                     </div>
-                                @endcan
-                            @endif
+                                @endif
+                                @if($cardRequest->issued_at)
+                                <div class="col-6">
+                                    <label class="font-weight-bold small">{{ translate('Issued') }}</label>
+                                    <p class="mb-1">{{ $cardRequest->issued_at->format('M d, Y H:i') }}</p>
+                                </div>
+                                @endif
+                                @if($cardRequest->receipt_submitted_at)
+                                <div class="col-12">
+                                    <label class="font-weight-bold small">{{ translate('Receipt') }}</label>
+                                    <p class="mb-1">
+                                        <a href="{{ route('admin.urban-goodz.order-anywhere.card-receipt', $request->id) }}">
+                                            {{ translate('Download private receipt') }}
+                                        </a>
+                                        — ${{ number_format($cardRequest->receipt_total ?? 0, 2) }}
+                                    </p>
+                                </div>
+                                @endif
+                    @endif
+
+                    @if(($cardAuditHistory ?? collect())->isNotEmpty())
+                    <div class="card mt-3">
+                        <div class="card-header"><h5>{{ translate('Purchase Card Audit History') }}</h5></div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead><tr><th>{{ translate('Time') }}</th><th>{{ translate('Event') }}</th><th>{{ translate('Actor') }}</th><th>{{ translate('Details') }}</th></tr></thead>
+                                <tbody>
+                                @foreach($cardAuditHistory as $audit)
+                                    <tr>
+                                        <td>{{ $audit->created_at?->format('M d, Y H:i:s') }}</td>
+                                        <td>{{ $audit->event }}</td>
+                                        <td>{{ $audit->causer_type ? class_basename($audit->causer_type).' #'.$audit->causer_id : translate('System') }}</td>
+                                        <td>{{ $audit->description }}</td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    @endif
                         </div>
                     </div>
                 @endif

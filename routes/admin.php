@@ -283,6 +283,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('order-anywhere/{id}/freeze-card', 'UrbanGoodzAdminController@orderAnywhereFreezeCard')->name('order-anywhere.freeze-card');
             Route::post('order-anywhere/{id}/cancel-card', 'UrbanGoodzAdminController@orderAnywhereCancelCard')->name('order-anywhere.cancel-card');
             Route::post('order-anywhere/{id}/reconcile-card', 'UrbanGoodzAdminController@orderAnywhereReconcileCard')->name('order-anywhere.reconcile-card');
+            Route::get('order-anywhere/{id}/card-receipt', 'UrbanGoodzAdminController@orderAnywhereCardReceipt')->name('order-anywhere.card-receipt');
+            Route::post('order-anywhere/card-emergency-disable', 'UrbanGoodzAdminController@orderAnywhereCardEmergencyDisable')->name('order-anywhere.card-emergency-disable');
             Route::get('payments', 'UrbanGoodzAdminController@payments')->name('payments.index');
             Route::get('payments/order-anywhere', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('order-anywhere'); })->name('payments.order-anywhere');
             Route::get('payments/fashion-fit', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('fashion-fit'); })->name('payments.fashion-fit');

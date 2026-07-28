@@ -18,16 +18,19 @@ use App\Models\UrbanGoodzFile;
 use App\Models\UrbanGoodzLogisticsJob;
 use App\Models\UrbanGoodzMedicalCourierJob;
 use App\Models\UrbanGoodzOrderAnywhereCardRequest;
+use App\Models\BusinessSetting;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzRentalAsset;
 use App\Models\UrbanGoodzRentalBooking;
 use App\CentralLogics\Helpers;
 use App\Services\OrderAnywhereCardService;
+use App\Services\Payments\CardIssuingProviderManager;
 use App\Services\UrbanGoodzPaymentService;
 use App\Services\UrbanGoodzPaymentSettings;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class UrbanGoodzAdminController extends Controller
@@ -86,7 +89,8 @@ class UrbanGoodzAdminController extends Controller
 
         $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)->latest()->first();
         $issuingMode = config('urban_goodz_payments.issuing.mode', 'sandbox');
-        $issuingProvider = config('urban_goodz_payments.issuing.provider', 'manual');
+        $providerManager = app(CardIssuingProviderManager::class);
+        $issuingProvider = $providerManager->configuredProviderName();
 
         return view('admin-views.urban-goodz.order-anywhere.show', [
             'request' => $record,
@@ -98,6 +102,13 @@ class UrbanGoodzAdminController extends Controller
             'cardRequest' => $cardRequest,
             'issuingMode' => $issuingMode,
             'issuingProvider' => $issuingProvider,
+            'issuingProviderStatus' => strtoupper(str_replace('_', ' ', $providerManager->configurationStatus())),
+            'cardEmergencyDisabled' => $providerManager->isEmergencyDisabled(),
+            'cardAuditHistory' => $record->activityLogs()
+                ->where('event', 'like', 'driver_card_%')
+                ->latest()
+                ->limit(100)
+                ->get(),
         ]);
     }
 
@@ -135,7 +146,7 @@ class UrbanGoodzAdminController extends Controller
     {
         $data = $request->validate([
             'vendor_id' => ['nullable', 'integer'],
-            'assigned_delivery_man_id' => ['nullable', 'integer'],
+            'assigned_delivery_man_id' => ['nullable', 'integer', 'exists:delivery_men,id'],
         ]);
 
         $record = OrderAnywhereRequest::findOrFail($id);
@@ -243,10 +254,14 @@ class UrbanGoodzAdminController extends Controller
 
     public function orderAnywhereRequestCard($id, Request $request, OrderAnywhereCardService $cardService)
     {
+        abort_unless(
+            auth('admin')->check() && (int) auth('admin')->user()->role_id === 1,
+            403,
+            'Owner access is required for manual issuance recovery.'
+        );
         $data = $request->validate([
             'spending_limit' => ['nullable', 'numeric', 'min:0.01'],
-            'card_type' => ['nullable', 'string', Rule::in(['virtual', 'physical'])],
-            'single_use' => ['nullable', 'boolean'],
+            'card_type' => ['nullable', 'string', Rule::in(['virtual'])],
             'expiry_minutes' => ['nullable', 'integer', 'min:15', 'max:1440'],
             'allowed_merchant' => ['nullable', 'string', 'max:255'],
             'allowed_mccs' => ['nullable', 'array'],
@@ -254,13 +269,45 @@ class UrbanGoodzAdminController extends Controller
 
         $record = $cardService->createCardRequest(OrderAnywhereRequest::findOrFail($id), $data);
 
-        return back()->with('success', translate("Driver card requested successfully. Status: {$record->statusLabel()}."));
+        return back()->with('success', translate("Automatic card eligibility reevaluated. Status: {$record->statusLabel()}."));
+    }
+
+    public function orderAnywhereCardEmergencyDisable(Request $request)
+    {
+        abort_unless(
+            auth('admin')->check() && (int) auth('admin')->user()->role_id === 1,
+            403,
+            'Owner access is required for the card emergency control.'
+        );
+        $data = $request->validate(['disabled' => ['required', 'boolean']]);
+        BusinessSetting::withoutGlobalScopes()->updateOrCreate(
+            ['key' => 'order_anywhere_card_emergency_disabled'],
+            ['value' => $data['disabled'] ? '1' : '0']
+        );
+        OrderAnywhereRequest::query()
+            ->whereNotIn('status', ['completed', 'cancelled', 'rejected'])
+            ->each(function (OrderAnywhereRequest $record) use ($data) {
+                if ($data['disabled']) {
+                    app(OrderAnywhereCardService::class)->revokeForRequest(
+                        $record,
+                        'owner_emergency_disable'
+                    );
+                }
+            });
+
+        return back()->with('success', translate(
+            $data['disabled']
+                ? 'Order Anywhere card issuing was emergency-disabled.'
+                : 'Order Anywhere card issuing emergency-disable was cleared.'
+        ));
     }
 
     public function orderAnywhereFreezeCard($id, OrderAnywhereCardService $cardService)
     {
+        $this->authorizeCardAction('urban_goodz_order_anywhere_freeze_card');
         $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
-            ->whereIn('card_status', ['issued', 'active', 'authorized'])
+            ->whereIn('card_status', ['issued', 'active', 'authorized', 'frozen'])
+            ->latest()
             ->firstOrFail();
 
         $cardService->freezeCard($cardRequest);
@@ -270,8 +317,10 @@ class UrbanGoodzAdminController extends Controller
 
     public function orderAnywhereCancelCard($id, OrderAnywhereCardService $cardService)
     {
+        $this->authorizeCardAction('urban_goodz_order_anywhere_cancel_card');
         $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
-            ->whereNotIn('card_status', ['cancelled', 'used', 'reconciled'])
+            ->whereNotIn('card_status', ['used', 'reconciled'])
+            ->latest()
             ->firstOrFail();
 
         $cardService->cancelCard($cardRequest);
@@ -281,6 +330,7 @@ class UrbanGoodzAdminController extends Controller
 
     public function orderAnywhereReconcileCard($id, Request $request, OrderAnywhereCardService $cardService)
     {
+        $this->authorizeCardAction('urban_goodz_order_anywhere_reconcile_card');
         $data = $request->validate([
             'captured_amount' => ['nullable', 'numeric', 'min:0'],
             'refunded_amount' => ['nullable', 'numeric', 'min:0'],
@@ -289,12 +339,32 @@ class UrbanGoodzAdminController extends Controller
         ]);
 
         $cardRequest = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
-            ->whereIn('card_status', ['used', 'frozen'])
+            ->whereIn('card_status', ['used', 'frozen', 'reconciled'])
+            ->latest()
             ->firstOrFail();
 
         $cardService->reconcileCard($cardRequest, $data);
 
         return back()->with('success', translate('Driver card reconciled successfully.'));
+    }
+
+    public function orderAnywhereCardReceipt($id)
+    {
+        abort_unless(
+            auth('admin')->check()
+            && ((int) auth('admin')->user()->role_id === 1
+                || Helpers::module_permission_check('urban_goodz_order_anywhere_detail')),
+            403
+        );
+        $card = UrbanGoodzOrderAnywhereCardRequest::where('order_anywhere_request_id', $id)
+            ->whereNotNull('receipt_path')
+            ->latest()
+            ->firstOrFail();
+        abort_unless(Storage::disk('local')->exists($card->receipt_path), 404);
+        return Storage::disk('local')->download(
+            $card->receipt_path,
+            $card->receipt_original_name ?: "order-anywhere-receipt-{$card->id}"
+        );
     }
 
     public function payments(
@@ -428,6 +498,16 @@ class UrbanGoodzAdminController extends Controller
             'discovery_searches' => Schema::hasTable('urban_goodz_discovery_searches') ? UrbanGoodzDiscoverySearch::count() : 0,
             'business_clients' => Schema::hasTable('urban_goodz_business_clients') ? \App\Models\UrbanGoodzBusinessClient::count() : 0,
         ];
+    }
+
+    private function authorizeCardAction(string $permission): void
+    {
+        abort_unless(
+            auth('admin')->check()
+            && ((int) auth('admin')->user()->role_id === 1 || Helpers::module_permission_check($permission)),
+            403,
+            'You are not authorized to manage Order Anywhere purchase cards.'
+        );
     }
 
     private function sections(): array

@@ -54,7 +54,7 @@ trait LogsActivity
         if (auth('web')->check()) {
             return 'App\\Models\\User';
         }
-        if (auth('delivery_man')->check()) {
+        if (auth('delivery_men')->check()) {
             return 'App\\Models\\DeliveryMan';
         }
 
@@ -69,8 +69,8 @@ trait LogsActivity
         if (auth('web')->check()) {
             return auth('web')->id();
         }
-        if (auth('delivery_man')->check()) {
-            return auth('delivery_man')->id();
+        if (auth('delivery_men')->check()) {
+            return auth('delivery_men')->id();
         }
 
         return null;
