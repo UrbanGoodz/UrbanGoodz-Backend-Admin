@@ -3,9 +3,15 @@
 namespace App\Services;
 
 use App\Contracts\Payments\PaymentGatewayInterface;
+use App\Exceptions\PaymentFinalizationConflictException;
+use App\Jobs\SendFirebaseNotification;
 use App\Models\OrderAnywhereRequest;
+use App\Models\User;
+use App\Models\UserNotification;
+use App\Models\UrbanGoodzPaymentFinalization;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzPaymentSplit;
+use App\Services\Payments\PaymentFinalizationResult;
 use App\Services\Payments\PaymentProviderManager;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -515,6 +521,7 @@ class UrbanGoodzPaymentService
 
         // ─── Ledger entry ───────────────────────────────────────────────
         $ledger = $this->ledger($request, 'split_calculated', 'neutral', $totalAmount, 'quoted', [
+            'idempotency_key' => $data['split_idempotency_key'] ?? null,
             'platform_fee' => $platformFee,
             'vendor_amount' => $vendorAmount,
             'driver_amount' => $driverAmount,
@@ -878,14 +885,17 @@ class UrbanGoodzPaymentService
     public static function finalizationIdentity(
         string $provider,
         OrderAnywhereRequest $request,
-        ?string $paymentReference
+        ?string $paymentReference,
+        string $operation = 'capture',
+        ?string $internalReference = null
     ): string {
+        $internalReference ??= (string) ($request->merchant_reference ?: $request->request_number);
+
         return implode(':', [
             'payment_finalization',
-            $provider,
-            'order_anywhere',
-            $request->id,
-            $paymentReference ?: 'internal:' . $request->id,
+            strtolower($provider),
+            strtolower($operation),
+            hash('sha256', $internalReference . '|' . ($paymentReference ?: 'internal:' . $request->id)),
         ]);
     }
 
@@ -897,19 +907,24 @@ class UrbanGoodzPaymentService
      * competing webhook deliveries serialize and all but the first observe the
      * committed finalization and return it unchanged.
      */
-    public function finalizeCustomerPayment(OrderAnywhereRequest $request, array $data = []): \App\Services\Payments\PaymentFinalizationResult
+    public function finalizeCustomerPayment(OrderAnywhereRequest $request, array $data = []): PaymentFinalizationResult
     {
         $amount = (float) ($data['captured_amount'] ?? $request->authorized_amount);
+        $amountCents = (int) round($amount * 100);
 
         if (isset($data['platform_fee'], $data['vendor_amount'], $data['driver_amount'])) {
-            $manualTotal = (float) $data['platform_fee']
-                + (float) $data['vendor_amount']
-                + (float) $data['driver_amount']
-                + (float) ($data['dispatcher_commission'] ?? 0)
-                + (float) ($data['processing_reserve'] ?? 0);
-            if (abs($amount - $manualTotal) > 0.01) {
+            $manualTotalCents = (int) round((float) $data['platform_fee'] * 100)
+                + (int) round((float) $data['vendor_amount'] * 100)
+                + (int) round((float) $data['driver_amount'] * 100)
+                + (int) round((float) ($data['dispatcher_commission'] ?? 0) * 100)
+                + (int) round((float) ($data['processing_reserve'] ?? 0) * 100);
+            if ($amountCents !== $manualTotalCents) {
                 throw new \InvalidArgumentException('Ledger split mismatch: manual allocations must equal the captured amount.');
             }
+        }
+
+        if ($amountCents <= 0) {
+            throw new \InvalidArgumentException('Captured amount must be positive.');
         }
 
         if (($data['source'] ?? null) !== 'webhook') {
@@ -919,32 +934,156 @@ class UrbanGoodzPaymentService
         $this->assertPaymentsEnabled();
         $gateway = $this->gatewayForRequest($request);
 
-        return DB::transaction(function () use ($request, $data, $amount, $gateway) {
+        return DB::transaction(function () use ($request, $data, $amount, $amountCents, $gateway) {
             // Providers fan a single payment out into several events (Stripe sends both
             // payment_intent.succeeded and charge.succeeded, each with its own event id, so
             // the webhook-level guard cannot collapse them). Those deliveries arrive as
             // concurrent requests that all read payment_status = 'authorized' before any of
             // them commits. Take the row lock first so the captures serialise, then re-read
             // the status the winner committed instead of acting on a stale one.
-            $locked = OrderAnywhereRequest::whereKey($request->id)->lockForUpdate()->first();
+            $locked = OrderAnywhereRequest::whereKey($request->id)->lockForUpdate()->firstOrFail();
+            $request = $locked;
+            $provider = $gateway->providerName();
+            $currency = strtoupper((string) ($data['currency'] ?? config('urban_goodz_payments.currency', 'USD')));
+            $internalReference = (string) ($locked->merchant_reference ?: $locked->request_number);
+            $suppliedInternalReference = $data['internal_reference'] ?? $data['merchant_reference'] ?? null;
 
-            if ($locked) {
-                if ($locked->payment_status === 'captured') {
-                    // The concurrent winner already captured this request. Treat the loser as
-                    // an already-processed duplicate rather than double-writing the ledger.
-                    return new \App\Services\Payments\PaymentFinalizationResult(
-                        request: $locked,
-                        alreadyProcessed: true,
-                        finalizationKey: self::finalizationIdentity(
-                            $gateway->providerName(),
-                            $locked,
-                            $locked->capture_reference
-                        )
-                    );
+            if ($suppliedInternalReference !== null
+                && ! in_array((string) $suppliedInternalReference, array_filter([
+                    (string) $locked->merchant_reference,
+                    (string) $locked->request_number,
+                ]), true)) {
+                throw new PaymentFinalizationConflictException('Internal reference does not match the authoritative order.');
+            }
+
+            $completedFinalization = UrbanGoodzPaymentFinalization::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $locked->id)
+                ->where('operation', 'capture')
+                ->where('status', 'completed')
+                ->first();
+
+            $paymentReference = (string) (
+                $data['payment_intent_id']
+                ?? $completedFinalization?->payment_intent_id
+                ?? $locked->psp_reference
+                ?? $data['psp_reference']
+                ?? $data['capture_reference']
+                ?? $locked->capture_reference
+                ?? ('internal:' . $locked->id)
+            );
+
+            if ($provider === 'stripe' && ! str_starts_with($paymentReference, 'pi_')) {
+                throw new PaymentFinalizationConflictException('A Stripe PaymentIntent identifier is required.');
+            }
+
+            $finalizationKey = self::finalizationIdentity(
+                $provider,
+                $locked,
+                $paymentReference,
+                'capture',
+                $internalReference
+            );
+
+            if ($completedFinalization) {
+                $matches = hash_equals((string) $completedFinalization->canonical_key, $finalizationKey)
+                    && (string) $completedFinalization->provider === $provider
+                    && (string) $completedFinalization->payment_intent_id === $paymentReference
+                    && (string) $completedFinalization->internal_reference === $internalReference
+                    && (int) $completedFinalization->amount_cents === $amountCents
+                    && strtoupper((string) $completedFinalization->currency) === $currency;
+
+                if (! $matches) {
+                    throw new PaymentFinalizationConflictException('The order was already captured by a different payment identity.');
                 }
 
-                $request = $locked;
+                return new PaymentFinalizationResult(
+                    request: $locked,
+                    alreadyProcessed: true,
+                    finalizationKey: $finalizationKey
+                );
             }
+
+            if ($locked->payment_status === 'captured') {
+                $storedReference = (string) ($locked->capture_reference ?: $locked->psp_reference);
+                if ($storedReference !== '' && $paymentReference !== '' && ! hash_equals($storedReference, $paymentReference)) {
+                    throw new PaymentFinalizationConflictException('Captured provider reference does not match.');
+                }
+                if ((int) round((float) $locked->captured_amount * 100) !== $amountCents) {
+                    throw new PaymentFinalizationConflictException('Captured amount does not match.');
+                }
+
+                $captureLedger = UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                    ->where('payable_id', $locked->id)
+                    ->where('event_type', 'capture')
+                    ->first();
+                $splitLedger = UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                    ->where('payable_id', $locked->id)
+                    ->where('event_type', 'split_calculated')
+                    ->first();
+
+                UrbanGoodzPaymentFinalization::create([
+                    'provider' => $provider,
+                    'payment_intent_id' => $paymentReference,
+                    'internal_reference' => $internalReference,
+                    'operation' => 'capture',
+                    'payable_type' => OrderAnywhereRequest::class,
+                    'payable_id' => $locked->id,
+                    'canonical_key' => $finalizationKey,
+                    'amount_cents' => $amountCents,
+                    'currency' => $currency,
+                    'status' => 'completed',
+                    'capture_ledger_id' => $captureLedger?->id,
+                    'split_ledger_id' => $splitLedger?->id,
+                    'ledger_count' => UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                        ->where('payable_id', $locked->id)->count(),
+                    'split_count' => UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                        ->where('payable_id', $locked->id)->count(),
+                    'completed_at' => now(),
+                ]);
+
+                return new PaymentFinalizationResult(
+                    request: $locked,
+                    alreadyProcessed: true,
+                    finalizationKey: $finalizationKey
+                );
+            }
+
+            if (($data['source'] ?? null) === 'webhook'
+                && in_array($locked->payment_status, [
+                    'unpaid',
+                    'pending',
+                    'quoted',
+                    'awaiting_payment',
+                    'payment_session_created',
+                    'capture_pending',
+                ], true)) {
+                $locked->update([
+                    'authorized_amount' => $amount,
+                    'payment_status' => 'authorized',
+                    'payment_authorized_at' => now(),
+                    'authorization_reference' => $paymentReference,
+                    'psp_reference' => $paymentReference,
+                ]);
+            }
+
+            if ($locked->payment_status !== 'authorized') {
+                throw new \InvalidArgumentException(
+                    'Cannot capture: payment status is ' . $locked->payment_status . '. Must be authorized.'
+                );
+            }
+
+            $finalization = UrbanGoodzPaymentFinalization::create([
+                'provider' => $provider,
+                'payment_intent_id' => $paymentReference,
+                'internal_reference' => $internalReference,
+                'operation' => 'capture',
+                'payable_type' => OrderAnywhereRequest::class,
+                'payable_id' => $locked->id,
+                'canonical_key' => $finalizationKey,
+                'amount_cents' => $amountCents,
+                'currency' => $currency,
+                'status' => 'processing',
+            ]);
 
             if (! UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
                 ->where('payable_id', $request->id)
@@ -956,37 +1095,8 @@ class UrbanGoodzPaymentService
                 $this->reservePendingSplits($request);
             }
 
-            $reference = $data['capture_reference'] ?? 'manual-capture-' . Str::uuid();
-            $idempotencyKey = $data['capture_idempotency_key'] ?? "capture:{$gateway->providerName()}:{$request->id}:" . md5($amount . $reference);
-
-            // Finalization identity: provider + payable + payment reference
-            // collapses both Stripe event types into one logical finalization.
-            $finalizationKey = self::finalizationIdentity(
-                $gateway->providerName(),
-                $request,
-                $data['psp_reference'] ?? $reference
-            );
-
-            // If a finalization already exists for this payment (committed by the
-            // concurrent winner after the lock acquisition), return it immediately.
-            $existingFinalization = \App\Models\UrbanGoodzWebhookEvent::where('idempotency_key', $finalizationKey)->first();
-            if ($existingFinalization) {
-                return new \App\Services\Payments\PaymentFinalizationResult(
-                    request: $request->fresh() ?? $request,
-                    alreadyProcessed: true,
-                    finalizationKey: $finalizationKey
-                );
-            }
-
-            // Idempotency check on the capture ledger row itself
-            $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
-            if ($existing) {
-                return new \App\Services\Payments\PaymentFinalizationResult(
-                    request: $request->fresh() ?? $request,
-                    alreadyProcessed: true,
-                    finalizationKey: $finalizationKey
-                );
-            }
+            $reference = $data['capture_reference'] ?? $paymentReference;
+            $idempotencyKey = $finalizationKey . ':capture';
 
             // Call gateway if enabled and not webhook
             if (($data['source'] ?? null) !== 'webhook') {
@@ -1006,6 +1116,9 @@ class UrbanGoodzPaymentService
 
                 $request->psp_reference = $gatewayResult['provider_reference'] ?? $request->psp_reference;
                 $request->capture_reference = $gatewayResult['provider_reference'] ?? $reference;
+                if ($provider === 'stripe' && $request->capture_reference !== $paymentReference) {
+                    throw new PaymentFinalizationConflictException('Provider returned a different payment identity.');
+                }
             } elseif (($data['psp_reference'] ?? null) && ($data['source'] ?? null) === 'webhook') {
                 $request->psp_reference = $data['psp_reference'];
                 $request->capture_reference = $data['psp_reference'];
@@ -1019,11 +1132,11 @@ class UrbanGoodzPaymentService
                 'payment_status' => 'captured',
                 'payment_captured_at' => now(),
                 'capture_idempotency_key' => $idempotencyKey,
-                'merchant_purchase_amount' => $data['merchant_purchase_amount'] ?? null,
-                'tax_amount' => $data['tax_amount'] ?? null,
+                'merchant_purchase_amount' => $data['merchant_purchase_amount'] ?? $request->merchant_purchase_amount,
+                'tax_amount' => $data['tax_amount'] ?? $request->tax_amount,
             ]);
 
-            $this->ledger($request, 'capture', 'credit', $amount, 'captured', [
+            $captureLedger = $this->ledger($request, 'capture', 'credit', $amount, 'captured', [
                 'reference' => $request->capture_reference,
                 'idempotency_key' => $idempotencyKey,
                 'metadata' => [
@@ -1041,21 +1154,31 @@ class UrbanGoodzPaymentService
 
             $request->logPaymentEvent('capture', $amount, $request->capture_reference);
 
-            // Record the finalization so concurrent events for the same PaymentIntent
-            // see it and short-circuit above.
-            \App\Models\UrbanGoodzWebhookEvent::firstOrCreate(
-                ['idempotency_key' => $finalizationKey],
-                [
-                    'provider' => $gateway->providerName(),
-                    'event_id' => $data['capture_idempotency_key'] ?? $idempotencyKey,
-                    'event_type' => 'payment_finalization',
-                    'payable_type' => OrderAnywhereRequest::class,
-                    'payable_id' => $request->id,
-                    'processed_at' => now(),
-                ]
+            $notification = $this->createPaymentCapturedNotification(
+                $request,
+                $amountCents,
+                $currency,
+                $finalizationKey
             );
 
-            return new \App\Services\Payments\PaymentFinalizationResult(
+            $splitLedger = UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                ->where('payable_id', $request->id)
+                ->where('event_type', 'split_calculated')
+                ->first();
+
+            $finalization->update([
+                'status' => 'completed',
+                'capture_ledger_id' => $captureLedger->id,
+                'split_ledger_id' => $splitLedger?->id,
+                'notification_id' => $notification?->id,
+                'ledger_count' => UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+                    ->where('payable_id', $request->id)->count(),
+                'split_count' => UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+                    ->where('payable_id', $request->id)->count(),
+                'completed_at' => now(),
+            ]);
+
+            return new PaymentFinalizationResult(
                 request: $request->fresh(),
                 alreadyProcessed: false,
                 finalizationKey: $finalizationKey
@@ -1394,6 +1517,48 @@ class UrbanGoodzPaymentService
         return $this->providerManager->resolveProvider($provider);
     }
 
+    private function createPaymentCapturedNotification(
+        OrderAnywhereRequest $request,
+        int $amountCents,
+        string $currency,
+        string $finalizationKey
+    ): ?UserNotification {
+        $customerId = (int) $request->customer_id;
+        $customer = $customerId > 0 ? User::find($customerId) : null;
+
+        if (! $customer) {
+            return null;
+        }
+
+        $notification = UserNotification::create([
+            'user_id' => $customerId,
+            'title' => 'Payment captured',
+            'description' => 'Your Urban Goodz payment was captured.',
+            'data' => json_encode([
+                'type' => 'urban_goodz_payment_captured',
+                'request_number' => $request->request_number,
+                'amount_cents' => $amountCents,
+                'currency' => $currency,
+                'finalization_key' => $finalizationKey,
+            ]),
+        ]);
+
+        if (is_string($customer->cm_firebase_token) && trim($customer->cm_firebase_token) !== '') {
+            DB::afterCommit(function () use ($notification, $customerId) {
+                try {
+                    SendFirebaseNotification::dispatch($notification->id, 'customer', $customerId);
+                } catch (\Throwable $e) {
+                    Log::warning('Payment captured notification dispatch failed', [
+                        'notification_id' => $notification->id,
+                        'failure_type' => class_basename($e),
+                    ]);
+                }
+            });
+        }
+
+        return $notification;
+    }
+
     private function ledger(OrderAnywhereRequest $request, string $event, string $direction, float $amount, string $status, array $options = []): UrbanGoodzPaymentLedger
     {
         $key = $options['idempotency_key'] ?? implode(':', [
@@ -1404,13 +1569,21 @@ class UrbanGoodzPaymentService
             $options['reference'] ?? number_format($amount, 2, '.', ''),
         ]);
 
-        return $this->firstOrCreateIdempotent(
+        $attributes = $this->ledgerAttributes($request, $event, $direction, $amount, $status, $options);
+        $ledger = $this->firstOrCreateIdempotent(
             fn () => UrbanGoodzPaymentLedger::firstOrCreate(
                 ['idempotency_key' => $key],
-                $this->ledgerAttributes($request, $event, $direction, $amount, $status, $options)
+                $attributes
             ),
-            fn () => UrbanGoodzPaymentLedger::where('idempotency_key', $key)->first()
+            fn () => UrbanGoodzPaymentLedger::where('idempotency_key', $key)->first(),
+            fn (UrbanGoodzPaymentLedger $existing) => $this->ledgerMatches($existing, $attributes)
         );
+
+        if (! $this->ledgerMatches($ledger, $attributes)) {
+            throw new \LogicException('Idempotency conflict: existing ledger row does not match the requested financial operation.');
+        }
+
+        return $ledger;
     }
 
     /**
@@ -1421,7 +1594,7 @@ class UrbanGoodzPaymentService
      * duplicate-key error even though the write it wanted has already happened. Recover by
      * re-reading the row the winner committed. Any other database error still propagates.
      */
-    private function firstOrCreateIdempotent(\Closure $write, \Closure $reread)
+    private function firstOrCreateIdempotent(\Closure $write, \Closure $reread, \Closure $matches)
     {
         try {
             return $write();
@@ -1432,7 +1605,7 @@ class UrbanGoodzPaymentService
 
             $existing = $reread();
 
-            if (! $existing) {
+            if (! $existing || ! $matches($existing)) {
                 throw $e;
             }
 
@@ -1471,6 +1644,17 @@ class UrbanGoodzPaymentService
         ];
     }
 
+    private function ledgerMatches(UrbanGoodzPaymentLedger $ledger, array $attributes): bool
+    {
+        return $ledger->feature === $attributes['feature']
+            && $ledger->payable_type === $attributes['payable_type']
+            && (int) $ledger->payable_id === (int) $attributes['payable_id']
+            && $ledger->event_type === $attributes['event_type']
+            && $ledger->direction === $attributes['direction']
+            && (int) round((float) $ledger->amount * 100) === (int) round((float) $attributes['amount'] * 100)
+            && strtoupper((string) $ledger->currency) === strtoupper((string) $attributes['currency']);
+    }
+
     private function split(UrbanGoodzPaymentLedger $ledger, OrderAnywhereRequest $request, string $recipientType, ?int $recipientId, string $splitType, float $amount, string $status = 'pending', array $metadata = []): void
     {
         if ($amount <= 0) {
@@ -1479,24 +1663,43 @@ class UrbanGoodzPaymentService
 
         $splitKey = implode(':', [$ledger->id, $recipientType, $recipientId ?: 'platform', $splitType]);
 
-        $this->firstOrCreateIdempotent(
+        $attributes = [
+            'ledger_id' => $ledger->id,
+            'feature' => 'order_anywhere',
+            'payable_type' => OrderAnywhereRequest::class,
+            'payable_id' => $request->id,
+            'recipient_type' => $recipientType,
+            'recipient_id' => $recipientId,
+            'split_type' => $splitType,
+            'amount' => $amount,
+            'currency' => config('urban_goodz_payments.currency', 'USD'),
+            'status' => $status,
+            'metadata' => $metadata,
+        ];
+
+        $split = $this->firstOrCreateIdempotent(
             fn () => UrbanGoodzPaymentSplit::firstOrCreate(
                 ['idempotency_key' => $splitKey],
-                [
-                    'ledger_id' => $ledger->id,
-                    'feature' => 'order_anywhere',
-                    'payable_type' => OrderAnywhereRequest::class,
-                    'payable_id' => $request->id,
-                    'recipient_type' => $recipientType,
-                    'recipient_id' => $recipientId,
-                    'split_type' => $splitType,
-                    'amount' => $amount,
-                    'currency' => config('urban_goodz_payments.currency', 'USD'),
-                    'status' => $status,
-                    'metadata' => $metadata,
-                ]
+                $attributes
             ),
-            fn () => UrbanGoodzPaymentSplit::where('idempotency_key', $splitKey)->first()
+            fn () => UrbanGoodzPaymentSplit::where('idempotency_key', $splitKey)->first(),
+            fn (UrbanGoodzPaymentSplit $existing) => $this->splitMatches($existing, $attributes)
         );
+
+        if (! $this->splitMatches($split, $attributes)) {
+            throw new \LogicException('Idempotency conflict: existing split row does not match the requested allocation.');
+        }
+    }
+
+    private function splitMatches(UrbanGoodzPaymentSplit $split, array $attributes): bool
+    {
+        return (int) $split->ledger_id === (int) $attributes['ledger_id']
+            && $split->payable_type === $attributes['payable_type']
+            && (int) $split->payable_id === (int) $attributes['payable_id']
+            && $split->recipient_type === $attributes['recipient_type']
+            && (int) ($split->recipient_id ?? 0) === (int) ($attributes['recipient_id'] ?? 0)
+            && $split->split_type === $attributes['split_type']
+            && (int) round((float) $split->amount * 100) === (int) round((float) $attributes['amount'] * 100)
+            && strtoupper((string) $split->currency) === strtoupper((string) $attributes['currency']);
     }
 }
