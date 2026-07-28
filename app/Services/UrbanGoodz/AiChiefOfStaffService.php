@@ -18,25 +18,99 @@ class AiChiefOfStaffService
 
     public function getCommandCenterSummary(): array
     {
+        $completed = $this->countWhen(
+            'ai_tasks',
+            fn() => AiTask::where('status', 'completed')->count(),
+            ['status']
+        );
+        $inProgress = $this->countWhen(
+            'ai_tasks',
+            fn() => AiTask::where('status', 'running')->count(),
+            ['status']
+        );
+        $planned = $this->countWhen(
+            'ai_tasks',
+            fn() => AiTask::whereIn('status', ['pending', 'scheduled'])->count(),
+            ['status']
+        );
+        $businessNeeds = $this->countWhen(
+            'business_needs',
+            fn() => BusinessNeed::where('status', 'open')->count(),
+            ['status']
+        );
+        $humanActions = $this->countWhen(
+            'human_action_items',
+            fn() => HumanActionItem::where('status', 'pending')->count(),
+            ['status']
+        );
+        $failedTasks = $this->countWhen(
+            'ai_tasks',
+            fn() => AiTask::where('status', 'failed')->count(),
+            ['status']
+        );
+        $escalatedActions = $this->countWhen(
+            'human_action_items',
+            fn() => HumanActionItem::where('status', 'escalated')->count(),
+            ['status']
+        );
+        $approvals = $this->countWhen(
+            'ai_approvals',
+            fn() => AiApproval::where('decision', 'pending')->count(),
+            ['decision']
+        );
+        $qualifiedProspects = $this->countWhen(
+            'merchant_prospects',
+            fn() => MerchantProspect::where('prospect_status', 'qualified')->count(),
+            ['prospect_status']
+        );
+        $contactedProspects = $this->countWhen(
+            'merchant_prospects',
+            fn() => MerchantProspect::where('prospect_status', 'contacted')->count(),
+            ['prospect_status']
+        );
+        $revenueInfluenced = $this->valueWhen(
+            'merchant_prospects',
+            fn() => (float) MerchantProspect::sum('attributed_revenue'),
+            ['attributed_revenue']
+        );
+
         return [
-            'completed' => AiTask::where('status', 'completed')->count(),
-            'in_progress' => AiTask::where('status', 'running')->count(),
-            'planned' => AiTask::whereIn('status', ['pending', 'scheduled'])->count(),
-            'business_needs' => BusinessNeed::where('status', 'open')->count(),
-            'human_actions_required' => HumanActionItem::where('status', 'pending')->count(),
-            'blocked' => AiTask::where('status', 'failed')->count()
-                + HumanActionItem::where('status', 'escalated')->count(),
-            'approvals' => AiApproval::where('decision', 'pending')->count(),
+            'completed' => $completed,
+            'in_progress' => $inProgress,
+            'planned' => $planned,
+            'business_needs' => $businessNeeds,
+            'human_actions_required' => $humanActions,
+            'blocked' => $this->sumAvailable([$failedTasks, $escalatedActions]),
+            'approvals' => $approvals,
             'results' => [
-                'prospects_qualified' => MerchantProspect::where('prospect_status', 'qualified')->count(),
-                'prospects_contacted' => MerchantProspect::where('prospect_status', 'contacted')->count(),
-                'revenue_influenced' => (float) MerchantProspect::sum('attributed_revenue'),
+                'prospects_qualified' => $qualifiedProspects,
+                'prospects_contacted' => $contactedProspects,
+                'revenue_influenced' => $revenueInfluenced,
             ],
         ];
     }
 
     public function generateExecutiveDailyBrief(): array
     {
+        $completedTasks = $this->valueWhen(
+            'ai_tasks',
+            fn() => AiTask::with('agent')->where('status', 'completed')->latest()->take(5)->get(),
+            ['status', 'created_at']
+        );
+        $businessNeeds = $this->valueWhen(
+            'business_needs',
+            fn() => BusinessNeed::where('status', 'open')->orderBy('severity', 'desc')->take(5)->get(),
+            ['status', 'severity']
+        );
+        $urgentActions = $this->valueWhen(
+            'human_action_items',
+            fn() => HumanActionItem::where('status', 'pending')
+                ->where('priority', 'urgent')
+                ->take(5)
+                ->get(),
+            ['status', 'priority']
+        );
+
         return [
             'title' => 'Executive Daily Brief',
             'date' => today()->toDateString(),
@@ -44,12 +118,14 @@ class AiChiefOfStaffService
             'data_source' => 'live_database',
             'metrics' => $this->getCommandCenterSummary(),
             'operational_alerts' => $this->getOperationalAlerts(),
-            'completed_tasks' => AiTask::with('agent')->where('status', 'completed')->latest()->take(5)->get(),
-            'business_needs' => BusinessNeed::where('status', 'open')->orderBy('severity', 'desc')->take(5)->get(),
-            'urgent_actions' => HumanActionItem::where('status', 'pending')
-                ->where('priority', 'urgent')
-                ->take(5)
-                ->get(),
+            'completed_tasks' => $completedTasks,
+            'business_needs' => $businessNeeds,
+            'urgent_actions' => $urgentActions,
+            'source_availability' => [
+                'completed_tasks' => $completedTasks !== null,
+                'business_needs' => $businessNeeds !== null,
+                'urgent_actions' => $urgentActions !== null,
+            ],
         ];
     }
 
@@ -156,7 +232,7 @@ class AiChiefOfStaffService
                     ['approved']
                 ),
                 'medium',
-                '/admin/vendor/withdraw_list'
+                '/admin/store/withdraw_list'
             ),
             $this->alert(
                 'failed_queue_jobs',
@@ -248,10 +324,10 @@ class AiChiefOfStaffService
         );
 
         return [
-            'unassigned' => $this->sectionItem('Unassigned active orders', $unassigned, '/admin/order/list/all'),
-            'delayed' => $this->sectionItem('Orders open > 2 hours', $delayed, '/admin/order/list/all'),
-            'failed_payments' => $this->sectionItem('Failed payment orders', $failedPayments, '/admin/order/list/all'),
-            'pending_refunds' => $this->sectionItem('Pending refund requests', $pendingRefunds, '/admin/refund/pending'),
+            'unassigned' => $this->sectionItem('Unassigned active orders', $unassigned, '/admin/order/list/all', 'critical'),
+            'delayed' => $this->sectionItem('Orders open > 2 hours', $delayed, '/admin/order/list/all', 'critical'),
+            'failed_payments' => $this->sectionItem('Failed payment orders', $failedPayments, '/admin/order/list/all', 'critical'),
+            'pending_refunds' => $this->sectionItem('Pending refund requests', $pendingRefunds, '/admin/refund/pending', 'warning'),
         ];
     }
 
@@ -260,12 +336,45 @@ class AiChiefOfStaffService
      */
     public function getRouteAndExceptionSummary(): array
     {
+        $routeUrl = '/admin/urban-goodz/dedicated-routes';
+        $openRouteStatuses = [
+            'draft', 'pending', 'pending_review', 'approved', 'active',
+            'in_progress', 'pickup_pending', 'admin_review',
+        ];
+
         $activeRoutes = $this->countWhen(
             'urban_goodz_dedicated_routes',
             fn() => DB::table('urban_goodz_dedicated_routes')
                 ->whereIn('status', ['active', 'in_progress'])
                 ->count(),
             ['status']
+        );
+
+        $scheduledRoutes = $this->countWhen(
+            'urban_goodz_dedicated_routes',
+            fn() => DB::table('urban_goodz_dedicated_routes')
+                ->whereIn('status', $openRouteStatuses)
+                ->whereDate('scheduled_date', '>=', today())
+                ->count(),
+            ['status', 'scheduled_date']
+        );
+
+        $unassignedRoutes = $this->countWhen(
+            'urban_goodz_dedicated_routes',
+            fn() => DB::table('urban_goodz_dedicated_routes')
+                ->whereIn('status', $openRouteStatuses)
+                ->whereNull('assigned_driver_id')
+                ->count(),
+            ['status', 'assigned_driver_id']
+        );
+
+        $lateRoutes = $this->countWhen(
+            'urban_goodz_dedicated_routes',
+            fn() => DB::table('urban_goodz_dedicated_routes')
+                ->whereIn('status', $openRouteStatuses)
+                ->whereDate('scheduled_date', '<', today())
+                ->count(),
+            ['status', 'scheduled_date']
         );
 
         $completedToday = $this->countWhen(
@@ -293,6 +402,27 @@ class AiChiefOfStaffService
             ['status']
         );
 
+        $returnedPackages = $this->countWhen(
+            'urban_goodz_route_packages',
+            fn() => DB::table('urban_goodz_route_packages')
+                ->where(function ($query) {
+                    $query->whereIn('status', [
+                        'returned_to_pickup', 'returned_to_hub', 'returned_to_business',
+                    ])->orWhereNotNull('returned_at');
+                })
+                ->count(),
+            ['status', 'returned_at']
+        );
+
+        $redeliveryRequirements = $this->countWhen(
+            'urban_goodz_route_packages',
+            fn() => DB::table('urban_goodz_route_packages')
+                ->where('status', 'unable_to_deliver')
+                ->where('return_required', false)
+                ->count(),
+            ['status', 'return_required']
+        );
+
         $packagesWithExceptions = $this->countWhen(
             'urban_goodz_route_packages',
             fn() => DB::table('urban_goodz_route_packages')
@@ -309,13 +439,41 @@ class AiChiefOfStaffService
             ['status']
         );
 
+        $medicalHandoffExceptions = $this->countWhen(
+            'urban_goodz_medical_custody_logs',
+            fn() => DB::table('urban_goodz_medical_custody_logs')
+                ->where('custody_event', 'exception')
+                ->count(),
+            ['custody_event']
+        );
+
+        $logisticsExceptions = $this->countWhen(
+            'urban_goodz_business_client_jobs',
+            fn() => DB::table('urban_goodz_business_client_jobs')
+                ->whereNotNull('exception_reason')
+                ->count(),
+            ['exception_reason']
+        );
+
         return [
-            'active_routes' => $this->sectionItem('Active / in-progress routes', $activeRoutes, '/admin/urban-goodz/routes'),
-            'completed_today' => $this->sectionItem('Routes completed today', $completedToday, '/admin/urban-goodz/routes'),
-            'pending_review' => $this->sectionItem('Routes awaiting review', $pendingReview, '/admin/urban-goodz/routes'),
-            'failed_packages' => $this->sectionItem('Failed or undeliverable packages', $failedPackages, '/admin/urban-goodz/routes'),
-            'package_exceptions' => $this->sectionItem('Packages with exception reasons', $packagesWithExceptions, '/admin/urban-goodz/routes'),
-            'pending_medical_jobs' => $this->sectionItem('Active medical courier jobs', $pendingMedicalJobs, '/admin/urban-goodz/medical-courier'),
+            'active_routes' => $this->sectionItem('Active / in-progress routes', $activeRoutes, $routeUrl, 'healthy'),
+            'scheduled_routes' => $this->sectionItem('Scheduled routes', $scheduledRoutes, $routeUrl, 'healthy'),
+            'unassigned_routes' => $this->sectionItem('Unassigned routes', $unassignedRoutes, $routeUrl, 'warning'),
+            'late_routes' => $this->sectionItem('Late routes', $lateRoutes, $routeUrl, 'critical'),
+            'completed_today' => $this->sectionItem('Routes completed today', $completedToday, $routeUrl, 'healthy'),
+            'pending_review' => $this->sectionItem('Routes awaiting review', $pendingReview, $routeUrl, 'warning'),
+            'failed_packages' => $this->sectionItem('Failed stops / undeliverable packages', $failedPackages, $routeUrl, 'critical'),
+            'returned_packages' => $this->sectionItem('Returned packages', $returnedPackages, $routeUrl, 'warning'),
+            'redelivery_requirements' => $this->sectionItem('Packages requiring a redelivery decision', $redeliveryRequirements, $routeUrl, 'warning'),
+            'package_exceptions' => $this->sectionItem('Route package exceptions', $packagesWithExceptions, $routeUrl, 'critical'),
+            'courier_incidents' => $this->unavailableItem(
+                'Courier incidents',
+                $routeUrl,
+                'No supported courier incident source is deployed.'
+            ),
+            'pending_medical_jobs' => $this->sectionItem('Active medical courier jobs', $pendingMedicalJobs, '/admin/urban-goodz/medical-courier', 'healthy'),
+            'medical_handoff_exceptions' => $this->sectionItem('Medical custody handoff exceptions', $medicalHandoffExceptions, '/admin/urban-goodz/medical-courier', 'critical'),
+            'logistics_exceptions' => $this->sectionItem('Business logistics exceptions', $logisticsExceptions, '/admin/urban-goodz/business-clients', 'critical'),
         ];
     }
 
@@ -324,6 +482,9 @@ class AiChiefOfStaffService
      */
     public function getDriverIssueSummary(): array
     {
+        $driverUrl = '/admin/delivery-man';
+        $routeUrl = '/admin/urban-goodz/dedicated-routes';
+
         $totalDrivers = $this->countWhen(
             'delivery_men',
             fn() => DB::table('delivery_men')->count()
@@ -338,12 +499,46 @@ class AiChiefOfStaffService
             ['active', 'status']
         );
 
-        $pendingApplications = $this->countWhen(
+        $inactiveDrivers = $this->countWhen(
             'delivery_men',
             fn() => DB::table('delivery_men')
-                ->where('application_status', 'pending')
+                ->where('active', 0)
+                ->where('application_status', 'approved')
+                ->count(),
+            ['active', 'application_status']
+        );
+
+        $suspendedDrivers = $this->countWhen(
+            'delivery_men',
+            fn() => DB::table('delivery_men')
+                ->where('status', 0)
+                ->where('application_status', 'approved')
+                ->count(),
+            ['status', 'application_status']
+        );
+
+        $incompleteOnboarding = $this->countWhen(
+            'delivery_men',
+            fn() => DB::table('delivery_men')
+                ->where(function ($query) {
+                    $query->whereNull('application_status')
+                        ->orWhere('application_status', '!=', 'approved');
+                })
                 ->count(),
             ['application_status']
+        );
+
+        $missingVehicleData = $this->countWhen(
+            'delivery_men',
+            fn() => DB::table('delivery_men')
+                ->where('active', 1)
+                ->where('application_status', 'approved')
+                ->where(function ($query) {
+                    $query->whereNull('vehicle_type')
+                        ->orWhere('vehicle_type', '');
+                })
+                ->count(),
+            ['active', 'application_status', 'vehicle_type']
         );
 
         $expiringCerts = $this->countWhen(
@@ -362,6 +557,33 @@ class AiChiefOfStaffService
                 ->where('expiry_date', '<', now())
                 ->count(),
             ['expiry_date']
+        );
+
+        $expiredComplianceDocuments = $this->countWhen(
+            'delivery_men',
+            fn() => DB::table('delivery_men')
+                ->where('active', 1)
+                ->where(function ($query) {
+                    foreach ([
+                        'insurance_expiration',
+                        'registration_expiration',
+                        'inspection_expiration',
+                        'cdl_expiration',
+                    ] as $column) {
+                        $query->orWhere(function ($dateQuery) use ($column) {
+                            $dateQuery->whereNotNull($column)
+                                ->whereDate($column, '<', today());
+                        });
+                    }
+                })
+                ->count(),
+            [
+                'active',
+                'insurance_expiration',
+                'registration_expiration',
+                'inspection_expiration',
+                'cdl_expiration',
+            ]
         );
 
         $uninsuredVehicles = $this->countWhen(
@@ -387,14 +609,107 @@ class AiChiefOfStaffService
             ['status']
         );
 
+        $payoutIssues = $this->countWhen(
+            'urban_goodz_driver_payout_requests',
+            fn() => DB::table('urban_goodz_driver_payout_requests')
+                ->whereIn('status', ['rejected', 'held'])
+                ->count(),
+            ['status']
+        );
+
+        $failedAssignments = $this->countWhen(
+            'urban_goodz_route_assignments',
+            fn() => DB::table('urban_goodz_route_assignments')
+                ->where('status', 'canceled')
+                ->count(),
+            ['status']
+        );
+
+        $lateDeliveries = $this->countWhen(
+            'urban_goodz_route_packages',
+            fn() => DB::table('urban_goodz_route_packages')
+                ->whereNotNull('delivery_window_end')
+                ->where('delivery_window_end', '<', now())
+                ->whereNotIn('status', [
+                    'delivered', 'completed', 'returned_to_pickup',
+                    'returned_to_hub', 'returned_to_business',
+                ])
+                ->count(),
+            ['delivery_window_end', 'status']
+        );
+
+        $unassignedWork = $this->countWhen(
+            'urban_goodz_dedicated_routes',
+            fn() => DB::table('urban_goodz_dedicated_routes')
+                ->whereNull('assigned_driver_id')
+                ->whereIn('status', [
+                    'pending', 'pending_review', 'approved', 'active',
+                    'in_progress', 'pickup_pending', 'admin_review',
+                ])
+                ->count(),
+            ['assigned_driver_id', 'status']
+        );
+
+        $repeatedCancellations = $this->countWhen(
+            'urban_goodz_route_assignments',
+            fn() => DB::table('urban_goodz_route_assignments')
+                ->where('status', 'canceled')
+                ->groupBy('delivery_man_id')
+                ->havingRaw('COUNT(*) >= 2')
+                ->get()
+                ->count(),
+            ['status', 'delivery_man_id']
+        );
+
+        $medicalEligibilityGaps = $this->countWhen(
+            'delivery_men',
+            fn() => DB::table('delivery_men')
+                ->where('active', 1)
+                ->where('available_for_medical_courier', 1)
+                ->where('has_medical_courier_training', 0)
+                ->count(),
+            ['active', 'available_for_medical_courier', 'has_medical_courier_training']
+        );
+
+        $logisticsCapabilityGaps = $this->countWhen(
+            'delivery_men',
+            fn() => DB::table('delivery_men')
+                ->where('active', 1)
+                ->where('load_board_eligible', 1)
+                ->where(function ($query) {
+                    $query->whereNull('vehicle_type')
+                        ->orWhere('vehicle_type', '')
+                        ->orWhereNull('max_payload_lbs')
+                        ->orWhere('max_payload_lbs', '<=', 0);
+                })
+                ->count(),
+            ['active', 'load_board_eligible', 'vehicle_type', 'max_payload_lbs']
+        );
+
         return [
-            'total_drivers' => $this->sectionItem('Total registered drivers', $totalDrivers, '/admin/delivery-man/list'),
-            'active_drivers' => $this->sectionItem('Active drivers', $activeDrivers, '/admin/delivery-man/list'),
-            'pending_applications' => $this->sectionItem('Pending driver applications', $pendingApplications, '/admin/delivery-man/list'),
-            'expiring_certs' => $this->sectionItem('Certifications expiring within 30 days', $expiringCerts, '/admin/delivery-man/list'),
-            'expired_certs' => $this->sectionItem('Expired certifications', $expiredCerts, '/admin/delivery-man/list'),
-            'uninsured_vehicles' => $this->sectionItem('Active vehicles without valid insurance', $uninsuredVehicles, '/admin/delivery-man/list'),
-            'pending_payouts' => $this->sectionItem('Pending driver payout requests', $pendingPayouts, '/admin/vendor/withdraw_list'),
+            'total_drivers' => $this->sectionItem('Total registered drivers', $totalDrivers, $driverUrl, 'healthy'),
+            'active_drivers' => $this->sectionItem('Active drivers', $activeDrivers, $driverUrl, 'healthy'),
+            'inactive_drivers' => $this->sectionItem('Inactive approved drivers', $inactiveDrivers, $driverUrl, 'warning'),
+            'suspended_drivers' => $this->sectionItem('Suspended / disabled drivers', $suspendedDrivers, $driverUrl, 'critical'),
+            'incomplete_onboarding' => $this->sectionItem('Incomplete driver onboarding', $incompleteOnboarding, $driverUrl, 'warning'),
+            'missing_vehicle_data' => $this->sectionItem('Approved drivers missing vehicle data', $missingVehicleData, $driverUrl, 'warning'),
+            'expiring_certs' => $this->sectionItem('Certifications expiring within 30 days', $expiringCerts, $driverUrl, 'warning'),
+            'expired_certs' => $this->sectionItem('Expired certifications', $expiredCerts, $driverUrl, 'critical'),
+            'expired_documents' => $this->sectionItem('Drivers with expired compliance documents', $expiredComplianceDocuments, $driverUrl, 'critical'),
+            'uninsured_vehicles' => $this->sectionItem('Active vehicles without valid insurance', $uninsuredVehicles, $driverUrl, 'critical'),
+            'pending_payouts' => $this->sectionItem('Pending driver payout requests', $pendingPayouts, '/admin/urban-goodz/driver-payouts', 'warning'),
+            'payout_issues' => $this->sectionItem('Rejected or held driver payouts', $payoutIssues, '/admin/urban-goodz/driver-payouts', 'critical'),
+            'failed_assignments' => $this->sectionItem('Canceled route assignments', $failedAssignments, $routeUrl, 'warning'),
+            'late_deliveries' => $this->sectionItem('Late delivery stops', $lateDeliveries, $routeUrl, 'critical'),
+            'unassigned_work' => $this->sectionItem('Unassigned route work', $unassignedWork, $routeUrl, 'warning'),
+            'repeated_cancellations' => $this->sectionItem('Drivers with repeated assignment cancellations', $repeatedCancellations, $routeUrl, 'critical'),
+            'medical_eligibility_gaps' => $this->sectionItem('Medical courier eligibility gaps', $medicalEligibilityGaps, $driverUrl, 'critical'),
+            'logistics_capability_gaps' => $this->sectionItem('Load-board drivers missing logistics capability data', $logisticsCapabilityGaps, $driverUrl, 'warning'),
+            'unresolved_incidents' => $this->unavailableItem(
+                'Unresolved driver incidents',
+                $driverUrl,
+                'No supported driver incident source is deployed.'
+            ),
         ];
     }
 
@@ -425,10 +740,10 @@ class AiChiefOfStaffService
         );
 
         return [
-            'total_vendors' => $this->sectionItem('Registered vendors', $totalVendors, '/admin/vendor/list'),
-            'total_stores' => $this->sectionItem('Active stores', $totalStores, '/admin/store/list'),
-            'pending_withdrawals' => $this->sectionItem('Pending vendor withdrawals', $pendingWithdrawals, '/admin/vendor/withdraw_list'),
-            'business_clients' => $this->sectionItem('Urban Goodz business clients', $totalBusinessClients, '/admin/urban-goodz/clients'),
+            'total_vendors' => $this->sectionItem('Registered vendors', $totalVendors, '/admin/store/list', 'healthy'),
+            'total_stores' => $this->sectionItem('Stores', $totalStores, '/admin/store/list', 'healthy'),
+            'pending_withdrawals' => $this->sectionItem('Pending vendor withdrawals', $pendingWithdrawals, '/admin/store/withdraw_list', 'warning'),
+            'business_clients' => $this->sectionItem('Urban Goodz business clients', $totalBusinessClients, '/admin/urban-goodz/business-clients', 'healthy'),
         ];
     }
 
@@ -470,10 +785,10 @@ class AiChiefOfStaffService
         );
 
         return [
-            'captured' => $this->sectionItem('Captured payments', $captured, '/admin/urban-goodz/payments'),
-            'pending' => $this->sectionItem('Pending payments', $pending, '/admin/urban-goodz/payments'),
-            'failed' => $this->sectionItem('Failed / declined payments', $failed, '/admin/urban-goodz/payments'),
-            'pending_splits' => $this->sectionItem('Pending payment splits', $pendingSplits, '/admin/urban-goodz/payments'),
+            'captured' => $this->sectionItem('Captured payments', $captured, '/admin/urban-goodz/payments', 'healthy'),
+            'pending' => $this->sectionItem('Pending payments', $pending, '/admin/urban-goodz/payments', 'warning'),
+            'failed' => $this->sectionItem('Failed / declined payments', $failed, '/admin/urban-goodz/payments', 'critical'),
+            'pending_splits' => $this->sectionItem('Pending payment splits', $pendingSplits, '/admin/urban-goodz/payments', 'warning'),
         ];
     }
 
@@ -524,11 +839,11 @@ class AiChiefOfStaffService
         );
 
         return [
-            'available_loads' => $this->sectionItem('Available loads', $available, '/admin/urban-goodz/load-sourcing'),
-            'assigned_loads' => $this->sectionItem('Assigned loads', $assigned, '/admin/urban-goodz/load-sourcing'),
-            'in_transit' => $this->sectionItem('Loads in transit', $inTransit, '/admin/urban-goodz/load-sourcing'),
-            'unassigned' => $this->sectionItem('Available but unassigned loads', $unassigned, '/admin/urban-goodz/load-sourcing'),
-            'unresolved_errors' => $this->sectionItem('Unresolved source errors', $unresolvedErrors, '/admin/urban-goodz/load-sourcing/errors'),
+            'available_loads' => $this->sectionItem('Available loads', $available, '/admin/urban-goodz/load-sourcing', 'healthy'),
+            'assigned_loads' => $this->sectionItem('Assigned loads', $assigned, '/admin/urban-goodz/load-sourcing', 'healthy'),
+            'in_transit' => $this->sectionItem('Loads in transit', $inTransit, '/admin/urban-goodz/load-sourcing', 'healthy'),
+            'unassigned' => $this->sectionItem('Available but unassigned loads', $unassigned, '/admin/urban-goodz/load-sourcing', 'warning'),
+            'unresolved_errors' => $this->sectionItem('Unresolved source errors', $unresolvedErrors, '/admin/urban-goodz/load-sourcing/errors', 'critical'),
         ];
     }
 
@@ -549,56 +864,100 @@ class AiChiefOfStaffService
                 'healthy' => false,
                 'last_success' => null,
                 'last_failure_category' => 'service_unavailable',
-                'fallback_state' => 'no_service',
+                'fallback_state' => 'deterministic_only',
                 'checked_at' => now()->toIso8601String(),
                 'error_code' => 'service_unavailable',
                 'available' => false,
-                'reason' => 'AI service not injected',
+                'reason' => 'AI provider health is unavailable.',
             ];
         }
 
-        if (!$this->aiService->isConfigured()) {
+        try {
+            $provider = $this->sanitizeOperationalValue($this->aiService->providerName());
+            $configured = $this->aiService->isConfigured();
+        } catch (\Throwable) {
             return [
-                'provider' => $this->aiService->providerName(),
+                'provider' => null,
                 'enabled' => false,
                 'configured' => false,
                 'credentials_present' => 'NO',
-                'connectivity_state' => 'not_configured',
+                'connectivity_state' => 'unavailable',
                 'model' => null,
                 'healthy' => false,
                 'last_success' => null,
-                'last_failure_category' => null,
-                'fallback_state' => 'disabled_provider_active',
+                'last_failure_category' => 'configuration_check_failed',
+                'fallback_state' => 'deterministic_only',
                 'checked_at' => now()->toIso8601String(),
-                'error_code' => 'not_configured',
+                'error_code' => 'configuration_check_failed',
+                'available' => false,
+                'reason' => 'AI provider configuration could not be checked.',
+            ];
+        }
+
+        if (!$configured) {
+            $health = [];
+
+            try {
+                // Provider implementations return locally when not configured,
+                // which exposes the selected model without a network request.
+                $health = $this->aiService->healthCheck();
+            } catch (\Throwable) {
+                $health = [];
+            }
+
+            $errorCode = $this->sanitizeFailureCategory(
+                $health['error_code'] ?? ($provider === 'disabled' ? 'provider_disabled' : 'provider_not_configured')
+            );
+            $enabled = $provider !== 'disabled' && $errorCode !== 'unsupported_provider';
+            $checkedAt = $this->sanitizeTimestamp($health['checked_at'] ?? null);
+
+            return [
+                'provider' => $provider,
+                'enabled' => $enabled,
+                'configured' => false,
+                'credentials_present' => 'NO',
+                'connectivity_state' => $enabled ? 'not_configured' : 'disabled',
+                'model' => $this->sanitizeOperationalValue($health['model'] ?? null),
+                'healthy' => false,
+                'last_success' => null,
+                'last_failure_category' => $errorCode,
+                'fallback_state' => 'deterministic_only',
+                'checked_at' => $checkedAt,
+                'error_code' => $errorCode,
                 'available' => true,
-                'reason' => 'No AI provider credentials configured',
+                'reason' => $enabled
+                    ? 'AI provider credentials are not configured.'
+                    : 'AI generation is disabled.',
             ];
         }
 
         try {
             $health = $this->aiService->healthCheck();
-            $healthy = $health['healthy'] ?? false;
+            $healthy = (bool) ($health['healthy'] ?? false);
+            $errorCode = $healthy
+                ? null
+                : $this->sanitizeFailureCategory($health['error_code'] ?? 'connectivity_failed');
+            $checkedAt = $this->sanitizeTimestamp($health['checked_at'] ?? null);
 
             return [
-                'provider' => $health['provider'] ?? $this->aiService->providerName(),
+                'provider' => $this->sanitizeOperationalValue($health['provider'] ?? $provider),
                 'enabled' => true,
                 'configured' => true,
                 'credentials_present' => 'YES',
                 'connectivity_state' => $healthy ? 'connected' : 'disconnected',
-                'model' => $health['model'] ?? null,
+                'model' => $this->sanitizeOperationalValue($health['model'] ?? null),
                 'healthy' => $healthy,
-                'last_success' => $healthy ? ($health['checked_at'] ?? now()->toIso8601String()) : null,
-                'last_failure_category' => $healthy ? null : ($health['error_code'] ?? 'unknown'),
-                'fallback_state' => $healthy ? 'primary_healthy' : 'fallback_available',
-                'checked_at' => $health['checked_at'] ?? now()->toIso8601String(),
-                'error_code' => $health['error_code'] ?? null,
+                'last_success' => $healthy ? $checkedAt : null,
+                'last_failure_category' => $errorCode,
+                'fallback_state' => $healthy ? 'primary_healthy' : 'deterministic_fallback',
+                'checked_at' => $checkedAt,
+                'error_code' => $errorCode,
                 'available' => true,
-                'reason' => null,
+                'reason' => $healthy ? null : 'Provider connectivity check failed.',
             ];
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             return [
-                'provider' => $this->aiService->providerName(),
+                'provider' => $provider,
                 'enabled' => true,
                 'configured' => true,
                 'credentials_present' => 'YES',
@@ -606,12 +965,12 @@ class AiChiefOfStaffService
                 'model' => null,
                 'healthy' => false,
                 'last_success' => null,
-                'last_failure_category' => 'exception',
-                'fallback_state' => 'fallback_available',
+                'last_failure_category' => 'health_check_exception',
+                'fallback_state' => 'deterministic_fallback',
                 'checked_at' => now()->toIso8601String(),
                 'error_code' => 'health_check_exception',
                 'available' => true,
-                'reason' => 'Health check failed: ' . $e->getMessage(),
+                'reason' => 'Provider health check failed.',
             ];
         }
     }
@@ -620,12 +979,20 @@ class AiChiefOfStaffService
      * Deterministic recommendations from grounded data, with optional AI-generated
      * analysis when the provider is healthy.
      */
-    public function getRecommendations(): array
+    public function getRecommendations(
+        ?array $operationalAlerts = null,
+        ?array $routeIssues = null,
+        ?array $driverIssues = null,
+    ): array
     {
         $recommendations = [];
 
-        $alerts = collect($this->getOperationalAlerts());
-        $criticalAlerts = $alerts->filter(fn(array $a) => ($a['count'] ?? 0) > 0 && $a['severity'] === 'high');
+        $alerts = collect($operationalAlerts ?? $this->getOperationalAlerts());
+        $criticalAlerts = $alerts->filter(
+            fn(array $alert) => ($alert['available'] ?? false)
+                && ($alert['count'] ?? 0) > 0
+                && $alert['severity'] === 'high'
+        );
 
         foreach ($criticalAlerts as $alert) {
             $recommendations[] = [
@@ -638,7 +1005,7 @@ class AiChiefOfStaffService
             ];
         }
 
-        $routeIssues = $this->getRouteAndExceptionSummary();
+        $routeIssues ??= $this->getRouteAndExceptionSummary();
         $failedPkgs = $routeIssues['failed_packages']['count'] ?? null;
         if ($failedPkgs !== null && $failedPkgs > 0) {
             $recommendations[] = [
@@ -646,12 +1013,12 @@ class AiChiefOfStaffService
                 'source' => 'route_exceptions',
                 'title' => 'Review failed package deliveries',
                 'detail' => "{$failedPkgs} package(s) failed or are undeliverable.",
-                'url' => '/admin/urban-goodz/routes',
+                'url' => '/admin/urban-goodz/dedicated-routes',
                 'priority' => 'medium',
             ];
         }
 
-        $driverIssues = $this->getDriverIssueSummary();
+        $driverIssues ??= $this->getDriverIssueSummary();
         $expiredCerts = $driverIssues['expired_certs']['count'] ?? null;
         if ($expiredCerts !== null && $expiredCerts > 0) {
             $recommendations[] = [
@@ -659,50 +1026,88 @@ class AiChiefOfStaffService
                 'source' => 'driver_certifications',
                 'title' => 'Renew expired driver certifications',
                 'detail' => "{$expiredCerts} certification(s) have expired.",
-                'url' => '/admin/delivery-man/list',
+                'url' => '/admin/delivery-man',
                 'priority' => 'high',
             ];
         }
 
-        $aiAnalysis = null;
-        if ($this->aiService !== null && $this->aiService->isConfigured()) {
+        $aiAnalysis = $this->unavailableAiAnalysis(
+            'service_unavailable',
+            'AI analysis service is unavailable.'
+        );
+
+        if ($this->aiService !== null) {
             try {
-                $context = [
-                    'operational_alerts' => $this->getOperationalAlerts(),
-                    'route_summary' => $routeIssues,
-                    'driver_summary' => $driverIssues,
-                ];
+                $provider = $this->sanitizeOperationalValue($this->aiService->providerName());
 
-                $aiResult = $this->aiService->chatResult(
-                    "You are an AI chief of staff for a logistics platform. Given the operational data below, provide a prioritized list of 3-5 recommended actions. Be concise and specific. Return JSON array: [{\"title\": string, \"detail\": string, \"priority\": \"high\"|\"medium\"|\"low\"}]",
-                    'Analyze the current operational state and recommend actions.',
-                    $context
-                );
+                if (!$this->aiService->isConfigured()) {
+                    $aiAnalysis = $this->unavailableAiAnalysis(
+                        'provider_not_configured',
+                        'AI analysis is not configured.',
+                        $provider,
+                        'not_configured'
+                    );
+                } else {
+                    // Only aggregated counts and fixed labels enter the prompt.
+                    // No customer, driver, vendor, address, or credential fields
+                    // are included in this context.
+                    $context = [
+                        'operational_alerts' => $operationalAlerts ?? $this->getOperationalAlerts(),
+                        'route_summary' => $routeIssues,
+                        'driver_summary' => $driverIssues,
+                    ];
 
-                if ($aiResult['success'] ?? false) {
-                    $parsed = json_decode($aiResult['response'] ?? '[]', true);
-                    if (is_array($parsed)) {
-                        $aiAnalysis = [
-                            'type' => 'ai_generated',
-                            'source' => 'ai_provider',
-                            'provider' => $aiResult['provider'] ?? 'unknown',
-                            'model' => $aiResult['model'] ?? 'unknown',
-                            'items' => array_map(fn(array $item) => [
+                    $aiResult = $this->aiService->chatResult(
+                        "You are an AI chief of staff for a logistics platform. Given the aggregated operational facts below, provide a prioritized list of 3-5 recommended actions. Be concise and specific. Return JSON array: [{\"title\": string, \"detail\": string, \"priority\": \"high\"|\"medium\"|\"low\"}]",
+                        'Analyze the current operational state and recommend actions.',
+                        $context
+                    );
+
+                    $resultProvider = $this->sanitizeOperationalValue($aiResult['provider'] ?? $provider);
+                    $model = $this->sanitizeOperationalValue($aiResult['model'] ?? null);
+
+                    if (!($aiResult['success'] ?? false)) {
+                        $aiAnalysis = $this->unavailableAiAnalysis(
+                            $this->sanitizeFailureCategory($aiResult['error_code'] ?? 'generation_failed'),
+                            'AI analysis generation failed; deterministic recommendations remain active.',
+                            $resultProvider,
+                            'failed',
+                            $model
+                        );
+                    } else {
+                        $items = $this->parseAiRecommendations($aiResult['response'] ?? '');
+
+                        if ($items === null) {
+                            $aiAnalysis = $this->unavailableAiAnalysis(
+                                'invalid_provider_response',
+                                'AI analysis returned an invalid format; deterministic recommendations remain active.',
+                                $resultProvider,
+                                'failed',
+                                $model
+                            );
+                        } else {
+                            $aiAnalysis = [
                                 'type' => 'ai_generated',
-                                'title' => $item['title'] ?? 'AI recommendation',
-                                'detail' => $item['detail'] ?? '',
-                                'priority' => $item['priority'] ?? 'low',
-                            ], $parsed),
-                        ];
+                                'source' => 'ai_provider',
+                                'status' => 'available',
+                                'available' => true,
+                                'provider' => $resultProvider,
+                                'model' => $model,
+                                'generated_at' => now()->toIso8601String(),
+                                'failure_category' => null,
+                                'reason' => null,
+                                'items' => $items,
+                            ];
+                        }
                     }
                 }
-            } catch (\Throwable $e) {
-                $aiAnalysis = [
-                    'type' => 'ai_generated',
-                    'source' => 'ai_provider',
-                    'available' => false,
-                    'error' => 'AI analysis failed: ' . $e->getMessage(),
-                ];
+            } catch (\Throwable) {
+                $aiAnalysis = $this->unavailableAiAnalysis(
+                    'generation_exception',
+                    'AI analysis generation failed; deterministic recommendations remain active.',
+                    null,
+                    'failed'
+                );
             }
         }
 
@@ -718,25 +1123,38 @@ class AiChiefOfStaffService
     public function getChiefOfStaffDashboard(): array
     {
         $brief = $this->generateExecutiveDailyBrief();
-        $summary = $this->getCommandCenterSummary();
+        $summary = $brief['metrics'];
         $diagnostics = $this->runDiagnosticScan();
+        $routes = $this->getRouteAndExceptionSummary();
+        $drivers = $this->getDriverIssueSummary();
 
         return [
             'brief' => $brief,
             'summary' => $summary,
             'diagnostics' => $diagnostics,
             'orders_fulfillment' => $this->getOrdersAndFulfillment(),
-            'routes_exceptions' => $this->getRouteAndExceptionSummary(),
-            'driver_issues' => $this->getDriverIssueSummary(),
+            'routes_exceptions' => $routes,
+            'driver_issues' => $drivers,
             'vendor_business' => $this->getVendorAndBusinessSummary(),
             'payments_ledger' => $this->getPaymentsAndLedger(),
             'load_sourcing' => $this->getLoadSourcingStatus(),
             'provider_health' => $this->getProviderHealth(),
-            'recommendations' => $this->getRecommendations(),
+            'recommendations' => $this->getRecommendations(
+                $brief['operational_alerts'],
+                $routes,
+                $drivers
+            ),
         ];
     }
 
     private function countWhen(string $table, callable $query, array $requiredColumns = []): ?int
+    {
+        $value = $this->valueWhen($table, $query, $requiredColumns);
+
+        return $value === null ? null : (int) $value;
+    }
+
+    private function valueWhen(string $table, callable $query, array $requiredColumns = []): mixed
     {
         if (!Schema::hasTable($table)) {
             return null;
@@ -748,7 +1166,22 @@ class AiChiefOfStaffService
             }
         }
 
-        return (int) $query();
+        try {
+            return $query();
+        } catch (\Throwable) {
+            // Optional module failures are represented as unavailable. Raw
+            // database errors are never rendered into the owner dashboard.
+            return null;
+        }
+    }
+
+    private function sumAvailable(array $values): ?int
+    {
+        if (collect($values)->contains(fn($value) => $value === null)) {
+            return null;
+        }
+
+        return (int) array_sum($values);
     }
 
     private function alert(string $key, string $label, ?int $count, string $severity, string $url): array
@@ -759,18 +1192,176 @@ class AiChiefOfStaffService
             'count' => $count,
             'available' => $count !== null,
             'severity' => $severity,
+            'state' => $count === null
+                ? 'unavailable'
+                : ($count > 0 ? ($severity === 'high' ? 'critical' : 'warning') : 'healthy'),
+            'reason' => $count === null ? 'Source table or required fields are unavailable.' : null,
             'url' => $url,
         ];
     }
 
-    private function sectionItem(string $label, ?int $count, string $url): array
+    private function sectionItem(
+        string $label,
+        ?int $count,
+        string $url,
+        string $positiveState = 'warning',
+        string $zeroState = 'healthy',
+    ): array
     {
         return [
             'label' => $label,
             'count' => $count,
             'available' => $count !== null,
+            'state' => $count === null
+                ? 'unavailable'
+                : ($count > 0 ? $positiveState : $zeroState),
+            'reason' => $count === null ? 'Source table or required fields are unavailable.' : null,
             'url' => $url,
         ];
+    }
+
+    private function unavailableItem(string $label, string $url, string $reason): array
+    {
+        return [
+            'label' => $label,
+            'count' => null,
+            'available' => false,
+            'state' => 'unavailable',
+            'reason' => $reason,
+            'url' => $url,
+        ];
+    }
+
+    private function unavailableAiAnalysis(
+        string $failureCategory,
+        string $reason,
+        ?string $provider = null,
+        string $status = 'unavailable',
+        ?string $model = null,
+    ): array {
+        return [
+            'type' => 'ai_generated',
+            'source' => 'ai_provider',
+            'status' => $status,
+            'available' => false,
+            'provider' => $this->sanitizeOperationalValue($provider),
+            'model' => $this->sanitizeOperationalValue($model),
+            'generated_at' => now()->toIso8601String(),
+            'failure_category' => $this->sanitizeFailureCategory($failureCategory),
+            'reason' => $reason,
+            'items' => [],
+        ];
+    }
+
+    private function parseAiRecommendations(mixed $response): ?array
+    {
+        if (!is_string($response)) {
+            return null;
+        }
+
+        $json = trim($response);
+        $json = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $json) ?? $json;
+        $decoded = json_decode($json, true);
+
+        if (!is_array($decoded) || !array_is_list($decoded)) {
+            return null;
+        }
+
+        $items = [];
+
+        foreach (array_slice($decoded, 0, 5) as $item) {
+            if (!is_array($item)) {
+                return null;
+            }
+
+            $title = $this->sanitizeGeneratedText($item['title'] ?? '', 160);
+            if ($title === '') {
+                continue;
+            }
+
+            $priority = strtolower((string) ($item['priority'] ?? 'low'));
+            if (!in_array($priority, ['high', 'medium', 'low'], true)) {
+                $priority = 'low';
+            }
+
+            $items[] = [
+                'type' => 'ai_generated',
+                'title' => $title,
+                'detail' => $this->sanitizeGeneratedText($item['detail'] ?? '', 800),
+                'priority' => $priority,
+            ];
+        }
+
+        return $items;
+    }
+
+    private function sanitizeGeneratedText(mixed $value, int $limit): string
+    {
+        if (!is_scalar($value)) {
+            return '';
+        }
+
+        $text = trim(strip_tags((string) $value));
+        $text = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text) ?? '';
+        $text = preg_replace(
+            '/(?:sk-[A-Za-z0-9_-]{6,}|Bearer\s+\S+|base64:[A-Za-z0-9+\/=]+|(?:api[_-]?key|token|secret)\s*[:=]\s*\S+)/i',
+            '[redacted]',
+            $text
+        ) ?? '';
+
+        return mb_substr($text, 0, $limit);
+    }
+
+    private function sanitizeOperationalValue(mixed $value): ?string
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/sk-|bearer|base64:|api[_-]?key|token|secret/i', $value)) {
+            return '[redacted]';
+        }
+
+        $value = preg_replace('/[\x00-\x1F\x7F]/u', '', strip_tags($value)) ?? '';
+
+        return $value === '' ? null : mb_substr($value, 0, 120);
+    }
+
+    private function sanitizeFailureCategory(mixed $value): string
+    {
+        $category = strtolower(trim((string) $value));
+        $allowed = [
+            'provider_disabled',
+            'unsupported_provider',
+            'provider_not_configured',
+            'provider_error',
+            'empty_provider_response',
+            'provider_unavailable',
+            'connectivity_failed',
+            'connection_refused',
+            'service_unavailable',
+            'configuration_check_failed',
+            'health_check_exception',
+            'generation_failed',
+            'invalid_provider_response',
+            'generation_exception',
+        ];
+
+        return in_array($category, $allowed, true) ? $category : 'unknown_failure';
+    }
+
+    private function sanitizeTimestamp(mixed $value): string
+    {
+        if (is_string($value) && preg_match('/^[0-9T:+.\-Z]{10,40}$/', $value)) {
+            return $value;
+        }
+
+        return now()->toIso8601String();
     }
 
     private function terminalOrderStatuses(): array
