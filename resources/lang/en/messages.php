@@ -11925,4 +11925,5 @@ Smartly or Earn. ',
   'Push Notifications' => 'Push Notifications',
   'Configure' => 'Configure',
   'Marketplace Stores (Selected Module)' => 'Marketplace Stores (Selected Module)',
+  'driver_pricing_compensation' => 'Driver Pricing & Compensation',
 );

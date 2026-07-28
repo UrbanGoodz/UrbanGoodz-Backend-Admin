@@ -106,6 +106,10 @@ class RouteServiceProvider extends ServiceProvider
                 ->namespace($this->namespace)
                 ->group(base_path('routes/admin_ai_operations.php'));
 
+            Route::middleware(['web', 'admin', 'current-module', 'actch:admin_panel'])
+                ->namespace($this->namespace)
+                ->group(base_path('routes/admin/urban_goodz_compensation.php'));
+
             Route::middleware('web')
                 ->namespace($this->namespace)
                 ->group(base_path('routes/business.php'));

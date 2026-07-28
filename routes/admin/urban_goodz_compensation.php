@@ -15,10 +15,13 @@ Route::group([
     'namespace' => 'Admin\UrbanGoodz',
     'prefix' => 'admin/urban-goodz/compensation',
     'as' => 'admin.urban-goodz.compensation.',
-    // Defaults to the standard admin stack in production. Overridable so tests can
-    // exercise this surface's own permission enforcement without the unrelated
-    // 2FA/module gates in the full admin middleware chain.
-    'middleware' => config('urban_goodz_compensation.route_middleware', ['admin']),
+    // Defaults to the standard admin stack in production — the same chain every
+    // other admin page uses. `current-module` is required: it populates
+    // config('module.current_module_type'), which layouts.admin.app interpolates
+    // into the sidebar partial name. Without it the layout resolves a sidebar
+    // that does not exist. Overridable so tests can exercise this surface's own
+    // permission enforcement without the unrelated 2FA/activation gates.
+    'middleware' => config('urban_goodz_compensation.route_middleware', ['admin', 'current-module', 'actch:admin_panel']),
 ], function () {
 
     // Rules overview / published / archived
