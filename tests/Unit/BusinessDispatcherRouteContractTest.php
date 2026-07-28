@@ -11,6 +11,11 @@ class BusinessDispatcherRouteContractTest extends TestCase
     {
         $requiredRoutes = [
             'business.dispatcher.dashboard',
+            'business.dispatcher.sourcing',
+            'business.dispatcher.sourcing.search',
+            'business.dispatcher.sourcing.saved-searches.store',
+            'business.dispatcher.sourcing.saved-searches.run',
+            'business.dispatcher.sourcing.saved-searches.delete',
             'business.dispatcher.loads',
             'business.dispatcher.loads.show',
             'business.dispatcher.loads.assign-driver',

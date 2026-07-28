@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Admin\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryMan;
+use App\Models\DispatcherSavedSearch;
+use App\Models\ExternalLoad;
+use App\Models\LoadRecommendation;
+use App\Models\LoadSource;
 use App\Models\UrbanGoodzBusinessClientUser;
 use App\Models\UrbanGoodzDispatchCommission;
 use App\Models\UrbanGoodzDispatchAuditLog;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\UrbanGoodzDedicatedRoute;
 use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
+use App\Services\UrbanGoodz\LoadSource\LoadSourcingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use RealRashid\SweetAlert\Facades\Alert;
@@ -98,6 +103,158 @@ class DispatcherPortalController extends Controller
             ->get();
 
         return view('business.dispatcher.dashboard', compact('stats', 'recentLoads', 'recentCommissions'));
+    }
+
+    public function sourcing(Request $request)
+    {
+        $this->requireDispatchPermission('dispatch_sourcing_view');
+
+        $companyUserIds = UrbanGoodzBusinessClientUser::where('business_client_id', $this->companyId())
+            ->pluck('id');
+
+        $sourceHealth = LoadSource::query()
+            ->select([
+                'id', 'source_key', 'name', 'type', 'enabled', 'api_status',
+                'partnership_status', 'last_sync_at', 'last_success_at', 'last_error_at',
+            ])
+            ->orderBy('name')
+            ->get();
+
+        $availableLoads = ExternalLoad::with('source:id,name,source_key')
+            ->available()
+            ->latest()
+            ->limit(25)
+            ->get();
+
+        $savedSearches = DispatcherSavedSearch::where('dispatch_company_id', $this->companyId())
+            ->latest()
+            ->get();
+
+        $recommendations = LoadRecommendation::where('generated_by_type', 'dispatcher')
+            ->whereIn('generated_by', $companyUserIds)
+            ->with(['externalLoad.source:id,name,source_key', 'driver'])
+            ->latest()
+            ->limit(25)
+            ->get();
+
+        $stats = [
+            'available_loads' => ExternalLoad::available()->count(),
+            'saved_searches' => $savedSearches->count(),
+            'pending_recommendations' => $recommendations->where('status', 'pending')->count(),
+            'unavailable_sources' => $sourceHealth
+                ->filter(fn (LoadSource $source) => !$source->enabled || $source->api_status !== 'connected')
+                ->count(),
+        ];
+
+        return view('business.dispatcher.sourcing.index', [
+            'sourceHealth' => $sourceHealth,
+            'availableLoads' => $availableLoads,
+            'savedSearches' => $savedSearches,
+            'recommendations' => $recommendations,
+            'stats' => $stats,
+            'searchResults' => session('sourcing_search_results'),
+            'searchErrors' => session('sourcing_search_errors', []),
+            'canManageSourcing' => $this->user()->hasDispatchPermission('dispatch_loads_manage'),
+        ]);
+    }
+
+    public function searchSourcing(Request $request, LoadSourcingService $service)
+    {
+        $this->requireDispatchPermission('dispatch_sourcing_view');
+
+        $criteria = $request->validate([
+            'origin_state' => 'nullable|string|size:2',
+            'destination_state' => 'nullable|string|size:2',
+            'equipment_type' => 'nullable|string|max:50',
+            'min_rate' => 'nullable|numeric|min:0',
+            'max_deadhead' => 'nullable|numeric|min:0',
+            'pickup_date_from' => 'nullable|date',
+            'pickup_date_to' => 'nullable|date|after_or_equal:pickup_date_from',
+            'weight_max' => 'nullable|numeric|min:0',
+        ]);
+
+        $result = $service->searchAllSources(
+            array_filter($criteria, fn ($value) => $value !== null && $value !== ''),
+            $this->user()->id,
+            'dispatcher'
+        );
+
+        $sanitizedErrors = collect($result['errors'] ?? [])
+            ->map(fn (array $error) => [
+                'source' => $error['source'] ?? 'provider',
+                'reason' => 'Provider unavailable or not configured.',
+            ])
+            ->values()
+            ->all();
+
+        return redirect()
+            ->route('business.dispatcher.sourcing')
+            ->with('sourcing_search_results', collect($result['loads'] ?? []))
+            ->with('sourcing_search_errors', $sanitizedErrors)
+            ->with('success', translate('Sourcing search completed'));
+    }
+
+    public function storeSourcingSearch(Request $request)
+    {
+        $this->requireDispatchPermission('dispatch_loads_manage');
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'criteria' => 'nullable|array',
+            'source_keys' => 'nullable|array',
+            'auto_alert' => 'nullable|boolean',
+            'alert_threshold_score' => 'nullable|integer|min:0|max:100',
+        ]);
+
+        DispatcherSavedSearch::create([
+            'business_client_user_id' => $this->user()->id,
+            'dispatch_company_id' => $this->companyId(),
+            'name' => $validated['name'],
+            'criteria' => $validated['criteria'] ?? [],
+            'source_keys' => $validated['source_keys'] ?? [],
+            'auto_alert' => $validated['auto_alert'] ?? false,
+            'alert_threshold_score' => $validated['alert_threshold_score'] ?? 70,
+        ]);
+
+        return redirect()
+            ->route('business.dispatcher.sourcing')
+            ->with('success', translate('Search saved successfully'));
+    }
+
+    public function runSourcingSearch(int $id, LoadSourcingService $service)
+    {
+        $this->requireDispatchPermission('dispatch_loads_manage');
+
+        $search = DispatcherSavedSearch::where('dispatch_company_id', $this->companyId())
+            ->findOrFail($id);
+
+        $result = $service->searchAllSources(
+            $search->criteria ?? [],
+            $this->user()->id,
+            'dispatcher'
+        );
+
+        $search->update([
+            'last_run_result_count' => $result['count'],
+            'last_run_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('business.dispatcher.sourcing')
+            ->with('success', translate('Saved sourcing search completed'));
+    }
+
+    public function deleteSourcingSearch(int $id)
+    {
+        $this->requireDispatchPermission('dispatch_loads_manage');
+
+        DispatcherSavedSearch::where('dispatch_company_id', $this->companyId())
+            ->findOrFail($id)
+            ->delete();
+
+        return redirect()
+            ->route('business.dispatcher.sourcing')
+            ->with('success', translate('Saved search deleted'));
     }
 
     public function loads(Request $request)

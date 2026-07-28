@@ -99,6 +99,11 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('business.dispatcher.dashboard') ? 'active' : '' }}" href="{{ route('business.dispatcher.dashboard') }}">{{ translate('Dashboard') }}</a>
                     </li>
+                    @if($user->hasDispatchPermission('dispatch_sourcing_view'))
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('business.dispatcher.sourcing*') ? 'active' : '' }}" href="{{ route('business.dispatcher.sourcing') }}">{{ translate('Load Sourcing') }}</a>
+                    </li>
+                    @endif
                     @if($user->hasDispatchPermission('dispatch_loads_view'))
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('business.dispatcher.loads.*') ? 'active' : '' }}" href="{{ route('business.dispatcher.loads') }}">{{ translate('Loads') }}</a>

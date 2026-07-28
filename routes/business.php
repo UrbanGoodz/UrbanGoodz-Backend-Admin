@@ -152,6 +152,12 @@ Route::group(['prefix' => 'business', 'as' => 'business.'], function () {
         Route::prefix('dispatcher')->name('dispatcher.')->group(function () {
             Route::get('/dashboard', [DispatcherPortalController::class, 'dashboard'])->name('dashboard');
 
+            Route::get('/sourcing', [DispatcherPortalController::class, 'sourcing'])->name('sourcing');
+            Route::post('/sourcing/search', [DispatcherPortalController::class, 'searchSourcing'])->name('sourcing.search');
+            Route::post('/sourcing/saved-searches', [DispatcherPortalController::class, 'storeSourcingSearch'])->name('sourcing.saved-searches.store');
+            Route::post('/sourcing/saved-searches/{id}/run', [DispatcherPortalController::class, 'runSourcingSearch'])->name('sourcing.saved-searches.run');
+            Route::delete('/sourcing/saved-searches/{id}', [DispatcherPortalController::class, 'deleteSourcingSearch'])->name('sourcing.saved-searches.delete');
+
             Route::get('/loads', [DispatcherPortalController::class, 'loads'])->name('loads');
             Route::get('/loads/{id}', [DispatcherPortalController::class, 'showLoad'])->name('loads.show');
             Route::post('/loads/{id}/assign-driver', [DispatcherPortalController::class, 'assignDriver'])->name('loads.assign-driver');

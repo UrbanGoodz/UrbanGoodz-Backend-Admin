@@ -48,6 +48,7 @@ class UrbanGoodzBusinessClientUser extends Authenticatable
     ];
 
     const DISPATCH_PERMISSIONS = [
+        'dispatch_sourcing_view',
         'dispatch_loads_view',           'dispatch_loads_assign',        'dispatch_loads_manage',
         'dispatch_loads_create',         'dispatch_drivers_view',        'dispatch_drivers_assign',
         'dispatch_status_update',        'dispatch_commissions_view',    'dispatch_commissions_approve',
