@@ -284,9 +284,15 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
 
         $this->assertTrue($result['available']);
         $this->assertFalse($result['configured']);
+        $this->assertFalse($result['enabled']);
         $this->assertFalse($result['healthy']);
         $this->assertSame('gemini', $result['provider']);
+        $this->assertSame('NO', $result['credentials_present']);
+        $this->assertSame('not_configured', $result['connectivity_state']);
         $this->assertSame('not_configured', $result['error_code']);
+        $this->assertSame('disabled_provider_active', $result['fallback_state']);
+        $this->assertNull($result['last_success']);
+        $this->assertNull($result['last_failure_category']);
         $this->assertSame('No AI provider credentials configured', $result['reason']);
     }
 
@@ -308,9 +314,41 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $result = $service->getProviderHealth();
 
         $this->assertTrue($result['configured']);
+        $this->assertTrue($result['enabled']);
         $this->assertTrue($result['healthy']);
         $this->assertSame('openai', $result['provider']);
         $this->assertSame('gpt-4o', $result['model']);
+        $this->assertSame('YES', $result['credentials_present']);
+        $this->assertSame('connected', $result['connectivity_state']);
+        $this->assertNotNull($result['last_success']);
+        $this->assertNull($result['last_failure_category']);
+        $this->assertSame('primary_healthy', $result['fallback_state']);
+    }
+
+    public function test_provider_health_when_configured_but_unhealthy(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('healthCheck')->willReturn([
+            'provider' => 'openai',
+            'model' => 'gpt-4o',
+            'configured' => true,
+            'healthy' => false,
+            'error_code' => 'connection_refused',
+            'checked_at' => now()->toIso8601String(),
+        ]);
+
+        $service = new AiChiefOfStaffService($mockService);
+        $result = $service->getProviderHealth();
+
+        $this->assertTrue($result['configured']);
+        $this->assertTrue($result['enabled']);
+        $this->assertFalse($result['healthy']);
+        $this->assertSame('disconnected', $result['connectivity_state']);
+        $this->assertNull($result['last_success']);
+        $this->assertSame('connection_refused', $result['last_failure_category']);
+        $this->assertSame('fallback_available', $result['fallback_state']);
     }
 
     public function test_provider_health_when_service_not_injected(): void
@@ -319,8 +357,33 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
         $result = $service->getProviderHealth();
 
         $this->assertFalse($result['configured']);
+        $this->assertFalse($result['enabled']);
         $this->assertFalse($result['available']);
+        $this->assertSame('NO', $result['credentials_present']);
+        $this->assertSame('unavailable', $result['connectivity_state']);
+        $this->assertSame('no_service', $result['fallback_state']);
         $this->assertNotNull($result['reason']);
+    }
+
+    public function test_provider_health_no_secrets_in_response(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('healthCheck')->willReturn([
+            'provider' => 'openai', 'model' => 'gpt-4o',
+            'configured' => true, 'healthy' => true,
+            'error_code' => null, 'checked_at' => now()->toIso8601String(),
+        ]);
+
+        $service = new AiChiefOfStaffService($mockService);
+        $result = $service->getProviderHealth();
+
+        $serialized = json_encode($result);
+        $this->assertStringNotContainsString('sk-', $serialized, 'API key prefix must not appear.');
+        $this->assertStringNotContainsString('Bearer', $serialized, 'Bearer token must not appear.');
+        $this->assertStringNotContainsString('api_key', $serialized, 'API key field must not appear.');
+        $this->assertStringNotContainsString('secret', $serialized, 'Secret must not appear.');
     }
 
     public function test_recommendations_include_deterministic_when_alerts_exist(): void
@@ -459,6 +522,69 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
 
         foreach ($expectedSections as $section) {
             $this->assertStringContainsString($section, $content, "Section '{$section}' not found in rendered page.");
+        }
+    }
+
+    public function test_ai_generation_success_populates_ai_analysis(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('chatResult')->willReturn([
+            'success' => true,
+            'response' => json_encode([
+                ['title' => 'Review expired certifications', 'detail' => '3 certs expiring soon.', 'priority' => 'high'],
+                ['title' => 'Check failed deliveries', 'detail' => '1 package failed.', 'priority' => 'medium'],
+            ]),
+            'error_code' => null,
+            'provider' => 'openai',
+            'model' => 'gpt-4o',
+        ]);
+
+        $service = new AiChiefOfStaffService($mockService);
+        $result = $service->getRecommendations();
+
+        $this->assertNotNull($result['ai_analysis']);
+        $this->assertSame('ai_generated', $result['ai_analysis']['type']);
+        $this->assertSame('openai', $result['ai_analysis']['provider']);
+        $this->assertSame('gpt-4o', $result['ai_analysis']['model']);
+        $this->assertCount(2, $result['ai_analysis']['items']);
+        $this->assertSame('Review expired certifications', $result['ai_analysis']['items'][0]['title']);
+        $this->assertSame('high', $result['ai_analysis']['items'][0]['priority']);
+    }
+
+    public function test_ai_generation_failure_uses_deterministic_fallback(): void
+    {
+        $mockService = $this->createMock(\App\Services\UrbanGoodz\UrbanGoodzAIService::class);
+        $mockService->method('isConfigured')->willReturn(true);
+        $mockService->method('providerName')->willReturn('openai');
+        $mockService->method('chatResult')->willThrowException(new \RuntimeException('Provider timeout'));
+
+        $service = new AiChiefOfStaffService($mockService);
+        $result = $service->getRecommendations();
+
+        $this->assertArrayHasKey('deterministic', $result);
+        $this->assertIsArray($result['deterministic']);
+        $this->assertNotNull($result['ai_analysis']);
+        $this->assertSame('ai_generated', $result['ai_analysis']['type']);
+        $this->assertFalse($result['ai_analysis']['available'] ?? true);
+        $this->assertStringContainsString('Provider timeout', $result['ai_analysis']['error']);
+    }
+
+    public function test_provider_health_section_exposes_no_secrets_in_rendered_page(): void
+    {
+        $response = $this->actingAs($this->owner(), 'admin')->get(self::URI);
+
+        $response->assertStatus(200);
+        $content = $response->getContent();
+
+        $healthPos = strpos($content, 'AI Provider Health');
+        if ($healthPos !== false) {
+            $chunk = substr($content, $healthPos, 2000);
+            $this->assertStringNotContainsString('sk-', $chunk, 'API key prefix leaked in provider health section.');
+            $this->assertStringNotContainsString('Bearer ', $chunk, 'Bearer token leaked in provider health section.');
+            $this->assertStringNotContainsString('base64:', $chunk, 'APP_KEY leaked in provider health section.');
+            $this->assertStringNotContainsString('api_key', $chunk, 'api_key field leaked in provider health section.');
         }
     }
 }

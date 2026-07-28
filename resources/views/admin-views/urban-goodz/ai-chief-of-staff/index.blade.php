@@ -415,8 +415,32 @@
                                     <td>{{ $provider_health['provider'] ?? translate('N/A') }}</td>
                                 </tr>
                                 <tr>
+                                    <td class="section-label">{{ translate('Enabled') }}</td>
+                                    <td>{{ ($provider_health['enabled'] ?? false) ? translate('Yes') : translate('No') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="section-label">{{ translate('Credentials Present') }}</td>
+                                    <td>{{ $provider_health['credentials_present'] ?? 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="section-label">{{ translate('Connectivity') }}</td>
+                                    <td>{{ $provider_health['connectivity_state'] ?? translate('N/A') }}</td>
+                                </tr>
+                                <tr>
                                     <td class="section-label">{{ translate('Model') }}</td>
                                     <td>{{ $provider_health['model'] ?? translate('N/A') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="section-label">{{ translate('Last Success') }}</td>
+                                    <td>{{ $provider_health['last_success'] ?? translate('None recorded') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="section-label">{{ translate('Last Failure Category') }}</td>
+                                    <td>{{ $provider_health['last_failure_category'] ?? translate('None') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="section-label">{{ translate('Fallback State') }}</td>
+                                    <td>{{ $provider_health['fallback_state'] ?? translate('N/A') }}</td>
                                 </tr>
                                 <tr>
                                     <td class="section-label">{{ translate('Checked At') }}</td>
