@@ -20,6 +20,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\AiCopilotGenerateRecommendations::class,
         \App\Console\Commands\SyncLoadBoard::class,
         \App\Console\Commands\RunScheduledSourcing::class,
+        \App\Console\Commands\RecoverOrderAnywhereCardIssuance::class,
     ];
 
     /**
@@ -46,6 +47,11 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->when(fn() => config('urban_goodz_load_board.sourcing.enabled', true));
+
+        $schedule->command('order-anywhere:recover-card-issuance')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

@@ -12,6 +12,17 @@ interface CardIssuingGatewayInterface
 
     public function createVirtualCard(array $data): array;
 
+    /**
+     * Resolve an uncertain create attempt without exposing provider payloads.
+     */
+    public function findCardByIdempotencyIdentity(string $identity): array;
+
+    /**
+     * Exchange an Issuing Elements nonce for a short-lived provider token.
+     * The implementation must never return PAN or CVC through this method.
+     */
+    public function createSecureRevealSession(string $cardId, string $nonce): array;
+
     public function setSpendingLimit(string $cardId, array $limits): array;
 
     public function restrictMerchant(string $cardId, array $merchantRestrictions): array;
@@ -23,4 +34,9 @@ interface CardIssuingGatewayInterface
     public function closeCard(string $cardId): array;
 
     public function retrieveCardTransaction(string $transactionId): array;
+
+    /**
+     * Return only non-sensitive lifecycle state for a provider card.
+     */
+    public function retrieveCardStatus(string $cardId): array;
 }

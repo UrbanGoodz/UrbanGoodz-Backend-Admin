@@ -50,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        \App\Models\OrderAnywhereRequest::observe(\App\Observers\OrderAnywhereCardSafetyObserver::class);
 
         //TODO: need to remove after 3.8 development
         if (app()->environment('local')) {
