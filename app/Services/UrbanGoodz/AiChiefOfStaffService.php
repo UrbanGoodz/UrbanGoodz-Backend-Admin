@@ -533,18 +533,25 @@ class AiChiefOfStaffService
     }
 
     /**
-     * Sanitized AI provider health. Never exposes credentials.
+     * Sanitized AI provider health. Never exposes credentials, tokens, keys,
+     * or raw provider responses. Shows only operational status fields.
      */
     public function getProviderHealth(): array
     {
         if ($this->aiService === null) {
             return [
-                'configured' => false,
-                'healthy' => false,
                 'provider' => null,
+                'enabled' => false,
+                'configured' => false,
+                'credentials_present' => 'NO',
+                'connectivity_state' => 'unavailable',
                 'model' => null,
-                'error_code' => 'service_unavailable',
+                'healthy' => false,
+                'last_success' => null,
+                'last_failure_category' => 'service_unavailable',
+                'fallback_state' => 'no_service',
                 'checked_at' => now()->toIso8601String(),
+                'error_code' => 'service_unavailable',
                 'available' => false,
                 'reason' => 'AI service not injected',
             ];
@@ -552,12 +559,18 @@ class AiChiefOfStaffService
 
         if (!$this->aiService->isConfigured()) {
             return [
-                'configured' => false,
-                'healthy' => false,
                 'provider' => $this->aiService->providerName(),
+                'enabled' => false,
+                'configured' => false,
+                'credentials_present' => 'NO',
+                'connectivity_state' => 'not_configured',
                 'model' => null,
-                'error_code' => 'not_configured',
+                'healthy' => false,
+                'last_success' => null,
+                'last_failure_category' => null,
+                'fallback_state' => 'disabled_provider_active',
                 'checked_at' => now()->toIso8601String(),
+                'error_code' => 'not_configured',
                 'available' => true,
                 'reason' => 'No AI provider credentials configured',
             ];
@@ -565,25 +578,38 @@ class AiChiefOfStaffService
 
         try {
             $health = $this->aiService->healthCheck();
+            $healthy = $health['healthy'] ?? false;
 
             return [
-                'configured' => true,
-                'healthy' => $health['healthy'] ?? false,
                 'provider' => $health['provider'] ?? $this->aiService->providerName(),
+                'enabled' => true,
+                'configured' => true,
+                'credentials_present' => 'YES',
+                'connectivity_state' => $healthy ? 'connected' : 'disconnected',
                 'model' => $health['model'] ?? null,
-                'error_code' => $health['error_code'] ?? null,
+                'healthy' => $healthy,
+                'last_success' => $healthy ? ($health['checked_at'] ?? now()->toIso8601String()) : null,
+                'last_failure_category' => $healthy ? null : ($health['error_code'] ?? 'unknown'),
+                'fallback_state' => $healthy ? 'primary_healthy' : 'fallback_available',
                 'checked_at' => $health['checked_at'] ?? now()->toIso8601String(),
+                'error_code' => $health['error_code'] ?? null,
                 'available' => true,
                 'reason' => null,
             ];
         } catch (\Throwable $e) {
             return [
-                'configured' => true,
-                'healthy' => false,
                 'provider' => $this->aiService->providerName(),
+                'enabled' => true,
+                'configured' => true,
+                'credentials_present' => 'YES',
+                'connectivity_state' => 'error',
                 'model' => null,
-                'error_code' => 'health_check_exception',
+                'healthy' => false,
+                'last_success' => null,
+                'last_failure_category' => 'exception',
+                'fallback_state' => 'fallback_available',
                 'checked_at' => now()->toIso8601String(),
+                'error_code' => 'health_check_exception',
                 'available' => true,
                 'reason' => 'Health check failed: ' . $e->getMessage(),
             ];
