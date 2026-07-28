@@ -83,6 +83,13 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::get('urban-goodz/vendors', 'UrbanGoodz\UrbanGoodzVendorBusinessController@index')
             ->name('urban-goodz.vendors.index');
 
+        // Kept outside the legacy module middleware so unauthorized writes
+        // receive a true 403 from the owner check instead of a redirect.
+        Route::patch(
+            'urban-goodz/payments/platform-fee',
+            'UrbanGoodzAdminController@updatePlatformFee'
+        )->name('urban-goodz.payments.platform-fee.update');
+
         Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
             Route::group(['prefix' => 'creator-commerce', 'as' => 'creator.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzCreatorController@dashboard')->name('dashboard');

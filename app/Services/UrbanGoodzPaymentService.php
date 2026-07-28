@@ -401,7 +401,8 @@ class UrbanGoodzPaymentService
         $currency = config('urban_goodz_payments.currency', 'USD');
 
         // ─── Platform fee ───────────────────────────────────────────────
-        $feePercent = (float) config('urban_goodz_payments.default_platform_fee_percent', 10);
+        $platformFeeSetting = app(UrbanGoodzPaymentSettings::class)->platformFee();
+        $feePercent = $platformFeeSetting['effective_percent'];
         $platformFee = (float) ($data['platform_fee'] ?? round($totalAmount * ($feePercent / 100), 2));
 
         // ─── Driver payout ──────────────────────────────────────────────
@@ -496,6 +497,7 @@ class UrbanGoodzPaymentService
         $snapshot = [
             'platform_fee_percent' => $feePercent,
             'platform_fee_amount' => $platformFee,
+            'platform_fee_source' => $platformFeeSetting['source'],
             'driver_payout_formula' => $driverPayoutModel,
             'driver_pricing_policy_id' => $driverPolicyId,
             'dispatcher_commission_rate' => $dispatcherRate,

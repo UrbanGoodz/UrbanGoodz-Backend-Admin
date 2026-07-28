@@ -24,6 +24,7 @@ use App\Models\UrbanGoodzRentalBooking;
 use App\CentralLogics\Helpers;
 use App\Services\OrderAnywhereCardService;
 use App\Services\UrbanGoodzPaymentService;
+use App\Services\UrbanGoodzPaymentSettings;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -296,12 +297,36 @@ class UrbanGoodzAdminController extends Controller
         return back()->with('success', translate('Driver card reconciled successfully.'));
     }
 
-    public function payments(UrbanGoodzPaymentService $payments)
+    public function payments(
+        UrbanGoodzPaymentService $payments,
+        UrbanGoodzPaymentSettings $paymentSettings
+    )
     {
         return view('admin-views.urban-goodz.payments.index', [
             'ledgers' => UrbanGoodzPaymentLedger::with('splits')->latest()->paginate(50),
             'readiness' => $payments->readiness(),
+            'platformFee' => $paymentSettings->platformFee(),
         ]);
+    }
+
+    public function updatePlatformFee(Request $request, UrbanGoodzPaymentSettings $paymentSettings)
+    {
+        abort_unless(
+            auth('admin')->check() && (int) auth('admin')->user()->role_id === 1,
+            403,
+            'Owner access is required to change payment economics.'
+        );
+
+        $validated = $request->validate([
+            'platform_fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $paymentSettings->savePlatformFee(
+            (float) $validated['platform_fee_percent'],
+            (int) auth('admin')->id()
+        );
+
+        return back()->with('success', translate('Urban Goodz platform fee updated.'));
     }
 
     public function paymentDetail(string $module)

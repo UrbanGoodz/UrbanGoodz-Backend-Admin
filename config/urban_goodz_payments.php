@@ -100,7 +100,14 @@ return [
     |--------------------------------------------------------------------------
     */
     'currency' => env('URBAN_GOODZ_CURRENCY', 'USD'),
-    'default_platform_fee_percent' => (float) env('URBAN_GOODZ_PLATFORM_FEE_PERCENT', 10),
+    // A configured environment value remains readable for compatibility, but
+    // owner-managed database settings take precedence. The hard-coded value is
+    // intentionally isolated as a Sandbox/disabled safety fallback and is never
+    // permitted to supply Live-controlled economics.
+    'default_platform_fee_percent' => env('URBAN_GOODZ_PLATFORM_FEE_PERCENT') !== null
+        ? (float) env('URBAN_GOODZ_PLATFORM_FEE_PERCENT')
+        : null,
+    'safe_non_live_platform_fee_percent' => 10.0,
     'default_dispatcher_commission_rate' => (float) env('URBAN_GOODZ_DISPATCHER_COMMISSION_RATE', 0),
 
     /*
