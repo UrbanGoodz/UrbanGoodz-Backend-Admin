@@ -87,6 +87,9 @@ Route::post('adyen/webhook', 'Api\V1\AdyenWebhookController@handle');
 Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@handle')
     ->where('provider', 'adyen|stripe|staged_test');
 
+Route::post('order-anywhere/cards/stripe/webhook', 'Api\V1\StripeIssuingWebhookController@handle')
+    ->middleware('throttle:120,1');
+
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
     Route::post('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
@@ -225,6 +228,10 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
     Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');
     Route::post('order-anywhere/{requestId}/purchase-card/complete', 'Api\V1\UrbanGoodzDriverPurchaseCardController@completePurchase');
+    Route::post('order-anywhere/{requestId}/purchase-card/receipt', 'Api\V1\UrbanGoodzDriverPurchaseCardController@uploadReceipt');
+    Route::post('order-anywhere/{requestId}/purchase-card/failure', 'Api\V1\UrbanGoodzDriverPurchaseCardController@reportFailure');
+    Route::post('order-anywhere/{requestId}/purchase-card/secure-reveal', 'Api\V1\UrbanGoodzDriverPurchaseCardController@secureReveal')
+        ->middleware('throttle:10,1');
 
     // Driver active jobs (unified across all sources)
     Route::get('active-jobs', 'Api\UrbanGoodzDriverActiveJobsController@index');
