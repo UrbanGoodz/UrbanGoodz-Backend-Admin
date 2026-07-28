@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Http\Controllers\Controller;
 use App\Models\OrderAnywhereRequest;
+use App\Models\UrbanGoodzWebhookEvent;
 use App\Services\Payments\PaymentProviderManager;
 use App\Services\UrbanGoodzPaymentService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -66,6 +68,31 @@ class PaymentWebhookController extends Controller
             $eventId = $event['event_id'] ?? null;
             $merchantReference = $event['merchant_reference'] ?? null;
             $providerReference = $event['provider_reference'] ?? null;
+
+            // Event-level dedup: record each provider event id exactly once.
+            if ($eventId) {
+                $eventKey = "webhook_event:{$provider}:{$eventId}";
+                try {
+                    UrbanGoodzWebhookEvent::create([
+                        'provider' => $provider,
+                        'event_id' => $eventId,
+                        'event_type' => $eventCode,
+                        'idempotency_key' => $eventKey,
+                        'processed_at' => now(),
+                    ]);
+                } catch (QueryException $e) {
+                    $isDup = ($e->errorInfo[1] ?? null) === 1062 || $e->getCode() === '23000';
+                    if ($isDup) {
+                        Log::info("Duplicate webhook event ignored", [
+                            'provider' => $provider,
+                            'event_hash' => hash('sha256', $eventId),
+                        ]);
+                        $handled[] = $eventCode;
+                        continue;
+                    }
+                    throw $e;
+                }
+            }
 
             $requestModel = $this->findRequestByReference($merchantReference, $providerReference);
 
