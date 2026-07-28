@@ -49,6 +49,23 @@
                 </form>
                 <ul class="navbar-nav navbar-nav-lg nav-tabs">
 
+                    @if ((int) auth('admin')->user()?->role_id === 1)
+                        <li class="nav-item">
+                            <small class="nav-subtitle" title="{{ translate('Urban Goodz Owner') }}">
+                                {{ translate('Urban Goodz Owner') }}
+                            </small>
+                            <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                        </li>
+                        <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/payment-center*') ? 'active' : '' }}">
+                            <a class="nav-link"
+                               href="{{ route('admin.urban-goodz.payment-center.index') }}"
+                               title="{{ translate('Payment Center') }}">
+                                <i class="tio-credit-card nav-icon"></i>
+                                <span class="text-truncate">{{ translate('Payment Center') }}</span>
+                            </a>
+                        </li>
+                    @endif
+
                     <!-- Business Settings -->
                     <li class="nav-item">
                         <small class="nav-subtitle"

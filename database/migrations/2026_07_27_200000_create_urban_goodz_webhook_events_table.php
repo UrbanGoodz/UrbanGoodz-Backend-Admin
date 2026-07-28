@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('payment_intent_id')->nullable()->index();
             $table->string('charge_id')->nullable()->index();
             $table->string('internal_reference')->nullable()->index();
+            $table->bigInteger('amount_cents')->nullable();
+            $table->string('currency', 3)->nullable();
             $table->string('payable_type')->nullable();
             $table->unsignedBigInteger('payable_id')->nullable();
             $table->string('idempotency_key')->unique();

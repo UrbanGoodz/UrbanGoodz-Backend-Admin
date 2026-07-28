@@ -27,7 +27,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
     {
         $config = config('urban_goodz_payments.stripe');
         $this->enabled = $config['enabled'] ?? false;
-        $this->isLive = config('urban_goodz_payments.mode') === 'live_controlled';
+        $this->isLive = app(PaymentSettings::class)->mode() === 'live_controlled';
 
         if ($this->isLive && ! empty($config['live_secret_key'])) {
             $this->secretKey = $config['live_secret_key'];
@@ -72,8 +72,8 @@ class StripePaymentGateway implements PaymentGatewayInterface
                     'merchant_reference' => $reference,
                     'customer_id' => $request->customer_id,
                     'quoted_amount_minor' => $amountMinor,
-                    'environment' => config('urban_goodz_payments.mode') === 'live_controlled' ? 'live' : 'test',
-                    'payment_mode' => config('urban_goodz_payments.mode', 'sandbox'),
+                    'environment' => app(PaymentSettings::class)->mode() === 'live_controlled' ? 'live' : 'test',
+                    'payment_mode' => app(PaymentSettings::class)->mode(),
                 ],
             ];
 

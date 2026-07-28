@@ -102,12 +102,12 @@ class PaymentProviderManager extends Manager
 
     public function isLiveMode(): bool
     {
-        return config('urban_goodz_payments.mode') === 'live_controlled';
+        return app(PaymentSettings::class)->mode() === 'live_controlled';
     }
 
     public function isDisabled(): bool
     {
-        return config('urban_goodz_payments.mode') === 'disabled'
+        return app(PaymentSettings::class)->mode() === 'disabled'
             || $this->getDefaultDriver() === 'disabled';
     }
 

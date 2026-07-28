@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DeliveryMan\DeliveryManController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\BusinessSettingsController;
+use App\Http\Controllers\Admin\PaymentCenterController;
 use App\Http\Controllers\Admin\UrbanGoodzAdminController;
 
 
@@ -82,6 +83,19 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         // can return a true HTTP 403 instead of silently redirecting unauthorized users.
         Route::get('urban-goodz/vendors', 'UrbanGoodz\UrbanGoodzVendorBusinessController@index')
             ->name('urban-goodz.vendors.index');
+
+        Route::group(['prefix' => 'urban-goodz/payment-center', 'as' => 'urban-goodz.payment-center.'], function () {
+            Route::get('/', [PaymentCenterController::class, 'index'])->name('index');
+            Route::patch('settings', [PaymentCenterController::class, 'updateSettings'])->name('settings.update');
+            Route::post('emergency-disable', [PaymentCenterController::class, 'emergencyDisable'])->name('emergency-disable');
+            Route::post('switch-sandbox', [PaymentCenterController::class, 'switchToSandbox'])->name('switch-sandbox');
+            Route::post('test-webhook', [PaymentCenterController::class, 'testWebhook'])->name('test-webhook');
+            Route::get('reconciliation', [PaymentCenterController::class, 'reconciliation'])->name('reconciliation');
+            Route::post('reconciliation/run', [PaymentCenterController::class, 'runReconciliation'])->name('reconciliation.run');
+            Route::get('transactions/{ledger}', [PaymentCenterController::class, 'transactionDetail'])->name('transaction-detail');
+            Route::get('audit-history', [PaymentCenterController::class, 'auditHistory'])->name('audit-history');
+            Route::post('webhooks/{webhookEvent}/retry', [PaymentCenterController::class, 'retryFailedWebhook'])->name('webhook.retry');
+        });
 
         Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
             Route::group(['prefix' => 'creator-commerce', 'as' => 'creator.'], function () {

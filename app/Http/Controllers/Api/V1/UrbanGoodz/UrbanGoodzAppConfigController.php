@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzBusinessType;
 use App\Models\UrbanGoodzCapability;
+use App\Services\Payments\PaymentSettings;
 use Illuminate\Http\JsonResponse;
 
 class UrbanGoodzAppConfigController extends Controller
@@ -46,7 +47,7 @@ class UrbanGoodzAppConfigController extends Controller
             'default_country' => config('urban_goodz.default_country', 'US'),
             'distance_unit' => config('urban_goodz.distance_unit', 'miles'),
             'currency' => config('urban_goodz.currency', 'USD'),
-            'payment_mode' => config('urban_goodz_payments.mode', 'staged_test'),
+            'payment_mode' => app(PaymentSettings::class)->mode(),
             'adyen_enabled' => config('urban_goodz_payments.adyen.enabled', false),
             'staged_test_enabled' => config('urban_goodz_payments.staged_test.enabled', true),
             'business_type_groups' => $groups,

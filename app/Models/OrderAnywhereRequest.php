@@ -354,7 +354,7 @@ class OrderAnywhereRequest extends Model
 
     public static function paymentMode(): string
     {
-        return config('urban_goodz_payments.mode', 'sandbox');
+        return app(\App\Services\Payments\PaymentSettings::class)->mode();
     }
 
     public static function isLiveMode(): bool

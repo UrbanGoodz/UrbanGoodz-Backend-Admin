@@ -13,6 +13,7 @@ use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzPaymentSplit;
 use App\Services\Payments\PaymentFinalizationResult;
 use App\Services\Payments\PaymentProviderManager;
+use App\Services\Payments\PaymentSettings;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -404,7 +405,7 @@ class UrbanGoodzPaymentService
         $currency = config('urban_goodz_payments.currency', 'USD');
 
         // ─── Platform fee ───────────────────────────────────────────────
-        $feePercent = (float) config('urban_goodz_payments.default_platform_fee_percent', 10);
+        $feePercent = app(PaymentSettings::class)->platformFeePercent();
         $platformFee = (float) ($data['platform_fee'] ?? round($totalAmount * ($feePercent / 100), 2));
 
         // ─── Driver payout ──────────────────────────────────────────────

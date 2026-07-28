@@ -88,6 +88,8 @@ class PaymentWebhookController extends Controller
                         ? $resourceReference
                         : null,
                     'internal_reference' => $merchantReference,
+                    'amount_cents' => isset($event['amount_minor']) ? (int) $event['amount_minor'] : null,
+                    'currency' => isset($event['currency']) ? strtoupper((string) $event['currency']) : null,
                     'idempotency_key' => $eventKey,
                     'processing_status' => 'received',
                     'signature_valid' => true,

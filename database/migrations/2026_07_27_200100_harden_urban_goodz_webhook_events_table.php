@@ -22,6 +22,12 @@ return new class extends Migration
             if (! Schema::hasColumn('urban_goodz_webhook_events', 'internal_reference')) {
                 $table->string('internal_reference')->nullable()->index();
             }
+            if (! Schema::hasColumn('urban_goodz_webhook_events', 'amount_cents')) {
+                $table->bigInteger('amount_cents')->nullable();
+            }
+            if (! Schema::hasColumn('urban_goodz_webhook_events', 'currency')) {
+                $table->string('currency', 3)->nullable();
+            }
             if (! Schema::hasColumn('urban_goodz_webhook_events', 'processing_status')) {
                 $table->string('processing_status')->default('received')->index();
             }
