@@ -271,7 +271,10 @@ class UrbanGoodzPaymentFinalizationIdempotencyTest extends TestCase
         ]);
         $this->assertSame(1, UrbanGoodzPaymentFinalization::where('payable_id', $request->id)->count());
         $this->assertSame(1, $this->ledgerCount($request, 'capture'));
+        $this->assertSame(1, $this->ledgerCount($request, 'capture_allocation'));
         $this->assertSame(1, $this->ledgerCount($request, 'split_calculated'));
+        $this->assertSame(500, $this->ledgerDirectionCents($request, 'debit'));
+        $this->assertSame(500, $this->ledgerDirectionCents($request, 'credit'));
         $this->assertSame(1, $this->paymentNotificationCount($request));
     }
 
@@ -368,7 +371,10 @@ class UrbanGoodzPaymentFinalizationIdempotencyTest extends TestCase
         $this->assertSame(500, $finalization->amount_cents);
         $this->assertSame('completed', $finalization->status);
         $this->assertSame(1, $this->ledgerCount($request, 'capture'));
+        $this->assertSame(1, $this->ledgerCount($request, 'capture_allocation'));
         $this->assertSame(1, $this->ledgerCount($request, 'split_calculated'));
+        $this->assertSame(500, $this->ledgerDirectionCents($request, 'debit'));
+        $this->assertSame(500, $this->ledgerDirectionCents($request, 'credit'));
         $this->assertSame(500, $this->splitCents($request));
         $this->assertSame(450, $this->splitTypeCents($request, 'vendor_earning'));
         $this->assertSame(50, $this->splitTypeCents($request, 'platform_fee'));
@@ -383,6 +389,14 @@ class UrbanGoodzPaymentFinalizationIdempotencyTest extends TestCase
             ->where('payable_id', $request->id)
             ->where('event_type', $eventType)
             ->count();
+    }
+
+    private function ledgerDirectionCents(OrderAnywhereRequest $request, string $direction): int
+    {
+        return (int) round((float) UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+            ->where('payable_id', $request->id)
+            ->where('direction', $direction)
+            ->sum('amount') * 100);
     }
 
     private function splitCents(OrderAnywhereRequest $request): int

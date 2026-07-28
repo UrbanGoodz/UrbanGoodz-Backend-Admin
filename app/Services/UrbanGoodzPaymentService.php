@@ -1144,6 +1144,15 @@ class UrbanGoodzPaymentService
                     'provider' => $this->gateway->providerName(),
                 ],
             ]);
+            $this->ledger($request, 'capture_allocation', 'debit', $amount, 'captured', [
+                'reference' => $request->capture_reference,
+                'idempotency_key' => $finalizationKey . ':allocation',
+                'metadata' => [
+                    'source' => 'captured_funds_clearing',
+                    'provider' => $gateway->providerName(),
+                    'finalization_key' => $finalizationKey,
+                ],
+            ]);
 
             // Finalize and settle splits (once)
             $this->finalizeSplits($request, $data);
@@ -1334,6 +1343,14 @@ class UrbanGoodzPaymentService
                 'idempotency_key' => $idempotencyKey,
                 'metadata' => [
                     'reason' => $data['reason'] ?? null,
+                    'provider' => $provider,
+                ],
+            ]);
+            $this->ledger($fresh, 'refund_allocation', 'credit', $amount, $newPaymentStatus, [
+                'reference' => $fresh->refund_reference,
+                'idempotency_key' => $idempotencyKey . ':allocation',
+                'metadata' => [
+                    'source' => 'refunded_funds_clearing',
                     'provider' => $provider,
                 ],
             ]);

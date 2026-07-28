@@ -313,7 +313,7 @@ class UrbanGoodzPaymentAuditTest extends TestCase
         $this->assertEquals('captured', $request->payment_status);
 
         $ledgerCountBefore = UrbanGoodzPaymentLedger::where('payable_id', $request->id)->count();
-        $this->assertEquals(2, $ledgerCountBefore); // split calculation + capture
+        $this->assertEquals(3, $ledgerCountBefore); // split calculation + capture + balancing allocation
 
         // Send replay webhook
         $response2 = $this->post('/api/v1/payments/webhooks/staged_test', $payload);
