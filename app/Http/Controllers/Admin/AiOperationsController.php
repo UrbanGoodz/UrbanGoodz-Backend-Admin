@@ -476,11 +476,9 @@ class AiOperationsController extends Controller
             abort(403, translate('messages.access_denied'));
         }
 
-        $brief = $chiefOfStaffService->generateExecutiveDailyBrief();
-        $summary = $chiefOfStaffService->getCommandCenterSummary();
-        $diagnostics = $chiefOfStaffService->runDiagnosticScan();
+        $dashboard = $chiefOfStaffService->getChiefOfStaffDashboard();
 
-        return view('admin-views.urban-goodz.ai-chief-of-staff.index', compact('brief', 'summary', 'diagnostics'));
+        return view('admin-views.urban-goodz.ai-chief-of-staff.index', $dashboard);
     }
 
     private function maskUrl(string $url): string
