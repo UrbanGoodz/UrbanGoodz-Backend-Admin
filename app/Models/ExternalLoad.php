@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ExternalLoad extends Model
 {
@@ -61,7 +60,6 @@ class ExternalLoad extends Model
     ];
 
     public function source(): BelongsTo { return $this->belongsTo(LoadSource::class, 'source_id'); }
-    public function assignedDriver(): BelongsTo { return $this->belongsTo(DeliveryMan::class, 'assigned_driver_id'); }
     public function recommendations(): HasMany { return $this->hasMany(LoadRecommendation::class, 'external_load_id'); }
     public function referrals(): HasMany { return $this->hasMany(LoadPartnerReferral::class, 'external_load_id'); }
     public function searchResults(): HasMany { return $this->hasMany(LoadSourceSearchResult::class, 'external_load_id'); }

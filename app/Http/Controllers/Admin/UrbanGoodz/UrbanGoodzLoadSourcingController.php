@@ -18,6 +18,7 @@ use App\Models\LoadSourceSyncRun;
 use App\Models\LoadSourcingSetting;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Services\UrbanGoodz\LoadSource\LoadEmailIngestionService;
+use App\Services\UrbanGoodz\LoadSource\ExternalLoadPublisher;
 use App\Services\UrbanGoodz\LoadSource\LoadManualImportService;
 use App\Services\UrbanGoodz\LoadSource\LoadSourcingService;
 use Illuminate\Http\JsonResponse;
@@ -57,23 +58,25 @@ class UrbanGoodzLoadSourcingController extends Controller
     private function loadOverviewStats(): array
     {
         $el = ExternalLoad::class;
+        $board = UrbanGoodzLoadBoardLoad::class;
+
         return [
             'total_loads'    => $el::count(),
             'available'      => $el::where('status', 'available')->where('is_duplicate', false)->count(),
-            'assigned'       => $el::where('status', 'assigned')->count(),
-            'in_transit'     => $el::where('status', 'in_transit')->count(),
-            'delivered'      => $el::where('status', 'delivered')->count(),
+            'assigned'       => $board::where('status', 'assigned')->count(),
+            'in_transit'     => $board::whereIn('status', ['in_transit', 'picked_up'])->count(),
+            'delivered'      => $board::whereIn('status', ['delivered', 'completed'])->count(),
             'cancelled'      => $el::where('status', 'cancelled')->count(),
             'pending_review' => $el::where('status', 'pending_review')->count(),
             'total_payout'   => (float) $el::whereNotNull('gross_rate')->sum('gross_rate'),
             'avg_rate_per_mile' => (float) $el::where('rate_per_loaded_mile', '>', 0)->avg('rate_per_loaded_mile'),
-            'unassigned_count' => $el::where('status', 'available')->where('is_duplicate', false)->count(),
-            'by_state'       => $el::whereNotNull('origin_state')->where('is_duplicate', false)
-                                    ->selectRaw('origin_state, count(*) as cnt')
-                                    ->groupBy('origin_state')->orderByDesc('cnt')->pluck('cnt', 'origin_state')->toArray(),
-            'by_equipment'   => $el::whereNotNull('equipment_type')->where('is_duplicate', false)
-                                    ->selectRaw('equipment_type, count(*) as cnt')
-                                    ->groupBy('equipment_type')->orderByDesc('cnt')->pluck('cnt', 'equipment_type')->toArray(),
+            'unassigned_count' => $board::where('status', 'available')->whereNull('assigned_driver_id')->count(),
+            'loads_by_origin_state' => $el::whereNotNull('origin_state')->where('is_duplicate', false)
+                ->selectRaw('origin_state, count(*) as count')
+                ->groupBy('origin_state')->orderByDesc('count')->get(),
+            'loads_by_equipment_type' => $el::whereNotNull('equipment_type')->where('is_duplicate', false)
+                ->selectRaw('equipment_type, count(*) as count')
+                ->groupBy('equipment_type')->orderByDesc('count')->get(),
         ];
     }
 
@@ -522,56 +525,20 @@ class UrbanGoodzLoadSourcingController extends Controller
         return back()->with('success', "Load #{$load->id} rejected.");
     }
 
-    public function publishToLoadBoard(int $id)
+    public function publishToLoadBoard(int $id, ExternalLoadPublisher $publisher)
     {
         $load = ExternalLoad::findOrFail($id);
 
-        if ($load->status !== 'available') {
+        if (!in_array($load->status, ['available', 'booked'], true)) {
             return back()->withErrors(['status' => 'Load must be approved (available) before publishing.']);
         }
 
-        $existing = UrbanGoodzLoadBoardLoad::where('fingerprint', $load->fingerprint)->first();
-        if ($existing) {
-            return back()->with('info', 'Load already published to Load Board.');
-        }
+        $result = $publisher->publish($load);
+        $message = $result['already_published']
+            ? 'Load already published to Load Board.'
+            : "Load #{$load->id} published to Load Board as #{$result['load']->id}.";
 
-        $boardLoad = UrbanGoodzLoadBoardLoad::create([
-            'external_id' => $load->external_id,
-            'provider' => $load->source->source_key ?? 'sourced',
-            'source_id' => $load->source_id,
-            'fingerprint' => $load->fingerprint,
-            'load_number' => 'UGS-' . $load->id,
-            'status' => 'available',
-            'origin_name' => $load->origin_address,
-            'origin_city' => $load->origin_city,
-            'origin_state' => $load->origin_state,
-            'origin_zip' => $load->origin_zip,
-            'origin_lat' => $load->origin_lat,
-            'origin_lng' => $load->origin_lng,
-            'destination_name' => $load->destination_address,
-            'destination_city' => $load->destination_city,
-            'destination_state' => $load->destination_state,
-            'destination_zip' => $load->destination_zip,
-            'destination_lat' => $load->destination_lat,
-            'destination_lng' => $load->destination_lng,
-            'payout_amount' => $load->gross_rate,
-            'rate_per_mile' => $load->rate_per_loaded_mile,
-            'equipment_type' => $load->equipment_type,
-            'weight' => $load->weight,
-            'commodity' => $load->commodity,
-            'pickup_start' => $load->pickup_start,
-            'pickup_end' => $load->pickup_end,
-            'delivery_start' => $load->delivery_start,
-            'delivery_end' => $load->delivery_end,
-            'distance_miles' => $load->distance_miles,
-            'source_url' => $load->source_url,
-            'raw_source_payload' => $load->raw_source_payload,
-            'expires_at' => $load->expires_at,
-        ]);
-
-        $load->update(['status' => 'published']);
-
-        return back()->with('success', "Load #{$load->id} published to Load Board as #{$boardLoad->id}.");
+        return back()->with($result['already_published'] ? 'info' : 'success', $message);
     }
 
     public function bulkApprove(Request $request)
@@ -599,48 +566,19 @@ class UrbanGoodzLoadSourcingController extends Controller
         return back()->with('success', "{$count} loads rejected.");
     }
 
-    public function bulkPublish(Request $request)
+    public function bulkPublish(Request $request, ExternalLoadPublisher $publisher)
     {
         $validated = $request->validate(['ids' => 'required|array']);
         $loads = ExternalLoad::whereIn('id', $validated['ids'])
-            ->where('status', 'available')
+            ->whereIn('status', ['available', 'booked'])
             ->get();
 
         $published = 0;
         foreach ($loads as $load) {
-            $exists = UrbanGoodzLoadBoardLoad::where('fingerprint', $load->fingerprint)->exists();
-            if ($exists) continue;
-
-            UrbanGoodzLoadBoardLoad::create([
-                'external_id' => $load->external_id,
-                'provider' => $load->source->source_key ?? 'sourced',
-                'source_id' => $load->source_id,
-                'fingerprint' => $load->fingerprint,
-                'load_number' => 'UGS-' . $load->id,
-                'status' => 'available',
-                'origin_city' => $load->origin_city,
-                'origin_state' => $load->origin_state,
-                'origin_zip' => $load->origin_zip,
-                'origin_lat' => $load->origin_lat,
-                'origin_lng' => $load->origin_lng,
-                'destination_city' => $load->destination_city,
-                'destination_state' => $load->destination_state,
-                'destination_zip' => $load->destination_zip,
-                'destination_lat' => $load->destination_lat,
-                'destination_lng' => $load->destination_lng,
-                'payout_amount' => $load->gross_rate,
-                'rate_per_mile' => $load->rate_per_loaded_mile,
-                'equipment_type' => $load->equipment_type,
-                'weight' => $load->weight,
-                'distance_miles' => $load->distance_miles,
-                'pickup_start' => $load->pickup_start,
-                'pickup_end' => $load->pickup_end,
-                'source_url' => $load->source_url,
-                'expires_at' => $load->expires_at,
-            ]);
-
-            $load->update(['status' => 'published']);
-            $published++;
+            $result = $publisher->publish($load);
+            if (!$result['already_published']) {
+                $published++;
+            }
         }
 
         return back()->with('success', "{$published} loads published to Load Board.");

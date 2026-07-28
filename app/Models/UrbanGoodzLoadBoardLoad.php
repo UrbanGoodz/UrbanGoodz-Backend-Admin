@@ -20,14 +20,15 @@ class UrbanGoodzLoadBoardLoad extends Model
     ];
 
     protected $fillable = [
-        'external_id', 'provider', 'load_number', 'status',
+        'external_id', 'provider', 'source_id', 'fingerprint', 'load_number', 'status',
         'origin_name', 'origin_city', 'origin_state', 'origin_zip', 'origin_lat', 'origin_lng', 'origin_ready_at',
         'destination_name', 'destination_city', 'destination_state', 'destination_zip', 'destination_lat', 'destination_lng', 'destination_due_at',
         'distance_miles', 'estimated_duration_minutes',
         'payout_amount', 'payout_type', 'rate_per_mile', 'driver_payout_amount',
         'customer_price', 'platform_margin', 'dispatcher_incentive',
         'source_cost', 'processing_fee', 'accessorials',
-        'load_type', 'equipment_type', 'weight_lbs', 'length_ft', 'pieces', 'commodity_description', 'special_requirements', 'notes',
+        'load_type', 'raw_source_payload', 'source_url', 'expires_at',
+        'equipment_type', 'weight_lbs', 'length_ft', 'pieces', 'commodity_description', 'special_requirements', 'notes',
         'is_hazmat', 'is_temperature_controlled', 'temperature_min_f', 'temperature_max_f',
         'requires_liftgate', 'requires_pallet_jack', 'is_team_load', 'is_expedited',
         'shipper_name', 'shipper_phone', 'consignee_name', 'consignee_phone',
@@ -73,6 +74,8 @@ class UrbanGoodzLoadBoardLoad extends Model
         'is_team_load' => 'boolean',
         'is_expedited' => 'boolean',
         'metadata' => 'array',
+        'raw_source_payload' => 'array',
+        'expires_at' => 'datetime',
         'commission_amount' => 'decimal:2',
         'commission_rate' => 'decimal:2',
     ];
