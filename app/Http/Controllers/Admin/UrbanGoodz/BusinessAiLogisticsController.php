@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AiCopilotRecommendation;
 use App\Models\AiDispatch;
 use App\Models\DeliveryMan;
+use App\Models\ExternalLoad;
+use App\Models\LoadRecommendation;
+use App\Models\LoadSource;
 use App\Models\UrbanGoodzBusinessClient;
 use App\Models\UrbanGoodzBusinessClientDocument;
 use App\Models\UrbanGoodzBusinessClientUser;
@@ -17,6 +20,7 @@ use App\Models\UrbanGoodzRoutePackage;
 use App\Models\UrbanGoodzRouteBatch;
 use App\Services\AiCopilotService;
 use App\Services\UrbanGoodz\BusinessClientAIService;
+use App\Services\UrbanGoodz\LoadSource\LoadSourcingService;
 use App\CentralLogics\Helpers;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
@@ -241,29 +245,42 @@ class BusinessAiLogisticsController extends Controller
         $this->requirePermission('ai_logistics');
         $clientId = $this->getClientId();
 
-        $sources = DB::table('load_sourcing_sources')
-            ->where('business_client_id', $clientId)
-            ->orWhereNull('business_client_id')
+        $sources = LoadSource::query()
+            ->select([
+                'id', 'source_key', 'name', 'type', 'enabled', 'api_status',
+                'partnership_status', 'last_sync_at', 'last_success_at', 'last_error_at',
+            ])
+            ->orderBy('name')
             ->get();
 
-        $externalLoads = DB::table('external_loads')
-            ->where('business_client_id', $clientId)
+        // delivery_men is global in the current schema. Tenant-linked drivers are
+        // derived only from this client's dispatch records; never query a
+        // nonexistent delivery_men.business_client_id column.
+        $driverIds = AiDispatch::forBusinessClient($clientId)
+            ->whereNotNull('delivery_man_id')
+            ->distinct()
+            ->pluck('delivery_man_id');
+
+        $externalLoads = ExternalLoad::with('source:id,name,source_key')
+            ->withCount([
+                'recommendations as fleet_match_count' => fn ($query) => $query
+                    ->whereIn('delivery_man_id', $driverIds)
+                    ->where('status', 'pending'),
+            ])
+            ->available()
             ->latest()
             ->paginate(15);
 
-        $availableCount = DB::table('external_loads')
-            ->where('business_client_id', $clientId)
-            ->where('status', 'available')
-            ->count();
+        $availableCount = ExternalLoad::available()->count();
 
-        $fleetMatchCount = DB::table('external_loads')
-            ->where('business_client_id', $clientId)
-            ->where('fleet_match', true)
-            ->count();
+        $fleetMatchCount = LoadRecommendation::whereIn('delivery_man_id', $driverIds)
+            ->where('status', 'pending')
+            ->distinct('external_load_id')
+            ->count('external_load_id');
 
         $savedSearchCount = \App\Models\DispatcherSavedSearch::where('dispatch_company_id', $clientId)->count();
 
-        $activeDispatchCount = \App\Models\AiDispatch::forClient($clientId)
+        $activeDispatchCount = AiDispatch::forBusinessClient($clientId)
             ->whereIn('status', ['pending', 'accepted', 'in_progress'])
             ->count();
 
@@ -288,19 +305,58 @@ class BusinessAiLogisticsController extends Controller
             'max_distance' => 'nullable|numeric',
         ]);
 
-        $results = $this->businessAI->searchExternalLoads($criteria, [
-            'client_id' => $clientId,
-        ]);
+        $searchResults = collect();
+        $searchErrors = [];
+        $searchId = null;
 
-        $this->logAction('load_sourcing_search', 'Searched external load sources', $criteria);
+        if ($request->isMethod('POST')) {
+            $serviceCriteria = array_filter([
+                'origin_city' => $criteria['origin_city'] ?? null,
+                'origin_state' => $criteria['origin_state'] ?? null,
+                'destination_city' => $criteria['destination_city'] ?? null,
+                'destination_state' => $criteria['destination_state'] ?? null,
+                'equipment_type' => $criteria['vehicle_type'] ?? null,
+                'min_rate' => $criteria['min_rate'] ?? null,
+                'max_results' => 100,
+            ], fn ($value) => $value !== null && $value !== '');
 
-        if ($request->wantsJson()) {
-            return response()->json(['success' => true, 'results' => $results]);
+            $results = resolve(LoadSourcingService::class)->searchAllSources(
+                $serviceCriteria,
+                auth('business')->id(),
+                'business_client'
+            );
+
+            $searchResults = collect($results['loads'] ?? [])
+                ->filter(function (ExternalLoad $load) use ($criteria): bool {
+                    return empty($criteria['max_distance'])
+                        || $load->distance_loaded === null
+                        || (float) $load->distance_loaded <= (float) $criteria['max_distance'];
+                });
+            $searchResults->each->loadMissing('source:id,name,source_key');
+            $searchErrors = $results['errors'] ?? [];
+            $searchId = $results['search_id'] ?? null;
+
+            $this->logAction('load_sourcing_search', 'Searched approved load sources', [
+                'criteria' => $criteria,
+                'search_id' => $searchId,
+                'result_count' => $searchResults->count(),
+                'unavailable_source_count' => count($searchErrors),
+            ]);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => empty($searchErrors),
+                    'available' => $searchResults->isNotEmpty() || empty($searchErrors),
+                    'loads' => $searchResults->values(),
+                    'errors' => $searchErrors,
+                    'search_id' => $searchId,
+                ]);
+            }
         }
 
-        $searchResults = collect($results['loads'] ?? []);
-
-        return view('business.ai-logistics.load-sourcing.search', compact('searchResults'));
+        return view('business.ai-logistics.load-sourcing.search', compact(
+            'searchResults', 'searchErrors', 'searchId'
+        ));
     }
 
     // ═══════════════════════════════════════════════════════════════════

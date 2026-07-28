@@ -88,6 +88,18 @@
         </div>
     </form>
 
+    @if(!empty($searchErrors))
+        <div class="alert alert-warning">
+            <strong>{{ translate('Some sources are unavailable.') }}</strong>
+            {{ translate('No loads were fabricated. Available approved sources were searched normally.') }}
+            <ul class="mb-0 mt-2">
+                @foreach($searchErrors as $sourceError)
+                    <li>{{ $sourceError['source'] ?? translate('Source') }}: {{ $sourceError['error'] ?? translate('Unavailable') }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if(isset($searchResults) && count($searchResults) > 0)
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -117,27 +129,16 @@
                             <td>{{ $load->destination_city }}, {{ $load->destination_state }}</td>
                             <td><small>{{ ucwords(str_replace('_', ' ', $load->equipment_type ?? 'N/A')) }}</small></td>
                             <td><strong class="text-success">${{ number_format($load->gross_rate ?? $load->payout_amount ?? 0, 2) }}</strong></td>
-                            <td>{{ number_format($load->distance_miles ?? 0) }} mi</td>
-                            <td>${{ number_format($load->rate_per_loaded_mile ?? $load->rate_per_mile ?? 0, 2) }}/mi</td>
+                            <td>{{ $load->distance_loaded !== null ? number_format($load->distance_loaded) . ' mi' : translate('Unavailable') }}</td>
+                            <td>{{ $load->rate_per_loaded_mile !== null ? '$' . number_format($load->rate_per_loaded_mile, 2) . '/mi' : translate('Unavailable') }}</td>
                             <td>
-                                @if($load->fleet_match ?? false)
-                                    <span class="fleet-match fleet-match-yes">{{ translate('Match') }}</span>
-                                @else
-                                    <span class="fleet-match fleet-match-no">{{ translate('No Match') }}</span>
-                                @endif
+                                <span class="text-muted">{{ translate('Recommendation pending') }}</span>
                             </td>
                             <td class="text-center">
                                 <div class="d-flex gap-1 justify-content-center">
                                     <button type="button" class="btn btn-outline-info btn-xs p-1" title="{{ translate('View') }}">
                                         <i class="tio-visible"></i>
                                     </button>
-                                    <form method="POST" action="{{ route('business.ai-logistics.dispatch.match-route') }}" class="d-inline">
-                                        @csrf
-                                        <input type="hidden" name="load_id" value="{{ $load->id }}">
-                                        <button type="submit" class="btn btn-xs p-1" style="background-color: var(--ug-primary); color: #fff;" title="{{ translate('Request Dispatch') }}">
-                                            <i class="tio-send"></i>
-                                        </button>
-                                    </form>
                                 </div>
                             </td>
                         </tr>
