@@ -167,6 +167,15 @@
                     </li>
                 @endif
 
+                @if(\App\Support\Compensation\CompensationPermission::allows(auth('admin')->user(), \App\Support\Compensation\CompensationPermission::VIEW_RULES))
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('admin.urban-goodz.compensation.index') }}">
+                        <i class="nav-icon fas fa-calculator"></i>
+                        <p>{{ translate('messages.driver_pricing_compensation') }}</p>
+                    </a>
+                </li>
+                @endif
+
                 <li class="nav-item py-5">
 
                 </li>
