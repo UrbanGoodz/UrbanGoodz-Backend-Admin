@@ -12,13 +12,10 @@ $countryCode = strtolower($country ? $country : 'auto');
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="csrf-token" id="csrf-token" content="{{ csrf_token() }}">
     <!-- Title -->
-    <title>@yield('title')</title>
+    <title>{{ config('urban_goodz.brand_name', 'Urban Goodz') }} | @yield('title')</title>
     <!-- Favicon -->
-    @php($logo = \App\Models\BusinessSetting::where(['key' => 'icon'])->first())
-    {{--
-    <link rel="shortcut icon" href=""> --}}
     <link rel="icon" type="image/x-icon"
-        href="{{\App\CentralLogics\Helpers::get_full_url('business', $logo?->value ?? '', $logo?->storage[0]?->value ?? 'public', 'favicon')}}">
+        href="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}">
     <!-- Font -->
     <link href="{{asset('public/assets/admin/css/fonts.css')}}" rel="stylesheet">
     <!-- CSS Implementing Plugins -->

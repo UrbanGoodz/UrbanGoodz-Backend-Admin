@@ -10,10 +10,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <!-- Title -->
-    <title>{{translate('messages.login')}}</title>
+    <title>{{ config('urban_goodz.brand_name', 'Urban Goodz') }} | {{translate('messages.login')}}</title>
 
     <!-- Favicon -->
-    <link rel="shortcut icon" href="{{asset('public/favicon.ico')}}">
+    <link rel="shortcut icon" href="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}">
 
     <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">

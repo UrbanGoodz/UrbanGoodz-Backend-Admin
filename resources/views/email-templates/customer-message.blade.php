@@ -2,7 +2,7 @@
 use App\CentralLogics\Helpers;
 $company_phone = Helpers::get_business_settings('phone');
 $company_email =  Helpers::get_business_settings('email_address');
-$company_name = Helpers::get_business_settings('business_name');
+$company_name = config('urban_goodz.brand_name', 'Urban Goodz');
 
 $company_address = Helpers::get_business_settings('address') ;
 
@@ -89,7 +89,7 @@ $company_links = isset($fixed_link->value)?json_decode($fixed_link->value, true)
                 <td>
                     <div style="text-align: end; margin-inline-end:15px;">
                       @php($store_logo = \App\Models\BusinessSetting::where(['key' => 'logo'])->first())
-                      <img style="width:100px;display:block;margin:10px auto" src="{{ \App\CentralLogics\Helpers::get_full_url('business',$store_logo?->value,$store_logo?->storage[0]?->value ?? 'public', 'favicon') }}" alt="public/img">
+                      <img style="width:100px;display:block;margin:10px auto" src="{{ $urban_goodz_brand_logo_url ?? asset('public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz">
                     </div>
                 </td>
             </tr>

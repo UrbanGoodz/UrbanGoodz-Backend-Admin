@@ -32,10 +32,9 @@
     <div class="auth-wrapper">
         <div class="auth-wrapper-left">
             <div class="auth-left-cont">
-                @php($store_logo = \App\Models\BusinessSetting::where(['key' => 'logo'])->first())
-                <img class="onerror-image"  data-onerror-image="{{asset('/public/assets/admin/img/favicon.png')}}"
-                src="{{\App\CentralLogics\Helpers::get_full_url('business', $store_logo?->value?? '', $store_logo?->storage[0]?->value ?? 'public','favicon')}}"  alt="public/img">
-                <h2 class="title">{{translate('Your')}} <span class="d-block">{{translate('All Service')}}</span> <strong class="text--039D55">{{translate('in one field')}}....</strong></h2>
+                <img class="onerror-image" data-onerror-image="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}"
+                    src="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz">
+                <h2 class="title">{{ translate('Secure access to') }} <span class="d-block">{{ config('urban_goodz.brand_name', 'Urban Goodz') }}</span></h2>
             </div>
         </div>
         <div class="auth-wrapper-right">

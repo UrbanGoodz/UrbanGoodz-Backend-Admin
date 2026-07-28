@@ -2,6 +2,15 @@
 
 return [
 
+    'brand_name' => 'Urban Goodz',
+    'brand_colors' => [
+        'seasoning_orange' => '#ED9914',
+        'canvas' => '#E2D3BF',
+        'dijon' => '#E5E276',
+        'ug_black' => '#161616',
+        'white' => '#FFFFFF',
+    ],
+
     'legacy_route_chunking' => env('URBAN_GOODZ_LEGACY_ROUTE_CHUNKING', false),
 
     'distance_matrix' => [

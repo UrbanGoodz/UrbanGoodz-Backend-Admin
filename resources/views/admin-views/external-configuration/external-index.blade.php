@@ -13,7 +13,7 @@
                     </span>
                 </h1>
                 <p class="m-0">
-                    {{translate('connect_drivemond_system_with_6ammart')}}
+                    {{translate('Connect_DriveMond_system_with_Urban_Goodz')}}
                 </p>
             </div>
             <div class="text--primary-2 py-1 d-flex flex-wrap align-items-center" type="button" data-toggle="modal"

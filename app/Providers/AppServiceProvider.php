@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use App\Traits\AddonHelper;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\View;
 use App\CentralLogics\Helpers;
 use Illuminate\Http\Request;
 use App\Services\Translations\RuntimeTranslationLoader;
@@ -50,6 +51,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        View::composer([
+            'email-templates.*',
+            'admin-views.business-settings.email-format-setting.templates.*',
+        ], function ($view): void {
+            $view->with('company_name', config('urban_goodz.brand_name', 'Urban Goodz'));
+            $view->with(
+                'urban_goodz_brand_logo_url',
+                asset('public/assets/admin/svg/logos/urban-goodz.svg')
+            );
+        });
 
         //TODO: need to remove after 3.8 development
         if (app()->environment('local')) {
