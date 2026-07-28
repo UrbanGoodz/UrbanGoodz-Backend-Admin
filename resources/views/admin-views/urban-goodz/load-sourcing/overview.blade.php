@@ -104,7 +104,7 @@
                 </a>
             </div>
             <div class="col-md-2 col-4">
-                <a href="{{ route('admin.urban-goodz.load-sourcing.sourced-loads', ['status' => 'assigned']) }}" class="text-decoration-none">
+                <a href="{{ route('admin.urban-goodz.load-board.index', ['status' => 'assigned']) }}" class="text-decoration-none">
                     <div class="card stat-card h-100">
                         <div class="card-body text-center py-3">
                             <div class="stat-number text-info">{{ $stats['assigned'] ?? 0 }}</div>
@@ -114,7 +114,7 @@
                 </a>
             </div>
             <div class="col-md-2 col-4">
-                <a href="{{ route('admin.urban-goodz.load-sourcing.sourced-loads', ['status' => 'in_transit']) }}" class="text-decoration-none">
+                <a href="{{ route('admin.urban-goodz.load-board.index', ['status' => 'in_transit']) }}" class="text-decoration-none">
                     <div class="card stat-card h-100">
                         <div class="card-body text-center py-3">
                             <div class="stat-number text-warning">{{ $stats['in_transit'] ?? 0 }}</div>
@@ -124,7 +124,7 @@
                 </a>
             </div>
             <div class="col-md-2 col-4">
-                <a href="{{ route('admin.urban-goodz.load-sourcing.sourced-loads', ['status' => 'delivered']) }}" class="text-decoration-none">
+                <a href="{{ route('admin.urban-goodz.load-board.index', ['status' => 'delivered']) }}" class="text-decoration-none">
                     <div class="card stat-card h-100">
                         <div class="card-body text-center py-3">
                             <div class="stat-number" style="color:#0d6efd;">{{ $stats['delivered'] ?? 0 }}</div>
