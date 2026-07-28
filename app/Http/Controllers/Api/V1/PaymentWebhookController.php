@@ -6,6 +6,7 @@ use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Http\Controllers\Controller;
 use App\Models\OrderAnywhereRequest;
 use App\Models\UrbanGoodzWebhookEvent;
+use App\Services\Payments\PaymentFinalizationConflict;
 use App\Services\Payments\PaymentProviderManager;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Database\QueryException;
@@ -68,29 +69,73 @@ class PaymentWebhookController extends Controller
             $eventId = $event['event_id'] ?? null;
             $merchantReference = $event['merchant_reference'] ?? null;
             $providerReference = $event['provider_reference'] ?? null;
+            $resourceReference = $event['resource_reference'] ?? null;
+            $success = (bool) ($event['success'] ?? false);
+            $receipt = null;
 
             // Event-level dedup: record each provider event id exactly once.
             if ($eventId) {
                 $eventKey = "webhook_event:{$provider}:{$eventId}";
+                $isStripeChargeEvent = $provider === 'stripe' && str_starts_with($eventCode, 'charge.');
+                $paymentIntentId = $provider === 'stripe' ? $providerReference : null;
+                $chargeId = $isStripeChargeEvent ? $resourceReference : null;
+
                 try {
-                    UrbanGoodzWebhookEvent::create([
+                    $receipt = UrbanGoodzWebhookEvent::create([
                         'provider' => $provider,
                         'event_id' => $eventId,
                         'event_type' => $eventCode,
+                        'payment_intent_id' => $paymentIntentId,
+                        'charge_id' => $chargeId,
+                        'internal_reference' => $merchantReference,
                         'idempotency_key' => $eventKey,
-                        'processed_at' => now(),
+                        'received_at' => now(),
+                        'status' => 'processing',
                     ]);
                 } catch (QueryException $e) {
-                    $isDup = ($e->errorInfo[1] ?? null) === 1062 || $e->getCode() === '23000';
-                    if ($isDup) {
-                        Log::info("Duplicate webhook event ignored", [
+                    if (! $this->isUniqueViolation($e)) {
+                        throw $e;
+                    }
+
+                    $receipt = UrbanGoodzWebhookEvent::where('provider', $provider)
+                        ->where('event_id', $eventId)
+                        ->first();
+
+                    if (! $receipt || ! $this->receiptMatches(
+                        $receipt,
+                        $eventCode,
+                        $paymentIntentId,
+                        $chargeId,
+                        $merchantReference
+                    )) {
+                        Log::critical('Webhook event identity collision rejected', [
+                            'provider' => $provider,
+                            'event_hash' => hash('sha256', $eventId),
+                        ]);
+                        $failed[] = ['event' => $eventCode, 'reason' => 'event_identity_conflict'];
+                        continue;
+                    }
+
+                    $staleProcessingReceipt = $receipt->status === 'processing'
+                        && $receipt->received_at?->lt(now()->subMinutes(5));
+
+                    if ($receipt->status === 'failed' || $staleProcessingReceipt) {
+                        $receipt->update([
+                            'status' => 'processing',
+                            'failure_type' => null,
+                            'received_at' => now(),
+                            'processed_at' => null,
+                            'attempt_count' => $receipt->attempt_count + 1,
+                        ]);
+                    } else {
+                        $receipt->increment('duplicate_count');
+                        Log::info('Duplicate webhook event ignored', [
                             'provider' => $provider,
                             'event_hash' => hash('sha256', $eventId),
                         ]);
                         $handled[] = $eventCode;
                         continue;
                     }
-                    throw $e;
                 }
             }
 
@@ -102,9 +147,20 @@ class PaymentWebhookController extends Controller
                     'provider_reference' => $providerReference,
                     'event_code' => $eventCode,
                 ]);
+                $receipt?->update([
+                    'status' => 'failed',
+                    'failure_type' => 'unmatched_payment',
+                    'processed_at' => now(),
+                ]);
                 $failed[] = ['event' => $eventCode, 'reason' => 'unmatched'];
                 continue;
             }
+
+            $receipt?->update([
+                'payable_type' => OrderAnywhereRequest::class,
+                'payable_id' => $requestModel->id,
+                'internal_reference' => $requestModel->request_number,
+            ]);
 
             // Webhook idempotency protection: check if event has already been recorded in payment ledgers
             $eventType = $this->mapWebhookEventToLedgerType($eventCode, $provider, (bool) ($event['success'] ?? false));
@@ -118,17 +174,54 @@ class PaymentWebhookController extends Controller
                         ->first();
                 if ($existingLedger) {
                     Log::info("Webhook event {$eventCode} with reference {$providerReference} already processed. Skipping.");
+                    $receipt?->update([
+                        'status' => 'succeeded',
+                        'failure_type' => null,
+                        'processed_at' => now(),
+                    ]);
                     $handled[] = $eventCode;
                     continue;
                 }
             }
 
-            $result = $this->processEvent($event, $requestModel, $gateway, $payments);
+            try {
+                $result = $this->processEvent($event, $requestModel, $gateway, $payments);
+            } catch (PaymentFinalizationConflict $e) {
+                $receipt?->update([
+                    'status' => 'failed',
+                    'failure_type' => 'business_identity_conflict',
+                    'processed_at' => now(),
+                ]);
+                Log::critical('Payment webhook business identity conflict', [
+                    'provider' => $provider,
+                    'event_hash' => $eventId ? hash('sha256', $eventId) : null,
+                    'failure_type' => 'business_identity_conflict',
+                ]);
+                $failed[] = ['event' => $eventCode, 'reason' => 'business_identity_conflict'];
+                continue;
+            } catch (\Throwable $e) {
+                $receipt?->update([
+                    'status' => 'failed',
+                    'failure_type' => class_basename($e),
+                    'processed_at' => now(),
+                ]);
+                throw $e;
+            }
 
             if ($result === 'unhandled') {
+                $receipt?->update([
+                    'status' => 'failed',
+                    'failure_type' => 'unhandled_event',
+                    'processed_at' => now(),
+                ]);
                 $failed[] = ['event' => $eventCode, 'reason' => 'unhandled_code'];
                 Log::info("{$provider} webhook: unhandled event code", ['event_code' => $eventCode]);
             } else {
+                $receipt?->update([
+                    'status' => 'succeeded',
+                    'failure_type' => null,
+                    'processed_at' => now(),
+                ]);
                 $handled[] = $eventCode;
             }
         }
@@ -246,7 +339,7 @@ class PaymentWebhookController extends Controller
                 ])
                 : $this->markFailed($request, $payments, 'authorization_failed', $pspReference, $amount, $provider),
             'CAPTURE' => $success
-                ? $this->captureFromWebhook($request, $payments, $amount, $pspReference)
+                ? $this->captureFromWebhook($request, $payments, $amount, $currency, $pspReference)
                 : $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'CAPTURE_FAILED' => $this->markFailed($request, $payments, 'capture_failed', $pspReference, $amount, $provider),
             'REFUND' => $success
@@ -291,6 +384,7 @@ class PaymentWebhookController extends Controller
                 $request,
                 $payments,
                 $amount,
+                $currency,
                 $providerReference,
                 $eventId ? "webhook:stripe:{$eventId}" : null
             ),
@@ -321,15 +415,11 @@ class PaymentWebhookController extends Controller
         OrderAnywhereRequest $request,
         UrbanGoodzPaymentService $payments,
         float $amount,
+        string $currency,
         ?string $providerReference,
         ?string $idempotencyKey = null
     ): bool {
-        if ($request->payment_status === 'captured'
-            && abs((float) $request->captured_amount - $amount) < 0.01) {
-            return true;
-        }
-
-        if ($request->payment_status !== 'authorized') {
+        if (! in_array($request->payment_status, ['authorized', 'captured'], true)) {
             $request->update([
                 'authorized_amount' => $amount,
                 'payment_status' => 'authorized',
@@ -343,6 +433,8 @@ class PaymentWebhookController extends Controller
             'captured_amount' => $amount,
             'capture_reference' => $providerReference,
             'psp_reference' => $providerReference,
+            'payment_intent_id' => $providerReference,
+            'currency' => $currency,
             'source' => 'webhook',
             'capture_idempotency_key' => $idempotencyKey,
         ]);
@@ -427,6 +519,36 @@ class PaymentWebhookController extends Controller
         }
 
         return $query->first();
+    }
+
+    private function receiptMatches(
+        UrbanGoodzWebhookEvent $receipt,
+        string $eventType,
+        ?string $paymentIntentId,
+        ?string $chargeId,
+        ?string $internalReference
+    ): bool {
+        $internalReferenceMatches = $internalReference === null
+            || $receipt->internal_reference === null
+            || $receipt->internal_reference === $internalReference;
+
+        return $receipt->event_type === $eventType
+            && $receipt->payment_intent_id === $paymentIntentId
+            && $receipt->charge_id === $chargeId
+            && $internalReferenceMatches;
+    }
+
+    private function isUniqueViolation(QueryException $e): bool
+    {
+        $sqlState = (string) ($e->errorInfo[0] ?? $e->getCode());
+        $driverCode = (int) ($e->errorInfo[1] ?? 0);
+        $message = strtolower($e->getMessage());
+
+        return $driverCode === 1062
+            || $sqlState === '23505'
+            || ($driverCode === 19 && str_contains($message, 'unique'))
+            || str_contains($message, 'duplicate entry')
+            || str_contains($message, 'unique constraint failed');
     }
 
     private function fromMinorUnits(int $amountMinor, string $currency): float
