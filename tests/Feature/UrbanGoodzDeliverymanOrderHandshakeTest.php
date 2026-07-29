@@ -196,6 +196,25 @@ class UrbanGoodzDeliverymanOrderHandshakeTest extends TestCase
         );
     }
 
+    /** A replay must not rewrite when the order actually reached that status. */
+    public function test_replayed_status_preserves_the_original_timestamp(): void
+    {
+        $originalConfirmedAt = now()->subMinutes(17)->startOfSecond();
+        $order = $this->makeOrder([
+            'order_status' => 'confirmed',
+            'confirmed' => $originalConfirmedAt,
+        ]);
+
+        $this->updateStatus($this->driverToken, ['order_id' => $order->id, 'status' => 'confirmed'])
+            ->assertOk();
+
+        $this->assertSame(
+            $originalConfirmedAt->toDateTimeString(),
+            (string) Order::withoutGlobalScopes()->whereKey($order->id)->value('confirmed'),
+            'A replayed status must not overwrite the original transition timestamp.'
+        );
+    }
+
     public function test_driver_confirmation_is_rejected_under_the_store_confirmation_model(): void
     {
         Config::set('order_confirmation_model', 'store');

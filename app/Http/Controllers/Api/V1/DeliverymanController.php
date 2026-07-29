@@ -912,7 +912,12 @@ class DeliverymanController extends Controller
         }
 
         $order->order_status = $request['status'];
-        $order[$request['status']] = now();
+        // Keep the first time the order reached this status. A replayed call
+        // used to overwrite the original timestamp, which loses the real
+        // delivery time from the audit trail and the earnings report.
+        if (empty($order[$request['status']])) {
+            $order[$request['status']] = now();
+        }
         $order->save();
 
         Helpers::send_order_notification($order);
