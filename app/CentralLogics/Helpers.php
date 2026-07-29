@@ -3814,7 +3814,10 @@ class Helpers
         }
 
         if ($data && Storage::disk('public')->exists($path . '/' . $data)) {
-            return asset('storage/app/public') . '/' . $path . '/' . $data;
+            // public/storage is the symlink to storage/app/public, so the web
+            // path is /storage/{path}/{file}. Emitting the on-disk path here
+            // made every media URL 302 to the app root instead of the image.
+            return asset('storage') . '/' . $path . '/' . $data;
         }
 
         if (isset($placeholder) && array_key_exists($placeholder, $place_holders)) {
