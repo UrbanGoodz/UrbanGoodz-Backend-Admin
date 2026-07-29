@@ -41,6 +41,17 @@ class LoadRecommendation extends Model
     ];
 
     public function externalLoad(): BelongsTo { return $this->belongsTo(ExternalLoad::class, 'external_load_id'); }
+
+    /**
+     * The admin views refer to this recommendation's load as `$rec->load`, but
+     * the relation is `externalLoad`; without this the load columns render
+     * blank (or throw, where the view has no null guard). This is an accessor
+     * rather than a relation because `load()` is already a Model method.
+     */
+    public function getLoadAttribute(): ?ExternalLoad
+    {
+        return $this->externalLoad;
+    }
     public function driver(): BelongsTo { return $this->belongsTo(DeliveryMan::class, 'delivery_man_id'); }
     public function generator(): BelongsTo { return $this->belongsTo(User::class, 'generated_by'); }
 
@@ -48,6 +59,16 @@ class LoadRecommendation extends Model
     public function scopeForDriver($query, int $driverId) { return $query->where('delivery_man_id', $driverId); }
     public function scopeActive($query) { return $query->whereIn('status', ['pending', 'viewed']); }
     public function scopeTopRanked($query, int $limit = 10) { return $query->orderByDesc('score')->limit($limit); }
+
+    /**
+     * The admin views refer to this recommendation's load as `load_id`; the
+     * column is `external_load_id`. Without this the recommendations page
+     * builds route(..., null) and throws once any recommendation exists.
+     */
+    public function getLoadIdAttribute(): ?int
+    {
+        return $this->external_load_id;
+    }
 
     public function getConfidenceLabelAttribute(): string
     {

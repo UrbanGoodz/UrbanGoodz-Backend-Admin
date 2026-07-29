@@ -122,7 +122,7 @@
                                     {{ $rec->load->destination_city ?? '' }}, {{ $rec->load->destination_state ?? '' }}
                                 </h5>
                                 <span class="badge badge-soft-info">{{ $rec->load->source->name ?? translate('External') }}</span>
-                                <code class="ms-1">{{ $rec->load->external_reference_id }}</code>
+                                <code class="ms-1">{{ $rec->load->external_id ?? '' }}</code>
                             </div>
                             <div class="text-end">
                                 <div class="score-badge {{ ($rec->ai_score ?? 0) >= 75 ? 'confidence-high' : (($rec->ai_score ?? 0) >= 50 ? 'confidence-medium' : 'confidence-low') }}">
