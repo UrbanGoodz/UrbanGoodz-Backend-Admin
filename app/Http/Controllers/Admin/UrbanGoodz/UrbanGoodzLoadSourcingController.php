@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryMan;
 use App\Models\DispatcherSavedSearch;
 use App\Models\DriverLoadPreference;
 use App\Models\ExternalLoad;
@@ -99,24 +100,9 @@ class UrbanGoodzLoadSourcingController extends Controller
             ->orderBy('name')
             ->get();
 
-        $sourceStats = $sources->map(function ($src) {
-            $lastRun = $src->syncRuns()->latest()->first();
-            $lastSuccess = $src->syncRuns()->where('status', 'completed')->latest()->first();
-            return [
-                'source' => $src,
-                'credential_count' => $src->credentials->count(),
-                'has_credentials' => $src->credentials->count() > 0,
-                'all_active' => $src->credentials->every('status', 'active'),
-                'last_sync_at' => $lastRun?->created_at,
-                'last_success_at' => $lastSuccess?->completed_at,
-                'records_imported' => $src->external_loads_count ?? 0,
-                'error_count' => $src->errors_count ?? 0,
-            ];
-        });
-
         return view('admin-views.urban-goodz.load-sourcing.sources', [
             'nav' => $this->subNav('sources'),
-            'sourceStats' => $sourceStats,
+            'sources' => $sources,
         ]);
     }
 
@@ -196,7 +182,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.saved-searches', [
             'nav' => $this->subNav('saved'),
-            'searches' => $searches,
+            'savedSearches' => $searches,
             'sources' => $sources,
         ]);
     }
@@ -247,7 +233,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.sourced-loads', [
             'nav' => $this->subNav('sourced'),
-            'loads' => $loads,
+            'externalLoads' => $loads,
             'sources' => $sources,
         ]);
     }
@@ -267,10 +253,12 @@ class UrbanGoodzLoadSourcingController extends Controller
         }
 
         $recommendations = $query->orderByDesc('score')->paginate(50);
+        $drivers = DeliveryMan::active()->orderBy('f_name')->get();
 
         return view('admin-views.urban-goodz.load-sourcing.recommendations', [
             'nav' => $this->subNav('recommendations'),
             'recommendations' => $recommendations,
+            'drivers' => $drivers,
         ]);
     }
 
@@ -290,7 +278,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.sync-runs', [
             'nav' => $this->subNav('sync'),
-            'runs' => $runs,
+            'syncRuns' => $runs,
             'sources' => $sources,
         ]);
     }
@@ -311,7 +299,7 @@ class UrbanGoodzLoadSourcingController extends Controller
 
         return view('admin-views.urban-goodz.load-sourcing.errors', [
             'nav' => $this->subNav('errors'),
-            'errors' => $errors,
+            'errors_list' => $errors,
             'sources' => $sources,
         ]);
     }
@@ -574,6 +562,22 @@ class UrbanGoodzLoadSourcingController extends Controller
         return back()->with('success', "Load #{$load->id} published to Load Board as #{$boardLoad->id}.");
     }
 
+    public function bulkAction(Request $request)
+    {
+        $validated = $request->validate([
+            'bulk_action' => 'required|in:approve,reject,publish',
+            'load_ids' => 'required|array',
+        ]);
+
+        $request->merge(['ids' => $validated['load_ids']]);
+
+        return match ($validated['bulk_action']) {
+            'approve' => $this->bulkApprove($request),
+            'reject' => $this->bulkReject($request),
+            'publish' => $this->bulkPublish($request),
+        };
+    }
+
     public function bulkApprove(Request $request)
     {
         $validated = $request->validate(['ids' => 'required|array']);
@@ -771,6 +775,230 @@ class UrbanGoodzLoadSourcingController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['retry' => $e->getMessage()]);
         }
+    }
+
+    public function showLoad(int $id)
+    {
+        $load = ExternalLoad::with('source')->findOrFail($id);
+
+        $recommendations = LoadRecommendation::with('driver')
+            ->where('external_load_id', $load->id)
+            ->orderByDesc('score')
+            ->get();
+
+        return view('admin-views.urban-goodz.load-sourcing.load-detail', [
+            'nav' => $this->subNav('sourced'),
+            'load' => $load,
+            'recommendations' => $recommendations,
+            'dispatchers' => DeliveryMan::active()->orderBy('f_name')->get(),
+        ]);
+    }
+
+    public function importLoad(int $id)
+    {
+        $load = ExternalLoad::findOrFail($id);
+
+        if ($load->status !== 'sourced') {
+            return back()->withErrors(['status' => 'Only sourced loads can be imported for review.']);
+        }
+
+        $load->update(['status' => 'pending_review']);
+
+        return back()->with('success', "Load #{$load->id} imported for review.");
+    }
+
+    public function archiveLoad(int $id)
+    {
+        $load = ExternalLoad::findOrFail($id);
+
+        if (in_array($load->status, ['booked', 'cancelled'], true)) {
+            return back()->withErrors(['status' => 'Booked or already-archived loads cannot be archived.']);
+        }
+
+        $load->update(['status' => 'cancelled']);
+
+        return back()->with('success', "Load #{$load->id} archived.");
+    }
+
+    public function assignDispatcher(int $id, Request $request)
+    {
+        $load = ExternalLoad::findOrFail($id);
+
+        // The list-view button carries no target, so send the admin to the load
+        // detail page where a dispatcher can actually be chosen.
+        if (!$request->filled('delivery_man_id')) {
+            return redirect()
+                ->route('admin.urban-goodz.load-sourcing.show-load', $load->id)
+                ->with('info', 'Select a dispatcher to assign this load to.');
+        }
+
+        $validated = $request->validate([
+            'delivery_man_id' => 'required|exists:delivery_men,id',
+        ]);
+
+        LoadRecommendation::updateOrCreate(
+            ['external_load_id' => $load->id, 'delivery_man_id' => $validated['delivery_man_id']],
+            ['status' => 'assigned', 'generated_by_type' => 'admin', 'generated_by' => auth('admin')->id()]
+        );
+
+        return back()->with('success', "Load #{$load->id} assigned.");
+    }
+
+    public function recommendDriver(int $id)
+    {
+        $load = ExternalLoad::findOrFail($id);
+        $service = new LoadSourcingService();
+        $weights = $service->getWeights();
+        $threshold = $service->getSetting('minimum_confidence_threshold', 30);
+
+        $created = 0;
+
+        foreach (DeliveryMan::active()->get() as $driver) {
+            $preferences = DriverLoadPreference::where('delivery_man_id', $driver->id)->first();
+
+            if (!$service->isEligible($load, $driver, $preferences)) {
+                continue;
+            }
+
+            $score = $service->scoreLoad($load, $driver, $preferences, $weights);
+
+            if ($score['total_score'] < $threshold) {
+                continue;
+            }
+
+            LoadRecommendation::updateOrCreate(
+                ['external_load_id' => $load->id, 'delivery_man_id' => $driver->id],
+                [
+                    'score' => $score['total_score'],
+                    'confidence_level' => $score['confidence_level'],
+                    'estimated_driver_net' => $score['estimated_driver_net'],
+                    'net_per_total_mile' => $score['net_per_total_mile'],
+                    'deadhead_miles' => $load->distance_deadhead,
+                    'equipment_match' => $score['equipment_match'],
+                    'certification_match' => $score['certification_match'],
+                    'schedule_feasible' => $score['schedule_feasible'],
+                    'broker_risk' => $score['broker_risk'],
+                    'reasons_recommended' => $score['reasons_recommended'],
+                    'reasons_penalized' => $score['reasons_penalized'],
+                    'status' => 'pending',
+                    'expires_at' => now()->addHours(48),
+                ]
+            );
+
+            $created++;
+        }
+
+        return back()->with('success', "Generated {$created} driver recommendation(s) for load #{$load->id}.");
+    }
+
+    public function approveRecommendation(int $id)
+    {
+        $recommendation = LoadRecommendation::findOrFail($id);
+
+        if ($recommendation->status !== 'pending') {
+            return back()->withErrors(['status' => 'Only pending recommendations can be approved.']);
+        }
+
+        $recommendation->update(['status' => 'assigned']);
+
+        return back()->with('success', "Recommendation #{$recommendation->id} approved.");
+    }
+
+    public function dismissRecommendation(int $id)
+    {
+        $recommendation = LoadRecommendation::findOrFail($id);
+
+        if ($recommendation->status !== 'pending') {
+            return back()->withErrors(['status' => 'Only pending recommendations can be dismissed.']);
+        }
+
+        $recommendation->update(['status' => 'dismissed', 'hidden_at' => now()]);
+
+        return back()->with('success', "Recommendation #{$recommendation->id} dismissed.");
+    }
+
+    public function saveSearch(Request $request)
+    {
+        $search = DispatcherSavedSearch::create([
+            'name' => $request->input('name') ?: 'Saved search ' . now()->format('Y-m-d H:i'),
+            'criteria' => $this->searchCriteria($request),
+            'source_keys' => $request->input('source_keys'),
+            'auto_alert' => false,
+        ]);
+
+        return redirect()
+            ->route('admin.urban-goodz.load-sourcing.saved-searches')
+            ->with('success', "Search \"{$search->name}\" saved.");
+    }
+
+    public function scheduleSearch(Request $request)
+    {
+        $search = DispatcherSavedSearch::create([
+            'name' => $request->input('name') ?: 'Scheduled search ' . now()->format('Y-m-d H:i'),
+            'criteria' => $this->searchCriteria($request),
+            'source_keys' => $request->input('source_keys'),
+            'auto_alert' => true,
+            'alert_threshold_score' => (int) $request->input('alert_threshold_score', 70),
+        ]);
+
+        return redirect()
+            ->route('admin.urban-goodz.load-sourcing.saved-searches')
+            ->with('success', "Search \"{$search->name}\" scheduled for automatic alerts.");
+    }
+
+    public function editSavedSearch(int $id)
+    {
+        return view('admin-views.urban-goodz.load-sourcing.saved-search-edit', [
+            'nav' => $this->subNav('saved'),
+            'savedSearch' => DispatcherSavedSearch::findOrFail($id),
+            'sources' => LoadSource::orderBy('name')->get(),
+        ]);
+    }
+
+    public function updateSavedSearch(int $id, Request $request)
+    {
+        $search = DispatcherSavedSearch::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'auto_alert' => 'sometimes|boolean',
+            'alert_threshold_score' => 'sometimes|integer|min:0|max:100',
+        ]);
+
+        $search->update([
+            'name' => $validated['name'],
+            'criteria' => $this->searchCriteria($request),
+            'source_keys' => $request->input('source_keys'),
+            'auto_alert' => $request->boolean('auto_alert'),
+            'alert_threshold_score' => (int) ($validated['alert_threshold_score'] ?? $search->alert_threshold_score),
+        ]);
+
+        return redirect()
+            ->route('admin.urban-goodz.load-sourcing.saved-searches')
+            ->with('success', "Search \"{$search->name}\" updated.");
+    }
+
+    public function deleteSavedSearch(int $id)
+    {
+        $search = DispatcherSavedSearch::findOrFail($id);
+        $name = $search->name;
+        $search->delete();
+
+        return back()->with('success', "Search \"{$name}\" deleted.");
+    }
+
+    /**
+     * Collect the Search Loads form fields that make up a reusable search.
+     */
+    private function searchCriteria(Request $request): array
+    {
+        return array_filter($request->only([
+            'origin_city', 'origin_state', 'origin_radius',
+            'destination_city', 'destination_state', 'destination_radius',
+            'equipment_type', 'trailer_type', 'commodity',
+            'min_rate', 'max_rate', 'min_weight', 'max_weight',
+            'pickup_start', 'pickup_end',
+        ]), fn($value) => $value !== null && $value !== '');
     }
 
     private function checkSourceCredentials(LoadSource $source): bool

@@ -375,11 +375,32 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::match(['get','post'], 'sync-runs', 'UrbanGoodz\UrbanGoodzLoadSourcingController@syncRuns')->name('sync-runs');
                 Route::match(['get','post'], 'errors', 'UrbanGoodz\UrbanGoodzLoadSourcingController@errors')->name('errors');
                 Route::match(['get','post'], 'settings', 'UrbanGoodz\UrbanGoodzLoadSourcingController@settings')->name('settings');
+                Route::post('settings', 'UrbanGoodz\UrbanGoodzLoadSourcingController@settings')->name('update-settings');
 
                 // ── Actions ──
                 Route::post('external-loads/{id}/approve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@approveLoad')->name('approve-load');
                 Route::post('external-loads/{id}/reject', 'UrbanGoodz\UrbanGoodzLoadSourcingController@rejectLoad')->name('reject-load');
                 Route::post('external-loads/{id}/publish', 'UrbanGoodz\UrbanGoodzLoadSourcingController@publishToLoadBoard')->name('publish-to-board');
+                Route::get('loads/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@showLoad')->name('show-load');
+                Route::post('external-loads/{id}/import', 'UrbanGoodz\UrbanGoodzLoadSourcingController@importLoad')->name('import-load');
+                Route::post('external-loads/{id}/archive', 'UrbanGoodz\UrbanGoodzLoadSourcingController@archiveLoad')->name('archive-load');
+                Route::post('external-loads/{id}/assign-dispatcher', 'UrbanGoodz\UrbanGoodzLoadSourcingController@assignDispatcher')->name('assign-dispatcher');
+                Route::post('external-loads/{id}/recommend-driver', 'UrbanGoodz\UrbanGoodzLoadSourcingController@recommendDriver')->name('recommend-driver');
+                Route::post('external-loads/{id}/publish-load', 'UrbanGoodz\UrbanGoodzLoadSourcingController@publishToLoadBoard')->name('publish-load');
+                Route::post('recommendations/{id}/approve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@approveRecommendation')->name('approve-recommendation');
+                Route::post('recommendations/{id}/dismiss', 'UrbanGoodz\UrbanGoodzLoadSourcingController@dismissRecommendation')->name('dismiss-recommendation');
+                Route::post('save-search', 'UrbanGoodz\UrbanGoodzLoadSourcingController@saveSearch')->name('save-search');
+                Route::post('schedule-search', 'UrbanGoodz\UrbanGoodzLoadSourcingController@scheduleSearch')->name('schedule-search');
+                Route::get('saved-searches/{id}/edit', 'UrbanGoodz\UrbanGoodzLoadSourcingController@editSavedSearch')->name('edit-saved-search');
+                Route::put('saved-searches/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@updateSavedSearch')->name('update-saved-search');
+                Route::delete('saved-searches/{id}', 'UrbanGoodz\UrbanGoodzLoadSourcingController@deleteSavedSearch')->name('delete-saved-search');
+                Route::post('sync-runs/{id}/retry-sync', 'UrbanGoodz\UrbanGoodzLoadSourcingController@retrySyncRun')->name('retry-sync');
+                Route::put('sources/{id}/toggle', 'UrbanGoodz\UrbanGoodzLoadSourcingController@toggleSource')->name('toggle-source');
+                Route::post('sources/{id}/test-connection', 'UrbanGoodz\UrbanGoodzLoadSourcingController@testConnection')->name('test-connection');
+                Route::post('sources/{id}/sync-source', 'UrbanGoodz\UrbanGoodzLoadSourcingController@syncSource')->name('sync-source');
+                Route::post('sources/{sourceId}/source-search', 'UrbanGoodz\UrbanGoodzLoadSourcingController@sourceSearchApi')->name('source-search');
+                Route::post('search-all', 'UrbanGoodz\UrbanGoodzLoadSourcingController@searchAllApi')->name('search-all');
+                Route::post('bulk-action', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkAction')->name('bulk-action');
                 Route::post('bulk-approve', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkApprove')->name('bulk-approve');
                 Route::post('bulk-reject', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkReject')->name('bulk-reject');
                 Route::post('bulk-publish', 'UrbanGoodz\UrbanGoodzLoadSourcingController@bulkPublish')->name('bulk-publish');

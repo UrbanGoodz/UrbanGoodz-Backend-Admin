@@ -68,7 +68,7 @@
         </div>
 
         {{-- Search Form --}}
-        <form method="POST" action="{{ route('admin.urban-goodz.load-sourcing.search-all') }}" id="loadSearchForm">
+        <form method="POST" action="{{ route('admin.urban-goodz.load-sourcing.search') }}" id="loadSearchForm">
             @csrf
             <div class="card mb-4">
                 <div class="card-header">

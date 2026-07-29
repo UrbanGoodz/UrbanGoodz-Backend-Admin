@@ -103,4 +103,28 @@ class LoadSource extends Model
             default => ucfirst($this->api_status),
         };
     }
+
+    public function getCredentialStatusAttribute(): string
+    {
+        $credentials = $this->relationLoaded('credentials') ? $this->credentials : $this->credentials()->get();
+
+        if ($credentials->contains('status', 'active')) {
+            return 'active';
+        }
+        if ($credentials->contains('status', 'expired')) {
+            return 'expired';
+        }
+
+        return 'not_configured';
+    }
+
+    public function getLastSuccessfulSyncAtAttribute()
+    {
+        return $this->last_success_at;
+    }
+
+    public function getRecordsImportedCountAttribute(): int
+    {
+        return $this->external_loads_count ?? $this->total_loads_sourced ?? 0;
+    }
 }
