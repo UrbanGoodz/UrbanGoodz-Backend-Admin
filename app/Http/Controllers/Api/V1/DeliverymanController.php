@@ -802,6 +802,12 @@ class DeliverymanController extends Controller
             ], 406);
         }
         if ($request->status == 'delivered') {
+            // A replayed `delivered` call must settle the order exactly once.
+            // The money side is already guarded by the transaction null-check
+            // below; the lifetime counters were not, so re-sending `delivered`
+            // inflated order_count on the driver, the store and the customer.
+            $already_delivered = $order->order_status == 'delivered';
+
             if ($order->transaction == null) {
                 $unpaid_payment = OrderPayment::where('payment_status', 'unpaid')->where('order_id', $order->id)->first();
                 $pay_method = 'digital_payment';
@@ -825,22 +831,24 @@ class DeliverymanController extends Controller
                 $order->transaction->update(['delivery_man_id' => $dm->id]);
             }
 
-            $order->details->each(function ($item, $key) {
-                if ($item->food) {
-                    $item->food->increment('order_count');
+            if (!$already_delivered) {
+                $order->details->each(function ($item, $key) {
+                    if ($item->food) {
+                        $item->food->increment('order_count');
+                    }
+                });
+                $order?->customer?->increment('order_count');
+
+                $dm->current_orders = $dm->current_orders > 1 ? $dm->current_orders - 1 : 0;
+                $dm->save();
+
+                $dm->increment('order_count');
+                if ($order->store) {
+                    $order->store->increment('order_count');
                 }
-            });
-            $order?->customer?->increment('order_count');
-
-            $dm->current_orders = $dm->current_orders > 1 ? $dm->current_orders - 1 : 0;
-            $dm->save();
-
-            $dm->increment('order_count');
-            if ($order->store) {
-                $order->store->increment('order_count');
-            }
-            if ($order->parcel_category) {
-                $order->parcel_category->increment('orders_count');
+                if ($order->parcel_category) {
+                    $order->parcel_category->increment('orders_count');
+                }
             }
 
             $img_names = [];

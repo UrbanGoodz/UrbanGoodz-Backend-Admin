@@ -249,6 +249,52 @@ class UrbanGoodzDeliverymanOrderHandshakeTest extends TestCase
         );
     }
 
+    /** Replaying `delivered` must settle the order once, money and counters alike. */
+    public function test_duplicate_completion_does_not_double_count(): void
+    {
+        $order = $this->makeOrder([
+            'order_status' => 'picked_up',
+            'confirmed' => now(),
+            'processing' => now(),
+            'handover' => now(),
+            'picked_up' => now(),
+        ]);
+        $this->driver->forceFill(['current_orders' => 1])->save();
+
+        $payload = ['order_id' => $order->id, 'status' => 'delivered', 'otp' => $order->otp];
+
+        $this->updateStatus($this->driverToken, $payload)->assertOk();
+
+        $driverOrderCount = DeliveryMan::whereKey($this->driver->id)->value('order_count');
+        $storeOrderCount = Store::withoutGlobalScopes()->whereKey($this->store->id)->value('order_count');
+        $customerOrderCount = User::whereKey($this->customer->id)->value('order_count');
+        $transactionCount = \App\Models\OrderTransaction::where('order_id', $order->id)->count();
+
+        $this->updateStatus($this->driverToken, $payload)->assertOk();
+
+        $this->assertSame('delivered', $this->freshStatus($order->id));
+        $this->assertSame(
+            $driverOrderCount,
+            DeliveryMan::whereKey($this->driver->id)->value('order_count'),
+            'Driver order_count must not increment on a replayed delivery.'
+        );
+        $this->assertSame(
+            $storeOrderCount,
+            Store::withoutGlobalScopes()->whereKey($this->store->id)->value('order_count'),
+            'Store order_count must not increment on a replayed delivery.'
+        );
+        $this->assertSame(
+            $customerOrderCount,
+            User::whereKey($this->customer->id)->value('order_count'),
+            'Customer order_count must not increment on a replayed delivery.'
+        );
+        $this->assertSame(
+            $transactionCount,
+            \App\Models\OrderTransaction::where('order_id', $order->id)->count(),
+            'A replayed delivery must not create a second order transaction.'
+        );
+    }
+
     public function test_status_value_outside_the_canonical_enum_is_rejected(): void
     {
         $order = $this->makeOrder();
