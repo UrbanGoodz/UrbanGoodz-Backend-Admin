@@ -17,6 +17,7 @@ use App\Models\UrbanGoodzMedicalCustodyLog;
 use App\Models\UrbanGoodzAgeVerification;
 use App\Models\UrbanGoodzPaymentSplit;
 use App\Models\DeliveryMan;
+use App\Services\UrbanGoodz\RouteCompletionSettlementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -58,6 +59,7 @@ class UrbanGoodzDriverApiController extends Controller
                   'id' => $route->id,
                   'route_name' => $route->route_name,
                   'route_type' => $route->route_type,
+                  'source_module' => $route->source_module ?: $route->route_type,
                   'pickup_location' => $route->pickup_location,
                   'pickup_lat' => $route->pickup_lat,
                   'pickup_lng' => $route->pickup_lng,
@@ -142,6 +144,7 @@ class UrbanGoodzDriverApiController extends Controller
                 'id' => $route->id,
                 'route_name' => $route->route_name,
                 'route_type' => $route->route_type,
+                'source_module' => $route->source_module ?: $route->route_type,
                 'pickup_location' => $route->pickup_location,
                 'pickup_lat' => $route->pickup_lat,
                 'pickup_lng' => $route->pickup_lng,
@@ -161,6 +164,8 @@ class UrbanGoodzDriverApiController extends Controller
                 'optimization_version' => $route->optimization_version,
                 'optimization_method' => $route->optimization_method,
                 'optimization_provider' => $route->optimization_provider,
+                'optimization_distance_mode' => $route->optimization_distance_mode,
+                'optimization_constraints' => $route->optimization_constraints,
                 'estimated_miles' => $route->optimized_distance_miles ?? $route->estimated_miles,
                 'estimated_duration_minutes' => $route->optimized_duration_minutes ?? $route->estimated_duration,
             ],
@@ -660,7 +665,11 @@ class UrbanGoodzDriverApiController extends Controller
         return response()->json(['message' => 'Route started', 'started_at' => $route->route_started_at->toDateTimeString()]);
     }
 
-    public function routeCompleted(Request $request, $routeId)
+    public function routeCompleted(
+        Request $request,
+        $routeId,
+        RouteCompletionSettlementService $settlements
+    )
     {
         $driver = $this->authDriver($request);
 
@@ -673,11 +682,23 @@ class UrbanGoodzDriverApiController extends Controller
         }
 
         $pendingPackages = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
-            ->whereIn('status', ['pending', 'picked_up', 'in_transit'])
+            ->whereNotIn('status', [
+                'delivered', 'failed', 'unable_to_deliver',
+                'returned_to_pickup', 'returned_to_hub', 'returned_to_business',
+                'payout_eligible', 'payout_excluded', 'completed',
+            ])
             ->count();
+        if ($pendingPackages > 0) {
+            return response()->json([
+                'error' => 'Every package must be delivered, excepted, or returned before route completion.',
+                'pending_packages_remaining' => $pendingPackages,
+            ], 409);
+        }
 
         $completedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->delivered()->count();
-        $failedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->failed()->count();
+        $failedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
+            ->whereIn('status', ['failed', 'unable_to_deliver'])
+            ->count();
         $returningCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->whereIn('status', ['return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business'])
             ->count();
@@ -708,6 +729,8 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('status', 'in_transit')
             ->update(['status' => 'completed', 'completed_at' => now()]);
 
+        $settlement = $settlements->captureAndSettle($route->fresh());
+
         return response()->json([
             'message' => 'Route completed',
             'completed_at' => $route->route_completed_at->toDateTimeString(),
@@ -716,6 +739,7 @@ class UrbanGoodzDriverApiController extends Controller
             'returning_packages' => $returningCount,
             'pending_packages_remaining' => $pendingPackages,
             'completion_bonus' => $route->route_completion_bonus,
+            'compensation_settlement' => $settlement,
         ]);
     }
 

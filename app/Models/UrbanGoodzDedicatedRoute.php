@@ -9,16 +9,35 @@ class UrbanGoodzDedicatedRoute extends Model
 {
     use SoftDeletes;
 
-    const ROUTE_TYPES = ['logistics', 'medical_courier', 'load_board', 'bulk_delivery'];
+    const ROUTE_TYPES = [
+        'package_routes',
+        'business_courier',
+        'scheduled_route',
+        'recurring_route',
+        'marketplace_delivery',
+        'retail',
+        'grocery',
+        'pharmacy',
+        'home_based_business',
+        'medical_courier',
+        'stat',
+        'logistics',
+        'load_board',
+        'order_anywhere',
+        'rental_pickup_return',
+        'bulk_delivery',
+    ];
 
     const STATUSES = ['draft', 'pending', 'pending_review', 'approved', 'active', 'in_progress', 'pickup_pending', 'completed', 'partially_completed', 'canceled', 'admin_review'];
 
     protected $fillable = [
-        'business_client_id', 'route_name', 'route_type', 'pickup_location', 'end_location',
+        'business_client_id', 'route_name', 'route_type', 'source_module',
+        'source_record_type', 'source_record_id', 'pickup_location', 'end_location',
         'intake_batch_id', 'route_label',
         'end_lat', 'end_lng',
         'pickup_lat', 'pickup_lng', 'scheduled_date', 'recurring_rule',
-        'max_packages_per_batch', 'status', 'assigned_driver_id',
+        'max_packages_per_batch', 'capacity_packages', 'capacity_weight_lbs',
+        'status', 'assigned_driver_id',
         'vehicle_type_required', 'total_packages', 'completed_packages', 'failed_packages',
         'driver_pay_per_package', 'business_charge_per_package',
         'pickup_bonus', 'route_completion_bonus', 'priority_package_bonus',
@@ -29,7 +48,8 @@ class UrbanGoodzDedicatedRoute extends Model
         'return_to_origin', 'optimization_status', 'optimized_at',
         'original_distance_miles', 'optimized_distance_miles',
         'original_duration_minutes', 'optimized_duration_minutes',
-        'optimization_method', 'optimization_provider', 'optimization_error',
+        'optimization_method', 'optimization_provider', 'optimization_distance_mode',
+        'optimization_constraints', 'optimization_error',
         'optimization_original_sequence', 'optimization_manual_override',
         'optimized_by_type', 'optimized_by_id', 'optimization_version',
         'contains_age_restricted_items',
@@ -62,8 +82,11 @@ class UrbanGoodzDedicatedRoute extends Model
         'original_duration_minutes' => 'integer',
         'optimized_duration_minutes' => 'integer',
         'optimization_original_sequence' => 'array',
+        'optimization_constraints' => 'array',
         'optimization_manual_override' => 'boolean',
         'optimization_version' => 'integer',
+        'capacity_packages' => 'integer',
+        'capacity_weight_lbs' => 'decimal:3',
         'contains_age_restricted_items' => 'boolean',
         'route_started_at' => 'datetime',
         'route_completed_at' => 'datetime',
@@ -102,6 +125,17 @@ class UrbanGoodzDedicatedRoute extends Model
     public function optimizationStops()
     {
         return $this->hasMany(UrbanGoodzRouteOptimizationStop::class, 'dedicated_route_id');
+    }
+
+    public function optimizationHistory()
+    {
+        return $this->hasMany(UrbanGoodzRouteOptimizationHistory::class, 'dedicated_route_id')
+            ->orderByDesc('version');
+    }
+
+    public function operationalMetrics()
+    {
+        return $this->hasMany(UrbanGoodzRouteOperationalMetric::class, 'dedicated_route_id');
     }
 
     public function earnings()
