@@ -7,6 +7,7 @@ use App\Models\UrbanGoodzDedicatedRoute;
 use App\Models\UrbanGoodzManifest;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Models\UrbanGoodzRouteClusteringAudit;
+use App\Services\UrbanGoodz\Routing\DTOs\DistanceResult;
 use App\Services\UrbanGoodz\Routing\Services\RoutePlanningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -52,6 +53,8 @@ class RouteClusteringController extends Controller
             'route_count_generated' => $result->routeCountGenerated,
             'unique_stop_count' => $result->uniqueStopCount,
             'overall_distance_mode' => $result->overallDistanceMode,
+            'overall_calculation_mode' => $result->overallCalculationMode(),
+            'overall_calculation_mode_label' => DistanceResult::labelForCalculationMode($result->overallCalculationMode()),
             'algorithm_version' => $result->algorithmVersion,
             'metrics' => $result->metrics->toArray(),
             'clusters' => array_map(fn($c) => $c->toSummaryArray(), $result->clusters),
@@ -86,6 +89,8 @@ class RouteClusteringController extends Controller
             'route_count_requested' => $result->routeCountRequested,
             'route_count_generated' => $result->routeCountGenerated,
             'overall_distance_mode' => $result->overallDistanceMode,
+            'overall_calculation_mode' => $result->overallCalculationMode(),
+            'overall_calculation_mode_label' => DistanceResult::labelForCalculationMode($result->overallCalculationMode()),
             'metrics' => $result->metrics->toArray(),
             'clusters' => array_map(fn($c) => $c->toSummaryArray(), $result->clusters),
             'unrouteable' => $result->unrouteable,
@@ -173,6 +178,8 @@ class RouteClusteringController extends Controller
             'routed_packages' => $result->routedPackages,
             'unrouteable_count' => $result->unrouteableCount,
             'overall_distance_mode' => $result->overallDistanceMode,
+            'overall_calculation_mode' => $result->overallCalculationMode(),
+            'overall_calculation_mode_label' => DistanceResult::labelForCalculationMode($result->overallCalculationMode()),
             'clusters' => array_map(fn($c) => $c->toSummaryArray(), $result->clusters),
             'metrics' => $result->metrics->toArray(),
         ]);
@@ -254,6 +261,7 @@ class RouteClusteringController extends Controller
             'unrouteable_packages' => json_decode($audit->unrouteable_packages, true),
             'algorithm' => $audit->algorithm,
             'distance_mode' => $audit->distance_mode,
+            'calculation_mode' => DistanceResult::deriveCalculationMode((string) $audit->distance_mode),
             'metrics' => json_decode($audit->metrics ?? '{}', true),
             'status' => $audit->status,
             'admin_notes' => $audit->admin_notes,

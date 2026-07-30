@@ -4,12 +4,32 @@ return [
 
     'legacy_route_chunking' => env('URBAN_GOODZ_LEGACY_ROUTE_CHUNKING', false),
 
+    // provider: haversine | google_maps | openrouteservice
     'distance_matrix' => [
         'provider' => env('URBAN_GOODZ_DISTANCE_MATRIX_PROVIDER', 'haversine'),
         'google_maps_key' => env('URBAN_GOODZ_GOOGLE_MAPS_KEY', ''),
         'cache_ttl_hours' => env('URBAN_GOODZ_DISTANCE_CACHE_TTL_HOURS', 24),
         'batch_size' => env('URBAN_GOODZ_DISTANCE_BATCH_SIZE', 25),
         'request_delay_ms' => env('URBAN_GOODZ_DISTANCE_REQUEST_DELAY_MS', 100),
+    ],
+
+    /*
+     * OpenRouteService (openrouteservice.org) -- road routing.
+     * This is NOT openrouter.ai (OPENROUTER_*), which is an LLM gateway.
+     * Set URBAN_GOODZ_DISTANCE_MATRIX_PROVIDER=openrouteservice to use it.
+     */
+    'openrouteservice' => [
+        'enabled' => env('ORS_ENABLED', false),
+        'api_key' => env('ORS_API_KEY', ''),
+        'base_url' => env('ORS_BASE_URL', 'https://api.openrouteservice.org'),
+        'profile' => env('ORS_PROFILE', 'driving-car'),
+        'timeout_seconds' => env('ORS_TIMEOUT_SECONDS', 8),
+        'connect_timeout_seconds' => env('ORS_CONNECT_TIMEOUT_SECONDS', 4),
+        'max_retries' => env('ORS_MAX_RETRIES', 2),
+        'retry_base_delay_ms' => env('ORS_RETRY_BASE_DELAY_MS', 250),
+        'max_retry_after_seconds' => env('ORS_MAX_RETRY_AFTER_SECONDS', 5),
+        'cache_ttl_hours' => env('ORS_CACHE_TTL_HOURS', 24),
+        'max_locations' => env('ORS_MAX_LOCATIONS', 50),
     ],
 
     'clustering' => [
