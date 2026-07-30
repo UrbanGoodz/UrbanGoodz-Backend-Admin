@@ -31,12 +31,21 @@ class UrbanGoodzDriverEarning extends Model
         'load_id',
         'earning_type', 'amount', 'currency', 'status',
         'description', 'approved_by', 'approved_at', 'paid_at',
+        'pricing_policy_id', 'pricing_policy_version', 'payout_model',
+        'gross_cents', 'admin_fee_cents', 'net_cents',
+        'calculation_inputs', 'policy_snapshot',
+        'settlement_snapshot_id', 'idempotency_key',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'approved_at' => 'datetime',
         'paid_at' => 'datetime',
+        'calculation_inputs' => 'array',
+        'policy_snapshot' => 'array',
+        'gross_cents' => 'integer',
+        'admin_fee_cents' => 'integer',
+        'net_cents' => 'integer',
     ];
 
     public function driver()

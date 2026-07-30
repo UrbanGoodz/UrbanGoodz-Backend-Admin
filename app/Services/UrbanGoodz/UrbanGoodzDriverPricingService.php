@@ -38,35 +38,60 @@ class UrbanGoodzDriverPricingService
 
     /**
      * Resolve the active pricing policy for a specific type and zone.
-     * Falls back to global policy (zone_id = null) if zone override not found.
+     *
+     * Delegates to {@see UrbanGoodzDriverCompensationResolver}, which applies
+     * the full assignment/contract/route/business/service/vehicle/load/medical/
+     * market/module/global hierarchy. This signature previously understood only
+     * zone and global, so callers passing just a type and zone keep working
+     * unchanged while gaining every narrower tier.
      */
-    public function resolvePolicy(string $type, ?int $zoneId = null): ?UrbanGoodzDriverPricingPolicy
+    public function resolvePolicy(
+        string $type,
+        ?int $zoneId = null,
+        ?DriverCompensationContext $context = null
+    ): ?UrbanGoodzDriverPricingPolicy {
+        return $this->resolvePolicyFor($context ?? new DriverCompensationContext(
+            policyType: $type,
+            zoneId: $zoneId,
+        ));
+    }
+
+    /**
+     * Resolve using the full context — business, route, contract, service type,
+     * vehicle, load type and a specific assignment.
+     */
+    public function resolvePolicyFor(DriverCompensationContext $context): ?UrbanGoodzDriverPricingPolicy
     {
-        $typeCandidates = $this->policyTypeCandidates($type);
+        return app(UrbanGoodzDriverCompensationResolver::class)->resolve($context);
+    }
 
-        // Try zone override first
-        if ($zoneId) {
-            foreach ($typeCandidates as $candidate) {
-                $policy = UrbanGoodzDriverPricingPolicy::active()
-                    ->forTypeAndZone($candidate, $zoneId)
-                    ->first();
-                if ($policy) {
-                    return $policy;
-                }
-            }
-        }
-
-        // Fallback to global policy
-        foreach ($typeCandidates as $candidate) {
-            $policy = UrbanGoodzDriverPricingPolicy::active()
-                ->forTypeAndZone($candidate, null)
-                ->first();
-            if ($policy) {
-                return $policy;
-            }
-        }
-
-        return null;
+    /**
+     * Map a calculatePayout() parameter bag onto the resolution context.
+     *
+     * Callers that only supply a zone keep the previous behaviour; callers that
+     * know the business, route or contract now get the narrower rate.
+     *
+     * @param array<string, mixed> $params
+     */
+    private function contextFromParams(string $type, array $params): DriverCompensationContext
+    {
+        return new DriverCompensationContext(
+            policyType: $type,
+            zoneId: isset($params['zone_id']) ? (int) $params['zone_id'] : null,
+            market: $params['market'] ?? null,
+            moduleId: isset($params['module_id']) ? (int) $params['module_id'] : null,
+            businessClientId: isset($params['business_client_id']) ? (int) $params['business_client_id'] : null,
+            contractId: isset($params['contract_id']) ? (int) $params['contract_id'] : null,
+            routeId: isset($params['route_id']) ? (int) $params['route_id'] : null,
+            routeScope: $params['route_scope'] ?? null,
+            serviceType: $params['service_type'] ?? null,
+            vehicleTypeId: isset($params['vehicle_type_id']) ? (int) $params['vehicle_type_id'] : null,
+            loadType: $params['load_type'] ?? null,
+            medicalType: $params['medical_type'] ?? null,
+            subjectType: $params['subject_type'] ?? null,
+            subjectId: isset($params['subject_id']) ? (int) $params['subject_id'] : null,
+            at: $params['at'] ?? null,
+        );
     }
 
     /**
@@ -76,7 +101,11 @@ class UrbanGoodzDriverPricingService
     {
         $type = $this->normalizePolicyType($type);
         $zoneId = $params['zone_id'] ?? null;
-        $policy = $this->resolvePolicy($type, $zoneId);
+        // Build the full context so every configured tier — business, contract,
+        // route, service, vehicle, load, medical, market, module — can win, not
+        // just zone and global. Routed through resolvePolicy() so that callers
+        // and tests which override that seam keep working.
+        $policy = $this->resolvePolicy($type, $zoneId, $this->contextFromParams($type, $params));
 
         if (!$policy) {
             Log::warning("No active driver pricing policy found for type: {$type}, zone: {$zoneId}");
@@ -255,6 +284,25 @@ class UrbanGoodzDriverPricingService
             $type = $data['earning_type'] ?? 'business_courier_delivery';
             $currency = $data['currency'] ?? 'USD';
 
+            // A replayed completion must not pay twice.
+            $idempotencyKey = $data['idempotency_key'] ?? null;
+
+            if ($idempotencyKey !== null) {
+                $existing = UrbanGoodzDriverEarning::where('idempotency_key', $idempotencyKey)->first();
+
+                if ($existing !== null) {
+                    return $existing;
+                }
+            }
+
+            $policy = $data['policy'] ?? null;
+            $grossCents = isset($data['gross_cents'])
+                ? (int) $data['gross_cents']
+                : (int) round($amount * 100, 0, PHP_ROUND_HALF_UP);
+            $adminFeeCents = isset($data['admin_fee_cents']) ? (int) $data['admin_fee_cents'] : null;
+            $netCents = $data['net_cents']
+                ?? ($adminFeeCents === null ? $grossCents : $grossCents - $adminFeeCents);
+
             // Create Driver Earning record
             $earning = UrbanGoodzDriverEarning::create([
                 'delivery_man_id' => $driverId,
@@ -270,6 +318,21 @@ class UrbanGoodzDriverPricingService
                 'description' => $data['description'] ?? 'Driver compensation payment',
                 'approved_by' => $data['approved_by'] ?? null,
                 'approved_at' => isset($data['approved_by']) ? now() : null,
+
+                // Compensation snapshot: which policy produced this figure, by
+                // which method, from which verified operational inputs. Without
+                // it a later rate change makes the earning unexplainable and a
+                // driver disputing their pay cannot be shown the arithmetic.
+                'pricing_policy_id' => $policy?->id ?? ($data['pricing_policy_id'] ?? null),
+                'pricing_policy_version' => $policy?->version ?? ($data['pricing_policy_version'] ?? null),
+                'payout_model' => $policy?->payout_model ?? ($data['payout_model'] ?? null),
+                'gross_cents' => $grossCents,
+                'admin_fee_cents' => $adminFeeCents,
+                'net_cents' => $netCents,
+                'calculation_inputs' => $data['calculation_inputs'] ?? null,
+                'policy_snapshot' => $policy?->attributesToArray() ?? ($data['policy_snapshot'] ?? null),
+                'settlement_snapshot_id' => $data['settlement_snapshot_id'] ?? null,
+                'idempotency_key' => $idempotencyKey,
             ]);
 
             // If the status is paid or approved, credit the wallet immediately (unless bypassed)
