@@ -109,6 +109,14 @@
                         </a>
                     </li>
                     @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_financial_control_view') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_financial_control_manage') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_payments_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/financial-control*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.financial-control.index') }}" title="Financial Control Center">
+                            <i class="tio-chart-pie-1 nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Financial Control Center</span>
+                        </a>
+                    </li>
+                    @endif
 
                     {{-- Commerce --}}
                     <li class="nav-item">
