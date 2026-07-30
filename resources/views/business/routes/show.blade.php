@@ -91,6 +91,17 @@
 
                         <dt class="col-sm-5">{{ translate('Method') }}</dt>
                         <dd class="col-sm-7">{{ $route->optimization_method ?? '—' }}<small class="d-block text-muted">{{ $route->optimization_provider }}</small></dd>
+
+                        @php($ugCalcMode = $route->optimization_calculation_mode)
+                        <dt class="col-sm-5">{{ translate('Distance Basis') }}</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge badge-{{ $ugCalcMode === 'ROAD_NETWORK' ? 'success' : ($ugCalcMode === 'MANUAL_ORDER' ? 'info' : 'warning') }}">
+                                {{ translate(\App\Services\UrbanGoodz\Routing\DTOs\DistanceResult::labelForCalculationMode($ugCalcMode)) }}
+                            </span>
+                            @if($ugCalcMode !== 'ROAD_NETWORK')
+                                <small class="d-block text-muted">{{ translate('Not a road-network distance.') }}</small>
+                            @endif
+                        </dd>
                     </dl>
                 </div>
             </div>

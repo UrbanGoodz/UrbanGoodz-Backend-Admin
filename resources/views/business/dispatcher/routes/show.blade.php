@@ -13,6 +13,12 @@
         <div class="col-md-3"><strong>{{ translate('Optimization') }}:</strong> {{ ucwords(str_replace('_', ' ', $route->optimization_status ?? 'not_optimized')) }}</div>
         <div class="col-md-3"><strong>{{ translate('Distance') }}:</strong> {{ $route->optimized_distance_miles !== null ? number_format($route->optimized_distance_miles, 2).' mi' : '—' }}</div>
         <div class="col-md-3"><strong>{{ translate('Duration') }}:</strong> {{ $route->optimized_duration_minutes !== null ? $route->optimized_duration_minutes.' min' : '—' }}</div>
+        @php($ugCalcMode = $route->optimization_calculation_mode)
+        <div class="col-md-12 mt-2"><strong>{{ translate('Distance Basis') }}:</strong>
+            <span class="badge badge-{{ $ugCalcMode === 'ROAD_NETWORK' ? 'success' : ($ugCalcMode === 'MANUAL_ORDER' ? 'info' : 'warning') }}">
+                {{ translate(\App\Services\UrbanGoodz\Routing\DTOs\DistanceResult::labelForCalculationMode($ugCalcMode)) }}
+            </span>
+        </div>
     </div>
 </div>
 <div class="card">

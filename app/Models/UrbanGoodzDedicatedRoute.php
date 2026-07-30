@@ -29,7 +29,7 @@ class UrbanGoodzDedicatedRoute extends Model
         'return_to_origin', 'optimization_status', 'optimized_at',
         'original_distance_miles', 'optimized_distance_miles',
         'original_duration_minutes', 'optimized_duration_minutes',
-        'optimization_method', 'optimization_provider', 'optimization_error',
+        'optimization_method', 'optimization_provider', 'optimization_calculation_mode', 'optimization_error',
         'optimization_original_sequence', 'optimization_manual_override',
         'optimized_by_type', 'optimized_by_id', 'optimization_version',
         'contains_age_restricted_items',

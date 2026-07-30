@@ -26,6 +26,12 @@ class RouteCluster
         public readonly array $warnings = [],
     ) {}
 
+    /** Canonical calculation mode for this cluster's mileage/duration totals. */
+    public function calculationMode(): string
+    {
+        return DistanceResult::deriveCalculationMode($this->distanceMode);
+    }
+
     public function toSummaryArray(): array
     {
         return [
@@ -43,6 +49,8 @@ class RouteCluster
             'average_stop_distance' => $this->averageStopDistance,
             'workload_score' => $this->workloadScore,
             'distance_mode' => $this->distanceMode,
+            'calculation_mode' => $this->calculationMode(),
+            'calculation_mode_label' => DistanceResult::labelForCalculationMode($this->calculationMode()),
             'has_time_windows' => $this->hasTimeWindows,
             'has_age_restricted' => $this->hasAgeRestricted,
             'has_medical' => $this->hasMedical,
