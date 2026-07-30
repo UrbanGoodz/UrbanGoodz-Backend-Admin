@@ -18,7 +18,10 @@ class UrbanGoodzDriverPricingPolicy extends Model
         'zone_id', 'vehicle_multipliers', 'urgency_premium',
         'deadhead_pay_rate', 'waiting_pay_rate', 'return_pay_rate', 'exception_pay_rate',
         'minimum_payout', 'maximum_payout', 'minimum_margin',
-        'effective_from', 'effective_to', 'is_active'
+        'effective_from', 'effective_to', 'is_active',
+        'subject_type', 'subject_id', 'contract_id', 'route_id', 'route_scope',
+        'business_client_id', 'service_type', 'vehicle_type_id', 'load_type',
+        'medical_type', 'market', 'module_id', 'priority', 'version',
     ];
 
     protected $casts = [
@@ -37,6 +40,8 @@ class UrbanGoodzDriverPricingPolicy extends Model
         'live_pricing_enabled' => 'boolean',
         'sandbox_pricing_enabled' => 'boolean',
         'vehicle_multipliers' => 'array',
+        'priority' => 'integer',
+        'version' => 'integer',
         'urgency_premium' => 'decimal:2',
         'deadhead_pay_rate' => 'decimal:2',
         'waiting_pay_rate' => 'decimal:2',
