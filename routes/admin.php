@@ -262,6 +262,22 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('{id}/rollback', 'UrbanGoodz\UrbanGoodzDriverPricingController@rollback')->name('rollback');
             });
 
+            Route::group(['prefix' => 'financial-control', 'as' => 'financial-control.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzFinancialControlController@index')->name('index');
+                Route::post('rules', 'UrbanGoodz\UrbanGoodzFinancialControlController@storeRule')->name('rules.store');
+                Route::put('rules/{financialRule}', 'UrbanGoodz\UrbanGoodzFinancialControlController@updateRule')->name('rules.update');
+                Route::post('rules/{financialRule}/deactivate', 'UrbanGoodz\UrbanGoodzFinancialControlController@deactivateRule')->name('rules.deactivate');
+                Route::get('rules/{financialRule}/history', 'UrbanGoodz\UrbanGoodzFinancialControlController@ruleHistory')->name('rules.history');
+                Route::post('simulate', 'UrbanGoodz\UrbanGoodzFinancialControlController@simulate')->name('simulate');
+                Route::post('settlements', 'UrbanGoodz\UrbanGoodzFinancialControlController@storeSettlement')->name('settlements.store');
+                Route::get('settlements/{settlement}', 'UrbanGoodz\UrbanGoodzFinancialControlController@showSettlement')->name('settlements.show');
+                Route::post('settlements/{settlement}/refund', 'UrbanGoodz\UrbanGoodzFinancialControlController@refund')->name('settlements.refund');
+                Route::post('settlements/{settlement}/reverse', 'UrbanGoodz\UrbanGoodzFinancialControlController@reverse')->name('settlements.reverse');
+                Route::post('settlements/{settlement}/reconcile', 'UrbanGoodz\UrbanGoodzFinancialControlController@reconcile')->name('settlements.reconcile');
+                Route::get('ledger', 'UrbanGoodz\UrbanGoodzFinancialControlController@ledger')->name('ledger');
+                Route::get('reconciliation', 'UrbanGoodz\UrbanGoodzFinancialControlController@reconciliation')->name('reconciliation');
+            });
+
             Route::get('/', 'UrbanGoodzAdminController@index')->name('index');
             Route::get('order-anywhere', 'UrbanGoodzAdminController@orderAnywhere')->name('order-anywhere.index');
             Route::get('order-anywhere/{id}', 'UrbanGoodzAdminController@orderAnywhereShow')->name('order-anywhere.show');

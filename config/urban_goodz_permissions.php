@@ -197,6 +197,16 @@ return [
             'group' => 'urban_goodz',
             'description' => 'Manage payments, capture, refunds',
         ],
+        'urban_goodz_financial_control_view' => [
+            'label' => 'Financial Control Center View',
+            'group' => 'urban_goodz',
+            'description' => 'View commission rules, compensation, settlements, ledgers, and reconciliation',
+        ],
+        'urban_goodz_financial_control_manage' => [
+            'label' => 'Financial Control Center Manage',
+            'group' => 'urban_goodz',
+            'description' => 'Master Admin control of rates, settlement snapshots, refunds, and reversals',
+        ],
         'urban_goodz_reports_view' => [
             'label' => 'Reports View',
             'group' => 'urban_goodz',
