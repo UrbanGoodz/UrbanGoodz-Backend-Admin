@@ -25,6 +25,8 @@ use App\Models\ParcelCancellation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Modules\Rental\Entities\PartialPayment;
+use App\Services\UrbanGoodz\OrderCommissionContextFactory;
+use App\Services\UrbanGoodz\UrbanGoodzCommissionResolver;
 
 class OrderLogic
 {
@@ -151,7 +153,19 @@ class OrderLogic
             $dm_commission = $payoutResult['payout'];
             $comission_amount = $order_amount - $dm_commission;
         } else {
-            $comission = isset($order->store->comission) == null ? BusinessSetting::where('key', 'admin_commission')->first()?->value : $order->store->comission;
+            // Master Admin commission configuration. This replaces
+            //     isset($order->store->comission) == null ? <global> : <store>
+            // which was correct only by accident: isset() returns a bool, and
+            // `true == null` is false while `false == null` is true, so the
+            // branches happened to land the right way round. Any tidy-up of
+            // that expression would have inverted every commission on the
+            // platform.
+            //
+            // The resolver applies the documented hierarchy and still consults
+            // stores.comission and the global setting as legacy sources, so no
+            // existing rate changes until rules are configured.
+            $comission = app(UrbanGoodzCommissionResolver::class)
+                ->resolvePercentageRate(OrderCommissionContextFactory::forOrder($order));
             $dm_tips = $dm_tips_manage_status ? $order->dm_tips : 0;
             // $order_amount = $order->order_amount - $order->delivery_charge - $order->total_tax_amount - $dm_tips;
 
