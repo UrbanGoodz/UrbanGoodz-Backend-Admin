@@ -23,6 +23,12 @@ class PlanningResult
         public readonly ?int $auditId = null,
     ) {}
 
+    /** Canonical calculation mode for the whole plan. */
+    public function overallCalculationMode(): string
+    {
+        return DistanceResult::deriveCalculationMode($this->overallDistanceMode);
+    }
+
     public function toArray(): array
     {
         return [
@@ -38,6 +44,8 @@ class PlanningResult
             'metrics' => $this->metrics->toArray(),
             'algorithm_version' => $this->algorithmVersion,
             'overall_distance_mode' => $this->overallDistanceMode,
+            'overall_calculation_mode' => $this->overallCalculationMode(),
+            'overall_calculation_mode_label' => DistanceResult::labelForCalculationMode($this->overallCalculationMode()),
             'overall_violations' => $this->overallViolations,
             'warnings' => $this->warnings,
             'audit_id' => $this->auditId,

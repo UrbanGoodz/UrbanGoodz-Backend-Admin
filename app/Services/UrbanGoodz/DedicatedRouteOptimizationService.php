@@ -131,7 +131,7 @@ class DedicatedRouteOptimizationService
                     ];
                 }
 
-                $route->update([
+                $route->update(array_merge($this->calculationModeColumn($optimizedMetrics['calculation_mode']), [
                     'return_to_origin' => $returnToOrigin,
                     'optimization_status' => $status,
                     'optimized_at' => now(),
@@ -149,7 +149,7 @@ class DedicatedRouteOptimizationService
                     'optimized_by_type' => $actorType,
                     'optimized_by_id' => $actorId,
                     'optimization_version' => ((int) $route->optimization_version) + 1,
-                ]);
+                ]));
 
                 $this->audit($route, 'route_optimized', $actorType, $actorId, [
                     'original_sequence' => $original->pluck('id')->values()->all(),
@@ -172,6 +172,8 @@ class DedicatedRouteOptimizationService
                 'optimized_duration_minutes' => $optimizedMetrics['minutes'],
                 'method' => $method,
                 'provider' => $optimizedMetrics['provider'],
+                'calculation_mode' => $optimizedMetrics['calculation_mode'],
+                'original_calculation_mode' => $originalMetrics['calculation_mode'],
             ];
         } catch (Throwable $exception) {
             if (Schema::hasColumn('urban_goodz_dedicated_routes', 'optimization_status')) {
@@ -255,14 +257,16 @@ class DedicatedRouteOptimizationService
                     ->update(['stop_order' => $order]);
             }
 
-            $route->update([
+            // A human chose this sequence. Its totals are not a routing engine's
+            // output and must never be labelled as a road distance.
+            $route->update(array_merge($this->calculationModeColumn(DistanceResult::CALC_MANUAL_ORDER), [
                 'optimization_status' => 'manual_override',
                 'optimization_manual_override' => true,
                 'optimized_by_type' => $actorType,
                 'optimized_by_id' => $actorId,
                 'optimized_at' => now(),
                 'optimization_version' => ((int) $route->optimization_version) + 1,
-            ]);
+            ]));
             $this->audit($route, 'route_manual_reorder', $actorType, $actorId, [
                 'before' => $current,
                 'after' => $requested,
@@ -336,6 +340,25 @@ class DedicatedRouteOptimizationService
         return $best;
     }
 
+    /**
+     * The calculation-mode column ships with a migration; guard the write so a
+     * database that has not run it yet degrades instead of throwing.
+     */
+    private function calculationModeColumn(string $mode): array
+    {
+        static $exists = null;
+
+        if ($exists === null) {
+            try {
+                $exists = Schema::hasColumn('urban_goodz_dedicated_routes', 'optimization_calculation_mode');
+            } catch (Throwable) {
+                $exists = false;
+            }
+        }
+
+        return $exists ? ['optimization_calculation_mode' => $mode] : [];
+    }
+
     private function metrics(Collection $packages, array $start, ?array $end): array
     {
         $miles = 0.0;
@@ -343,6 +366,8 @@ class DedicatedRouteOptimizationService
         $durationAvailable = true;
         $fallback = false;
         $providers = [];
+        $allRoad = true;
+        $sawLeg = false;
         $current = $start;
 
         foreach ($packages as $package) {
@@ -355,6 +380,8 @@ class DedicatedRouteOptimizationService
             }
             $fallback = $fallback || $leg->isFallback;
             $providers[$leg->provider] = true;
+            $sawLeg = true;
+            $allRoad = $allRoad && $leg->isRoadNetwork();
             $current = ['lat' => (float) $package->dropoff_lat, 'lng' => (float) $package->dropoff_lng];
         }
 
@@ -371,6 +398,8 @@ class DedicatedRouteOptimizationService
             }
             $fallback = $fallback || $leg->isFallback;
             $providers[$leg->provider] = true;
+            $sawLeg = true;
+            $allRoad = $allRoad && $leg->isRoadNetwork();
         }
 
         if ($durationAvailable) {
@@ -385,6 +414,11 @@ class DedicatedRouteOptimizationService
             'minutes' => $durationAvailable ? (int) round($minutes) : null,
             'fallback' => $fallback,
             'provider' => implode(',', array_keys($providers)) ?: 'none',
+            // ROAD_NETWORK only when every single leg came from the road
+            // network. One estimated leg downgrades the whole total.
+            'calculation_mode' => ($sawLeg && $allRoad)
+                ? DistanceResult::CALC_ROAD_NETWORK
+                : DistanceResult::CALC_HAVERSINE_FALLBACK,
         ];
     }
 

@@ -161,6 +161,13 @@ class UrbanGoodzDriverApiController extends Controller
                 'optimization_version' => $route->optimization_version,
                 'optimization_method' => $route->optimization_method,
                 'optimization_provider' => $route->optimization_provider,
+                // Tells the driver app whether the mileage/ETA below came from
+                // a real road network or is a straight-line estimate.
+                'calculation_mode' => $route->optimization_calculation_mode
+                    ?? \App\Services\UrbanGoodz\Routing\DTOs\DistanceResult::CALC_HAVERSINE_FALLBACK,
+                'calculation_mode_label' => \App\Services\UrbanGoodz\Routing\DTOs\DistanceResult::labelForCalculationMode(
+                    $route->optimization_calculation_mode
+                ),
                 'estimated_miles' => $route->optimized_distance_miles ?? $route->estimated_miles,
                 'estimated_duration_minutes' => $route->optimized_duration_minutes ?? $route->estimated_duration,
             ],

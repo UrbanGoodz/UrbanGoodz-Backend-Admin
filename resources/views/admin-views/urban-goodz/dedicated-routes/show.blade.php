@@ -48,6 +48,15 @@
                             <div class="col-md-4"><strong>{{ translate('Optimization') }}:</strong> {{ ucwords(str_replace('_', ' ', $route->optimization_status ?? 'not_optimized')) }}</div>
                             <div class="col-md-4"><strong>{{ translate('Method') }}:</strong> {{ $route->optimization_method ?? '—' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Provider') }}:</strong> {{ $route->optimization_provider ?? '—' }}</div>
+                            @php($ugCalcMode = $route->optimization_calculation_mode)
+                            <div class="col-md-4"><strong>{{ translate('Distance Basis') }}:</strong>
+                                <span class="badge badge-{{ $ugCalcMode === 'ROAD_NETWORK' ? 'success' : ($ugCalcMode === 'MANUAL_ORDER' ? 'info' : 'warning') }}">
+                                    {{ translate(\App\Services\UrbanGoodz\Routing\DTOs\DistanceResult::labelForCalculationMode($ugCalcMode)) }}
+                                </span>
+                                @if($ugCalcMode !== 'ROAD_NETWORK')
+                                    <small class="d-block text-muted">{{ translate('Not a road-network distance.') }}</small>
+                                @endif
+                            </div>
                             <div class="col-md-4"><strong>{{ translate('Original Distance') }}:</strong> {{ $route->original_distance_miles !== null ? number_format($route->original_distance_miles, 2).' mi' : '—' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Optimized Distance') }}:</strong> {{ $route->optimized_distance_miles !== null ? number_format($route->optimized_distance_miles, 2).' mi' : '—' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Estimated Duration') }}:</strong> {{ $route->optimized_duration_minutes !== null ? $route->optimized_duration_minutes.' min' : '—' }}</div>

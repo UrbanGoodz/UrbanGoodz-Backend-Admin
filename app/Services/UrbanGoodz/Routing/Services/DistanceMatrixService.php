@@ -3,24 +3,29 @@
 namespace App\Services\UrbanGoodz\Routing\Services;
 
 use App\Services\UrbanGoodz\Routing\DTOs\DistanceResult;
+use App\Services\UrbanGoodz\Routing\Providers\OpenRouteServiceProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DistanceMatrixService
 {
+    public const PROVIDER_OPENROUTESERVICE = 'openrouteservice';
+
     private string $provider;
     private string $googleMapsKey;
     private int $cacheTtlHours;
     private int $batchSize;
     private int $requestDelayMs;
+    private ?OpenRouteServiceProvider $ors;
+    private int $orsMaxLocations;
 
     private int $requestCount = 0;
     private int $cacheHitCount = 0;
     private int $cacheMissCount = 0;
     private float $matrixFetchTimeMs = 0;
 
-    public function __construct(?array $config = null)
+    public function __construct(?array $config = null, ?OpenRouteServiceProvider $ors = null)
     {
         $cfg = $config ?? config('urban_goodz.distance_matrix', []);
         $this->provider = $cfg['provider'] ?? 'haversine';
@@ -28,6 +33,22 @@ class DistanceMatrixService
         $this->cacheTtlHours = $cfg['cache_ttl_hours'] ?? 24;
         $this->batchSize = $cfg['batch_size'] ?? 25;
         $this->requestDelayMs = $cfg['request_delay_ms'] ?? 100;
+        $orsConfig = $cfg['openrouteservice'] ?? config('urban_goodz.openrouteservice', []);
+        $this->ors = $ors ?? new OpenRouteServiceProvider($orsConfig);
+        $this->orsMaxLocations = max(2, (int) ($orsConfig['max_locations'] ?? 50));
+    }
+
+    /** True when OpenRouteService is the selected, usable provider. */
+    public function usesOpenRouteService(): bool
+    {
+        return $this->isOpenRouteServiceSelected()
+            && $this->ors !== null
+            && $this->ors->isConfigured();
+    }
+
+    private function isOpenRouteServiceSelected(): bool
+    {
+        return $this->provider === self::PROVIDER_OPENROUTESERVICE;
     }
 
     public function getDistance(string $originLat, string $originLng, string $destLat, string $destLng): DistanceResult
@@ -35,17 +56,61 @@ class DistanceMatrixService
         $pairKey = $this->pairCacheKey($originLat, $originLng, $destLat, $destLng);
 
         $cached = Cache::get("urb_distance_{$pairKey}");
-        if ($cached !== null) {
+        if (is_array($cached)
+            && is_numeric($cached['miles'] ?? null)
+            && is_numeric($cached['minutes'] ?? null)) {
             $this->cacheHitCount++;
-            return DistanceResult::road(
-                miles: $cached['miles'],
-                minutes: $cached['minutes'],
-                provider: 'google_distance_matrix',
-                fromCache: true
-            );
+            $cachedProvider = $cached['provider'] ?? 'google_distance_matrix';
+
+            // Only road results are ever written to this cache, so a hit is
+            // always ROAD_NETWORK -- but report the provider that produced it.
+            return $cachedProvider === OpenRouteServiceProvider::PROVIDER_NAME
+                ? DistanceResult::roadNetwork(
+                    miles: $cached['miles'],
+                    minutes: $cached['minutes'],
+                    provider: $cachedProvider,
+                    fromCache: true
+                )
+                : DistanceResult::road(
+                    miles: $cached['miles'],
+                    minutes: $cached['minutes'],
+                    provider: $cachedProvider,
+                    fromCache: true
+                );
         }
 
         $this->cacheMissCount++;
+
+        if ($this->isOpenRouteServiceSelected()) {
+            if (!$this->usesOpenRouteService()) {
+                $miles = $this->haversine(
+                    (float)$originLat, (float)$originLng,
+                    (float)$destLat, (float)$destLng
+                );
+
+                return DistanceResult::haversine($miles, 'ors_not_configured');
+            }
+
+            $result = $this->fetchOpenRouteServicePair(
+                (float)$originLat, (float)$originLng,
+                (float)$destLat, (float)$destLng
+            );
+
+            if ($result !== null) {
+                $this->cachePair($pairKey, $result);
+                return $result;
+            }
+
+            $miles = $this->haversine(
+                (float)$originLat, (float)$originLng,
+                (float)$destLat, (float)$destLng
+            );
+
+            return DistanceResult::haversine(
+                $miles,
+                'ors_' . ($this->ors?->lastFailureReason() ?? 'unavailable')
+            );
+        }
 
         if ($this->provider !== 'google_maps' || empty($this->googleMapsKey)) {
             $miles = $this->haversine(
@@ -60,10 +125,7 @@ class DistanceMatrixService
         );
 
         if ($result !== null) {
-            Cache::put("urb_distance_{$pairKey}", [
-                'miles' => $result->distanceMiles,
-                'minutes' => $result->durationMinutes ?? 0,
-            ], now()->addHours($this->cacheTtlHours));
+            $this->cachePair($pairKey, $result);
             return $result;
         }
 
@@ -72,6 +134,35 @@ class DistanceMatrixService
             (float)$destLat, (float)$destLng
         );
         return DistanceResult::haversine($miles, 'api_error_fallback');
+    }
+
+    private function cachePair(string $pairKey, DistanceResult $result): void
+    {
+        Cache::put("urb_distance_{$pairKey}", [
+            'miles' => $result->distanceMiles,
+            'minutes' => $result->durationMinutes ?? 0,
+            'provider' => $result->provider,
+        ], now()->addHours($this->cacheTtlHours));
+    }
+
+    private function fetchOpenRouteServicePair(float $oLat, float $oLng, float $dLat, float $dLng): ?DistanceResult
+    {
+        if ($this->ors === null) {
+            return null;
+        }
+
+        $this->requestCount++;
+        $pair = $this->ors->pairDistance($oLat, $oLng, $dLat, $dLng);
+
+        if ($pair === null) {
+            return null;
+        }
+
+        return DistanceResult::roadNetwork(
+            $pair['miles'],
+            $pair['minutes'],
+            OpenRouteServiceProvider::PROVIDER_NAME
+        );
     }
 
     public function buildFullMatrix(array $stops): array
@@ -141,6 +232,15 @@ class DistanceMatrixService
 
     public function buildChunkedMatrix(array $stops, ?callable $onProgress = null): array
     {
+        if ($this->usesOpenRouteService()) {
+            $orsMatrix = $this->buildOpenRouteServiceMatrix($stops, $onProgress);
+            if ($orsMatrix !== null) {
+                return $orsMatrix;
+            }
+            // ORS failed outright; fall through to the per-pair path, which
+            // degrades to Haversine and labels every cell accordingly.
+        }
+
         $startMs = microtime(true);
         $n = count($stops);
         $matrix = array_fill(0, $n, array_fill(0, $n, null));
@@ -229,21 +329,118 @@ class DistanceMatrixService
         return $matrix;
     }
 
-    public function getOverallDistanceMode(array $matrix): string
+    /**
+     * One ORS matrix call covers the whole stop set (N x N distances AND
+     * durations), which is what the matrix endpoint is for. Returns null when
+     * the call fails or the set is too large for a single request, so the
+     * caller can degrade.
+     *
+     * @return array<int, array<int, DistanceResult>>|null
+     */
+    private function buildOpenRouteServiceMatrix(array $stops, ?callable $onProgress = null): ?array
     {
-        $modes = [];
-        foreach ($matrix as $row) {
-            foreach ($row as $cell) {
-                if ($cell instanceof DistanceResult && $cell->mode !== 'self') {
-                    $modes[$cell->mode] = true;
+        $startMs = microtime(true);
+        $n = count($stops);
+
+        if ($n === 0) {
+            return [];
+        }
+        if ($n < 2 || $n > $this->orsMaxLocations) {
+            return null;
+        }
+
+        $coordinates = [];
+        foreach ($stops as $stop) {
+            $coordinates[] = [(float) $stop->lng, (float) $stop->lat];
+        }
+
+        $this->requestCount++;
+        $this->cacheMissCount++;
+        $payload = $this->ors?->matrix($coordinates);
+
+        if ($payload === null) {
+            return null;
+        }
+
+        $matrix = [];
+        for ($i = 0; $i < $n; $i++) {
+            $matrix[$i] = [];
+            for ($j = 0; $j < $n; $j++) {
+                if ($i === $j) {
+                    $matrix[$i][$j] = new DistanceResult(0, 0, 'self', 'self');
+                    continue;
+                }
+
+                $meters = $payload['distances'][$i][$j] ?? null;
+                $seconds = $payload['durations'][$i][$j] ?? null;
+
+                if (is_numeric($meters) && is_numeric($seconds)) {
+                    $matrix[$i][$j] = DistanceResult::roadNetwork(
+                        round(((float) $meters) / 1609.344, 2),
+                        round(((float) $seconds) / 60, 1),
+                        OpenRouteServiceProvider::PROVIDER_NAME,
+                        (bool) ($payload['from_cache'] ?? false)
+                    );
+                } else {
+                    // ORS returns null for unreachable cells. That single cell
+                    // is an estimate and is labelled as one.
+                    $matrix[$i][$j] = DistanceResult::haversine(
+                        $this->haversine(
+                            (float) $stops[$i]->lat, (float) $stops[$i]->lng,
+                            (float) $stops[$j]->lat, (float) $stops[$j]->lng
+                        ),
+                        'ors_unreachable_cell'
+                    );
                 }
             }
         }
 
-        if (isset($modes[DistanceResult::MODE_ROAD_MATRIX]) || isset($modes[DistanceResult::MODE_CACHED_ROAD])) {
-            return 'ROAD_MATRIX';
+        if ($onProgress) {
+            $onProgress(1, 1);
         }
-        return 'HAVERSINE_FALLBACK';
+
+        $this->matrixFetchTimeMs = (microtime(true) - $startMs) * 1000;
+
+        return $matrix;
+    }
+
+    public function getOverallDistanceMode(array $matrix): string
+    {
+        // Keep the legacy return labels, but apply the canonical all-or-nothing
+        // rule so a mixed matrix can never be advertised as road distance.
+        return $this->getOverallCalculationMode($matrix) === DistanceResult::CALC_ROAD_NETWORK
+            ? 'ROAD_MATRIX'
+            : 'HAVERSINE_FALLBACK';
+    }
+
+    /**
+     * Canonical calculation mode for a whole matrix. Returns ROAD_NETWORK only
+     * when every non-self cell really came from the road network; a single
+     * fallback cell downgrades the whole matrix to HAVERSINE_FALLBACK so no
+     * aggregate can be presented as a road distance when it partly is not.
+     */
+    public function getOverallCalculationMode(array $matrix): string
+    {
+        $sawRoad = false;
+
+        foreach ($matrix as $row) {
+            foreach ($row as $cell) {
+                if (!$cell instanceof DistanceResult) {
+                    continue;
+                }
+                if ($cell->calculationMode === DistanceResult::CALC_SELF) {
+                    continue;
+                }
+                if ($cell->calculationMode !== DistanceResult::CALC_ROAD_NETWORK) {
+                    return DistanceResult::CALC_HAVERSINE_FALLBACK;
+                }
+                $sawRoad = true;
+            }
+        }
+
+        return $sawRoad
+            ? DistanceResult::CALC_ROAD_NETWORK
+            : DistanceResult::CALC_HAVERSINE_FALLBACK;
     }
 
     public function haversine(float $lat1, float $lng1, float $lat2, float $lng2): float
@@ -269,12 +466,18 @@ class DistanceMatrixService
             'cache_miss_count' => $this->cacheMissCount,
             'cache_hit_rate' => $total > 0 ? round($this->cacheHitCount / $total * 100, 2) : 0,
             'matrix_fetch_time_ms' => round($this->matrixFetchTimeMs, 2),
+            'provider' => $this->provider,
+            'openrouteservice' => $this->ors?->getStats(),
         ];
     }
 
     private function pairCacheKey(string $lat1, string $lng1, string $lat2, string $lng2): string
     {
-        return md5("{$lat1},{$lng1}_{$lat2},{$lng2}");
+        $profile = $this->isOpenRouteServiceSelected() && $this->ors !== null
+            ? $this->ors->profile()
+            : 'driving';
+
+        return md5("{$this->provider}|{$profile}|{$lat1},{$lng1}_{$lat2},{$lng2}");
     }
 
     private function fetchGoogleDistanceMatrix(string $oLat, string $oLng, string $dLat, string $dLng): ?DistanceResult
