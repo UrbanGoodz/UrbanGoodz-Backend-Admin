@@ -12,11 +12,18 @@ class UrbanGoodzPackageScan extends Model
         'package_id', 'scan_type', 'scanned_by', 'scanner_type',
         'latitude', 'longitude', 'photo', 'signature',
         'exception_reason', 'notes',
+        'route_id', 'stop_id', 'business_client_id',
+        'identifier_type', 'identifier_value',
+        'status_before', 'status_after',
+        'proof_reference', 'device_source',
+        'metadata', 'occurred_at', 'idempotency_key',
     ];
 
     protected $casts = [
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
+        'metadata' => 'array',
+        'occurred_at' => 'datetime',
     ];
 
     public function package()
