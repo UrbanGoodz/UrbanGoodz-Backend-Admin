@@ -52,6 +52,13 @@ storage/app/urban_goodz_import_tmp/
 id_rsa_lf
 id_rsa_utf8
 
+# APNs auth keys and legacy push certificates (never commit)
+*.p8
+*.p12
+*.mobileprovision
+storage/app/apns/
+AuthKey_*.p8
+
 
 release_artifacts_20260720/*.apk
 *.apk
