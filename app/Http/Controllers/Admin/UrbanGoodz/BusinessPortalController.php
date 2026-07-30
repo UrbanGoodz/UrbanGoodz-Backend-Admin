@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class BusinessPortalController extends Controller
 {
@@ -95,7 +96,7 @@ class BusinessPortalController extends Controller
 
         $request->validate([
             'route_name' => 'required|string|max:255',
-            'route_type' => 'required|in:logistics,medical_courier,load_board,bulk_delivery',
+            'route_type' => ['required', Rule::in(UrbanGoodzDedicatedRoute::ROUTE_TYPES)],
             'pickup_location' => 'required|string|max:255',
             'pickup_lat' => 'nullable|numeric|between:-90,90',
             'pickup_lng' => 'nullable|numeric|between:-180,180',
@@ -104,12 +105,20 @@ class BusinessPortalController extends Controller
             'end_lng' => 'nullable|numeric|between:-180,180|required_with:end_lat',
             'return_to_origin' => 'nullable|boolean',
             'scheduled_date' => 'required|date|after_or_equal:today',
+            'recurring_rule' => 'nullable|string|max:100',
+            'capacity_packages' => 'nullable|integer|min:1|max:10000',
+            'capacity_weight_lbs' => 'nullable|numeric|min:0|max:1000000',
             'stops' => 'required|array|min:1',
             'stops.*.dropoff_address' => 'required|string|max:255',
             'stops.*.recipient_name' => 'nullable|string|max:255',
             'stops.*.contact_phone' => 'nullable|string|max:50',
             'stops.*.package_type' => 'nullable|string|in:parcel,document,specimen,supply,pallet,envelope',
             'stops.*.delivery_notes' => 'nullable|string',
+            'stops.*.delivery_window_start' => 'nullable|date',
+            'stops.*.delivery_window_end' => 'nullable|date|after_or_equal:stops.*.delivery_window_start',
+            'stops.*.priority' => ['nullable', Rule::in(UrbanGoodzRoutePackage::PRIORITIES)],
+            'stops.*.weight' => 'nullable|numeric|min:0',
+            'stops.*.stop_locked' => 'nullable|boolean',
             'stops.*.dropoff_lat' => 'nullable|numeric|between:-90,90|required_with:stops.*.dropoff_lng',
             'stops.*.dropoff_lng' => 'nullable|numeric|between:-180,180|required_with:stops.*.dropoff_lat',
         ]);
@@ -118,6 +127,7 @@ class BusinessPortalController extends Controller
             'business_client_id' => $clientId,
             'route_name' => $request->route_name,
             'route_type' => $request->route_type,
+            'source_module' => $request->route_type,
             'pickup_location' => $request->pickup_location,
             'pickup_lat' => $request->pickup_lat,
             'pickup_lng' => $request->pickup_lng,
@@ -126,6 +136,9 @@ class BusinessPortalController extends Controller
             'end_lng' => $request->boolean('return_to_origin') ? $request->pickup_lng : $request->end_lng,
             'return_to_origin' => $request->boolean('return_to_origin'),
             'scheduled_date' => $request->scheduled_date,
+            'recurring_rule' => $request->recurring_rule,
+            'capacity_packages' => $request->capacity_packages,
+            'capacity_weight_lbs' => $request->capacity_weight_lbs,
             'status' => 'pending',
             'created_by' => auth('business')->id(),
             'total_packages' => count($request->stops),
@@ -143,6 +156,13 @@ class BusinessPortalController extends Controller
                 'dropoff_lat' => $stop['dropoff_lat'] ?? null,
                 'dropoff_lng' => $stop['dropoff_lng'] ?? null,
                 'package_type' => $stop['package_type'] ?? 'parcel',
+                'priority' => $stop['priority'] ?? 'normal',
+                'weight' => $stop['weight'] ?? null,
+                'delivery_window_start' => $stop['delivery_window_start'] ?? null,
+                'delivery_window_end' => $stop['delivery_window_end'] ?? null,
+                'stop_locked' => (bool) ($stop['stop_locked'] ?? false),
+                'locked_stop_order' => !empty($stop['stop_locked']) ? $i + 1 : null,
+                'source_module' => $request->route_type,
                 'notes' => $stop['delivery_notes'] ?? null,
                 'stop_order' => $i + 1,
                 'status' => 'pending',
@@ -157,7 +177,10 @@ class BusinessPortalController extends Controller
     {
         $clientId = $this->getClientId();
         $route = UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
-            ->with(['packages', 'batches', 'driver', 'optimizationStops.package'])
+            ->with([
+                'packages.scans', 'batches', 'driver',
+                'optimizationStops.package', 'optimizationHistory',
+            ])
             ->findOrFail($id);
 
         $locations = UrbanGoodzBusinessClientLocation::where('business_client_id', $clientId)
@@ -199,7 +222,7 @@ class BusinessPortalController extends Controller
 
         $request->validate([
             'route_name' => 'required|string|max:255',
-            'route_type' => 'required|in:logistics,medical_courier,load_board,bulk_delivery',
+            'route_type' => ['required', Rule::in(UrbanGoodzDedicatedRoute::ROUTE_TYPES)],
             'pickup_location' => 'required|string|max:255',
             'pickup_lat' => 'nullable|numeric|between:-90,90',
             'pickup_lng' => 'nullable|numeric|between:-180,180',
@@ -208,13 +231,18 @@ class BusinessPortalController extends Controller
             'end_lng' => 'nullable|numeric|between:-180,180|required_with:end_lat',
             'return_to_origin' => 'nullable|boolean',
             'scheduled_date' => 'required|date',
+            'recurring_rule' => 'nullable|string|max:100',
+            'capacity_packages' => 'nullable|integer|min:1|max:10000',
+            'capacity_weight_lbs' => 'nullable|numeric|min:0|max:1000000',
         ]);
 
         $route->update($request->only([
             'route_name', 'route_type', 'pickup_location',
-            'pickup_lat', 'pickup_lng', 'end_location', 'end_lat', 'end_lng', 'scheduled_date',
+            'pickup_lat', 'pickup_lng', 'end_location', 'end_lat', 'end_lng',
+            'scheduled_date', 'recurring_rule', 'capacity_packages', 'capacity_weight_lbs',
         ]));
         $route->update([
+            'source_module' => $request->route_type,
             'return_to_origin' => $request->boolean('return_to_origin'),
             'end_location' => $request->boolean('return_to_origin') ? $request->pickup_location : $request->end_location,
             'end_lat' => $request->boolean('return_to_origin') ? $request->pickup_lat : $request->end_lat,
@@ -758,15 +786,47 @@ class BusinessPortalController extends Controller
             ->whereNull('dedicated_route_id')
             ->findOrFail($id);
 
+        $capacityPackages = (int) ($route->capacity_packages ?: $route->max_packages_per_batch);
+        if ($capacityPackages > 0 && $route->packages()->count() >= $capacityPackages) {
+            Toastr::error(translate('Route package capacity has been reached'));
+            return redirect()->route('business.packages.pool');
+        }
+        $projectedWeight = (float) $route->packages()->sum('weight') + (float) ($package->weight ?? 0);
+        if ($route->capacity_weight_lbs !== null
+            && $projectedWeight > (float) $route->capacity_weight_lbs) {
+            Toastr::error(translate('Route weight capacity would be exceeded'));
+            return redirect()->route('business.packages.pool');
+        }
+
         $nextOrder = $route->packages()->count() + 1;
 
-        $package->update([
-            'dedicated_route_id' => $route->id,
-            'stop_order' => $nextOrder,
-            'status' => 'pending',
-        ]);
+        DB::transaction(function () use ($package, $route, $nextOrder, $clientId): void {
+            $package->update([
+                'dedicated_route_id' => $route->id,
+                'source_module' => $package->source_module ?: ($route->source_module ?: $route->route_type),
+                'stop_order' => $nextOrder,
+                'status' => 'pending',
+            ]);
 
-        $route->increment('total_packages');
+            UrbanGoodzPackageScan::create([
+                'package_id' => $package->id,
+                'scan_type' => 'route_assignment',
+                'scanned_by' => auth('business')->id(),
+                'scanner_type' => 'business',
+                'business_client_id' => $clientId,
+                'dedicated_route_id' => $route->id,
+                'input_method' => 'manual',
+                'occurred_at' => now(),
+                'received_at' => now(),
+                'metadata' => [
+                    'route_id' => $route->id,
+                    'stop_order' => $nextOrder,
+                    'source_module' => $route->source_module ?: $route->route_type,
+                ],
+            ]);
+
+            $route->increment('total_packages');
+        });
 
         Toastr::success(translate('Package assigned to route'));
         return redirect()->route('business.packages.pool');
