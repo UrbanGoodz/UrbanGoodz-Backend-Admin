@@ -97,6 +97,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
             Route::post('/submit', 'DeliveryManReviewController@submit_review');
         });
         Route::group(['middleware'=>['dm.api']], function () {
+            Route::post('logout', 'DeliverymanController@logout');
             Route::get('profile', 'DeliverymanController@get_profile');
             Route::get('convert-loyalty-points', 'DeliverymanController@convertLoyaltyPoints');
             Route::get('notifications', 'DeliverymanController@get_notifications');

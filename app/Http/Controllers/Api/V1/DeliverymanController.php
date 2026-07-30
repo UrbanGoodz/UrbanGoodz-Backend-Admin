@@ -66,6 +66,36 @@ class DeliverymanController extends Controller
 {
     use ConditionalTransactionTrait;
 
+    /**
+     * End the driver's session server-side.
+     *
+     * The delivery-man app had no logout endpoint at all — the Vendor app has
+     * one, the driver never did — so signing out only cleared the handset's
+     * copy of the token while `delivery_men.auth_token` stayed valid
+     * indefinitely. A lost or resold phone kept a working bearer, and the FCM
+     * token kept delivering that driver's assignments to it.
+     *
+     * Clears both. Idempotent: signing out twice is not an error.
+     */
+    public function logout(Request $request)
+    {
+        $dm = $request->user('delivery_men') ?? auth('delivery_men')->user();
+
+        if (! $dm) {
+            return response()->json([
+                'errors' => [
+                    ['code' => 'unauthorized', 'message' => translate('messages.unauthorized')],
+                ],
+            ], 401);
+        }
+
+        $dm->auth_token = null;
+        $dm->fcm_token = null;
+        $dm->save();
+
+        return response()->json(['message' => 'Logged out'], 200);
+    }
+
     public function get_profile(Request $request)
     {
         $dm = DeliveryMan::with(['rating','userinfo'])->where(['auth_token' => $request['token']])->first();
