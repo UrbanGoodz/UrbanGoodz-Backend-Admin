@@ -161,6 +161,9 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::post('routes/{routeId}/scan-pickup', 'Api\UrbanGoodzDriverApiController@scanPickup');
     Route::post('routes/{routeId}/scan-dropoff', 'Api\UrbanGoodzDriverApiController@scanDropoff');
     Route::post('routes/{routeId}/scan-exception', 'Api\UrbanGoodzDriverApiController@scanException');
+    Route::post('routes/{routeId}/package-events', 'Api\UrbanGoodzDriverPackageScanController@store');
+    Route::get('routes/{routeId}/package-events', 'Api\UrbanGoodzDriverPackageScanController@history');
+    Route::post('package-events/sync', 'Api\UrbanGoodzDriverPackageScanController@sync');
     Route::post('routes/{routeId}/age-verify', 'Api\UrbanGoodzDriverApiController@submitAgeVerification');
     Route::post('routes/{routeId}/age-refuse', 'Api\UrbanGoodzDriverApiController@submitAgeRefusal');
     Route::get('routes/{routeId}/age-status', 'Api\UrbanGoodzDriverApiController@checkAgeStatus');

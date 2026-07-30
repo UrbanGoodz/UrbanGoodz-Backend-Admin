@@ -54,7 +54,8 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
         self::assertSame(78, $plan['original_metrics']['minutes']);
         self::assertSame(62, $plan['optimized_metrics']['minutes']);
         self::assertLessThan($plan['original_metrics']['miles'], $plan['optimized_metrics']['miles']);
-        self::assertSame('nearest_neighbor+2opt', $plan['method']);
+        self::assertSame('constrained_nearest_neighbor+2opt', $plan['method']);
+        self::assertSame('HAVERSINE_FALLBACK', $plan['optimized_metrics']['distance_mode']);
     }
 
     public function test_fixed_end_and_return_to_origin_are_both_measured(): void
@@ -142,6 +143,53 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
         self::assertSame($first['optimized']->pluck('id')->all(), $second['optimized']->pluck('id')->all());
         self::assertSame($first['optimized_metrics'], $second['optimized_metrics']);
         self::assertStringContainsString('haversine_fallback', $first['optimized_metrics']['provider']);
+    }
+
+    public function test_locked_stop_remains_at_its_required_position(): void
+    {
+        $far = $this->package(3, 10, 3);
+        $locked = $this->package(1, 10, 1);
+        $locked->stop_locked = true;
+        $locked->locked_stop_order = 2;
+        $near = $this->package(2, 10, 2);
+
+        $plan = $this->optimizer->plan(
+            collect([$far, $locked, $near]),
+            ['lat' => 10, 'lng' => 0]
+        );
+
+        self::assertSame(1, $plan['optimized']->values()->get(1)->id);
+        self::assertSame([1, 2, 3], $plan['optimized']->pluck('id')->sort()->values()->all());
+    }
+
+    public function test_duplicate_locked_positions_fail_instead_of_dropping_a_stop(): void
+    {
+        $first = $this->package(1, 10, 1);
+        $first->stop_locked = true;
+        $first->locked_stop_order = 1;
+        $second = $this->package(2, 10, 2);
+        $second->stop_locked = true;
+        $second->locked_stop_order = 1;
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('both require position 1');
+
+        $this->optimizer->plan(collect([$first, $second]), ['lat' => 10, 'lng' => 0]);
+    }
+
+    public function test_return_stops_are_sequenced_after_delivery_stops(): void
+    {
+        $return = $this->package(1, 10, 1);
+        $return->status = 'returning_to_business';
+        $return->return_required = true;
+        $delivery = $this->package(2, 10, 4);
+
+        $plan = $this->optimizer->plan(
+            collect([$return, $delivery]),
+            ['lat' => 10, 'lng' => 0]
+        );
+
+        self::assertSame([2, 1], $plan['optimized']->pluck('id')->all());
     }
 
     private function package(int $id, float $lat, float $lng, string $address = 'Address'): UrbanGoodzRoutePackage

@@ -11,7 +11,7 @@ class UrbanGoodzRoutePackage extends Model
 
     const PACKAGE_TYPES = ['parcel', 'document', 'specimen', 'supply', 'pallet', 'envelope'];
     const PRIORITIES = ['normal', 'high', 'urgent', 'medical'];
-    const STATUSES = ['pending', 'pending_review', 'ready_for_route', 'assigned', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'unable_to_deliver', 'failed', 'return_required', 'returning_to_pickup', 'returning_to_hub', 'returned_to_pickup', 'returned_to_hub', 'returned_to_business', 'admin_review', 'payout_eligible', 'payout_excluded', 'completed'];
+    const STATUSES = ['pending', 'pending_review', 'ready_for_route', 'assigned', 'loaded', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'unable_to_deliver', 'failed', 'return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business', 'returned_to_pickup', 'returned_to_hub', 'returned_to_business', 'redelivery_pending', 'admin_review', 'payout_eligible', 'payout_excluded', 'completed'];
 
     const AGE_VERIFICATION_STATUSES = ['pending', 'verified', 'failed', 'refused'];
 
@@ -25,10 +25,12 @@ class UrbanGoodzRoutePackage extends Model
     protected $fillable = [
         'dedicated_route_id', 'route_batch_id', 'business_client_id',
         'manifest_id', 'manifest_session_id', 'scanned_by', 'scanned_at',
-        'tracking_id', 'external_reference', 'barcode', 'qr_code',
+        'tracking_id', 'external_reference', 'source_module', 'source_record_id',
+        'barcode', 'qr_code',
         'pickup_location_id', 'pickup_contact_name', 'pickup_contact_phone', 'pickup_address',
         'dropoff_name', 'dropoff_address', 'dropoff_city', 'dropoff_state', 'dropoff_zip', 'dropoff_phone', 'dropoff_lat', 'dropoff_lng',
-        'stop_order', 'delivery_window_start', 'delivery_window_end',
+        'stop_order', 'stop_locked', 'locked_stop_order',
+        'delivery_window_start', 'delivery_window_end',
         'package_type', 'weight', 'weight_unit', 'dimensions', 'priority',
         'requires_signature', 'requires_photo', 'requires_custody', 'temperature_requirement',
         'age_restricted', 'requires_id_verification', 'no_contactless_delivery',
@@ -40,6 +42,7 @@ class UrbanGoodzRoutePackage extends Model
         'dropoff_scanned_at', 'dropoff_scanned_by', 'dropoff_lat', 'dropoff_lng',
         'proof_photo', 'recipient_signature', 'delivery_result', 'delivered_to_name', 'delivered_location_type',
         'return_required', 'returned_at', 'return_location',
+        'redelivery_attempts', 'last_exception_at',
         'payout_status', 'payout_eligible',
         'geocode_status', 'geocode_confidence',
         'exception_reason', 'notes',
@@ -66,6 +69,10 @@ class UrbanGoodzRoutePackage extends Model
         'payout_eligible' => 'boolean',
         'geocode_confidence' => 'decimal:2',
         'returned_at' => 'datetime',
+        'last_exception_at' => 'datetime',
+        'stop_locked' => 'boolean',
+        'locked_stop_order' => 'integer',
+        'redelivery_attempts' => 'integer',
         'scanned_at' => 'datetime',
         'pickup_scanned_at' => 'datetime',
         'dropoff_scanned_at' => 'datetime',

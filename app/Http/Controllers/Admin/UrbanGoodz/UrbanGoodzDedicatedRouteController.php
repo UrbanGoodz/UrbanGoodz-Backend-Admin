@@ -46,12 +46,19 @@ class UrbanGoodzDedicatedRouteController extends Controller
             'business_client_id' => ['required', 'integer', 'exists:urban_goodz_business_clients,id'],
             'route_name' => ['required', 'string', 'max:255'],
             'route_type' => ['required', Rule::in(UrbanGoodzDedicatedRoute::ROUTE_TYPES)],
+            'source_module' => ['nullable', Rule::in(UrbanGoodzDedicatedRoute::ROUTE_TYPES)],
             'pickup_location' => ['nullable', 'string'],
             'pickup_lat' => ['nullable', 'numeric'],
             'pickup_lng' => ['nullable', 'numeric'],
+            'end_location' => ['nullable', 'string'],
+            'end_lat' => ['nullable', 'numeric', 'required_with:end_lng'],
+            'end_lng' => ['nullable', 'numeric', 'required_with:end_lat'],
+            'return_to_origin' => ['nullable', 'boolean'],
             'scheduled_date' => ['nullable', 'date'],
             'recurring_rule' => ['nullable', 'string', 'max:50'],
             'max_packages_per_batch' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'capacity_packages' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'capacity_weight_lbs' => ['nullable', 'numeric', 'min:0'],
             'vehicle_type_required' => ['nullable', 'string', 'max:100'],
             'driver_pay_per_package' => ['nullable', 'numeric', 'min:0'],
             'business_charge_per_package' => ['nullable', 'numeric', 'min:0'],
@@ -66,6 +73,13 @@ class UrbanGoodzDedicatedRouteController extends Controller
         ]);
 
         $data['created_by'] = auth('admin')->id();
+        $data['source_module'] = $data['source_module'] ?? $data['route_type'];
+        $data['return_to_origin'] = $request->boolean('return_to_origin');
+        if ($data['return_to_origin']) {
+            $data['end_location'] = $data['pickup_location'] ?? null;
+            $data['end_lat'] = $data['pickup_lat'] ?? null;
+            $data['end_lng'] = $data['pickup_lng'] ?? null;
+        }
         $data['instant_payout_allowed'] = $request->boolean('instant_payout_allowed', true);
         $data['weekly_payout_allowed'] = $request->boolean('weekly_payout_allowed', true);
 
@@ -78,7 +92,8 @@ class UrbanGoodzDedicatedRouteController extends Controller
     public function show($id)
     {
         $route = UrbanGoodzDedicatedRoute::with([
-            'client', 'driver', 'batches', 'packages', 'assignments.driver', 'optimizationStops.package',
+            'client', 'driver', 'batches', 'packages.scans', 'assignments.driver',
+            'optimizationStops.package', 'optimizationHistory', 'operationalMetrics',
         ])->findOrFail($id);
 
         $drivers = DeliveryMan::where('application_status', 'approved')->where('active', 1)->get();
