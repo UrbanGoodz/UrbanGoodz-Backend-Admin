@@ -1,12 +1,14 @@
 <?php
 
 return [
-    'enabled' => env('FASHION_FIT_AI_ENABLED', false),
-    'provider' => env('FASHION_FIT_AI_PROVIDER', 'http'),
+    'enabled' => env('FASHION_FIT_AI_ENABLED', true),
+    // 'silhouette' runs the in-platform engine; 'http' delegates to an external
+    // vendor and needs endpoint, api_key and model to be set.
+    'provider' => env('FASHION_FIT_AI_PROVIDER', 'silhouette'),
     'endpoint' => env('FASHION_FIT_AI_ENDPOINT'),
     'api_key' => env('FASHION_FIT_AI_API_KEY'),
-    'model' => env('FASHION_FIT_AI_MODEL'),
-    'model_version' => env('FASHION_FIT_AI_MODEL_VERSION'),
+    'model' => env('FASHION_FIT_AI_MODEL', \App\Services\FashionFit\SilhouetteMeasurementEngine::MODEL),
+    'model_version' => env('FASHION_FIT_AI_MODEL_VERSION', \App\Services\FashionFit\SilhouetteMeasurementEngine::MODEL_VERSION),
     'timeout' => (int) env('FASHION_FIT_AI_TIMEOUT', 90),
     'max_attempts' => (int) env('FASHION_FIT_AI_MAX_ATTEMPTS', 3),
     'staged_payments_enabled' => (bool) env('FASHION_FIT_STAGED_PAYMENTS_ENABLED', false),
