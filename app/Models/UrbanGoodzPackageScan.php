@@ -19,7 +19,12 @@ class UrbanGoodzPackageScan extends Model
         'idempotency_key', 'business_client_id', 'dedicated_route_id',
         'input_method', 'device_id', 'occurred_at', 'received_at', 'was_offline',
         'latitude', 'longitude', 'photo', 'signature',
-        'exception_reason', 'notes', 'metadata',
+        'exception_reason', 'notes',
+        'route_id', 'stop_id',
+        'identifier_type', 'identifier_value',
+        'status_before', 'status_after',
+        'proof_reference', 'device_source',
+        'metadata',
     ];
 
     protected $casts = [

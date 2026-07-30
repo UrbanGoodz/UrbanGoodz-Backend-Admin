@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use App\Services\UrbanGoodz\UrbanGoodzPackageScanRecorder;
 
 class UrbanGoodzDriverApiController extends Controller
 {
@@ -398,9 +399,25 @@ class UrbanGoodzDriverApiController extends Controller
             return response()->json(['error' => 'Package not found on this route'], 404);
         }
 
+        // A queued offline scan can reach the server twice. When the client
+        // supplies an idempotency key, replaying it returns the original event
+        // instead of an error; clients that send no key keep the old 400.
+        $scanRecorder = app(UrbanGoodzPackageScanRecorder::class);
+        $idempotencyKey = $request->input('idempotency_key');
+
+        if ($scanRecorder->alreadyRecorded($idempotencyKey)) {
+            return response()->json([
+                'message' => 'Package pickup already recorded',
+                'duplicate' => true,
+                'package' => ['id' => $package->id, 'status' => $package->status],
+            ], 200);
+        }
+
         if ($package->status !== 'pending') {
             return response()->json(['error' => 'Package already scanned or delivered'], 400);
         }
+
+        $statusBefore = $package->status;
 
         DB::beginTransaction();
         try {
@@ -411,15 +428,23 @@ class UrbanGoodzDriverApiController extends Controller
             $package->pickup_lng = $request->longitude;
             $package->save();
 
-            UrbanGoodzPackageScan::create([
-                'package_id' => $package->id,
-                'scan_type' => 'pickup',
+            [$identifierType, $identifierValue] = $scanRecorder->classifyIdentifier($request->all());
+
+            $scanRecorder->record($package, 'pickup', [
+                'route_id' => $routeId,
                 'scanned_by' => $driver->id,
                 'scanner_type' => 'driver',
+                'identifier_type' => $identifierType,
+                'identifier_value' => $identifierValue,
+                'status_before' => $statusBefore,
+                'status_after' => $package->status,
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
                 'photo' => $request->photo,
                 'notes' => $request->notes,
+                'device_source' => $request->input('device_source'),
+                'occurred_at' => $request->input('occurred_at'),
+                'idempotency_key' => $idempotencyKey,
             ]);
 
             if ($package->requires_custody) {
