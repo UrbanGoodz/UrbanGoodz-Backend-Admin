@@ -5,7 +5,7 @@ return [
     'legacy_route_chunking' => env('URBAN_GOODZ_LEGACY_ROUTE_CHUNKING', false),
 
     'distance_matrix' => [
-        'provider' => env('URBAN_GOODZ_DISTANCE_MATRIX_PROVIDER', 'haversine'),
+        'provider' => env('URBAN_GOODZ_DISTANCE_MATRIX_PROVIDER', 'auto'),
         'google_maps_key' => env('URBAN_GOODZ_GOOGLE_MAPS_KEY', ''),
         'cache_ttl_hours' => env('URBAN_GOODZ_DISTANCE_CACHE_TTL_HOURS', 24),
         'batch_size' => env('URBAN_GOODZ_DISTANCE_BATCH_SIZE', 25),

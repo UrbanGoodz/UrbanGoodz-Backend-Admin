@@ -23,8 +23,32 @@ class DistanceMatrixService
     public function __construct(?array $config = null)
     {
         $cfg = $config ?? config('urban_goodz.distance_matrix', []);
-        $this->provider = $cfg['provider'] ?? 'haversine';
+        $this->provider = $cfg['provider'] ?? 'auto';
         $this->googleMapsKey = $cfg['google_maps_key'] ?? '';
+
+        // The platform already owns working Google Maps credentials, but they
+        // live in business_settings (map_api_key_server) where the admin panel
+        // manages them — not in the env var this service was reading. The
+        // result was every route silently optimising on straight-line distance
+        // while a paid key sat unused. Fall back to the stored key so road
+        // distances work without duplicating the secret into .env.
+        if ($this->googleMapsKey === '') {
+            $this->googleMapsKey = (string) $this->storedGoogleKey();
+        }
+
+        // 'auto' resolves to road distances when a key is available and to
+        // Haversine when it is not, so the mode always reflects reality rather
+        // than an aspirational setting.
+        // The road-distance gate below tests for the literal 'google_maps',
+        // so anything else — including 'google' — silently means Haversine.
+        if ($this->provider === 'auto') {
+            $this->provider = $this->googleMapsKey !== '' ? 'google_maps' : 'haversine';
+        }
+
+        // Accept the shorter spelling as an alias rather than failing closed.
+        if ($this->provider === 'google') {
+            $this->provider = 'google_maps';
+        }
         $this->cacheTtlHours = $cfg['cache_ttl_hours'] ?? 24;
         $this->batchSize = $cfg['batch_size'] ?? 25;
         $this->requestDelayMs = $cfg['request_delay_ms'] ?? 100;
@@ -270,6 +294,24 @@ class DistanceMatrixService
             'cache_hit_rate' => $total > 0 ? round($this->cacheHitCount / $total * 100, 2) : 0,
             'matrix_fetch_time_ms' => round($this->matrixFetchTimeMs, 2),
         ];
+    }
+
+    /**
+     * The Google Maps server key the admin panel manages, cached briefly so a
+     * matrix build does not re-query it per pair.
+     */
+    private function storedGoogleKey(): string
+    {
+        try {
+            return (string) Cache::remember('ug_distance_matrix_google_key', 300, function () {
+                return \App\Models\BusinessSetting::where('key', 'map_api_key_server')->value('value')
+                    ?: \App\Models\BusinessSetting::where('key', 'map_api_key')->value('value')
+                    ?: '';
+            });
+        } catch (\Throwable $e) {
+            // Never let a settings lookup break route planning.
+            return '';
+        }
     }
 
     private function pairCacheKey(string $lat1, string $lng1, string $lat2, string $lng2): string
