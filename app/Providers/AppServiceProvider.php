@@ -29,7 +29,17 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(
             \App\Contracts\FashionFitMeasurementProvider::class,
-            \App\Services\FashionFit\HttpFashionFitMeasurementProvider::class,
+            function ($app) {
+                // The HTTP provider needs an external vendor endpoint. When one is not
+                // configured, fall back to the in-platform silhouette engine so photo
+                // analysis still produces real measurements.
+                $http = $app->make(\App\Services\FashionFit\HttpFashionFitMeasurementProvider::class);
+                if (config('fashion_fit_ai.provider') !== 'silhouette' && $http->configured()) {
+                    return $http;
+                }
+
+                return $app->make(\App\Services\FashionFit\SilhouetteFashionFitMeasurementProvider::class);
+            },
         );
         $this->app->bind(
             \App\Contracts\ServiceBookingPaymentGateway::class,
