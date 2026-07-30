@@ -184,6 +184,36 @@ class Helpers
         return $data;
     }
 
+    /**
+     * Coerce a cart JSON column into a plain array.
+     *
+     * Values reach the cart formatter as an array, as a JSON string, or — when
+     * a client posted a already-encoded value into a column that is also cast
+     * to `array` — as a JSON string wrapped in another JSON string. Decoding
+     * repeatedly until the value stops being a JSON string handles all three
+     * without guessing at the nesting depth.
+     */
+    public static function normalize_to_array($value): array
+    {
+        $guard = 0;
+
+        while (is_string($value) && $guard++ < 5) {
+            $decoded = json_decode($value, true);
+
+            if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+                return [];
+            }
+
+            $value = $decoded;
+        }
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        return $value === null ? [] : [$value];
+    }
+
     public static function cart_product_data_formatting(
         $data,
         $selected_variation,
@@ -192,6 +222,17 @@ class Helpers
         $trans = false,
         $local = 'en'
     ) {
+        // Normalise every caller-supplied selection up front. The cart row is
+        // written with json_encode() on top of an `array` cast and read back
+        // with json_decode() on top of that same cast, so these arrive
+        // double-encoded: json_decode('"[]"') yields the string "[]". Left
+        // unchecked that produced a 500 on /customer/cart/add and
+        // /customer/cart/list — first from array_combine(), then from
+        // foreach() on the variation.
+        $selected_variation = self::normalize_to_array($selected_variation);
+        $selected_addons = self::normalize_to_array($selected_addons);
+        $selected_addon_quantity = self::normalize_to_array($selected_addon_quantity);
+
         $variations = [];
         $categories = [];
         $category_ids = gettype($data['category_ids']) == 'array' ? $data['category_ids'] : json_decode($data['category_ids'], true);
@@ -206,7 +247,20 @@ class Helpers
         $data['choice_options'] = $choice_options;
         $add_ons = gettype($data['add_ons']) == 'array' ? $data['add_ons'] : json_decode($data['add_ons'], true);
         $data_addons = self::addon_data_formatting(AddOn::whereIn('id', $add_ons)->active()->get(), true, $trans, $local);
-        $selected_data = array_combine($selected_addons, $selected_addon_quantity);
+
+        // array_combine() also raises when the two sides differ in length, so
+        // pad or trim the quantities to match the ids.
+        if (count($selected_addons) !== count($selected_addon_quantity)) {
+            $selected_addon_quantity = array_pad(
+                array_slice($selected_addon_quantity, 0, count($selected_addons)),
+                count($selected_addons),
+                0
+            );
+        }
+
+        $selected_data = $selected_addons === []
+            ? []
+            : array_combine($selected_addons, $selected_addon_quantity);
         foreach ($data_addons as $addon) {
             $addon_id = $addon['id'];
             if (in_array($addon_id, $selected_addons)) {
