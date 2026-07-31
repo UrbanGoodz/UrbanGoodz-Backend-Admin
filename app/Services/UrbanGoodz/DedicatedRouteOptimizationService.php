@@ -18,6 +18,11 @@ use Throwable;
 
 class DedicatedRouteOptimizationService
 {
+    /**
+     * @var array<string, array{priority: int, window: int, return: bool}>
+     */
+    private array $deliveryGroupConstraints = [];
+
     private const ACTIVE_PACKAGE_STATUSES = [
         'pending', 'pending_review', 'ready_for_route', 'assigned',
         'loaded', 'picked_up', 'in_transit', 'out_for_delivery',
@@ -71,6 +76,7 @@ class DedicatedRouteOptimizationService
             $changed = $plan['changed'];
             $status = $plan['status'];
             $method = $plan['method'];
+            $stopGroups = $plan['stop_groups'];
             $constraints = $this->constraintsFor($route, $packages, $returnToOrigin);
             $nextVersion = ((int) $route->optimization_version) + 1;
             $savedOriginalSequence = array_values(array_map(
@@ -81,7 +87,7 @@ class DedicatedRouteOptimizationService
             DB::transaction(function () use (
                 $route, $original, $optimized, $originalMetrics, $optimizedMetrics,
                 $returnToOrigin, $actorType, $actorId, $status, $method,
-                $savedOriginalSequence, $constraints, $nextVersion
+                $savedOriginalSequence, $constraints, $nextVersion, $stopGroups, $packages
             ): void {
                 UrbanGoodzDedicatedRoute::whereKey($route->id)->lockForUpdate()->firstOrFail();
                 $persistedPackageIds = UrbanGoodzRoutePackage::where('dedicated_route_id', $route->id)
@@ -101,20 +107,26 @@ class DedicatedRouteOptimizationService
                     'lat' => (float) $route->pickup_lat,
                     'lng' => (float) $route->pickup_lng,
                 ];
+                $previousGroupKey = null;
+                $groupStopOrder = 0;
 
                 foreach ($optimized as $index => $package) {
                     $order = $index + 1;
-                    $leg = $this->distances->getDistance(
-                        (string) $previous['lat'],
-                        (string) $previous['lng'],
-                        (string) $package->dropoff_lat,
-                        (string) $package->dropoff_lng
-                    );
+                    $groupKey = $package->deliveryGroupKey();
+                    $isNewGroup = $groupKey !== $previousGroupKey;
+                    if ($isNewGroup) {
+                        $groupStopOrder++;
+                    }
+                    $leg = $isNewGroup
+                        ? $this->leg($previous, $package)
+                        : new DistanceResult(0, 0, 'SAME_ADDRESS_GROUP', 'same_address_group');
 
                     UrbanGoodzRouteOptimizationStop::create([
                         'dedicated_route_id' => $route->id,
                         'package_id' => $package->id,
                         'stop_order' => $order,
+                        'group_stop_order' => $groupStopOrder,
+                        'delivery_group_key' => $groupKey,
                         'original_stop_order' => (($savedIndex = array_search((int) $package->id, $savedOriginalSequence, true)) !== false)
                             ? $savedIndex + 1
                             : $original->search(fn ($item) => $item->id === $package->id) + 1,
@@ -125,17 +137,24 @@ class DedicatedRouteOptimizationService
                         'status' => 'pending',
                     ]);
 
-                    $package->update(['stop_order' => $order]);
+                    $package->update([
+                        'stop_order' => $order,
+                        'group_stop_order' => $groupStopOrder,
+                        'delivery_group_key' => $groupKey,
+                    ]);
                     if (Schema::hasTable('urban_goodz_batch_packages')) {
                         UrbanGoodzBatchPackage::where('dedicated_route_id', $route->id)
                             ->where('tracking_id', $package->tracking_id)
                             ->update(['stop_order' => $order]);
                     }
 
-                    $previous = [
-                        'lat' => (float) $package->dropoff_lat,
-                        'lng' => (float) $package->dropoff_lng,
-                    ];
+                    if ($isNewGroup) {
+                        $previous = [
+                            'lat' => (float) $package->dropoff_lat,
+                            'lng' => (float) $package->dropoff_lng,
+                        ];
+                        $previousGroupKey = $groupKey;
+                    }
                 }
 
                 $route->update([
@@ -170,9 +189,10 @@ class DedicatedRouteOptimizationService
                     'distance_mode' => $optimizedMetrics['distance_mode'],
                     'original_sequence' => $original->pluck('id')->values()->all(),
                     'result_sequence' => $optimized->pluck('id')->values()->all(),
+                    'result_stop_groups' => $stopGroups,
                     'constraints' => $constraints,
                     'package_count' => $packages->count(),
-                    'stop_count' => $optimized->count(),
+                    'stop_count' => $optimizedMetrics['stop_count'],
                     'original_distance_miles' => $originalMetrics['miles'],
                     'result_distance_miles' => $optimizedMetrics['miles'],
                     'original_duration_minutes' => $originalMetrics['minutes'],
@@ -184,6 +204,7 @@ class DedicatedRouteOptimizationService
                 $this->audit($route, 'route_optimized', $actorType, $actorId, [
                     'original_sequence' => $original->pluck('id')->values()->all(),
                     'optimized_sequence' => $optimized->pluck('id')->values()->all(),
+                    'stop_groups' => $stopGroups,
                     'original_miles' => $originalMetrics['miles'],
                     'optimized_miles' => $optimizedMetrics['miles'],
                     'method' => $method,
@@ -196,6 +217,7 @@ class DedicatedRouteOptimizationService
                 'changed' => $changed,
                 'original_sequence' => $original->pluck('id')->values()->all(),
                 'optimized_sequence' => $optimized->pluck('id')->values()->all(),
+                'stop_groups' => $stopGroups,
                 'original_distance_miles' => $originalMetrics['miles'],
                 'optimized_distance_miles' => $optimizedMetrics['miles'],
                 'original_duration_minutes' => $originalMetrics['minutes'],
@@ -231,6 +253,7 @@ class DedicatedRouteOptimizationService
         foreach ($packages as $package) {
             $this->validatedPoint($package->dropoff_lat, $package->dropoff_lng, "stop {$package->tracking_id}");
         }
+        $packages = $this->prepareDeliveryGroups($packages);
         $this->assertLockedStopsAreValid($packages);
 
         $original = $packages->values();
@@ -240,6 +263,11 @@ class DedicatedRouteOptimizationService
 
         if (!$this->samePackageSet($original, $optimized)) {
             throw new DomainException('Optimization did not preserve every route stop exactly once.');
+        }
+        if (!$this->deliveryGroupsAreContiguous($optimized)) {
+            throw new DomainException(
+                'Locked stop constraints conflict with grouping packages at the same delivery address.'
+            );
         }
 
         $changed = $original->pluck('id')->all() !== $optimized->pluck('id')->all();
@@ -257,7 +285,10 @@ class DedicatedRouteOptimizationService
             'optimized_metrics' => $optimizedMetrics,
             'changed' => $changed,
             'status' => $changed ? ($fallback ? 'optimized_with_fallback' : 'optimized') : 'no_improvement',
-            'method' => $packages->count() === 1 ? 'single_stop' : 'constrained_nearest_neighbor+2opt',
+            'method' => $optimizedMetrics['stop_count'] === 1
+                ? 'single_address_stop'
+                : 'grouped_address_constrained_nearest_neighbor+2opt',
+            'stop_groups' => $this->stopGroups($optimized),
         ];
     }
 
@@ -281,6 +312,10 @@ class DedicatedRouteOptimizationService
             }
             return $package;
         });
+        $orderedPackages = $this->prepareDeliveryGroups($orderedPackages);
+        if (!$this->deliveryGroupsAreContiguous($orderedPackages)) {
+            throw new DomainException('Packages for one delivery address must remain together in manual order.');
+        }
         foreach ($requested as $index => $packageId) {
             $package = $packageById->get($packageId);
             $currentPosition = array_search($packageId, $current, true);
@@ -318,13 +353,24 @@ class DedicatedRouteOptimizationService
                     ->update(['stop_order' => -($index + 1)]);
             }
             $previous = $start;
+            $previousGroupKey = null;
+            $groupStopOrder = 0;
             foreach ($orderedPackages as $index => $package) {
                 $order = $index + 1;
-                $leg = $this->leg($previous, $package);
+                $groupKey = $package->deliveryGroupKey();
+                $isNewGroup = $groupKey !== $previousGroupKey;
+                if ($isNewGroup) {
+                    $groupStopOrder++;
+                }
+                $leg = $isNewGroup
+                    ? $this->leg($previous, $package)
+                    : new DistanceResult(0, 0, 'SAME_ADDRESS_GROUP', 'same_address_group');
                 UrbanGoodzRouteOptimizationStop::where('dedicated_route_id', $route->id)
                     ->where('package_id', $package->id)
                     ->update([
                         'stop_order' => $order,
+                        'group_stop_order' => $groupStopOrder,
+                        'delivery_group_key' => $groupKey,
                         'estimated_distance_from_prev' => round($leg->distanceMiles, 2),
                         'estimated_duration_from_prev' => $leg->durationMinutes === null
                             ? null
@@ -332,16 +378,23 @@ class DedicatedRouteOptimizationService
                     ]);
                 UrbanGoodzRoutePackage::where('dedicated_route_id', $route->id)
                     ->where('id', $package->id)
-                    ->update(['stop_order' => $order]);
+                    ->update([
+                        'stop_order' => $order,
+                        'group_stop_order' => $groupStopOrder,
+                        'delivery_group_key' => $groupKey,
+                    ]);
                 if (Schema::hasTable('urban_goodz_batch_packages')) {
                     UrbanGoodzBatchPackage::where('dedicated_route_id', $route->id)
                         ->where('tracking_id', $package->tracking_id)
                         ->update(['stop_order' => $order]);
                 }
-                $previous = [
-                    'lat' => (float) $package->dropoff_lat,
-                    'lng' => (float) $package->dropoff_lng,
-                ];
+                if ($isNewGroup) {
+                    $previous = [
+                        'lat' => (float) $package->dropoff_lat,
+                        'lng' => (float) $package->dropoff_lng,
+                    ];
+                    $previousGroupKey = $groupKey;
+                }
             }
 
             $route->update([
@@ -370,9 +423,10 @@ class DedicatedRouteOptimizationService
                 'distance_mode' => $metrics['distance_mode'],
                 'original_sequence' => $current,
                 'result_sequence' => $requested,
+                'result_stop_groups' => $this->stopGroups($orderedPackages),
                 'constraints' => $route->optimization_constraints,
                 'package_count' => count($requested),
-                'stop_count' => count($requested),
+                'stop_count' => $metrics['stop_count'],
                 'original_distance_miles' => $previousDistance,
                 'result_distance_miles' => $metrics['miles'],
                 'original_duration_minutes' => $previousDuration,
@@ -419,18 +473,25 @@ class DedicatedRouteOptimizationService
             ->keyBy('id');
         $ordered = collect();
         $current = $start;
+        $currentGroupKey = null;
 
         for ($position = 0; $position < $packages->count(); $position++) {
             if (isset($lockedByIndex[$position])) {
                 $next = $lockedByIndex[$position];
                 $ordered->push($next);
                 $current = ['lat' => (float) $next->dropoff_lat, 'lng' => (float) $next->dropoff_lng];
+                $currentGroupKey = $next->deliveryGroupKey();
                 continue;
             }
             if ($remaining->isEmpty()) {
                 break;
             }
-            $next = $remaining->sort(function ($a, $b) use ($current) {
+            $next = $remaining->sort(function ($a, $b) use ($current, $currentGroupKey) {
+                $aContinuesGroup = $currentGroupKey !== null && $a->deliveryGroupKey() === $currentGroupKey;
+                $bContinuesGroup = $currentGroupKey !== null && $b->deliveryGroupKey() === $currentGroupKey;
+                if ($aContinuesGroup !== $bContinuesGroup) {
+                    return $aContinuesGroup ? -1 : 1;
+                }
                 $constraint = $this->constraintKey($a) <=> $this->constraintKey($b);
                 if ($constraint !== 0) {
                     return $constraint;
@@ -443,6 +504,7 @@ class DedicatedRouteOptimizationService
             $ordered->push($next);
             $remaining->forget($next->id);
             $current = ['lat' => (float) $next->dropoff_lat, 'lng' => (float) $next->dropoff_lng];
+            $currentGroupKey = $next->deliveryGroupKey();
         }
 
         $best = $ordered->values();
@@ -484,19 +546,26 @@ class DedicatedRouteOptimizationService
         $fallback = false;
         $providers = [];
         $current = $start;
+        $previousGroupKey = null;
         $currentTimestamp = null;
         $timeWindowViolations = [];
 
         foreach ($packages as $package) {
-            $leg = $this->leg($current, $package);
+            $groupKey = $package->deliveryGroupKey();
+            $isNewGroup = $groupKey !== $previousGroupKey;
+            $leg = $isNewGroup
+                ? $this->leg($current, $package)
+                : new DistanceResult(0, 0, 'SAME_ADDRESS_GROUP', 'same_address_group');
             $miles += $leg->distanceMiles;
             if ($leg->durationMinutes === null) {
                 $durationAvailable = false;
             } else {
                 $minutes += $leg->durationMinutes;
             }
-            $fallback = $fallback || $leg->isFallback;
-            $providers[$leg->provider] = true;
+            if ($isNewGroup) {
+                $fallback = $fallback || $leg->isFallback;
+                $providers[$leg->provider] = true;
+            }
             if ($currentTimestamp === null) {
                 $currentTimestamp = $package->delivery_window_start?->timestamp ?? time();
             }
@@ -507,7 +576,10 @@ class DedicatedRouteOptimizationService
             if ($package->delivery_window_end && $currentTimestamp > $package->delivery_window_end->timestamp) {
                 $timeWindowViolations[] = (int) $package->id;
             }
-            $current = ['lat' => (float) $package->dropoff_lat, 'lng' => (float) $package->dropoff_lng];
+            if ($isNewGroup) {
+                $current = ['lat' => (float) $package->dropoff_lat, 'lng' => (float) $package->dropoff_lng];
+                $previousGroupKey = $groupKey;
+            }
         }
 
         if ($end !== null && $packages->isNotEmpty()) {
@@ -529,7 +601,8 @@ class DedicatedRouteOptimizationService
             $serviceMinutes = function_exists('app') && app()->bound('config')
                 ? (int) config('urban_goodz.planning.default_service_time_minutes', 10)
                 : 10;
-            $minutes += $packages->count() * $serviceMinutes;
+            $minutes += $packages->map(fn ($package) => $package->deliveryGroupKey())->unique()->count()
+                * $serviceMinutes;
         }
 
         return [
@@ -538,6 +611,7 @@ class DedicatedRouteOptimizationService
             'fallback' => $fallback,
             'provider' => implode(',', array_keys($providers)) ?: 'none',
             'distance_mode' => $fallback ? 'HAVERSINE_FALLBACK' : 'ROAD_NETWORK',
+            'stop_count' => $packages->map(fn ($package) => $package->deliveryGroupKey())->unique()->count(),
             'time_window_violations' => $timeWindowViolations,
         ];
     }
@@ -552,19 +626,103 @@ class DedicatedRouteOptimizationService
 
     private function constraintKey(UrbanGoodzRoutePackage $package): array
     {
-        $isReturn = $package->return_required
-            || str_starts_with((string) $package->status, 'returning_to_');
-        $priority = match ($package->priority) {
+        $group = $this->deliveryGroupConstraints[$package->deliveryGroupKey()] ?? null;
+        $isReturn = (bool) ($group['return']
+            ?? ($package->return_required || str_starts_with((string) $package->status, 'returning_to_')));
+        $priority = $group['priority'] ?? match ($package->priority) {
             'urgent', 'medical' => 0,
             'high' => 1,
             default => 2,
         };
-        $window = $package->delivery_window_end?->timestamp ?? PHP_INT_MAX;
+        $window = $group['window']
+            ?? $package->delivery_window_end?->timestamp
+            ?? PHP_INT_MAX;
         return [$isReturn ? 1 : 0, $priority, $window];
+    }
+
+    private function prepareDeliveryGroups(Collection $packages): Collection
+    {
+        $this->deliveryGroupConstraints = [];
+        $packages = $packages->values();
+        $groups = $packages->groupBy(fn ($package) => $package->deliveryGroupKey());
+
+        foreach ($groups as $groupKey => $groupPackages) {
+            $priorityRank = $groupPackages->min(fn ($package) => match ($package->priority) {
+                'urgent', 'medical' => 0,
+                'high' => 1,
+                default => 2,
+            });
+            $windowEnd = $groupPackages
+                ->filter(fn ($package) => $package->delivery_window_end !== null)
+                ->min(fn ($package) => $package->delivery_window_end->timestamp) ?? PHP_INT_MAX;
+            $isReturn = $groupPackages->contains(fn ($package) =>
+                $package->return_required
+                || str_starts_with((string) $package->status, 'returning_to_')
+            );
+
+            $this->deliveryGroupConstraints[(string) $groupKey] = [
+                'priority' => (int) $priorityRank,
+                'window' => (int) $windowEnd,
+                'return' => (bool) $isReturn,
+            ];
+
+            foreach ($groupPackages as $package) {
+                $package->setAttribute('delivery_group_key', $groupKey);
+            }
+        }
+
+        return $packages;
+    }
+
+    private function deliveryGroupsAreContiguous(Collection $packages): bool
+    {
+        $closed = [];
+        $current = null;
+        foreach ($packages as $package) {
+            $key = $package->deliveryGroupKey();
+            if ($key === $current) {
+                continue;
+            }
+            if (isset($closed[$key])) {
+                return false;
+            }
+            if ($current !== null) {
+                $closed[$current] = true;
+            }
+            $current = $key;
+        }
+        return true;
+    }
+
+    private function stopGroups(Collection $packages): array
+    {
+        $groups = [];
+        foreach ($packages as $package) {
+            $key = $package->deliveryGroupKey();
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'group_stop_order' => count($groups) + 1,
+                    'delivery_group_key' => $key,
+                    'address' => $package->dropoff_address,
+                    'latitude' => (float) $package->dropoff_lat,
+                    'longitude' => (float) $package->dropoff_lng,
+                    'package_ids' => [],
+                ];
+            }
+            $groups[$key]['package_ids'][] = (int) $package->id;
+        }
+
+        return array_values(array_map(function (array $group): array {
+            $group['package_count'] = count($group['package_ids']);
+            return $group;
+        }, $groups));
     }
 
     private function constraintsPreserved(Collection $packages, Collection $original, array $start): bool
     {
+        if (!$this->deliveryGroupsAreContiguous($packages)) {
+            return false;
+        }
         $positions = $packages->pluck('id')->flip();
         foreach ($original->values() as $index => $package) {
             if ($package->stop_locked) {
@@ -657,6 +815,10 @@ class DedicatedRouteOptimizationService
             'fixed_end' => $returnToOrigin || $route->end_lat !== null,
             'return_to_origin' => $returnToOrigin,
             'locked_stop_count' => $packages->where('stop_locked', true)->count(),
+            'address_stop_count' => $packages
+                ->map(fn ($package) => $package->deliveryGroupKey())
+                ->unique()
+                ->count(),
             'time_windows' => $packages->contains(
                 fn ($package) => $package->delivery_window_start || $package->delivery_window_end
             ),
