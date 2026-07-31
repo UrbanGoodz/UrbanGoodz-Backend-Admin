@@ -410,3 +410,71 @@ Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['auth:api
     Route::get('dispatcher/source-status', 'Api\V1\UrbanGoodz\CrossAppAIController@sourceStatus');
     Route::post('dispatcher/sync-source', 'Api\V1\UrbanGoodz\CrossAppAIController@syncSource');
 });
+
+// Creator Space (authenticated creator self-service)
+Route::group(['prefix' => 'urban-goodz/creator-space', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('register', 'Api\V1\CreatorSpaceController@register');
+    Route::get('profile', 'Api\V1\CreatorSpaceController@profile');
+    Route::put('profile', 'Api\V1\CreatorSpaceController@updateProfile');
+    Route::post('profile/avatar', 'Api\V1\CreatorSpaceController@uploadAvatar');
+    Route::post('profile/banner', 'Api\V1\CreatorSpaceController@uploadBanner');
+    Route::get('verification', 'Api\V1\CreatorSpaceController@verificationStatus');
+    Route::post('verification/submit', 'Api\V1\CreatorSpaceController@submitVerification');
+    Route::get('reels', 'Api\V1\CreatorSpaceController@myReels');
+    Route::post('reels', 'Api\V1\CreatorSpaceController@uploadReel');
+    Route::put('reels/{id}', 'Api\V1\CreatorSpaceController@updateReel');
+    Route::delete('reels/{id}', 'Api\V1\CreatorSpaceController@deleteReel');
+    Route::post('reels/{id}/tags', 'Api\V1\CreatorSpaceController@addReelTags');
+    Route::delete('reels/{id}/tags/{tagId}', 'Api\V1\CreatorSpaceController@removeReelTag');
+    Route::get('storefront', 'Api\V1\CreatorSpaceController@storefront');
+    Route::get('campaigns', 'Api\V1\CreatorSpaceController@browseCampaigns');
+    Route::post('campaigns/{id}/apply', 'Api\V1\CreatorSpaceController@applyCampaign');
+    Route::get('campaigns/my', 'Api\V1\CreatorSpaceController@myCampaigns');
+    Route::post('campaigns/{id}/deliverable', 'Api\V1\CreatorSpaceController@submitDeliverable');
+    Route::get('earnings', 'Api\V1\CreatorSpaceController@earnings');
+    Route::get('analytics', 'Api\V1\CreatorSpaceController@analytics');
+    Route::get('payout-status', 'Api\V1\CreatorSpaceController@payoutStatus');
+});
+
+// Creator Discovery (shopper-facing)
+Route::group(['prefix' => 'urban-goodz/creators', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('/', 'Api\V1\CreatorDiscoveryController@index');
+    Route::get('{handle}', 'Api\V1\CreatorDiscoveryController@show');
+    Route::get('{handle}/reels', 'Api\V1\CreatorDiscoveryController@creatorReels');
+    Route::get('{handle}/storefront', 'Api\V1\CreatorDiscoveryController@creatorStorefront');
+    Route::post('{handle}/follow', 'Api\V1\CreatorDiscoveryController@follow');
+    Route::delete('{handle}/follow', 'Api\V1\CreatorDiscoveryController@unfollow');
+    Route::post('{handle}/report', 'Api\V1\CreatorDiscoveryController@reportCreator');
+    Route::post('{handle}/block', 'Api\V1\CreatorDiscoveryController@blockCreator');
+});
+
+// Reel Social (engagement)
+Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('{id}/comments', 'Api\V1\ReelSocialController@comments');
+    Route::post('{id}/comments', 'Api\V1\ReelSocialController@postComment');
+    Route::post('{id}/comments/{commentId}/reply', 'Api\V1\ReelSocialController@postReply');
+    Route::delete('comments/{commentId}', 'Api\V1\ReelSocialController@deleteComment');
+    Route::post('{id}/save', 'Api\V1\ReelSocialController@saveReel');
+    Route::delete('{id}/save', 'Api\V1\ReelSocialController@unsaveReel');
+    Route::post('{id}/share', 'Api\V1\ReelSocialController@shareReel');
+    Route::post('{id}/report', 'Api\V1\ReelSocialController@reportReel');
+    Route::get('{id}/tags', 'Api\V1\ReelSocialController@reelTags');
+});
+
+// Events Marketplace (expanded - replaces old events group)
+Route::group(['prefix' => 'urban-goodz/events-marketplace', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('/', 'Api\V1\EventMarketplaceController@index');
+    Route::get('categories', 'Api\V1\EventMarketplaceController@categories');
+    Route::get('saved', 'Api\V1\EventMarketplaceController@savedEvents');
+    Route::post('/', 'Api\V1\EventMarketplaceController@store');
+    Route::get('{id}', 'Api\V1\EventMarketplaceController@show');
+    Route::put('{id}', 'Api\V1\EventMarketplaceController@update');
+    Route::delete('{id}', 'Api\V1\EventMarketplaceController@cancel');
+    Route::post('{id}/save', 'Api\V1\EventMarketplaceController@saveEvent');
+    Route::delete('{id}/save', 'Api\V1\EventMarketplaceController@unsaveEvent');
+    Route::post('{id}/share', 'Api\V1\EventMarketplaceController@shareEvent');
+    Route::post('{id}/remind', 'Api\V1\EventMarketplaceController@setReminder');
+    Route::delete('{id}/remind', 'Api\V1\EventMarketplaceController@removeReminder');
+    Route::post('{id}/interest', 'Api\V1\EventMarketplaceController@expressInterest');
+    Route::post('{id}/report', 'Api\V1\EventMarketplaceController@reportEvent');
+});
