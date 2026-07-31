@@ -6,6 +6,7 @@ use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Http\Controllers\Controller;
 use App\Models\OrderAnywhereRequest;
 use App\Services\Payments\PaymentProviderManager;
+use App\Services\UrbanGoodz\Payouts\StripeConnectWebhookService;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,7 +16,10 @@ class PaymentWebhookController extends Controller
 {
     private PaymentProviderManager $providerManager;
 
-    public function __construct(PaymentProviderManager $providerManager)
+    public function __construct(
+        PaymentProviderManager $providerManager,
+        private readonly StripeConnectWebhookService $connectWebhooks
+    )
     {
         $this->providerManager = $providerManager;
     }
@@ -54,6 +58,13 @@ class PaymentWebhookController extends Controller
             ]);
 
             return response('OK', 200);
+        }
+
+        if ($provider === 'stripe' && $this->connectWebhooks->processVerifiedPayload((string) $payload)) {
+            $type = (string) data_get(json_decode((string) $payload, true), 'type');
+            if (! in_array($type, ['charge.refunded', 'charge.dispute.created', 'charge.dispute.closed'], true)) {
+                return response('OK', 200);
+            }
         }
 
         $events = $gateway->parseWebhook($payload, $headers);

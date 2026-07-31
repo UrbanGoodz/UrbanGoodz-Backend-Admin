@@ -276,6 +276,10 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('settlements/{settlement}/reconcile', 'UrbanGoodz\UrbanGoodzFinancialControlController@reconcile')->name('settlements.reconcile');
                 Route::get('ledger', 'UrbanGoodz\UrbanGoodzFinancialControlController@ledger')->name('ledger');
                 Route::get('reconciliation', 'UrbanGoodz\UrbanGoodzFinancialControlController@reconciliation')->name('reconciliation');
+                Route::get('stripe-connect', 'UrbanGoodz\StripeConnectPayoutAdminController@index')->name('stripe-connect.index');
+                Route::put('stripe-connect/accounts/{account}', 'UrbanGoodz\StripeConnectPayoutAdminController@updateAccount')->name('stripe-connect.accounts.update');
+                Route::put('stripe-connect/roles/{role}', 'UrbanGoodz\StripeConnectPayoutAdminController@updateRole')->name('stripe-connect.roles.update');
+                Route::post('stripe-connect/actor-bindings', 'UrbanGoodz\StripeConnectPayoutAdminController@bindActor')->name('stripe-connect.bindings.store');
             });
 
             Route::get('/', 'UrbanGoodzAdminController@index')->name('index');

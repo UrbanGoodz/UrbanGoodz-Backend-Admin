@@ -71,6 +71,8 @@ return [
         'connect_client_id' => env('STRIPE_CONNECT_CLIENT_ID', ''),
         'connect_account_id' => env('STRIPE_CONNECT_ACCOUNT_ID', ''),
         'connect_enabled' => env('STRIPE_CONNECT_ENABLED', false),
+        'connect_api_version' => env('STRIPE_CONNECT_API_VERSION', '2026-02-25.clover'),
+        'connect_return_base_url' => env('STRIPE_CONNECT_RETURN_BASE_URL', ''),
     ],
 
     /*

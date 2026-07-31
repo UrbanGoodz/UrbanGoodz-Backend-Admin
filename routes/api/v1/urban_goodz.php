@@ -21,6 +21,33 @@ Route::group(['prefix' => 'urban-goodz/earn-money', 'middleware' => ['auth:api',
     Route::post('opportunities/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptEarnMoneyOpportunity');
 });
 
+// Stripe Connect payout accounts. The same controller is intentionally exposed
+// behind each existing authentication boundary; it never accepts an unverified
+// owner id and resolves the earning entity from the authenticated actor/binding.
+Route::group(['prefix' => 'urban-goodz/earner/payout-account', 'middleware' => ['auth:api', 'throttle:20,1']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\PayoutAccountController@show');
+    Route::post('setup', 'Api\V1\UrbanGoodz\PayoutAccountController@begin');
+    Route::post('continue', 'Api\V1\UrbanGoodz\PayoutAccountController@continue');
+    Route::post('manage', 'Api\V1\UrbanGoodz\PayoutAccountController@manage');
+    Route::post('refresh', 'Api\V1\UrbanGoodz\PayoutAccountController@refresh');
+});
+
+Route::group(['prefix' => 'urban-goodz/vendor/payout-account', 'middleware' => ['vendor.api', 'throttle:20,1']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\PayoutAccountController@show');
+    Route::post('setup', 'Api\V1\UrbanGoodz\PayoutAccountController@begin');
+    Route::post('continue', 'Api\V1\UrbanGoodz\PayoutAccountController@continue');
+    Route::post('manage', 'Api\V1\UrbanGoodz\PayoutAccountController@manage');
+    Route::post('refresh', 'Api\V1\UrbanGoodz\PayoutAccountController@refresh');
+});
+
+Route::group(['prefix' => 'urban-goodz/business/payout-account', 'middleware' => ['auth:business', 'throttle:20,1']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\PayoutAccountController@show');
+    Route::post('setup', 'Api\V1\UrbanGoodz\PayoutAccountController@begin');
+    Route::post('continue', 'Api\V1\UrbanGoodz\PayoutAccountController@continue');
+    Route::post('manage', 'Api\V1\UrbanGoodz\PayoutAccountController@manage');
+    Route::post('refresh', 'Api\V1\UrbanGoodz\PayoutAccountController@refresh');
+});
+
 Route::group(['prefix' => 'urban-goodz/logistics', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('jobs', 'Api\V1\UrbanGoodzOpportunityController@logisticsJobs');
     Route::get('jobs/{record}', 'Api\V1\UrbanGoodzOpportunityController@logisticsJob');
@@ -150,6 +177,11 @@ Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth
 
 // Driver API - dedicated routes, package scanning, earnings, payouts
 Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], function () {
+    Route::get('payout-account', 'Api\V1\UrbanGoodz\PayoutAccountController@show');
+    Route::post('payout-account/setup', 'Api\V1\UrbanGoodz\PayoutAccountController@begin');
+    Route::post('payout-account/continue', 'Api\V1\UrbanGoodz\PayoutAccountController@continue');
+    Route::post('payout-account/manage', 'Api\V1\UrbanGoodz\PayoutAccountController@manage');
+    Route::post('payout-account/refresh', 'Api\V1\UrbanGoodz\PayoutAccountController@refresh');
     Route::get('routes', 'Api\UrbanGoodzDriverApiController@assignedRoutes');
     Route::get('routes/{routeId}', 'Api\UrbanGoodzDriverApiController@routeDetail');
     Route::post('routes/{routeId}/sequence', 'Api\UrbanGoodzDriverApiController@resequenceRoute');
