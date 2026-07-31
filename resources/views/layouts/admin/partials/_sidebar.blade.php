@@ -70,6 +70,12 @@
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Control Center</span>
                         </a>
                     </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/data-center*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.data-center.index') }}" title="Marketplace Data Center">
+                            <i class="tio-database nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Marketplace Data Center</span>
+                        </a>
+                    </li>
                     <li class="navbar-vertical-aside-has-menu">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ url('/business/login') }}" target="_blank" title="Open Business Vendor Portal">
                             <i class="tio-business-bag nav-icon" style="color: #ED9914;"></i>

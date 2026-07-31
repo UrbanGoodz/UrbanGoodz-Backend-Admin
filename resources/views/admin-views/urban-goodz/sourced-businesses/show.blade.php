@@ -7,7 +7,7 @@
         <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-2">
             <h1 class="page-header-title">{{ $business->name }}</h1>
             <div>
-                <a href="{{ route('urban-goodz.sourced-businesses.index', ['batch' => $business->created_by_source]) }}" class="btn btn--secondary">{{ translate('Back to queue') }}</a>
+                <a href="{{ route('admin.urban-goodz.sourced-businesses.index', ['batch' => $business->created_by_source]) }}" class="btn btn--secondary">{{ translate('Back to queue') }}</a>
             </div>
         </div>
 
@@ -42,7 +42,7 @@
                 <div class="card">
                     <div class="card-header">{{ translate('Review') }}</div>
                     <div class="card-body">
-                        <form method="post" action="{{ route('urban-goodz.sourced-businesses.update', $business->id) }}">
+                        <form method="post" action="{{ route('admin.urban-goodz.sourced-businesses.update', $business->id) }}">
                             @csrf
                             @method('put')
                             <div class="mb-3">
