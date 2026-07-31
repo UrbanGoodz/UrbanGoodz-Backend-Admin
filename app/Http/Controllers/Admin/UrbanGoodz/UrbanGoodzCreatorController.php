@@ -6,17 +6,18 @@ use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessSetting;
 use App\Models\UrbanGoodzCreatorApplication;
-use App\Models\UrbanGoodzCreatorProfile;
+use App\Models\UrbanGoodzCreatorBusinessLead;
 use App\Models\UrbanGoodzCreatorCampaign;
 use App\Models\UrbanGoodzCreatorCampaignAssignment;
 use App\Models\UrbanGoodzCreatorContent;
 use App\Models\UrbanGoodzCreatorEarning;
-use App\Models\UrbanGoodzCreatorBusinessLead;
 use App\Models\UrbanGoodzCreatorEventPromotion;
+use App\Models\UrbanGoodzCreatorProfile;
 use App\Models\Vendor;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Modules\ReelsModule\Entities\Reel;
 
 class UrbanGoodzCreatorController extends Controller
 {
@@ -56,8 +57,8 @@ class UrbanGoodzCreatorController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('creator_name', 'like', "%$s%")
-                  ->orWhere('email', 'like', "%$s%")
-                  ->orWhere('username', 'like', "%$s%");
+                    ->orWhere('email', 'like', "%$s%")
+                    ->orWhere('username', 'like', "%$s%");
             });
         }
 
@@ -75,8 +76,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function applicationUpdateStatus($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_applications_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_applications_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -91,8 +93,9 @@ class UrbanGoodzCreatorController extends Controller
             'admin_notes' => $request->admin_notes,
         ]);
 
-        if ($request->status === 'approved' && !$application->profile) {
-            UrbanGoodzCreatorProfile::create([
+        $profile = $application->profile;
+        if ($request->status === 'approved') {
+            $profile ??= new UrbanGoodzCreatorProfile([
                 'creator_application_id' => $application->id,
                 'display_name' => $application->creator_name,
                 'handle' => $this->generateHandle($application->creator_name),
@@ -101,12 +104,23 @@ class UrbanGoodzCreatorController extends Controller
                 'city' => $application->city,
                 'social_links' => $application->social_links,
                 'content_samples' => $application->content_samples,
+            ]);
+            $profile->fill([
+                'status' => 'approved',
                 'is_approved' => true,
                 'approved_at' => now(),
+            ])->save();
+        } elseif ($profile) {
+            $profile->update([
+                'status' => $request->status,
+                'is_approved' => false,
+                'approved_at' => null,
             ]);
+            Reel::where('creator_profile_id', $profile->id)->update(['status' => false]);
         }
 
         Toastr::success(translate('Application status updated.'));
+
         return back();
     }
 
@@ -120,8 +134,8 @@ class UrbanGoodzCreatorController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('display_name', 'like', "%$s%")
-                  ->orWhere('handle', 'like', "%$s%")
-                  ->orWhere('city', 'like', "%$s%");
+                    ->orWhere('handle', 'like', "%$s%")
+                    ->orWhere('city', 'like', "%$s%");
             });
         }
         if ($request->filled('is_approved')) {
@@ -139,10 +153,10 @@ class UrbanGoodzCreatorController extends Controller
     public function profileShow($id)
     {
         $profile = UrbanGoodzCreatorProfile::with([
-            'application', 'content' => fn($q) => $q->latest()->take(10),
-            'earnings' => fn($q) => $q->latest()->take(10),
+            'application', 'content' => fn ($q) => $q->latest()->take(10),
+            'earnings' => fn ($q) => $q->latest()->take(10),
             'campaigns.campaign',
-            'leads' => fn($q) => $q->latest()->take(5),
+            'leads' => fn ($q) => $q->latest()->take(5),
             'eventPromotions.event',
         ])->findOrFail($id);
 
@@ -161,15 +175,16 @@ class UrbanGoodzCreatorController extends Controller
 
     public function profileUpdate($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_profiles_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_profiles_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
         $profile = UrbanGoodzCreatorProfile::findOrFail($id);
-        $request->validate([
+        $data = $request->validate([
             'display_name' => ['nullable', 'string', 'max:255'],
-            'handle' => ['nullable', 'string', 'max:100', 'unique:urban_goodz_creator_profiles,handle,' . $id],
+            'handle' => ['nullable', 'string', 'max:100', 'unique:urban_goodz_creator_profiles,handle,'.$id],
             'bio' => ['nullable', 'string'],
             'city' => ['nullable', 'string', 'max:255'],
             'zone' => ['nullable', 'string', 'max:255'],
@@ -179,12 +194,19 @@ class UrbanGoodzCreatorController extends Controller
             'admin_notes' => ['nullable', 'string'],
         ]);
 
-        $profile->update($request->only([
-            'display_name', 'handle', 'bio', 'city', 'zone',
-            'niches', 'is_approved', 'is_featured', 'admin_notes',
-        ]));
+        if (array_key_exists('is_approved', $data)) {
+            $approved = (bool) $data['is_approved'];
+            $data['status'] = $approved ? 'approved' : 'suspended';
+            $data['approved_at'] = $approved ? now() : null;
+        }
+        $profile->update($data);
+
+        if (array_key_exists('is_approved', $data) && ! $data['is_approved']) {
+            Reel::where('creator_profile_id', $profile->id)->update(['status' => false]);
+        }
 
         Toastr::success(translate('Creator profile updated.'));
+
         return back();
     }
 
@@ -219,8 +241,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function campaignStore(Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_campaigns_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_campaigns_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -245,6 +268,7 @@ class UrbanGoodzCreatorController extends Controller
         UrbanGoodzCreatorCampaign::create($data);
 
         Toastr::success(translate('Campaign created.'));
+
         return redirect()->route('admin.urban-goodz.creator.campaigns');
     }
 
@@ -262,8 +286,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function campaignUpdate($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_campaigns_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_campaigns_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -287,13 +312,15 @@ class UrbanGoodzCreatorController extends Controller
         $campaign->update($data);
 
         Toastr::success(translate('Campaign updated.'));
+
         return back();
     }
 
     public function campaignAssignCreator($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_campaigns_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_campaigns_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -308,6 +335,7 @@ class UrbanGoodzCreatorController extends Controller
 
         if ($existing) {
             Toastr::info(translate('Creator already assigned to this campaign.'));
+
             return back();
         }
 
@@ -322,6 +350,7 @@ class UrbanGoodzCreatorController extends Controller
         }
 
         Toastr::success(translate('Creator assigned to campaign.'));
+
         return back();
     }
 
@@ -359,8 +388,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function contentUpdateStatus($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_content_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_content_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -383,7 +413,7 @@ class UrbanGoodzCreatorController extends Controller
         if ($request->has('is_shoppable')) {
             $updateData['is_shoppable'] = $request->boolean('is_shoppable');
         }
-        if ($request->status === 'published' && !$item->published_at) {
+        if ($request->status === 'published' && ! $item->published_at) {
             $updateData['published_at'] = now();
             $updateData['is_published'] = true;
         }
@@ -391,6 +421,7 @@ class UrbanGoodzCreatorController extends Controller
         $item->update($updateData);
 
         Toastr::success(translate('Content status updated.'));
+
         return back();
     }
 
@@ -431,8 +462,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function earningsApprove($id)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_payouts_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_payouts_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -440,13 +472,15 @@ class UrbanGoodzCreatorController extends Controller
         $earning->update(['status' => 'approved']);
 
         Toastr::success(translate('Earning approved for payout.'));
+
         return back();
     }
 
     public function earningsMarkPaid($id)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_payouts_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_payouts_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -454,6 +488,7 @@ class UrbanGoodzCreatorController extends Controller
         $earning->update(['status' => 'paid', 'paid_at' => now()]);
 
         Toastr::success(translate('Earning marked as paid.'));
+
         return back();
     }
 
@@ -473,8 +508,8 @@ class UrbanGoodzCreatorController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('business_name', 'like', "%$s%")
-                  ->orWhere('category', 'like', "%$s%")
-                  ->orWhere('city', 'like', "%$s%");
+                    ->orWhere('category', 'like', "%$s%")
+                    ->orWhere('city', 'like', "%$s%");
             });
         }
 
@@ -485,8 +520,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function leadsUpdateStatus($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_leads_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_leads_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -499,6 +535,7 @@ class UrbanGoodzCreatorController extends Controller
         $lead->update($request->only(['status', 'admin_notes']));
 
         Toastr::success(translate('Lead status updated.'));
+
         return back();
     }
 
@@ -525,8 +562,9 @@ class UrbanGoodzCreatorController extends Controller
 
     public function eventPromotionsUpdateStatus($id, Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_content_manage')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_content_manage')) {
             Toastr::error(translate('messages.access_denied'));
+
             return back();
         }
 
@@ -539,6 +577,7 @@ class UrbanGoodzCreatorController extends Controller
         $promo->update($request->only(['status', 'admin_notes']));
 
         Toastr::success(translate('Event promotion status updated.'));
+
         return back();
     }
 
@@ -551,7 +590,7 @@ class UrbanGoodzCreatorController extends Controller
 
     public function aiGenerate(Request $request)
     {
-        if (!Helpers::module_permission_check('urban_goodz_creator_ai_tools_use')) {
+        if (! Helpers::module_permission_check('urban_goodz_creator_ai_tools_use')) {
             return response()->json(['error' => 'Access denied'], 403);
         }
 
@@ -566,8 +605,9 @@ class UrbanGoodzCreatorController extends Controller
         $config = BusinessSetting::where(['key' => 'openai_config'])->first();
         $apiKey = $config?->value ? json_decode($config->value, true)['OPENAI_API_KEY'] ?? null : null;
 
-        if (!$apiKey) {
+        if (! $apiKey) {
             $prompts = $this->localFallbackPrompts($action, $input);
+
             return response()->json([
                 'success' => true,
                 'output' => $prompts,
@@ -597,6 +637,7 @@ class UrbanGoodzCreatorController extends Controller
             ]);
         } catch (\Exception $e) {
             $prompts = $this->localFallbackPrompts($action, $input);
+
             return response()->json([
                 'success' => true,
                 'output' => $prompts,
@@ -640,6 +681,7 @@ class UrbanGoodzCreatorController extends Controller
     private function sanitizeHashtag(string $input): string
     {
         $tag = preg_replace('/[^a-zA-Z0-9]/', '', $input);
+
         return strlen($tag) > 20 ? substr($tag, 0, 20) : $tag;
     }
 
@@ -686,7 +728,7 @@ class UrbanGoodzCreatorController extends Controller
     {
         $query = UrbanGoodzCreatorProfile::where('is_approved', true)
             ->withCount(['content', 'campaigns', 'leads'])
-            ->withSum(['earnings' => fn($q) => $q->where('status', 'paid')], 'amount');
+            ->withSum(['earnings' => fn ($q) => $q->where('status', 'paid')], 'amount');
 
         if ($creatorId) {
             $query->where('id', $creatorId);
@@ -728,7 +770,7 @@ class UrbanGoodzCreatorController extends Controller
     private function buildCampaignReport($from, $to)
     {
         $campaigns = UrbanGoodzCreatorCampaign::withCount('assignments')
-            ->withSum(['earnings' => fn($q) => $q->where('status', 'paid')], 'amount')
+            ->withSum(['earnings' => fn ($q) => $q->where('status', 'paid')], 'amount')
             ->whereBetween('created_at', [$from, $to])
             ->get();
 
@@ -814,7 +856,7 @@ class UrbanGoodzCreatorController extends Controller
         $counter = 1;
 
         while (UrbanGoodzCreatorProfile::where('handle', $handle)->exists()) {
-            $handle = $base . $counter;
+            $handle = $base.$counter;
             $counter++;
         }
 

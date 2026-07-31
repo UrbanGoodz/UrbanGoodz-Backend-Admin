@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\ReelsModule\Http\Controllers\Api\V1\CreatorCommerceController as ReelsCreatorCommerceController;
 
 Route::group(['prefix' => 'urban-goodz', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
@@ -60,21 +61,30 @@ Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'th
 
 Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('featured-reels', 'Api\V1\CreatorCommerceController@featuredReels');
+    Route::get('reels', 'Api\V1\CreatorCommerceController@featuredReels');
     Route::get('customer/applications', 'Api\V1\CreatorCommerceController@customerApplications');
     Route::post('applications', 'Api\V1\CreatorCommerceController@storeApplication');
     Route::get('promotions', 'Api\V1\CreatorCommerceController@promotions');
     Route::post('promotions', 'Api\V1\CreatorCommerceController@storePromotion');
 });
 
-    // Creator Space AI
-    Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-        Route::post('reel-script', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelScript');
-        Route::post('product-tags', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateProductTags');
-        Route::post('caption', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateCaption');
-        Route::post('performance', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@analyzePerformance');
-        Route::get('brand-matches', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@matchBrand');
-        Route::post('reel-analytics', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelAnalytics');
-    });
+Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('action', [ReelsCreatorCommerceController::class, 'legacyAction']);
+    Route::post('conversion', [ReelsCreatorCommerceController::class, 'legacyConversion']);
+    Route::get('opportunities', [ReelsCreatorCommerceController::class, 'opportunities']);
+    Route::post('opportunities/{campaign}/accept', [ReelsCreatorCommerceController::class, 'acceptOpportunity']);
+    Route::get('analytics', [ReelsCreatorCommerceController::class, 'analytics']);
+});
+
+// Creator Space AI
+Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('reel-script', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelScript');
+    Route::post('product-tags', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateProductTags');
+    Route::post('caption', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateCaption');
+    Route::post('performance', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@analyzePerformance');
+    Route::get('brand-matches', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@matchBrand');
+    Route::post('reel-analytics', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelAnalytics');
+});
 
 Route::group(['prefix' => 'urban-goodz/fashion', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@stylistRequests');
@@ -257,7 +267,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('vehicles', 'Api\UrbanGoodzDriverActiveJobsController@vehicles');
     Route::get('certifications', 'Api\UrbanGoodzDriverActiveJobsController@certifications');
     Route::post('certifications/{certId}/upload', 'Api\UrbanGoodzDriverActiveJobsController@uploadCertDocument');
-Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
+    Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
 
     // Driver AI dispatches (AiDispatch lifecycle)
     Route::get('ai-dispatches', 'Api\UrbanGoodzDriverDispatchController@index');
@@ -268,128 +278,128 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
     Route::post('ai-dispatches/{dispatch}/exceptions', 'Api\UrbanGoodzDriverDispatchController@reportException');
     Route::post('ai-dispatches/{dispatch}/deliver', 'Api\UrbanGoodzDriverDispatchController@markDelivered');
     Route::get('ai-performance-summary', 'Api\UrbanGoodzDriverDispatchController@performanceSummary');
-    });
-
-    // Driver AI
-    Route::group(['prefix' => 'ai', 'middleware' => 'dm.api'], function () {
-        Route::get('route-optimization', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@optimizeRoute');
-        Route::get('earnings-comparison', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsComparison');
-        Route::get('load-recommendations', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@loadRecommendations');
-        Route::post('verify-pickup', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@verifyPickup');
-        Route::post('verify-delivery', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@verifyDelivery');
-        Route::post('exception', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@handleException');
-        Route::get('warnings', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@getWarnings');
-        Route::get('earnings-per-hour', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsPerHour');
-    });
-
-    // Dispatcher AI
-    Route::group(['prefix' => 'urban-goodz/dispatcher/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
-        Route::post('load-ranking', 'Api\V1\Dispatcher\DispatcherAIController@rankLoads');
-        Route::post('driver-match', 'Api\V1\Dispatcher\DispatcherAIController@matchDriver');
-        Route::post('rate-estimate', 'Api\V1\Dispatcher\DispatcherAIController@estimateRate');
-        Route::post('duplicate-check', 'Api\V1\Dispatcher\DispatcherAIController@checkDuplicates');
-        Route::get('ops-summary', 'Api\V1\Dispatcher\DispatcherAIController@opsSummary');
-        Route::post('parse-load', 'Api\V1\Dispatcher\DispatcherAIController@parseLoad');
-        Route::post('parse-email', 'Api\V1\Dispatcher\DispatcherAIController@parseEmail');
-        Route::post('parse-batch', 'Api\V1\Dispatcher\DispatcherAIController@parseBatch');
-        Route::get('source-status', 'Api\V1\Dispatcher\DispatcherAIController@sourceStatus');
-        Route::post('sync-source', 'Api\V1\Dispatcher\DispatcherAIController@syncSource');
-    });
-
-    // Rental AI
-    Route::group(['prefix' => 'urban-goodz/rentals/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-        Route::post('search', 'Api\V1\UrbanGoodz\RentalAIController@searchAssets');
-        Route::post('match', 'Api\V1\UrbanGoodz\RentalAIController@matchAssets');
-        Route::post('availability', 'Api\V1\UrbanGoodz\RentalAIController@checkAvailability');
-        Route::post('quote', 'Api\V1\UrbanGoodz\RentalAIController@getQuote');
-        Route::post('extension', 'Api\V1\UrbanGoodz\RentalAIController@extendRental');
-        Route::post('late-return', 'Api\V1\UrbanGoodz\RentalAIController@handleLateReturn');
-        Route::post('damage-report', 'Api\V1\UrbanGoodz\RentalAIController@reportDamage');
-        Route::post('return-inspection', 'Api\V1\UrbanGoodz\RentalAIController@inspectReturn');
-    });
-
-    // Support AI
-    Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-        Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
-        Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@autoResolve');
-        Route::post('escalate', 'Api\V1\UrbanGoodz\SupportAIController@escalateToHuman');
-        Route::get('knowledge-base', 'Api\V1\UrbanGoodz\SupportAIController@searchKnowledgeBase');
-        Route::post('feedback', 'Api\V1\UrbanGoodz\SupportAIController@submitFeedback');
-    });
-
-    // Fraud Detection AI
-    Route::group(['prefix' => 'urban-goodz/fraud/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
-        Route::post('scan-transaction', 'Api\V1\UrbanGoodz\FraudDetectionController@scanTransaction');
-        Route::post('scan-account', 'Api\V1\UrbanGoodz\FraudDetectionController@scanAccount');
-        Route::get('flags', 'Api\V1\UrbanGoodz\FraudDetectionController@getFlags');
-        Route::post('review', 'Api\V1\UrbanGoodz\FraudDetectionController@reviewFlag');
-        Route::get('risk-score/{entity_type}/{entity_id}', 'Api\V1\UrbanGoodz\FraudDetectionController@getRiskScore');
-        Route::get('dashboard', 'Api\V1\UrbanGoodz\FraudDetectionController@getDashboard');
-    });
-
-    // ETA Prediction AI
-    Route::group(['prefix' => 'urban-goodz/eta/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-        Route::post('predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictETA');
-        Route::post('batch-predict', 'Api\V1\UrbanGoodz\ETAPredictionController@batchPredict');
-        Route::get('driver/{driver_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getDriverETA');
-        Route::get('order/{order_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getOrderETA');
-    });
-
-    // Dynamic Pricing AI
-    Route::group(['prefix' => 'urban-goodz/pricing/ai', 'middleware' => ['vendor.api', 'actch:vendor_app', 'throttle:60,1']], function () {
-        Route::post('recommend', 'Api\V1\UrbanGoodz\DynamicPricingController@recommendPrices');
-        Route::post('simulate', 'Api\V1\UrbanGoodz\DynamicPricingController@simulatePriceChange');
-        Route::get('history', 'Api\V1\UrbanGoodz\DynamicPricingController@getPriceHistory');
-        Route::post('rollback', 'Api\V1\UrbanGoodz\DynamicPricingController@rollbackPrice');
 });
 
-    // Cross-App AI (unified endpoints for all apps)
-    Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['auth:api', 'throttle:120,1']], function () {
-        // Customer
-        Route::post('customer/query', 'Api\V1\UrbanGoodz\CrossAppAIController@customerQuery');
-        Route::get('customer/history', 'Api\V1\UrbanGoodz\CrossAppAIController@customerHistory');
-        Route::post('customer/fashion-fit/measurements', 'Api\V1\UrbanGoodz\CrossAppAIController@fashionFitMeasurements');
-        Route::post('customer/order-anywhere', 'Api\V1\UrbanGoodz\CrossAppAIController@orderAnywhere');
-        Route::post('customer/smart-reorder', 'Api\V1\UrbanGoodz\CrossAppAIController@smartReorder');
-        Route::post('customer/delivery-eta', 'Api\V1\UrbanGoodz\CrossAppAIController@deliveryETA');
+// Driver AI
+Route::group(['prefix' => 'ai', 'middleware' => 'dm.api'], function () {
+    Route::get('route-optimization', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@optimizeRoute');
+    Route::get('earnings-comparison', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsComparison');
+    Route::get('load-recommendations', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@loadRecommendations');
+    Route::post('verify-pickup', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@verifyPickup');
+    Route::post('verify-delivery', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@verifyDelivery');
+    Route::post('exception', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@handleException');
+    Route::get('warnings', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@getWarnings');
+    Route::get('earnings-per-hour', 'Api\V1\UrbanGoodz\UrbanGoodzDriverAIController@earningsPerHour');
+});
 
-        // Vendor
-        Route::get('vendor/daily-brief', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorDailyBrief');
-        Route::post('vendor/order-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorOrderSummary');
-        Route::get('vendor/alerts', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorAlerts');
-        Route::get('vendor/performance', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPerformance');
-        Route::get('vendor/pricing', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPricing');
-        Route::get('vendor/promotions', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPromotions');
-        Route::post('vendor/prep-time', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPrepTime');
+// Dispatcher AI
+Route::group(['prefix' => 'urban-goodz/dispatcher/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+    Route::post('load-ranking', 'Api\V1\Dispatcher\DispatcherAIController@rankLoads');
+    Route::post('driver-match', 'Api\V1\Dispatcher\DispatcherAIController@matchDriver');
+    Route::post('rate-estimate', 'Api\V1\Dispatcher\DispatcherAIController@estimateRate');
+    Route::post('duplicate-check', 'Api\V1\Dispatcher\DispatcherAIController@checkDuplicates');
+    Route::get('ops-summary', 'Api\V1\Dispatcher\DispatcherAIController@opsSummary');
+    Route::post('parse-load', 'Api\V1\Dispatcher\DispatcherAIController@parseLoad');
+    Route::post('parse-email', 'Api\V1\Dispatcher\DispatcherAIController@parseEmail');
+    Route::post('parse-batch', 'Api\V1\Dispatcher\DispatcherAIController@parseBatch');
+    Route::get('source-status', 'Api\V1\Dispatcher\DispatcherAIController@sourceStatus');
+    Route::post('sync-source', 'Api\V1\Dispatcher\DispatcherAIController@syncSource');
+});
 
-        // Driver
-        Route::get('driver/daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
-        Route::post('driver/route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
-        Route::post('driver/verify-package', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyPackage');
-        Route::post('driver/verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
+// Rental AI
+Route::group(['prefix' => 'urban-goodz/rentals/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('search', 'Api\V1\UrbanGoodz\RentalAIController@searchAssets');
+    Route::post('match', 'Api\V1\UrbanGoodz\RentalAIController@matchAssets');
+    Route::post('availability', 'Api\V1\UrbanGoodz\RentalAIController@checkAvailability');
+    Route::post('quote', 'Api\V1\UrbanGoodz\RentalAIController@getQuote');
+    Route::post('extension', 'Api\V1\UrbanGoodz\RentalAIController@extendRental');
+    Route::post('late-return', 'Api\V1\UrbanGoodz\RentalAIController@handleLateReturn');
+    Route::post('damage-report', 'Api\V1\UrbanGoodz\RentalAIController@reportDamage');
+    Route::post('return-inspection', 'Api\V1\UrbanGoodz\RentalAIController@inspectReturn');
+});
 
-        // Business
-        Route::post('business/manifest/import', 'Api\V1\UrbanGoodz\CrossAppAIController@importManifest');
-        Route::post('business/packages/group', 'Api\V1\UrbanGoodz\CrossAppAIController@groupPackages');
-        Route::post('business/route/create', 'Api\V1\UrbanGoodz\CrossAppAIController@createRoute');
-        Route::post('business/route/optimize', 'Api\V1\UrbanGoodz\CrossAppAIController@optimizeRoute');
-        Route::post('business/driver/match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
-        Route::post('business/route/predict', 'Api\V1\UrbanGoodz\CrossAppAIController@predictRouteCompletion');
-        Route::post('business/route/risk', 'Api\V1\UrbanGoodz\CrossAppAIController@assessRouteRisk');
-        Route::get('business/performance', 'Api\V1\UrbanGoodz\CrossAppAIController@routePerformance');
-        Route::get('business/cost-anomaly', 'Api\V1\UrbanGoodz\CrossAppAIController@costAnomalyAlert');
-        Route::post('business/invoice-support', 'Api\V1\UrbanGoodz\CrossAppAIController@generateInvoiceSupport');
-        Route::post('business/delivery-proof', 'Api\V1\UrbanGoodz\CrossAppAIController@compileDeliveryProof');
+// Support AI
+Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
+    Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@autoResolve');
+    Route::post('escalate', 'Api\V1\UrbanGoodz\SupportAIController@escalateToHuman');
+    Route::get('knowledge-base', 'Api\V1\UrbanGoodz\SupportAIController@searchKnowledgeBase');
+    Route::post('feedback', 'Api\V1\UrbanGoodz\SupportAIController@submitFeedback');
+});
 
-        // Dispatcher
-        Route::post('dispatcher/load-ranking', 'Api\V1\UrbanGoodz\CrossAppAIController@rankLoads');
-        Route::post('dispatcher/driver-match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
-        Route::post('dispatcher/rate-estimate', 'Api\V1\UrbanGoodz\CrossAppAIController@estimateRate');
-        Route::post('dispatcher/duplicate-check', 'Api\V1\UrbanGoodz\CrossAppAIController@checkDuplicates');
-        Route::get('dispatcher/ops-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@opsSummary');
-        Route::post('dispatcher/parse-load', 'Api\V1\UrbanGoodz\CrossAppAIController@parseLoad');
-        Route::post('dispatcher/parse-email', 'Api\V1\UrbanGoodz\CrossAppAIController@parseEmail');
-        Route::post('dispatcher/parse-batch', 'Api\V1\UrbanGoodz\CrossAppAIController@parseBatch');
-        Route::get('dispatcher/source-status', 'Api\V1\UrbanGoodz\CrossAppAIController@sourceStatus');
-        Route::post('dispatcher/sync-source', 'Api\V1\UrbanGoodz\CrossAppAIController@syncSource');
-    });
+// Fraud Detection AI
+Route::group(['prefix' => 'urban-goodz/fraud/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+    Route::post('scan-transaction', 'Api\V1\UrbanGoodz\FraudDetectionController@scanTransaction');
+    Route::post('scan-account', 'Api\V1\UrbanGoodz\FraudDetectionController@scanAccount');
+    Route::get('flags', 'Api\V1\UrbanGoodz\FraudDetectionController@getFlags');
+    Route::post('review', 'Api\V1\UrbanGoodz\FraudDetectionController@reviewFlag');
+    Route::get('risk-score/{entity_type}/{entity_id}', 'Api\V1\UrbanGoodz\FraudDetectionController@getRiskScore');
+    Route::get('dashboard', 'Api\V1\UrbanGoodz\FraudDetectionController@getDashboard');
+});
+
+// ETA Prediction AI
+Route::group(['prefix' => 'urban-goodz/eta/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictETA');
+    Route::post('batch-predict', 'Api\V1\UrbanGoodz\ETAPredictionController@batchPredict');
+    Route::get('driver/{driver_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getDriverETA');
+    Route::get('order/{order_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getOrderETA');
+});
+
+// Dynamic Pricing AI
+Route::group(['prefix' => 'urban-goodz/pricing/ai', 'middleware' => ['vendor.api', 'actch:vendor_app', 'throttle:60,1']], function () {
+    Route::post('recommend', 'Api\V1\UrbanGoodz\DynamicPricingController@recommendPrices');
+    Route::post('simulate', 'Api\V1\UrbanGoodz\DynamicPricingController@simulatePriceChange');
+    Route::get('history', 'Api\V1\UrbanGoodz\DynamicPricingController@getPriceHistory');
+    Route::post('rollback', 'Api\V1\UrbanGoodz\DynamicPricingController@rollbackPrice');
+});
+
+// Cross-App AI (unified endpoints for all apps)
+Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['auth:api', 'throttle:120,1']], function () {
+    // Customer
+    Route::post('customer/query', 'Api\V1\UrbanGoodz\CrossAppAIController@customerQuery');
+    Route::get('customer/history', 'Api\V1\UrbanGoodz\CrossAppAIController@customerHistory');
+    Route::post('customer/fashion-fit/measurements', 'Api\V1\UrbanGoodz\CrossAppAIController@fashionFitMeasurements');
+    Route::post('customer/order-anywhere', 'Api\V1\UrbanGoodz\CrossAppAIController@orderAnywhere');
+    Route::post('customer/smart-reorder', 'Api\V1\UrbanGoodz\CrossAppAIController@smartReorder');
+    Route::post('customer/delivery-eta', 'Api\V1\UrbanGoodz\CrossAppAIController@deliveryETA');
+
+    // Vendor
+    Route::get('vendor/daily-brief', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorDailyBrief');
+    Route::post('vendor/order-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorOrderSummary');
+    Route::get('vendor/alerts', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorAlerts');
+    Route::get('vendor/performance', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPerformance');
+    Route::get('vendor/pricing', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPricing');
+    Route::get('vendor/promotions', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPromotions');
+    Route::post('vendor/prep-time', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPrepTime');
+
+    // Driver
+    Route::get('driver/daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
+    Route::post('driver/route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
+    Route::post('driver/verify-package', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyPackage');
+    Route::post('driver/verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
+
+    // Business
+    Route::post('business/manifest/import', 'Api\V1\UrbanGoodz\CrossAppAIController@importManifest');
+    Route::post('business/packages/group', 'Api\V1\UrbanGoodz\CrossAppAIController@groupPackages');
+    Route::post('business/route/create', 'Api\V1\UrbanGoodz\CrossAppAIController@createRoute');
+    Route::post('business/route/optimize', 'Api\V1\UrbanGoodz\CrossAppAIController@optimizeRoute');
+    Route::post('business/driver/match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
+    Route::post('business/route/predict', 'Api\V1\UrbanGoodz\CrossAppAIController@predictRouteCompletion');
+    Route::post('business/route/risk', 'Api\V1\UrbanGoodz\CrossAppAIController@assessRouteRisk');
+    Route::get('business/performance', 'Api\V1\UrbanGoodz\CrossAppAIController@routePerformance');
+    Route::get('business/cost-anomaly', 'Api\V1\UrbanGoodz\CrossAppAIController@costAnomalyAlert');
+    Route::post('business/invoice-support', 'Api\V1\UrbanGoodz\CrossAppAIController@generateInvoiceSupport');
+    Route::post('business/delivery-proof', 'Api\V1\UrbanGoodz\CrossAppAIController@compileDeliveryProof');
+
+    // Dispatcher
+    Route::post('dispatcher/load-ranking', 'Api\V1\UrbanGoodz\CrossAppAIController@rankLoads');
+    Route::post('dispatcher/driver-match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
+    Route::post('dispatcher/rate-estimate', 'Api\V1\UrbanGoodz\CrossAppAIController@estimateRate');
+    Route::post('dispatcher/duplicate-check', 'Api\V1\UrbanGoodz\CrossAppAIController@checkDuplicates');
+    Route::get('dispatcher/ops-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@opsSummary');
+    Route::post('dispatcher/parse-load', 'Api\V1\UrbanGoodz\CrossAppAIController@parseLoad');
+    Route::post('dispatcher/parse-email', 'Api\V1\UrbanGoodz\CrossAppAIController@parseEmail');
+    Route::post('dispatcher/parse-batch', 'Api\V1\UrbanGoodz\CrossAppAIController@parseBatch');
+    Route::get('dispatcher/source-status', 'Api\V1\UrbanGoodz\CrossAppAIController@sourceStatus');
+    Route::post('dispatcher/sync-source', 'Api\V1\UrbanGoodz\CrossAppAIController@syncSource');
+});
