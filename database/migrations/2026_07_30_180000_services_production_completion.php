@@ -22,7 +22,8 @@ return new class extends Migration
                 $table->unsignedSmallInteger('sort_order')->default(0);
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
-                $table->index(['provider_id', 'is_active', 'sort_order']);
+                // Explicit name: the generated one exceeds MySQL's 64-char limit.
+                $table->index(['provider_id', 'is_active', 'sort_order'], 'ug_portfolio_provider_active_sort_idx');
             });
         }
 

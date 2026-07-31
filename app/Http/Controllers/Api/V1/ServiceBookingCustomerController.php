@@ -15,6 +15,7 @@ use App\Services\ServiceBookings\ServiceBookingRefundService;
 use App\Services\ServiceBookings\ServiceBookingWorkflow;
 use App\Services\ServiceBookings\ServiceProviderDiscoveryService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -73,10 +74,17 @@ class ServiceBookingCustomerController extends Controller
                 usort($matched, fn ($a, $b) => (float) $b->rating <=> (float) $a->rating);
             }
 
-            return response()->json([
-                'data' => array_slice($matched, 0, $limit),
-                'meta' => ['total' => count($matched), 'sorted_by' => $data['sort'] ?? 'distance'],
-            ]);
+            // Paginated by hand so this path returns the same envelope as the
+            // non-distance path; the Shopper client only ever sees one shape.
+            $page = max(1, (int) $request->input('page', 1));
+
+            return response()->json(new LengthAwarePaginator(
+                array_slice($matched, ($page - 1) * $limit, $limit),
+                count($matched),
+                $limit,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            ));
         }
 
         $query = match ($data['sort'] ?? null) {
