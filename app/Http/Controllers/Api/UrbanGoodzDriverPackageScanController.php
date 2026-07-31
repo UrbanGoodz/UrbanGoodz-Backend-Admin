@@ -93,6 +93,28 @@ class UrbanGoodzDriverPackageScanController extends Controller
         ]);
     }
 
+    public function storeGroup(
+        Request $request,
+        $routeId,
+        PackageScanWorkflowService $workflow
+    ) {
+        $driver = $this->driver($request);
+        $validator = Validator::make($request->all(), $this->groupRules());
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $route = $this->assignedRoute($routeId, $driver->id);
+            $result = $workflow->processGroup($route, $driver, $validator->validated());
+            return response()->json($result, $result['duplicate'] ? 200 : 201);
+        } catch (ModelNotFoundException) {
+            return response()->json(['error' => 'Package or assigned route not found.'], 404);
+        } catch (DomainException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 409);
+        }
+    }
+
     public function history(Request $request, $routeId)
     {
         $driver = $this->driver($request);
@@ -111,11 +133,35 @@ class UrbanGoodzDriverPackageScanController extends Controller
     private function rules(): array
     {
         return [
-            'action' => ['required', 'in:load,pickup,delivery,proof,exception,return,redelivery'],
+            'action' => ['required', 'in:load,pickup,delivery,proof,exception,fail,cancel,return,redelivery'],
             'identifier' => ['required', 'string', 'max:255'],
             'identifier_type' => ['required', 'in:barcode,qr_code,tracking_id,manual'],
             'input_method' => ['nullable', 'in:barcode,qr_code,manual'],
             'idempotency_key' => ['required', 'string', 'max:100'],
+            'device_id' => ['nullable', 'string', 'max:100'],
+            'occurred_at' => ['nullable', 'date'],
+            'was_offline' => ['nullable', 'boolean'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'photo' => ['nullable', 'string'],
+            'signature' => ['nullable', 'string'],
+            'exception_reason' => ['nullable', 'string', 'max:500'],
+            'return_destination' => ['nullable', 'in:pickup,hub,business'],
+            'return_location' => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'metadata' => ['nullable', 'array'],
+        ];
+    }
+
+    private function groupRules(): array
+    {
+        return [
+            'action' => ['required', 'in:load,pickup,delivery,proof,exception,fail,cancel,return,redelivery'],
+            'group_idempotency_key' => ['required', 'string', 'max:100'],
+            'packages' => ['required', 'array', 'min:1', 'max:100'],
+            'packages.*.identifier' => ['required', 'string', 'max:255'],
+            'packages.*.identifier_type' => ['required', 'in:barcode,qr_code,tracking_id,manual'],
+            'input_method' => ['nullable', 'in:barcode,qr_code,manual'],
             'device_id' => ['nullable', 'string', 'max:100'],
             'occurred_at' => ['nullable', 'date'],
             'was_offline' => ['nullable', 'boolean'],

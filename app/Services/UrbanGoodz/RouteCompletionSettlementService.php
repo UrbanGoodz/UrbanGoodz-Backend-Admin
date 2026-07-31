@@ -20,13 +20,26 @@ class RouteCompletionSettlementService
             'returned_to_business',
         ])->count();
         $exceptionCount = $route->packages()
-            ->whereHas('scans', fn ($query) => $query->where('scan_type', 'exception'))
+            ->whereHas('scans', fn ($query) => $query->whereIn('scan_type', [
+                'exception', 'failed_delivery', 'canceled',
+            ]))
             ->count();
         $milesMilli = (int) round(
             (float) ($route->optimized_distance_miles ?? $route->estimated_miles ?? 0) * 1000
         );
         $completionVersion = max(1, (int) $route->optimization_version);
         $distanceMode = $route->optimization_distance_mode ?: 'HAVERSINE_FALLBACK';
+        $isEligibleRoadMileage = $distanceMode === 'ROAD_NETWORK'
+            && (int) $route->optimization_version > 0
+            && (int) $route->assigned_driver_id > 0;
+        $eligibleMilesMilli = $isEligibleRoadMileage ? $milesMilli : 0;
+        $mileageEligibility = $isEligibleRoadMileage
+            ? 'eligible_accepted_road_sequence'
+            : 'ineligible_non_road_or_unaccepted';
+        $stopCount = $route->optimizationStops
+            ->map(fn ($stop) => (int) ($stop->group_stop_order ?: $stop->stop_order))
+            ->unique()
+            ->count();
 
         $metric = UrbanGoodzRouteOperationalMetric::updateOrCreate([
             'dedicated_route_id' => $route->id,
@@ -35,8 +48,14 @@ class RouteCompletionSettlementService
             'driver_id' => $route->assigned_driver_id,
             'business_client_id' => $route->business_client_id,
             'miles_milli' => $milesMilli,
+            'eligible_miles_milli' => $eligibleMilesMilli,
+            'mileage_eligibility' => $mileageEligibility,
+            'accepted_optimization_version' => (int) $route->optimization_version,
             'package_count' => $route->packages->count(),
-            'stop_count' => $route->optimizationStops->count() ?: $route->packages->count(),
+            'stop_count' => $stopCount ?: $route->packages
+                ->map(fn ($package) => $package->deliveryGroupKey())
+                ->unique()
+                ->count(),
             'return_count' => $returnCount,
             'exception_count' => $exceptionCount,
             'duration_minutes' => (int) (
@@ -47,7 +66,8 @@ class RouteCompletionSettlementService
             'verified_at' => now(),
         ]);
 
-        if (!class_exists(self::FINANCIAL_SERVICE)) {
+        if (!class_exists(self::FINANCIAL_SERVICE)
+            && !(function_exists('app') && app()->bound(self::FINANCIAL_SERVICE))) {
             return [
                 'status' => 'metrics_captured_financial_lane_pending',
                 'metric_id' => $metric->id,
@@ -62,7 +82,10 @@ class RouteCompletionSettlementService
             'driver_id' => (int) $route->assigned_driver_id,
             'service_type' => $route->source_module ?: $route->route_type,
             'zone_id' => null,
-            'miles_milli' => $metric->miles_milli,
+            'miles_milli' => $metric->eligible_miles_milli,
+            'measured_miles_milli' => $metric->miles_milli,
+            'mileage_eligibility' => $metric->mileage_eligibility,
+            'accepted_optimization_version' => $metric->accepted_optimization_version,
             'package_count' => $metric->package_count,
             'stop_count' => $metric->stop_count,
             'route_count' => 1,

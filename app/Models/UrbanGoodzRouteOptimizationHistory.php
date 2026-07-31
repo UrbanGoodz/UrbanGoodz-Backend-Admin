@@ -9,6 +9,7 @@ class UrbanGoodzRouteOptimizationHistory extends Model
     protected $fillable = [
         'dedicated_route_id', 'version', 'action', 'status', 'method',
         'provider', 'distance_mode', 'original_sequence', 'result_sequence',
+        'result_stop_groups',
         'constraints', 'package_count', 'stop_count',
         'original_distance_miles', 'result_distance_miles',
         'original_duration_minutes', 'result_duration_minutes',
@@ -18,6 +19,7 @@ class UrbanGoodzRouteOptimizationHistory extends Model
     protected $casts = [
         'original_sequence' => 'array',
         'result_sequence' => 'array',
+        'result_stop_groups' => 'array',
         'constraints' => 'array',
         'package_count' => 'integer',
         'stop_count' => 'integer',
