@@ -7,6 +7,14 @@ use Illuminate\Support\Facades\Log;
 
 class GeminiProvider extends AbstractAIProvider
 {
+    /**
+     * Working model alias. Numbered snapshots are retired by Google without
+     * notice: gemini-2.5-flash answers 404 ("no longer available to new users")
+     * and gemini-2.0-flash answers 429 on the free tier. Only change this to
+     * another "-latest" alias.
+     */
+    public const DEFAULT_MODEL = 'gemini-flash-latest';
+
     public function name(): string
     {
         return 'gemini';
@@ -14,7 +22,9 @@ class GeminiProvider extends AbstractAIProvider
 
     public function model(): string
     {
-        return (string) config('urban_goodz_ai.providers.gemini.model', 'gemini-2.5-flash');
+        $model = trim((string) config('urban_goodz_ai.providers.gemini.model', self::DEFAULT_MODEL));
+
+        return $model !== '' ? $model : self::DEFAULT_MODEL;
     }
 
     public function isConfigured(): bool

@@ -11,6 +11,26 @@ use App\Models\Vendor;
 
 class UrbanGoodzNotificationService
 {
+    /** Channels that physically require an FCM device token. */
+    public const PUSH_CHANNELS = ['push', 'firebase_push'];
+
+    /**
+     * Channels that are satisfied the moment the row is persisted. These are
+     * read out of the database by the apps and the admin panel, so they must
+     * never depend on - or be failed by - a missing FCM device token.
+     */
+    public const IN_APP_CHANNELS = ['in_app', 'database', 'websocket', 'admin_alert'];
+
+    public static function isPushChannel(?string $channel): bool
+    {
+        return in_array(strtolower(trim((string) $channel)), self::PUSH_CHANNELS, true);
+    }
+
+    public static function isInAppChannel(?string $channel): bool
+    {
+        return in_array(strtolower(trim((string) $channel)), self::IN_APP_CHANNELS, true);
+    }
+
     public function notifyCustomer(int $customerId, string $title, string $description, array $payload = []): ?UserNotification
     {
         return $this->persistAndDispatch('customer', $customerId, $title, $description, $payload);
@@ -46,6 +66,10 @@ class UrbanGoodzNotificationService
 
     /**
      * Queue notifications for async delivery via Firebase (used by NotificationAIController).
+     *
+     * Only push channels consult the FCM device token. An in-app notification
+     * is delivered as soon as it is persisted, so a recipient with no FCM
+     * token still receives it - it is never marked failed for that reason.
      */
     public function queueForDelivery(array $notifications): void
     {
@@ -55,6 +79,17 @@ class UrbanGoodzNotificationService
             }
 
             if ($notification->status === 'failed') {
+                continue;
+            }
+
+            if (self::isInAppChannel($notification->channel)) {
+                $notification->update(['status' => 'delivered']);
+                continue;
+            }
+
+            if (!self::isPushChannel($notification->channel)) {
+                // email / sms / webhook are owned by their own transports.
+                // Leave them pending rather than failing them here.
                 continue;
             }
 
