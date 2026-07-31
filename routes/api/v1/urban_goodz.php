@@ -16,6 +16,12 @@ Route::group(['prefix' => 'urban-goodz/discovery', 'middleware' => ['auth:api', 
     Route::post('opportunities/{id}/accept', 'Api\V1\UrbanGoodzDiscoveryController@acceptOpportunity');
 });
 
+Route::group(['prefix' => 'urban-goodz/marketplace-data', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('businesses', 'Api\V1\UrbanGoodzMarketplaceDataController@businesses');
+    Route::get('businesses/{id}', 'Api\V1\UrbanGoodzMarketplaceDataController@business');
+    Route::get('shopper/catalogs', 'Api\V1\UrbanGoodzMarketplaceDataController@shopperCatalogs');
+});
+
 Route::group(['prefix' => 'urban-goodz/earn-money', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('opportunities', 'Api\V1\UrbanGoodzOpportunityController@earnMoneyOpportunities');
     Route::get('opportunities/{record}', 'Api\V1\UrbanGoodzOpportunityController@earnMoneyOpportunity');

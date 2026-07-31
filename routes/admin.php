@@ -588,6 +588,19 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::put('{id}', 'UrbanGoodz\UrbanGoodzSourcedBusinessReviewController@update')->name('update');
             });
 
+            Route::group(['prefix' => 'data-center', 'as' => 'data-center.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzDataCenterController@index')->name('index');
+                Route::post('batches', 'UrbanGoodz\UrbanGoodzDataCenterController@stage')->name('batches.stage');
+                Route::get('batches/{batch}/preview', 'UrbanGoodz\UrbanGoodzDataCenterController@preview')->name('batches.preview');
+                Route::post('batches/{batch}/retry', 'UrbanGoodz\UrbanGoodzDataCenterController@retry')->name('batches.retry');
+                Route::post('batches/{batch}/approve', 'UrbanGoodz\UrbanGoodzDataCenterController@approve')->name('batches.approve');
+                Route::post('batches/{batch}/visibility', 'UrbanGoodz\UrbanGoodzDataCenterController@visibility')->name('batches.visibility');
+                Route::post('batches/{batch}/rollback', 'UrbanGoodz\UrbanGoodzDataCenterController@rollback')->name('batches.rollback');
+                Route::post('businesses/{business}/review', 'UrbanGoodz\UrbanGoodzDataCenterController@reviewBusiness')->name('businesses.review');
+                Route::post('products/{product}/review', 'UrbanGoodz\UrbanGoodzDataCenterController@reviewProduct')->name('products.review');
+                Route::post('images/{image}/review', 'UrbanGoodz\UrbanGoodzDataCenterController@reviewImage')->name('images.review');
+            });
+
             Route::group(['prefix' => 'activity-logs', 'as' => 'activity-logs.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzActivityLogController@index')->name('index');
                 Route::get('{id}', 'UrbanGoodz\UrbanGoodzActivityLogController@show')->name('show');

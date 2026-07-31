@@ -637,6 +637,18 @@ class UrbanGoodzIngestionService
         if ($b->admin_review_status !== 'approved') {
             $failures[] = 'admin_review_status is not approved';
         }
+        if ($b->validation_status !== 'valid') {
+            $failures[] = 'validation_status is not valid';
+        }
+        if (!$b->source_verified) {
+            $failures[] = 'source has not been verified';
+        }
+        if ($b->record_classification !== 'production') {
+            $failures[] = 'record is not classified as production';
+        }
+        if ($b->duplicate_of_business_id) {
+            $failures[] = 'record is classified as a duplicate';
+        }
         if (empty($b->category_ids)) {
             $failures[] = 'category_ids is empty';
         } elseif (in_array(1, (array) $b->category_ids, true)) {
@@ -666,6 +678,20 @@ class UrbanGoodzIngestionService
 
         if (in_array('partnered_status_true', (array) $b->tags, true)) {
             $failures[] = 'partnered status must be false';
+        }
+
+        $products = UrbanGoodzSourcedProduct::where('sourced_business_id', $b->id)->get();
+        if ($products->isEmpty()) {
+            $failures[] = 'approved catalog has no products';
+        }
+        foreach ($products as $product) {
+            if ($product->admin_review_status !== 'approved' || $product->validation_status !== 'valid') {
+                $failures[] = "product {$product->id} has not passed review and validation";
+                continue;
+            }
+            if (!$product->category_id || !in_array((int) $product->category_id, (array) $b->category_ids, true)) {
+                $failures[] = "product {$product->id} does not have an approved business category";
+            }
         }
 
         return $failures;

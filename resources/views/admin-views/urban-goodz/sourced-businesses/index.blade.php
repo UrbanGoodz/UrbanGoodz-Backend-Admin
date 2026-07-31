@@ -72,7 +72,7 @@
                                 <td>{{ $r->fulfillment_modes === ['review_only'] ? translate('Yes (review_only)') : translate('No') }}</td>
                                 <td>{{ empty($r->category_ids) ? translate('Pending') : implode(', ', $r->category_ids) }}</td>
                                 <td>{{ translate(ucfirst(str_replace('_',' ',$r->admin_review_status))) }}</td>
-                                <td><a href="{{ route('urban-goodz.sourced-businesses.show', $r->id) }}" class="btn btn--secondary btn-sm">{{ translate('Review') }}</a></td>
+                                <td><a href="{{ route('admin.urban-goodz.sourced-businesses.show', $r->id) }}" class="btn btn--secondary btn-sm">{{ translate('Review') }}</a></td>
                             </tr>
                         @empty
                             <tr><td colspan="7" class="text-center">{{ translate('No staged rows match the filter.') }}</td></tr>
