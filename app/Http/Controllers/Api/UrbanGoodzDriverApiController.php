@@ -89,16 +89,34 @@ class UrbanGoodzDriverApiController extends Controller
           ->where('assigned_driver_id', $driver->id)
           ->firstOrFail();
 
-        $stops = $route->optimizationStops()
+        $orderedStops = $route->optimizationStops()
             ->with('package')
             ->orderBy('stop_order')
-            ->get()
-            ->map(function ($stop) {
-                $pkg = $stop->package;
+            ->get();
+        $stops = $orderedStops
+            ->groupBy(fn ($stop) => (int) ($stop->group_stop_order ?: $stop->stop_order))
+            ->map(function ($group, $groupOrder) {
+                $stop = $group->first();
+                $pkg = $stop?->package;
+                $packages = $group->pluck('package')->filter()->values();
                 return [
-                    'stop_order' => $stop->stop_order,
-                    'sequence_number' => $stop->stop_order,
+                    'stop_order' => (int) $groupOrder,
+                    'sequence_number' => (int) $groupOrder,
                     'stop_type' => 'dropoff',
+                    'delivery_group_key' => $stop?->delivery_group_key ?: $pkg?->deliveryGroupKey(),
+                    'package_count' => $packages->count(),
+                    'package_ids' => $packages->pluck('id')->map(fn ($id) => (int) $id)->all(),
+                    'packages' => $packages->map(fn ($package) => [
+                        'id' => $package->id,
+                        'tracking_id' => $package->tracking_id,
+                        'barcode' => $package->barcode,
+                        'qr_code' => $package->qr_code,
+                        'status' => $package->status,
+                        'requires_signature' => (bool) $package->requires_signature,
+                        'requires_photo' => (bool) $package->requires_photo,
+                        'requires_custody' => (bool) $package->requires_custody,
+                        'requires_id_verification' => (bool) $package->requires_id_verification,
+                    ])->all(),
                     'package_id' => $pkg?->id,
                     'tracking_id' => $pkg?->tracking_id,
                     'barcode' => $pkg?->barcode,
@@ -137,7 +155,8 @@ class UrbanGoodzDriverApiController extends Controller
                     'delivery_completion_locked_until_verified' => $pkg?->delivery_completion_locked_until_verified,
                     'age_verification_status' => $pkg?->age_verification_status,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json([
             'route' => [
@@ -690,14 +709,14 @@ class UrbanGoodzDriverApiController extends Controller
 
         $pendingPackages = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->whereNotIn('status', [
-                'delivered', 'failed', 'unable_to_deliver',
+                'delivered', 'failed', 'unable_to_deliver', 'canceled',
                 'returned_to_pickup', 'returned_to_hub', 'returned_to_business',
                 'payout_eligible', 'payout_excluded', 'completed',
             ])
             ->count();
         if ($pendingPackages > 0) {
             return response()->json([
-                'error' => 'Every package must be delivered, excepted, or returned before route completion.',
+                'error' => 'Every package must be delivered, excepted, canceled, or returned before route completion.',
                 'pending_packages_remaining' => $pendingPackages,
             ], 409);
         }
@@ -705,6 +724,9 @@ class UrbanGoodzDriverApiController extends Controller
         $completedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)->delivered()->count();
         $failedCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->whereIn('status', ['failed', 'unable_to_deliver'])
+            ->count();
+        $canceledCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
+            ->where('status', 'canceled')
             ->count();
         $returningCount = UrbanGoodzRoutePackage::where('dedicated_route_id', $routeId)
             ->whereIn('status', ['return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business'])
@@ -743,6 +765,7 @@ class UrbanGoodzDriverApiController extends Controller
             'completed_at' => $route->route_completed_at->toDateTimeString(),
             'completed_packages' => $completedCount,
             'failed_packages' => $failedCount,
+            'canceled_packages' => $canceledCount,
             'returning_packages' => $returningCount,
             'pending_packages_remaining' => $pendingPackages,
             'completion_bonus' => $route->route_completion_bonus,

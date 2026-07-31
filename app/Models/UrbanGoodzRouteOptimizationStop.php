@@ -10,12 +10,14 @@ class UrbanGoodzRouteOptimizationStop extends Model
 
     protected $fillable = [
         'dedicated_route_id', 'package_id', 'stop_order', 'original_stop_order',
+        'group_stop_order', 'delivery_group_key',
         'estimated_distance_from_prev', 'estimated_duration_from_prev', 'status',
     ];
 
     protected $casts = [
         'estimated_distance_from_prev' => 'decimal:2',
         'estimated_duration_from_prev' => 'integer',
+        'group_stop_order' => 'integer',
     ];
 
     public function route()

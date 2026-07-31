@@ -54,7 +54,7 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
         self::assertSame(78, $plan['original_metrics']['minutes']);
         self::assertSame(62, $plan['optimized_metrics']['minutes']);
         self::assertLessThan($plan['original_metrics']['miles'], $plan['optimized_metrics']['miles']);
-        self::assertSame('constrained_nearest_neighbor+2opt', $plan['method']);
+        self::assertSame('grouped_address_constrained_nearest_neighbor+2opt', $plan['method']);
         self::assertSame('HAVERSINE_FALLBACK', $plan['optimized_metrics']['distance_mode']);
     }
 
@@ -73,7 +73,7 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
         self::assertSame(3, $fixedEnd['optimized']->last()->id);
     }
 
-    public function test_duplicate_addresses_remain_distinct_stops(): void
+    public function test_duplicate_address_packages_are_preserved_in_one_address_stop(): void
     {
         $packages = collect([
             $this->package(10, 10, 1, 'Same address'),
@@ -85,6 +85,9 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
 
         self::assertCount(3, $plan['optimized']);
         self::assertSame([10, 11, 12], $plan['optimized']->pluck('id')->sort()->values()->all());
+        self::assertSame(2, $plan['optimized_metrics']['stop_count']);
+        self::assertCount(2, $plan['stop_groups']);
+        self::assertSame([10, 11], $plan['stop_groups'][0]['package_ids']);
     }
 
     public function test_missing_coordinates_fail_without_fabricated_success(): void
@@ -108,7 +111,7 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
             ['lat' => 10, 'lng' => 0],
             ['lat' => 10, 'lng' => 3]
         );
-        self::assertSame('single_stop', $plan['method']);
+        self::assertSame('single_address_stop', $plan['method']);
         self::assertSame(3.0, $plan['optimized_metrics']['miles']);
         self::assertGreaterThan(0, $plan['optimized_metrics']['minutes']);
     }
@@ -175,6 +178,25 @@ class DedicatedRouteOptimizationEngineTest extends TestCase
         $this->expectExceptionMessage('both require position 1');
 
         $this->optimizer->plan(collect([$first, $second]), ['lat' => 10, 'lng' => 0]);
+    }
+
+    public function test_locked_positions_cannot_split_one_delivery_address_into_false_stops(): void
+    {
+        $first = $this->package(1, 10, 1, 'Grouped address');
+        $first->stop_locked = true;
+        $first->locked_stop_order = 1;
+        $other = $this->package(2, 10, 2, 'Other address');
+        $second = $this->package(3, 10, 1, 'Grouped address');
+        $second->stop_locked = true;
+        $second->locked_stop_order = 3;
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('conflict with grouping packages');
+
+        $this->optimizer->plan(
+            collect([$first, $other, $second]),
+            ['lat' => 10, 'lng' => 0]
+        );
     }
 
     public function test_return_stops_are_sequenced_after_delivery_stops(): void

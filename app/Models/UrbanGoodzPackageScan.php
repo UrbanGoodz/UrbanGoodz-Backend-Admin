@@ -10,7 +10,7 @@ class UrbanGoodzPackageScan extends Model
         'business_package_scan', 'route_assignment', 'driver_loading',
         'pickup', 'dropoff', 'custody_check', 'delivery_attempt',
         'proof_uploaded', 'exception', 'failed_delivery',
-        'return_to_sender', 'return_scan', 'redelivery',
+        'canceled', 'return_to_sender', 'return_scan', 'redelivery',
         'admin_override',
     ];
 

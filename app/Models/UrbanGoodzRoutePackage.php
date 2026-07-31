@@ -11,7 +11,7 @@ class UrbanGoodzRoutePackage extends Model
 
     const PACKAGE_TYPES = ['parcel', 'document', 'specimen', 'supply', 'pallet', 'envelope'];
     const PRIORITIES = ['normal', 'high', 'urgent', 'medical'];
-    const STATUSES = ['pending', 'pending_review', 'ready_for_route', 'assigned', 'loaded', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'unable_to_deliver', 'failed', 'return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business', 'returned_to_pickup', 'returned_to_hub', 'returned_to_business', 'redelivery_pending', 'admin_review', 'payout_eligible', 'payout_excluded', 'completed'];
+    const STATUSES = ['pending', 'pending_review', 'ready_for_route', 'assigned', 'loaded', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'unable_to_deliver', 'failed', 'canceled', 'return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business', 'returned_to_pickup', 'returned_to_hub', 'returned_to_business', 'redelivery_pending', 'admin_review', 'payout_eligible', 'payout_excluded', 'completed'];
 
     const AGE_VERIFICATION_STATUSES = ['pending', 'verified', 'failed', 'refused'];
 
@@ -29,7 +29,8 @@ class UrbanGoodzRoutePackage extends Model
         'barcode', 'qr_code',
         'pickup_location_id', 'pickup_contact_name', 'pickup_contact_phone', 'pickup_address',
         'dropoff_name', 'dropoff_address', 'dropoff_city', 'dropoff_state', 'dropoff_zip', 'dropoff_phone', 'dropoff_lat', 'dropoff_lng',
-        'stop_order', 'stop_locked', 'locked_stop_order',
+        'stop_order', 'group_stop_order', 'delivery_group_key',
+        'stop_locked', 'locked_stop_order',
         'delivery_window_start', 'delivery_window_end',
         'package_type', 'weight', 'weight_unit', 'dimensions', 'priority',
         'requires_signature', 'requires_photo', 'requires_custody', 'temperature_requirement',
@@ -72,6 +73,7 @@ class UrbanGoodzRoutePackage extends Model
         'last_exception_at' => 'datetime',
         'stop_locked' => 'boolean',
         'locked_stop_order' => 'integer',
+        'group_stop_order' => 'integer',
         'redelivery_attempts' => 'integer',
         'scanned_at' => 'datetime',
         'pickup_scanned_at' => 'datetime',
@@ -172,5 +174,22 @@ class UrbanGoodzRoutePackage extends Model
     public static function nextTrackingId(): string
     {
         return 'UGP-' . now()->format('Ymd') . '-' . str_pad((self::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT);
+    }
+
+    public function deliveryGroupKey(): string
+    {
+        $address = strtolower(trim(preg_replace('/\s+/', ' ', (string) $this->dropoff_address)));
+        $latitude = is_numeric($this->dropoff_lat)
+            ? number_format((float) $this->dropoff_lat, 5, '.', '')
+            : '';
+        $longitude = is_numeric($this->dropoff_lng)
+            ? number_format((float) $this->dropoff_lng, 5, '.', '')
+            : '';
+
+        if ($address === '' && $latitude === '' && $longitude === '') {
+            return (string) ($this->delivery_group_key ?: "package:{$this->id}");
+        }
+
+        return hash('sha256', "{$address}|{$latitude}|{$longitude}");
     }
 }

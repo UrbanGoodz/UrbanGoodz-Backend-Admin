@@ -41,6 +41,8 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
             "'distance_mode' => \$optimizedMetrics['distance_mode']",
             "'optimization_method' => 'manual_order'",
             "'result_distance_miles' => \$metrics['miles']",
+            "'result_stop_groups' => \$stopGroups",
+            "'address_stop_count'",
         ] as $contract) {
             self::assertStringContainsString($contract, $source);
         }
@@ -51,7 +53,8 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
         $source = $this->source('app/Http/Controllers/Api/UrbanGoodzDriverApiController.php');
 
         self::assertStringContainsString("->orderBy('stop_order')", $source);
-        self::assertStringContainsString("'sequence_number' => \$stop->stop_order", $source);
+        self::assertStringContainsString("'sequence_number' => (int) \$groupOrder", $source);
+        self::assertStringContainsString("'package_count' => \$packages->count()", $source);
         self::assertStringContainsString('persisted Business/dispatcher sequence is authoritative', $source);
         self::assertStringContainsString("'optimization_distance_mode'", $source);
         self::assertStringContainsString("'optimization_constraints'", $source);
@@ -65,7 +68,8 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
 
         foreach ([
             'barcode,qr_code,tracking_id,manual',
-            'load,pickup,delivery,proof,exception,return,redelivery',
+            'load,pickup,delivery,proof,exception,fail,cancel,return,redelivery',
+            "'group_idempotency_key' => ['required'",
             "'idempotency_key' => ['required'",
             "'events' => ['required', 'array'",
             "\$event['was_offline'] = true",
@@ -75,16 +79,20 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
         foreach ([
             "'driver_loading'", "'pickup'", "'dropoff'", "'proof_uploaded'",
             "'exception'", "'return_scan'", "'redelivery'",
+            "'failed_delivery'", "'canceled'",
             'Photo proof is required',
             'Recipient signature is required',
             'assertPrecedingStopsComplete',
             "'custody_event' => 'dropoff'",
             "'duplicate' => \$duplicate",
             "'optimization_status' => 'reoptimization_required'",
+            'reoptimizeRemainingStops',
+            'processGroup',
         ] as $contract) {
             self::assertStringContainsString($contract, $workflow);
         }
         self::assertStringContainsString("routes/{routeId}/package-events", $routes);
+        self::assertStringContainsString("routes/{routeId}/package-group-events", $routes);
         self::assertStringContainsString("package-events/sync", $routes);
     }
 
@@ -110,9 +118,12 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
         $driver = $this->source('app/Http/Controllers/Api/UrbanGoodzDriverApiController.php');
         $settlement = $this->source('app/Services/UrbanGoodz/RouteCompletionSettlementService.php');
 
-        self::assertStringContainsString('Every package must be delivered, excepted, or returned', $driver);
+        self::assertStringContainsString('Every package must be delivered, excepted, canceled, or returned', $driver);
         self::assertStringContainsString("'compensation_settlement' => \$settlement", $driver);
         self::assertStringContainsString("'miles_milli' => \$milesMilli", $settlement);
+        self::assertStringContainsString("'eligible_miles_milli' => \$eligibleMilesMilli", $settlement);
+        self::assertStringContainsString("'miles_milli' => \$metric->eligible_miles_milli", $settlement);
+        self::assertStringContainsString('eligible_accepted_road_sequence', $settlement);
         self::assertStringContainsString("'distance_mode' => \$distanceMode", $settlement);
         self::assertStringContainsString("'package_count' => \$metric->package_count", $settlement);
         self::assertStringContainsString("'stop_count' => \$metric->stop_count", $settlement);
@@ -137,6 +148,10 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
             'optimization_constraints',
             'stop_locked',
             'locked_stop_order',
+            'delivery_group_key',
+            'group_stop_order',
+            'eligible_miles_milli',
+            'mileage_eligibility',
             'redelivery_attempts',
             'was_offline',
         ] as $contract) {

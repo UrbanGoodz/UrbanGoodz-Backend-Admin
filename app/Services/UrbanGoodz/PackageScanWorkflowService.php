@@ -11,18 +11,34 @@ use App\Models\UrbanGoodzRoutePackage;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class PackageScanWorkflowService
 {
     private const TERMINAL_STATUSES = [
         'delivered', 'returned_to_pickup', 'returned_to_hub',
-        'returned_to_business', 'completed',
+        'returned_to_business', 'canceled', 'completed',
     ];
+
+    private const REOPTIMIZATION_ACTIONS = ['exception', 'fail', 'cancel', 'return', 'redelivery'];
+
+    private const ACTIVE_REMAINING_STATUSES = [
+        'pending', 'pending_review', 'ready_for_route', 'assigned', 'loaded',
+        'picked_up', 'in_transit', 'out_for_delivery', 'return_required',
+        'returning_to_pickup', 'returning_to_hub', 'returning_to_business',
+        'redelivery_pending',
+    ];
+
+    public function __construct(private ?DedicatedRouteOptimizationService $optimizer = null)
+    {
+        $this->optimizer ??= new DedicatedRouteOptimizationService();
+    }
 
     public function process(
         UrbanGoodzDedicatedRoute $route,
         DeliveryMan $driver,
-        array $event
+        array $event,
+        bool $deferReoptimization = false
     ): array {
         if ((int) $route->assigned_driver_id !== (int) $driver->id) {
             throw (new ModelNotFoundException())->setModel(UrbanGoodzDedicatedRoute::class);
@@ -33,7 +49,7 @@ class PackageScanWorkflowService
             throw new DomainException('An idempotency_key is required for every package event.');
         }
 
-        return DB::transaction(function () use ($route, $driver, $event, $key): array {
+        $result = DB::transaction(function () use ($route, $driver, $event, $key): array {
             $existing = UrbanGoodzPackageScan::query()
                 ->where('idempotency_key', $key)
                 ->lockForUpdate()
@@ -82,6 +98,84 @@ class PackageScanWorkflowService
 
             return $this->result($package->fresh(), $scan, false);
         }, 3);
+
+        if (!$deferReoptimization
+            && !$result['duplicate']
+            && in_array((string) $event['action'], self::REOPTIMIZATION_ACTIONS, true)) {
+            $result['reoptimization'] = $this->reoptimizeRemainingStops($route);
+        }
+
+        return $result;
+    }
+
+    public function processGroup(
+        UrbanGoodzDedicatedRoute $route,
+        DeliveryMan $driver,
+        array $groupEvent
+    ): array {
+        if ((int) $route->assigned_driver_id !== (int) $driver->id) {
+            throw (new ModelNotFoundException())->setModel(UrbanGoodzDedicatedRoute::class);
+        }
+        $members = array_values($groupEvent['packages'] ?? []);
+        if ($members === []) {
+            throw new DomainException('A package group must include at least one package.');
+        }
+        $fingerprints = array_map(
+            fn ($member) => ($member['identifier_type'] ?? 'manual') . ':' . trim((string) ($member['identifier'] ?? '')),
+            $members
+        );
+        if (count($fingerprints) !== count(array_unique($fingerprints))) {
+            throw new DomainException('A package identifier may appear only once in a group scan.');
+        }
+
+        $results = DB::transaction(function () use ($route, $driver, $groupEvent, $members): array {
+            $packages = collect($members)->map(
+                fn ($member) => $this->findPackage($route, $member)
+            );
+            if ($packages->pluck('id')->unique()->count() !== $packages->count()) {
+                throw new DomainException('A package may appear only once in a group scan.');
+            }
+            $groupKeys = $packages->map(fn ($package) => $package->deliveryGroupKey())->unique()->values();
+            if ($groupKeys->count() !== 1) {
+                throw new DomainException('Every package in one group scan must share the same delivery address.');
+            }
+
+            $baseKey = trim((string) ($groupEvent['group_idempotency_key'] ?? ''));
+            if ($baseKey === '') {
+                throw new DomainException('A group_idempotency_key is required.');
+            }
+            $shared = $groupEvent;
+            unset($shared['packages'], $shared['group_idempotency_key']);
+
+            return collect($members)->map(function ($member) use (
+                $route, $driver, $shared, $baseKey, $groupKeys
+            ): array {
+                $event = array_merge($shared, $member, [
+                    'idempotency_key' => hash(
+                        'sha256',
+                        "{$baseKey}|{$member['identifier_type']}|{$member['identifier']}"
+                    ),
+                    'metadata' => array_merge($shared['metadata'] ?? [], [
+                        'group_idempotency_key' => $baseKey,
+                        'delivery_group_key' => $groupKeys->first(),
+                    ]),
+                ]);
+                return $this->process($route, $driver, $event, true);
+            })->all();
+        }, 3);
+
+        $response = [
+            'duplicate' => collect($results)->every(fn ($result) => $result['duplicate']),
+            'delivery_group_key' => $results[0]['package']['delivery_group_key'],
+            'package_count' => count($results),
+            'results' => $results,
+        ];
+        if (collect($results)->contains(fn ($result) => !$result['duplicate'])
+            && in_array((string) $groupEvent['action'], self::REOPTIMIZATION_ACTIONS, true)) {
+            $response['reoptimization'] = $this->reoptimizeRemainingStops($route);
+        }
+
+        return $response;
     }
 
     private function findPackage(
@@ -132,6 +226,8 @@ class PackageScanWorkflowService
             'delivery' => $this->delivery($route, $package, $driver, $event),
             'proof' => $this->proof($package, $event),
             'exception' => $this->exception($route, $package, $event),
+            'fail' => $this->failure($route, $package, $event),
+            'cancel' => $this->cancel($route, $package, $event),
             'return' => $this->returnPackage($route, $package, $event),
             'redelivery' => $this->redelivery($route, $package),
             default => throw new DomainException('Unsupported package event action.'),
@@ -240,9 +336,12 @@ class PackageScanWorkflowService
 
         $unfinished = UrbanGoodzRouteOptimizationStop::query()
             ->where('dedicated_route_id', $route->id)
-            ->where('stop_order', '<', $currentStop->stop_order)
+            ->whereRaw(
+                'COALESCE(group_stop_order, stop_order) < ?',
+                [$currentStop->group_stop_order ?: $currentStop->stop_order]
+            )
             ->whereHas('package', fn ($query) => $query->whereNotIn('status', [
-                'delivered', 'failed', 'unable_to_deliver',
+                'delivered', 'failed', 'unable_to_deliver', 'canceled',
                 'returned_to_pickup', 'returned_to_hub', 'returned_to_business',
                 'completed',
             ]))
@@ -250,7 +349,7 @@ class PackageScanWorkflowService
             ->first();
         if ($unfinished) {
             throw new DomainException(
-                "Complete or except stop {$unfinished->stop_order} before stop {$currentStop->stop_order}."
+                'Complete or except the preceding address stop before this delivery group.'
             );
         }
     }
@@ -329,6 +428,43 @@ class PackageScanWorkflowService
         return 'return_scan';
     }
 
+    private function failure(
+        UrbanGoodzDedicatedRoute $route,
+        UrbanGoodzRoutePackage $package,
+        array $event
+    ): string {
+        if (empty($event['exception_reason'])) {
+            throw new DomainException('exception_reason is required.');
+        }
+        $this->requireStatus($package, self::ACTIVE_REMAINING_STATUSES);
+        $package->update([
+            'status' => 'failed',
+            'exception_reason' => $event['exception_reason'],
+            'last_exception_at' => now(),
+            'notes' => $event['notes'] ?? $package->notes,
+        ]);
+        $route->increment('failed_packages');
+        return 'failed_delivery';
+    }
+
+    private function cancel(
+        UrbanGoodzDedicatedRoute $route,
+        UrbanGoodzRoutePackage $package,
+        array $event
+    ): string {
+        if (empty($event['exception_reason'])) {
+            throw new DomainException('exception_reason is required for cancellation.');
+        }
+        $this->requireStatus($package, self::ACTIVE_REMAINING_STATUSES);
+        $package->update([
+            'status' => 'canceled',
+            'exception_reason' => $event['exception_reason'],
+            'last_exception_at' => now(),
+            'notes' => $event['notes'] ?? $package->notes,
+        ]);
+        return 'canceled';
+    }
+
     private function redelivery(
         UrbanGoodzDedicatedRoute $route,
         UrbanGoodzRoutePackage $package
@@ -365,6 +501,43 @@ class PackageScanWorkflowService
         }
     }
 
+    private function reoptimizeRemainingStops(UrbanGoodzDedicatedRoute $route): array
+    {
+        $remaining = $route->packages()
+            ->whereIn('status', self::ACTIVE_REMAINING_STATUSES)
+            ->count();
+        if ($remaining === 0) {
+            $route->update([
+                'optimization_status' => 'no_remaining_stops',
+                'optimization_error' => null,
+            ]);
+            return ['status' => 'no_remaining_stops', 'remaining_packages' => 0];
+        }
+
+        try {
+            $result = $this->optimizer->optimize(
+                $route->fresh(),
+                (bool) $route->return_to_origin,
+                'system',
+                null
+            );
+            return [
+                'status' => 'reoptimized',
+                'remaining_packages' => $remaining,
+                'optimization_version' => $result['optimization_version'],
+                'distance_mode' => $result['distance_mode'],
+                'provider' => $result['provider'],
+                'stop_groups' => $result['stop_groups'],
+            ];
+        } catch (Throwable $exception) {
+            return [
+                'status' => 'reoptimization_failed',
+                'remaining_packages' => $remaining,
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
     private function result(
         UrbanGoodzRoutePackage $package,
         UrbanGoodzPackageScan $scan,
@@ -381,6 +554,8 @@ class PackageScanWorkflowService
                 'barcode' => $package->barcode,
                 'qr_code' => $package->qr_code,
                 'status' => $package->status,
+                'delivery_group_key' => $package->deliveryGroupKey(),
+                'group_stop_order' => $package->group_stop_order,
                 'redelivery_attempts' => (int) $package->redelivery_attempts,
             ],
         ];
