@@ -162,6 +162,13 @@ class NotificationAIController extends Controller
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
+        if (!$this->checkAuthorization($data['recipient_type'], $data['recipient_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: notification history is account-scoped',
+            ], 403);
+        }
+
         $query = \App\Models\UrbanGoodzNotification::where('recipient_type', $data['recipient_type'])
             ->where('recipient_id', $data['recipient_id']);
 
@@ -200,9 +207,11 @@ class NotificationAIController extends Controller
             'notification_ids.*' => ['integer'],
         ]);
 
+        $recipientId = (int) auth('api')->id();
+
         \App\Models\UrbanGoodzNotification::whereIn('id', $data['notification_ids'])
-            ->where('recipient_type', auth('api')->user()?->getMorphClass() ?? 'customer')
-            ->where('recipient_id', auth('api')->id())
+            ->where('recipient_type', 'customer')
+            ->where('recipient_id', $recipientId)
             ->update(['status' => 'read', 'read_at' => now()]);
 
         return response()->json([
@@ -235,17 +244,13 @@ class NotificationAIController extends Controller
 
     private function checkAuthorization(string $recipientType, int $recipientId): bool
     {
-        return match ($recipientType) {
-            'customer' => \App\Models\User::where('id', $recipientId)->exists(),
-            'vendor' => \App\Models\Vendor::where('id', $recipientId)->exists(),
-            'driver' => \App\Models\DeliveryMan::where('id', $recipientId)->exists(),
-            'business' => \App\Models\UrbanGoodzBusinessClientUser::where('id', $recipientId)->exists(),
-            'dispatcher' => \App\Models\UrbanGoodzBusinessClientUser::where('id', $recipientId)
-                ->where('role', 'dispatcher')
-                ->exists(),
-            'admin' => \App\Models\Admin::where('id', $recipientId)->exists(),
-            default => false,
-        };
+        // These routes are protected by auth:api, whose provider is the Shopper
+        // User model. Existence is not authorization: without this strict
+        // identity match, any signed-in shopper could generate or read another
+        // account's notifications by supplying its numeric id.
+        return $recipientType === 'customer'
+            && $recipientId > 0
+            && $recipientId === (int) auth('api')->id();
     }
 
     private function getBaseTemplate(string $eventType, string $recipientType): array
