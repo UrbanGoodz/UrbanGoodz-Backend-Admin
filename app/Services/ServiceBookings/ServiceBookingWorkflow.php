@@ -51,9 +51,12 @@ class ServiceBookingWorkflow
     private function recordEarning(UrbanGoodzServiceRequest $booking): void
     {
         $gross = (int) $booking->quoted_amount_minor;
-        $feeRate = min(max((float) config('service_bookings.platform_fee_percent', 15), 0), 100);
+        $provider = $booking->assignedProvider;
+        $feeRate = $provider
+            ? $provider->commissionPercent()
+            : min(max((float) config('service_bookings.platform_fee_percent', 15), 0), 100);
         $fee = (int) round($gross * $feeRate / 100);
-        UrbanGoodzServiceProviderEarning::firstOrCreate(['service_request_id'=>$booking->id], ['provider_id'=>$booking->provider_id,'gross_amount_minor'=>$gross,'platform_fee_minor'=>$fee,'provider_amount_minor'=>$gross-$fee,'currency'=>$booking->currency,'status'=>'pending']);
+        UrbanGoodzServiceProviderEarning::firstOrCreate(['service_request_id'=>$booking->id], ['provider_id'=>$booking->provider_id,'gross_amount_minor'=>$gross,'platform_fee_minor'=>$fee,'provider_amount_minor'=>$gross-$fee,'commission_percent'=>$feeRate,'currency'=>$booking->currency,'status'=>'pending']);
     }
 
     private function notify(UrbanGoodzServiceRequest $booking, string $status): void

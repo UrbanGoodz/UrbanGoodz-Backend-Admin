@@ -9,10 +9,13 @@ use App\Models\UrbanGoodzProviderService;
 use App\Models\UrbanGoodzServiceProvider;
 use App\Models\UrbanGoodzServiceRequest;
 use App\Models\UrbanGoodzServiceReview;
+use App\Models\UrbanGoodzServiceDispute;
 use App\Services\ServiceBookings\ServiceBookingAvailabilityService;
 use App\Services\ServiceBookings\ServiceBookingRefundService;
 use App\Services\ServiceBookings\ServiceBookingWorkflow;
+use App\Services\ServiceBookings\ServiceProviderDiscoveryService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -27,27 +30,82 @@ class ServiceBookingCustomerController extends Controller
         )->values()]);
     }
 
-    public function providers(Request $request)
+    public function providers(Request $request, ServiceProviderDiscoveryService $discovery)
     {
-        $request->validate([
+        $data = $request->validate([
             'category' => 'nullable|in:'.implode(',', config('service_bookings.categories')),
             'postal_code' => 'nullable|string|max:24',
             'city' => 'nullable|string|max:120',
             'location_mode' => 'nullable|in:mobile,in_person,remote',
+            'latitude' => 'nullable|required_with:longitude|numeric|between:-90,90',
+            'longitude' => 'nullable|required_with:latitude|numeric|between:-180,180',
+            'radius_miles' => 'nullable|integer|min:1|max:500',
+            'search' => 'nullable|string|max:120',
+            'sort' => 'nullable|in:distance,rating,newest',
         ]);
-        return response()->json(UrbanGoodzServiceProvider::query()->where('approval_status','approved')->where('is_verified',true)->where('is_active',true)
+
+        $query = $discovery->baseQuery()
             ->when($request->filled('category'), fn($q)=>$q->whereHas('services', fn($s)=>$s->where('category',$request->string('category'))->where('is_active',true)))
             ->when($request->filled('postal_code'), fn($q)=>$q->whereHas('areas', fn($a)=>$a->where('postal_code',$request->string('postal_code'))->where('is_active',true)))
             ->when($request->filled('city'), fn($q)=>$q->whereHas('areas', fn($a)=>$a->where('city',$request->string('city'))->where('is_active',true)))
             ->when($request->filled('location_mode'), fn($q)=>$q->whereJsonContains('location_modes',(string)$request->string('location_mode')))
-            ->with(['services'=>fn($q)=>$q->where('is_active',true),'availability'=>fn($q)=>$q->where('is_active',true),'areas'=>fn($q)=>$q->where('is_active',true)])
-            ->paginate(min((int)$request->input('limit',20),100)));
+            ->when($request->filled('search'), fn($q)=>$q->where('business_name','like','%'.$request->string('search').'%'))
+            ->with([
+                'services'=>fn($q)=>$q->where('is_active',true),
+                'availability'=>fn($q)=>$q->where('is_active',true),
+                'areas'=>fn($q)=>$q->where('is_active',true),
+                'portfolioItems'=>fn($q)=>$q->where('is_active',true)->orderBy('sort_order'),
+            ]);
+
+        $limit = min((int) $request->input('limit', 20), 100);
+
+        // Distance filtering cannot be expressed as a plain paginated query
+        // because coverage depends on each area's own radius, so the exact
+        // check runs after a bounding-box narrowing.
+        if (isset($data['latitude'], $data['longitude'])) {
+            $lat = (float) $data['latitude'];
+            $lon = (float) $data['longitude'];
+            $radius = isset($data['radius_miles']) ? (int) $data['radius_miles'] : null;
+            $candidates = $discovery->scopeWithinReach($query, $lat, $lon, $radius)
+                ->limit(500)
+                ->get();
+            $matched = $discovery->attachDistances($candidates, $lat, $lon, $radius);
+            if (($data['sort'] ?? 'distance') === 'rating') {
+                usort($matched, fn ($a, $b) => (float) $b->rating <=> (float) $a->rating);
+            }
+
+            // Paginated by hand so this path returns the same envelope as the
+            // non-distance path; the Shopper client only ever sees one shape.
+            $page = max(1, (int) $request->input('page', 1));
+
+            return response()->json(new LengthAwarePaginator(
+                array_slice($matched, ($page - 1) * $limit, $limit),
+                count($matched),
+                $limit,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            ));
+        }
+
+        $query = match ($data['sort'] ?? null) {
+            'rating' => $query->orderByDesc('rating'),
+            'newest' => $query->latest(),
+            default => $query->orderByDesc('rating'),
+        };
+
+        return response()->json($query->paginate($limit));
     }
 
     public function provider(UrbanGoodzServiceProvider $provider)
     {
         abort_unless($provider->approval_status==='approved' && $provider->is_verified && $provider->is_active,404);
-        return response()->json($provider->load(['services'=>fn($q)=>$q->where('is_active',true),'availability'=>fn($q)=>$q->where('is_active',true),'areas'=>fn($q)=>$q->where('is_active',true),'reviews']));
+        return response()->json($provider->load([
+            'services'=>fn($q)=>$q->where('is_active',true),
+            'availability'=>fn($q)=>$q->where('is_active',true),
+            'areas'=>fn($q)=>$q->where('is_active',true),
+            'portfolioItems'=>fn($q)=>$q->where('is_active',true)->orderBy('sort_order'),
+            'reviews',
+        ]));
     }
 
     public function slots(
@@ -200,5 +258,72 @@ class ServiceBookingCustomerController extends Controller
         $review=UrbanGoodzServiceReview::updateOrCreate(['service_request_id'=>$booking->id],['provider_id'=>$booking->provider_id,'user_id'=>$request->user()->id]+$data);
         $provider=UrbanGoodzServiceProvider::findOrFail($booking->provider_id); $provider->update(['rating'=>round($provider->reviews()->avg('rating'),2),'rating_count'=>$provider->reviews()->count()]);
         return response()->json(['message'=>'Review submitted.','data'=>$review],201);
+    }
+
+    /**
+     * Customer-initiated refund request. This never moves money on its own:
+     * it opens a dispute for admin review so that a refund is always an
+     * explicit, audited decision.
+     */
+    public function requestRefund(Request $request, UrbanGoodzServiceRequest $booking)
+    {
+        abort_unless((int) $booking->user_id === (int) $request->user()->id, 404);
+        abort_unless(
+            in_array($booking->status, ['confirmed', 'en_route', 'started', 'completed', 'canceled'], true),
+            409,
+            'A refund can only be requested once the booking has been confirmed.'
+        );
+
+        $paid = (int) $booking->amount_paid_minor - (int) $booking->refunded_amount_minor;
+        abort_if($paid <= 0, 409, 'This booking has no refundable balance.');
+
+        $data = $request->validate([
+            'reason' => 'required|in:not_delivered,quality,late,damage,billing,other',
+            'details' => 'required|string|max:2000',
+            'requested_amount_minor' => 'nullable|integer|min:1|max:'.$paid,
+        ]);
+
+        abort_if(
+            UrbanGoodzServiceDispute::where('service_request_id', $booking->id)->where('status', 'open')->exists(),
+            409,
+            'A dispute is already open for this booking.'
+        );
+
+        $dispute = UrbanGoodzServiceDispute::create([
+            'service_request_id' => $booking->id,
+            'provider_id' => $booking->provider_id,
+            'user_id' => $request->user()->id,
+            'reason' => $data['reason'],
+            'details' => $data['details'],
+            'requested_amount_minor' => $data['requested_amount_minor'] ?? $paid,
+            'status' => 'open',
+        ]);
+
+        $booking->events()->create([
+            'actor_type' => 'customer',
+            'actor_id' => $request->user()->id,
+            'from_status' => $booking->status,
+            'to_status' => $booking->status,
+            'metadata' => ['event' => 'refund_requested', 'dispute_id' => $dispute->id, 'reason' => $data['reason']],
+        ]);
+
+        app(\App\Services\UrbanGoodzNotificationService::class)->notifyVendor(
+            (int) $booking->assigned_vendor_id,
+            'Refund requested',
+            'A customer opened a refund request for a service booking.',
+            ['type' => 'service_booking_dispute', 'booking_id' => $booking->id, 'dispute_id' => $dispute->id]
+        );
+
+        return response()->json(['message' => 'Refund request submitted for review.', 'data' => $dispute], 201);
+    }
+
+    public function disputes(Request $request)
+    {
+        return response()->json(
+            UrbanGoodzServiceDispute::where('user_id', $request->user()->id)
+                ->with('booking:id,status,service_type,scheduled_at')
+                ->latest()
+                ->paginate(30)
+        );
     }
 }

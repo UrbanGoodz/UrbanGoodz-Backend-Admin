@@ -49,6 +49,30 @@
                 </form>
                 <ul class="navbar-nav navbar-nav-lg nav-tabs">
 
+                    <!-- AI Operations -->
+                    {{-- Every admin/urban-goodz* request resolves to module_type
+                         "settings" (CurrentModule), so this is the sidebar the
+                         Urban Goodz surfaces actually render. The AI Chief of
+                         Staff route has existed and been reachable by URL, but
+                         had no entry in any rendered sidebar. --}}
+                    <li class="nav-item">
+                        <small class="nav-subtitle" title="{{ translate('AI Operations') }}">{{ translate('AI Operations') }}</small>
+                        <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                    </li>
+
+                    @if (\App\CentralLogics\Helpers::module_permission_check('urban_goodz_control_center'))
+                        <li
+                            class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-chief-of-staff') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link"
+                                href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}"
+                                title="{{ translate('AI Chief of Staff') }}">
+                                <i class="tio-user-big nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+                                    {{ translate('AI Chief of Staff') }} </span>
+                            </a>
+                        </li>
+                    @endif
+
                     <!-- Business Settings -->
                     <li class="nav-item">
                         <small class="nav-subtitle"

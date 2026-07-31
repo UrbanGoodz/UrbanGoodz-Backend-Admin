@@ -14,6 +14,7 @@ class UrbanGoodzServiceProvider extends Model
         'service_category', 'description', 'is_verified', 'is_active', 'service_areas',
         'approval_status', 'location_modes', 'rating', 'rating_count',
         'onboarding_data', 'submitted_at', 'approved_at',
+        'latitude', 'longitude', 'commission_percent',
     ];
 
     protected $casts = [
@@ -54,5 +55,29 @@ class UrbanGoodzServiceProvider extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(UrbanGoodzServiceReview::class, 'provider_id');
+    }
+
+    public function portfolioItems(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzProviderPortfolioItem::class, 'provider_id');
+    }
+
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(UrbanGoodzServiceDispute::class, 'provider_id');
+    }
+
+    /**
+     * The commission rate applied to this provider's earnings, falling back to
+     * the platform default whenever an admin has not set an explicit override.
+     */
+    public function commissionPercent(): float
+    {
+        $override = $this->commission_percent;
+        $rate = $override === null
+            ? (float) config('service_bookings.platform_fee_percent', 15)
+            : (float) $override;
+
+        return min(max($rate, 0), 100);
     }
 }

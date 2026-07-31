@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Vendor;
 
 use App\Http\Controllers\Controller;
+use App\Models\UrbanGoodzProviderPortfolioItem;
 use App\Models\UrbanGoodzProviderService;
 use App\Models\UrbanGoodzServiceProvider;
 use App\Models\UrbanGoodzServiceProviderEarning;
@@ -101,6 +102,84 @@ class ServiceBookingController extends Controller
     }
 
     public function services(Request $request){ return response()->json($this->provider($request)->services()->latest()->get()); }
+
+    public function portfolio(Request $request)
+    {
+        return response()->json(
+            $this->provider($request)->portfolioItems()->orderBy('sort_order')->orderByDesc('id')->get()
+        );
+    }
+
+    public function storePortfolioItem(Request $request)
+    {
+        $provider = $this->provider($request);
+        abort_if(
+            $provider->portfolioItems()->where('is_active', true)->count() >= 60,
+            422,
+            'A provider portfolio is limited to 60 active items.'
+        );
+        $data = $this->portfolioData($request, $provider);
+        $item = $provider->portfolioItems()->create($data);
+
+        return response()->json(['message' => 'Portfolio item added.', 'data' => $item], 201);
+    }
+
+    public function updatePortfolioItem(Request $request, UrbanGoodzProviderPortfolioItem $item)
+    {
+        $provider = $this->provider($request);
+        abort_unless((int) $item->provider_id === (int) $provider->id, 404);
+        $item->update($this->portfolioData($request, $provider, $item));
+
+        return response()->json(['message' => 'Portfolio item updated.', 'data' => $item->fresh()]);
+    }
+
+    public function deletePortfolioItem(Request $request, UrbanGoodzProviderPortfolioItem $item)
+    {
+        $provider = $this->provider($request);
+        abort_unless((int) $item->provider_id === (int) $provider->id, 404);
+        // Retired rather than deleted so that bookings which referenced this
+        // work keep a readable history, matching the service/area convention.
+        $item->update(['is_active' => false]);
+
+        return response()->json(['message' => 'Portfolio item retired.']);
+    }
+
+    private function portfolioData(Request $request, UrbanGoodzServiceProvider $provider, ?UrbanGoodzProviderPortfolioItem $existing = null): array
+    {
+        $data = $request->validate([
+            'title' => ($existing ? 'sometimes|' : '').'required|string|max:255',
+            'caption' => 'nullable|string|max:1000',
+            'provider_service_id' => 'nullable|integer',
+            'media' => 'nullable|file|mimes:jpg,jpeg,png,webp,mp4|max:20480',
+            'media_path' => 'nullable|string|max:2048',
+            'media_type' => 'nullable|in:image,video',
+            'sort_order' => 'nullable|integer|min:0|max:9999',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if (isset($data['provider_service_id'])) {
+            abort_unless(
+                $provider->services()->whereKey($data['provider_service_id'])->exists(),
+                422,
+                'The portfolio item must reference one of your own services.'
+            );
+        }
+
+        if ($request->hasFile('media')) {
+            $stored = $request->file('media')->store('urban-goodz/service-portfolio', 'public');
+            $data['media_path'] = $stored;
+            $data['media_type'] = $request->file('media')->getClientOriginalExtension() === 'mp4' ? 'video' : 'image';
+        }
+        unset($data['media']);
+
+        abort_if(
+            $existing === null && empty($data['media_path']),
+            422,
+            'A portfolio item requires an uploaded file or a media path.'
+        );
+
+        return $data;
+    }
 
     public function storeService(Request $request)
     {
