@@ -70,7 +70,8 @@ return new class extends Migration
                 $table->string('status', 16)->default('invited');
                 $table->timestamp('responded_at')->nullable();
                 $table->timestamps();
-                $table->unique(['stylist_request_id', 'provider_id']);
+                // Explicit name: the generated one exceeds MySQL's 64-char limit.
+                $table->unique(['stylist_request_id', 'provider_id'], 'ug_stylist_invite_request_provider_uq');
             });
         }
 
@@ -119,10 +120,13 @@ return new class extends Migration
         if (!Schema::hasTable('urban_goodz_stylist_measurement_grants')) {
             Schema::create('urban_goodz_stylist_measurement_grants', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('stylist_request_id')->constrained('urban_goodz_stylist_requests')->cascadeOnDelete();
+                // Explicit FK/index names: the generated ones exceed MySQL's 64-char limit.
+                $table->foreignId('stylist_request_id')
+                    ->constrained('urban_goodz_stylist_requests', 'id', 'ug_stylist_grant_request_fk')
+                    ->cascadeOnDelete();
                 $table->unsignedBigInteger('provider_id')->index();
                 $table->unsignedBigInteger('customer_id')->index();
-                $table->unsignedBigInteger('fashion_fit_profile_id')->index();
+                $table->unsignedBigInteger('fashion_fit_profile_id')->index('ug_stylist_grant_profile_idx');
                 $table->boolean('measurements_allowed')->default(true);
                 // Body photos are never shared automatically.
                 $table->boolean('photos_allowed')->default(false);
@@ -130,7 +134,7 @@ return new class extends Migration
                 $table->timestamp('revoked_at')->nullable();
                 $table->timestamp('expires_at')->nullable();
                 $table->timestamps();
-                $table->unique(['stylist_request_id', 'provider_id']);
+                $table->unique(['stylist_request_id', 'provider_id'], 'ug_stylist_grant_request_provider_uq');
             });
         }
 
@@ -144,7 +148,7 @@ return new class extends Migration
                 $table->text('body');
                 $table->timestamp('read_at')->nullable();
                 $table->timestamps();
-                $table->index(['stylist_request_id', 'provider_id']);
+                $table->index(['stylist_request_id', 'provider_id'], 'ug_stylist_msg_request_provider_idx');
             });
         }
     }
