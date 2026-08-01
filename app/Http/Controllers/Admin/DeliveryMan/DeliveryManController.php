@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use App\Models\DisbursementDetails;
 use App\Services\DeliveryManService;
+use App\Services\DeliveryManRatingSummary;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
@@ -63,6 +64,7 @@ class DeliveryManController extends BaseController
         protected MessageRepositoryInterface $messageRepo,
         protected DeliveryManService $deliveryManService,
         protected OrderTransactionRepositoryInterface $orderTransactionRepo,
+        protected DeliveryManRatingSummary $deliveryManRatingSummary,
     ) {
     }
 
@@ -416,10 +418,41 @@ class DeliveryManController extends BaseController
 
     public function getPreview(Request $request, int|string $id, string $tab = 'info'): View
     {
-        $deliveryMan = $this->deliveryManRepo->getFirstWhere(params: ['type' => 'zone_wise', 'id' => $id], relations: ['reviews']);
+        $deliveryMan = $this->deliveryManRepo->getFirstWhere(
+            params: ['type' => 'zone_wise', 'id' => $id],
+            relations: ['reviews', 'zone', 'vehicle']
+        );
+        abort_if(is_null($deliveryMan), 404);
+
         if ($tab == 'info') {
-            $reviews = $this->dmReviewRepo->getListWhere(searchValue: $request['search'], filters: ['delivery_man_id' => $id], dataLimit: config('default_pagination'));
-            return view(DeliveryManViewPath::INFO[VIEW], compact('deliveryMan', 'reviews'));
+            $reviews = $this->dmReviewRepo->getListWhere(
+                searchValue: $request['search'],
+                filters: ['delivery_man_id' => $id],
+                relations: ['customer', 'order'],
+                dataLimit: config('default_pagination') ?? 25
+            );
+            $ratingSummary = $this->deliveryManRatingSummary->build($deliveryMan->getRelation('reviews'));
+            $ratingLabels = [
+                5 => $this->translatedOrFallback('excellent', 'Excellent'),
+                4 => $this->translatedOrFallback('good', 'Good'),
+                3 => $this->translatedOrFallback('average', 'Average'),
+                2 => $this->translatedOrFallback('below_average', 'Below average'),
+                1 => $this->translatedOrFallback('poor', 'Poor'),
+            ];
+            $reviewLabel = $this->translatedOrFallback('messages.reviews', 'Reviews');
+            $emptyRatingMessage = $this->translatedOrFallback(
+                'messages.no_review/rating_given_yet',
+                'No reviews or ratings yet'
+            );
+
+            return view(DeliveryManViewPath::INFO[VIEW], compact(
+                'deliveryMan',
+                'reviews',
+                'ratingSummary',
+                'ratingLabels',
+                'reviewLabel',
+                'emptyRatingMessage'
+            ));
         } else if ($tab == 'transaction') {
             $date = $request->query('dates');
             if ($request->has('date_range') && $request->date_range != 'custom') {
@@ -493,6 +526,17 @@ class DeliveryManController extends BaseController
 
         return view(DeliveryManViewPath::CONVERSATION[VIEW], compact('conversations', 'deliveryMan'));
 
+    }
+
+    private function translatedOrFallback(string $key, string $fallback): string
+    {
+        $translated = translate($key);
+
+        if (!is_string($translated) || trim($translated) === '' || $translated === $key) {
+            return $fallback;
+        }
+
+        return $translated;
     }
     private function getLoyaltyHistoryList($request, $deliveryMan, $date)
     {
