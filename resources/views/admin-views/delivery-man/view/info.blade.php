@@ -2,6 +2,81 @@
 
 @section('title', translate('Delivery Man Preview'))
 
+@push('css_or_js')
+    <style>
+        .driver-profile-overview,
+        .driver-profile-overview > * {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .driver-rating-summary .driver-rating-overview {
+            flex: 0 0 145px;
+        }
+
+        .driver-rating-summary .driver-rating-distribution {
+            min-width: 0;
+        }
+
+        .driver-rating-summary .driver-rating-distribution li {
+            gap: .75rem;
+        }
+
+        .driver-rating-summary .progress-name {
+            flex: 0 0 7rem;
+            width: auto;
+            margin-inline-end: 0;
+        }
+
+        .driver-rating-summary .progress {
+            min-width: 3.75rem;
+        }
+
+        .driver-rating-summary .driver-rating-count {
+            flex: 0 0 1.75rem;
+        }
+
+        .driver-rating-empty {
+            max-width: 12rem;
+            overflow-wrap: anywhere;
+        }
+
+        @media (min-width: 1200px) {
+            .driver-rating-summary {
+                flex: 0 1 34rem;
+                width: auto !important;
+                border-left: .0625rem solid #e7eaf3;
+                padding-left: 1rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .driver-rating-summary .driver-rating-overview {
+                flex-basis: auto;
+            }
+
+            .driver-rating-summary .rating--review {
+                padding-bottom: 0;
+            }
+
+            .driver-rating-summary .rating--review .title {
+                font-size: 2rem;
+                line-height: 1.15;
+            }
+
+            .driver-rating-summary .rating--review .title .out-of {
+                font-size: 1.25rem;
+                line-height: inherit;
+            }
+
+            .driver-rating-summary .progress-name {
+                flex-basis: 5.5rem;
+                font-size: .75rem;
+            }
+        }
+    </style>
+@endpush
+
 @section('content')
     <div class="content container-fluid pb-0">
         @include('admin-views.delivery-man.partials._page_header')
@@ -57,7 +132,7 @@
                     </div>
                 @endif
                 <div
-                    class="d-flex flex-column flex-lg-nowrap flex-wrap flex-md-row align-items-center gap-3 border rounded p-3">
+                    class="driver-profile-overview d-flex flex-column flex-xl-row align-items-stretch align-items-md-center gap-3 border rounded p-3 overflow-hidden">
                     <div class="d-flex gap-3 justify-content-center position-relative w-115 rounded">
                         <img class="rounded" data-onerror-image="{{ asset('public/assets/admin/img/160x160/img1.jpg') }}"
                             src="{{ $deliveryMan['image_full_url'] }}" width="115" height="115"
@@ -66,7 +141,7 @@
                             class="suspend-badge bg-danger py-0 px-2 mb-2 fs-13 lh-1 text-white rounded position-absolute bottom-0 start-0">{{ !$deliveryMan['status'] && $deliveryMan['application_status'] == 'approved' ? translate('messages.suspended') : '' }}</span>
                     </div>
 
-                    <div class="flex-grow-1">
+                    <div class="flex-grow-1 w-100">
                         <div class="mb-3">
                             <h4 title="{{ $deliveryMan['f_name'] . ' ' . $deliveryMan['l_name'] }}"
                                 class="d-flex justify-content-center justify-content-md-start mb-1 gap-2">
@@ -133,112 +208,7 @@
                         </div>
                     </div>
                     @if ($deliveryMan->application_status == 'approved')
-                        @php($total = $deliveryMan->reviews->count())
-                        <div
-                            class="d-flex flex-column flex-sm-nowrap flex-wrap flex-sm-row gap-3 flex-grow-1 border-lg-left">
-                            @if ($total > 0)
-                                <div class="d-flex flex-column align-items-center justify-content-center px-4">
-                                    <img class=""
-                                        src="{{ asset('public/assets/admin/img/icons/rating-stars.png') }}" alt="">
-
-                                    <div class="d-block">
-                                        <div class="rating--review">
-                                            <h3 class="title mb-0">
-                                                {{ count($deliveryMan->rating) > 0 ? number_format($deliveryMan->rating[0]->average, 1) : 0 }}<span
-                                                    class="out-of">/5</span></h3>
-                                            <div class="info">
-                                                <span>{{ translate('messages._of') }} {{ $deliveryMan->reviews->count() }}
-                                                    {{ translate('messages.reviews') }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <ul
-                                    class="list-unstyled list-unstyled-py-2 mb-0 rating--review-right py-3 flex-grow-1 review-color-progress">
-
-                                    <!-- Review Ratings -->
-                                    <li class="d-flex align-items-center font-size-sm">
-                                        @php($five = \App\CentralLogics\Helpers::dm_rating_count($deliveryMan['id'], 5))
-                                        <span class="progress-name mr-3">{{ translate('excellent') }}</span>
-                                        <div class="progress flex-grow-1">
-                                            <div class="progress-bar" role="progressbar"
-                                                style="width: {{ $total == 0 ? 0 : ($five / $total) * 100 }}%;"
-                                                aria-valuenow="{{ $total == 0 ? 0 : ($five / $total) * 100 }}"
-                                                aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                        <span class="ml-3">{{ $five }}</span>
-                                    </li>
-                                    <!-- End Review Ratings -->
-
-                                    <!-- Review Ratings -->
-                                    <li class="d-flex align-items-center font-size-sm">
-                                        @php($four = \App\CentralLogics\Helpers::dm_rating_count($deliveryMan['id'], 4))
-                                        <span class="progress-name mr-3">{{ translate('good') }}</span>
-                                        <div class="progress flex-grow-1">
-                                            <div class="progress-bar" role="progressbar"
-                                                style="width: {{ $total == 0 ? 0 : ($four / $total) * 100 }}%;"
-                                                aria-valuenow="{{ $total == 0 ? 0 : ($four / $total) * 100 }}"
-                                                aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                        <span class="ml-3">{{ $four }}</span>
-                                    </li>
-                                    <!-- End Review Ratings -->
-
-                                    <!-- Review Ratings -->
-                                    <li class="d-flex align-items-center font-size-sm">
-                                        @php($three = \App\CentralLogics\Helpers::dm_rating_count($deliveryMan['id'], 3))
-                                        <span class="progress-name mr-3">{{ translate('average') }}</span>
-                                        <div class="progress flex-grow-1">
-                                            <div class="progress-bar" role="progressbar"
-                                                style="width: {{ $total == 0 ? 0 : ($three / $total) * 100 }}%;"
-                                                aria-valuenow="{{ $total == 0 ? 0 : ($three / $total) * 100 }}"
-                                                aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                        <span class="ml-3">{{ $three }}</span>
-                                    </li>
-                                    <!-- End Review Ratings -->
-
-                                    <!-- Review Ratings -->
-                                    <li class="d-flex align-items-center font-size-sm">
-                                        @php($two = \App\CentralLogics\Helpers::dm_rating_count($deliveryMan['id'], 2))
-                                        <span class="progress-name mr-3">{{ translate('below_average') }}</span>
-                                        <div class="progress flex-grow-1">
-                                            <div class="progress-bar" role="progressbar"
-                                                style="width: {{ $total == 0 ? 0 : ($two / $total) * 100 }}%;"
-                                                aria-valuenow="{{ $total == 0 ? 0 : ($two / $total) * 100 }}"
-                                                aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                        <span class="ml-3">{{ $two }}</span>
-                                    </li>
-                                    <!-- End Review Ratings -->
-
-                                    <!-- Review Ratings -->
-                                    <li class="d-flex align-items-center font-size-sm">
-                                        @php($one = \App\CentralLogics\Helpers::dm_rating_count($deliveryMan['id'], 1))
-                                        <span class="progress-name mr-3">{{ translate('poor') }}</span>
-                                        <div class="progress flex-grow-1">
-                                            <div class="progress-bar" role="progressbar"
-                                                style="width: {{ $total == 0 ? 0 : ($one / $total) * 100 }}%;"
-                                                aria-valuenow="{{ $total == 0 ? 0 : ($one / $total) * 100 }}"
-                                                aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                        <span class="ml-3">{{ $one }}</span>
-                                    </li>
-                                    <!-- End Review Ratings -->
-                                </ul>
-                            @else
-                                <div class="d-flex flex-column align-items-center justify-content-center px-4 m-auto">
-                                    <img width="75" class=""
-                                        src="{{ asset('public/assets/admin/img/icons/no_rating.png') }}" alt="">
-                                    <p class="mb-0 font-weight-normal">
-                                        {{ translate('messages.no_review/rating_given_yet') }}
-                                    </p>
-                                </div>
-                            @endif
-                        </div>
-
-
+                        @include('admin-views.delivery-man.partials._rating_summary')
                     @endif
                 </div>
 
