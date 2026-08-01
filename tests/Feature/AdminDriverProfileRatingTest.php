@@ -170,6 +170,8 @@ class AdminDriverProfileRatingTest extends TestCase
         $this->assertStringContainsString('flex-column flex-sm-row', $source);
         $this->assertStringContainsString('flex-grow-1', $source);
         $this->assertStringContainsString('overflow-hidden', $profile);
+        $this->assertStringContainsString('driver-contact-meta', $profile);
+        $this->assertStringContainsString('flex-wrap', $profile);
         $this->assertStringContainsString('@media (max-width: 575.98px)', $profile);
         $this->assertStringContainsString('overflow-wrap: anywhere', $profile);
     }

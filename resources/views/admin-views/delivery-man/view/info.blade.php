@@ -41,6 +41,16 @@
             overflow-wrap: anywhere;
         }
 
+        .driver-contact-meta,
+        .driver-contact-meta a {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .driver-contact-meta a {
+            overflow-wrap: anywhere;
+        }
+
         @media (min-width: 1200px) {
             .driver-rating-summary {
                 flex: 0 1 34rem;
@@ -51,6 +61,16 @@
         }
 
         @media (max-width: 575.98px) {
+            .driver-contact-meta {
+                flex-direction: column;
+                align-items: center;
+                row-gap: .25rem;
+            }
+
+            .driver-contact-separator {
+                display: none !important;
+            }
+
             .driver-rating-summary .driver-rating-overview {
                 flex-basis: auto;
             }
@@ -164,11 +184,11 @@
                                         class=" mb-0 badge badge-soft-{{ $deliveryMan->application_status == 'pending' ? 'info' : 'danger' }}">{{ translate('messages.' . $deliveryMan->application_status) }}</label>
                                 @endif
                             </h4>
-                            <div class="fs-12 text-title d-flex justify-content-center justify-content-md-start">
+                            <div class="driver-contact-meta fs-12 text-title d-flex flex-wrap justify-content-center justify-content-md-start">
                                 @if ($deliveryMan->application_status == 'approved')
                                     <a href="mailto:{{ $deliveryMan['email'] }}" class="text-title">
                                         {{ $deliveryMan['email'] }}</a>
-                                    <span class="d-block mx-2 text-muted">|</span>
+                                    <span class="driver-contact-separator d-block mx-2 text-muted">|</span>
                                     <a href="tel:{{ $deliveryMan['phone'] }}" class="text-title">
                                         {{ $deliveryMan['phone'] }}</a>
                                 @endif
