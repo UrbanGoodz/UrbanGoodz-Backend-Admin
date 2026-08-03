@@ -66,7 +66,7 @@ class CrossAppAIController extends Controller
             'context' => ['nullable', 'array'],
         ]);
 
-        $customerId = $request->user()?->id ?? Auth::guard('api')->id();
+        $customerId = $this->authenticatedActorId($request, 'api');
 
         $result = $this->executionService->executeIntent(
             $data['query'],
@@ -85,7 +85,7 @@ class CrossAppAIController extends Controller
      */
     public function customerHistory(Request $request): JsonResponse
     {
-        $customerId = $request->user()?->id ?? Auth::guard('api')->id();
+        $customerId = $this->authenticatedActorId($request, 'api');
 
         $conversations = \App\Models\UrbanGoodzAIConversation::where('customer_id', $customerId)
             ->with('detectedIntent')
@@ -103,7 +103,7 @@ class CrossAppAIController extends Controller
      */
     public function fashionFitMeasurements(Request $request): JsonResponse
     {
-        $customerId = $request->user()?->id ?? Auth::guard('api')->id();
+        $customerId = $this->authenticatedActorId($request, 'api');
         $data = $request->validate([
             'photo' => ['required', 'string'],
             'garment_type' => ['nullable', 'string'],
@@ -144,7 +144,7 @@ class CrossAppAIController extends Controller
      */
     public function orderAnywhere(Request $request): JsonResponse
     {
-        $customerId = $request->user()?->id ?? Auth::guard('api')->id();
+        $customerId = $this->authenticatedActorId($request, 'api');
         $data = $request->validate([
             'query' => ['required', 'string', 'max:2000'],
             'context' => ['nullable', 'array'],
@@ -190,7 +190,7 @@ class CrossAppAIController extends Controller
      */
     public function smartReorder(Request $request): JsonResponse
     {
-        $customerId = $request->user()?->id ?? Auth::guard('api')->id();
+        $customerId = $this->authenticatedActorId($request, 'api');
         $data = $request->validate([
             'reference' => ['required', 'string'], // "last friday", "order #123", "my usual"
         ]);
@@ -246,7 +246,7 @@ class CrossAppAIController extends Controller
      */
     public function deliveryETA(Request $request): JsonResponse
     {
-        $customerId = $request->user()?->id ?? Auth::guard('api')->id();
+        $customerId = $this->authenticatedActorId($request, 'api');
         $data = $request->validate([
             'order_id' => ['required', 'integer'],
         ]);
@@ -277,7 +277,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorDailyBrief(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
 
         $brief = $this->vendorAI->generateVendorDailyBrief($vendorId);
 
@@ -292,7 +292,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorOrderSummary(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
         $data = $request->validate([
             'order_id' => ['required', 'integer'],
         ]);
@@ -315,7 +315,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorAlerts(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
 
         $alerts = $this->vendorAI->generateVendorAlerts($vendorId);
 
@@ -330,7 +330,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorPerformance(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
 
         $performance = $this->vendorAI->analyzeVendorPerformance($vendorId);
 
@@ -345,7 +345,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorPricing(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
 
         $result = $this->vendorAI->optimizeMenuPricing($vendorId);
 
@@ -360,7 +360,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorPromotions(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
 
         $promotions = $this->vendorAI->suggestVendorPromotions($vendorId);
 
@@ -375,7 +375,7 @@ class CrossAppAIController extends Controller
      */
     public function vendorPrepTime(Request $request): JsonResponse
     {
-        $vendorId = $request->user('vendor')?->id ?? Auth::guard('vendor')->id();
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
         $data = $request->validate([
             'items' => ['required', 'array'],
             'items.*.name' => ['required', 'string'],
@@ -398,7 +398,7 @@ class CrossAppAIController extends Controller
      */
     public function driverDailySummary(Request $request): JsonResponse
     {
-        $driverId = $request->user('dm')?->id ?? Auth::guard('dm')->id();
+        $driverId = $this->authenticatedActorId($request, 'dm');
 
         $summary = $this->executionService->executeIntent(
             "Give me my daily summary",
@@ -417,7 +417,7 @@ class CrossAppAIController extends Controller
      */
     public function driverRouteOptimization(Request $request): JsonResponse
     {
-        $driverId = $request->user('dm')?->id ?? Auth::guard('dm')->id();
+        $driverId = $this->authenticatedActorId($request, 'dm');
         $data = $request->validate([
             'route_id' => ['required', 'integer'],
             'preference' => ['nullable', 'string', 'in:distance,time,earnings'],
@@ -445,7 +445,7 @@ class CrossAppAIController extends Controller
      */
     public function driverVerifyPackage(Request $request): JsonResponse
     {
-        $driverId = $request->user('dm')?->id ?? Auth::guard('dm')->id();
+        $driverId = $this->authenticatedActorId($request, 'dm');
         $data = $request->validate([
             'package_id' => ['required', 'integer'],
             'photo' => ['required', 'string'],
@@ -482,7 +482,7 @@ class CrossAppAIController extends Controller
      */
     public function driverVerifyDelivery(Request $request): JsonResponse
     {
-        $driverId = $request->user('dm')?->id ?? Auth::guard('dm')->id();
+        $driverId = $this->authenticatedActorId($request, 'dm');
         $data = $request->validate([
             'package_id' => ['required', 'integer'],
             'photo' => ['required', 'string'],
@@ -540,7 +540,7 @@ class CrossAppAIController extends Controller
      */
     public function driverLoadRecommendations(Request $request): JsonResponse
     {
-        $driverId = $request->user('dm')?->id ?? Auth::guard('dm')->id();
+        $driverId = $this->authenticatedActorId($request, 'dm');
 
         $driver = DeliveryMan::findOrFail($driverId);
         $loads = \App\Models\UrbanGoodzLoadBoardLoad::where('status', 'available')
@@ -582,7 +582,7 @@ class CrossAppAIController extends Controller
      */
     public function driverEarningsComparison(Request $request): JsonResponse
     {
-        $driverId = $request->user('dm')?->id ?? Auth::guard('dm')->id();
+        $driverId = $this->authenticatedActorId($request, 'dm');
         $data = $request->validate([
             'period' => ['nullable', 'string', 'in:week,month,year'],
         ]);
@@ -627,7 +627,7 @@ class CrossAppAIController extends Controller
      */
     public function businessImportManifest(Request $request): JsonResponse
     {
-        $businessId = $request->user('business')?->id ?? Auth::guard('business')->id();
+        $businessId = $this->authenticatedActorId($request, 'business');
 
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:csv,xlsx,xls,pdf,eml,msg', 'max:10240'],
@@ -659,7 +659,7 @@ class CrossAppAIController extends Controller
      */
     public function businessPackagePool(Request $request): JsonResponse
     {
-        $businessId = $request->user('business')?->id ?? Auth::guard('business')->id();
+        $businessId = $this->authenticatedActorId($request, 'business');
 
         $data = $request->validate([
             'status' => ['nullable', 'string'],
@@ -707,7 +707,7 @@ class CrossAppAIController extends Controller
      */
     public function businessCreateRoute(Request $request): JsonResponse
     {
-        $businessId = $request->user('business')?->id ?? Auth::guard('business')->id();
+        $businessId = $this->authenticatedActorId($request, 'business');
 
         $data = $request->validate([
             'package_ids' => ['required', 'array', 'min:1'],
@@ -1070,6 +1070,24 @@ class CrossAppAIController extends Controller
     }
 
     // ─── HELPERS ────────────────────────────────────────────────────────────
+
+    private function authenticatedActorId(Request $request, string $guard): int
+    {
+        $actor = match ($guard) {
+            'api' => $request->user('api') ?? Auth::guard('api')->user(),
+            'vendor' => $request->get('vendor') ?? Auth::guard('vendor')->user(),
+            'dm' => $request->user('delivery_men') ?? Auth::guard('delivery_men')->user(),
+            'business' => $request->user('business') ?? Auth::guard('business')->user(),
+            default => null,
+        };
+        $actorId = is_object($actor) && method_exists($actor, 'getAuthIdentifier')
+            ? $actor->getAuthIdentifier()
+            : null;
+
+        abort_unless(is_numeric($actorId) && (int) $actorId > 0, 401, 'Unauthenticated.');
+
+        return (int) $actorId;
+    }
 
     private function extractFileContent($file, string $type): string
     {
