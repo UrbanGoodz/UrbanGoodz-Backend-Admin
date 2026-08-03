@@ -18,6 +18,71 @@
             </div>
         </div>
 
+        <div class="card mb-3" id="platform-economics">
+            <div class="card-header">
+                <h4 class="card-title mb-0">{{ translate('Platform Economics') }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <small class="text-muted d-block">{{ translate('Effective Urban Goodz platform fee') }}</small>
+                        <strong class="h3 mb-0" data-platform-fee-percent>
+                            {{ rtrim(rtrim(number_format($platformFee['effective_percent'], 4, '.', ''), '0'), '.') }}%
+                        </strong>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <small class="text-muted d-block">{{ translate('Source') }}</small>
+                        <span class="badge {{ $platformFee['owner_configured'] ? 'badge-soft-success' : 'badge-soft-warning' }}"
+                              data-platform-fee-source>
+                            {{ $platformFee['source_label'] }}
+                        </span>
+                        <div class="small text-muted mt-1">
+                            {{ translate('Configured') }}: {{ $platformFee['configured'] ? translate('Yes') : translate('No') }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        @if(auth('admin')->check() && (int) auth('admin')->user()->role_id === 1)
+                            <form method="POST" action="{{ route('admin.urban-goodz.payments.platform-fee.update') }}">
+                                @csrf
+                                @method('PATCH')
+                                <label for="platform_fee_percent">{{ translate('Owner-approved percentage') }}</label>
+                                <div class="input-group">
+                                    <input
+                                        id="platform_fee_percent"
+                                        name="platform_fee_percent"
+                                        class="form-control"
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        required
+                                        value="{{ old('platform_fee_percent', $platformFee['effective_percent']) }}"
+                                    >
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn--primary btn-sm mt-2">
+                                    {{ translate('Save platform fee') }}
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+                @if($platformFee['owner_configured'])
+                    <div class="small text-muted mt-3">
+                        {{ translate('Changed by') }}: {{ $platformFee['changed_by'] ?? translate('Owner') }}
+                        ·
+                        {{ translate('Changed at') }}: {{ optional($platformFee['changed_at'])->format('M d, Y H:i:s T') }}
+                    </div>
+                @else
+                    <div class="alert alert-warning mt-3 mb-0">
+                        {{ translate('The current value is not owner-configured. Live-controlled payments cannot use this fallback.') }}
+                    </div>
+                @endif
+            </div>
+        </div>
+
         @php
             $routeMap = [
                 'order_anywhere' => 'admin.urban-goodz.payments.order-anywhere',

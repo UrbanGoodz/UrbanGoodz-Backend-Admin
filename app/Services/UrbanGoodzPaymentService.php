@@ -397,7 +397,12 @@ class UrbanGoodzPaymentService
         $currency = config('urban_goodz_payments.currency', 'USD');
 
         // ─── Platform fee ───────────────────────────────────────────────
-        $feePercent = (float) config('urban_goodz_payments.default_platform_fee_percent', 10);
+        // Resolved through the settings service so an owner-configured value
+        // wins over environment configuration. Reading the raw config key here
+        // would yield null (and therefore a 0% fee) whenever the environment
+        // variable is unset.
+        $platformFeeSetting = app(UrbanGoodzPaymentSettings::class)->platformFee();
+        $feePercent = $platformFeeSetting['effective_percent'];
         $platformFee = (float) ($data['platform_fee'] ?? round($totalAmount * ($feePercent / 100), 2));
 
         // ─── Driver payout ──────────────────────────────────────────────

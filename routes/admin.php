@@ -293,6 +293,10 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('order-anywhere/{id}/cancel-card', 'UrbanGoodzAdminController@orderAnywhereCancelCard')->name('order-anywhere.cancel-card');
             Route::post('order-anywhere/{id}/reconcile-card', 'UrbanGoodzAdminController@orderAnywhereReconcileCard')->name('order-anywhere.reconcile-card');
             Route::get('payments', 'UrbanGoodzAdminController@payments')->name('payments.index');
+            // Referenced by the Payments page. Registering it is required or the
+            // page's route() call throws and the whole page returns HTTP 500.
+            Route::patch('payments/platform-fee', 'UrbanGoodzAdminController@updatePlatformFee')
+                ->name('payments.platform-fee.update');
             Route::get('payments/order-anywhere', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('order-anywhere'); })->name('payments.order-anywhere');
             Route::get('payments/fashion-fit', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('fashion-fit'); })->name('payments.fashion-fit');
             Route::get('payments/earn-money', function () { return app(UrbanGoodzAdminController::class)->paymentDetail('earn-money'); })->name('payments.earn-money');
