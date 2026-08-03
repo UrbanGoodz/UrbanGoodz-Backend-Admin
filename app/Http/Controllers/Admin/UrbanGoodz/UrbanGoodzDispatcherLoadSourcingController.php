@@ -152,6 +152,36 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
         ));
     }
 
+    /**
+     * Admin page for Best Loads.
+     *
+     * The Admin menu links here and must always receive rendered HTML, including
+     * when no recommended loads exist. The JSON contract lives on the separate
+     * api-best-loads route and is not reachable from the Admin navigation.
+     */
+    public function bestLoadsBlade(Request $request): View
+    {
+        $loads = $this->bestLoadsQuery($request)->paginate(25)->withQueryString();
+
+        $originStates = ExternalLoad::where('status', 'available')
+            ->where('is_duplicate', false)
+            ->whereNotNull('origin_state')
+            ->distinct()
+            ->orderBy('origin_state')
+            ->pluck('origin_state');
+
+        $destinationStates = ExternalLoad::where('status', 'available')
+            ->where('is_duplicate', false)
+            ->whereNotNull('destination_state')
+            ->distinct()
+            ->orderBy('destination_state')
+            ->pluck('destination_state');
+
+        return view('admin-views.urban-goodz.dispatcher-sourcing.best-loads', compact(
+            'loads', 'originStates', 'destinationStates'
+        ));
+    }
+
     public function driverMatchesBlade(int $loadId): View
     {
         $load = ExternalLoad::with('source')->find($loadId);
@@ -254,9 +284,14 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
         ]);
     }
 
-    public function bestLoads(Request $request): JsonResponse
+    /**
+     * Shared Best Loads query so the Admin page and the JSON endpoint can never
+     * disagree about which loads are recommended.
+     */
+    private function bestLoadsQuery(Request $request)
     {
-        $query = ExternalLoad::where('status', 'available')
+        $query = ExternalLoad::with('source')
+            ->where('status', 'available')
             ->where('is_duplicate', false);
 
         $sortBy = $request->get('sort', 'gross_rate');
@@ -267,16 +302,23 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
             $query->orderBy($sortBy, $sortDir === 'asc' ? 'asc' : 'desc');
         }
 
-        if ($request->has('origin_state')) {
+        if ($request->filled('origin_state')) {
             $query->where('origin_state', $request->origin_state);
         }
-        if ($request->has('destination_state')) {
+        if ($request->filled('destination_state')) {
             $query->where('destination_state', $request->destination_state);
         }
 
-        $loads = $query->limit(50)->get();
+        return $query;
+    }
 
-        return response()->json($loads);
+    /**
+     * JSON contract for AJAX and external clients. Registered as api-best-loads;
+     * the Admin navigation must never point at this route.
+     */
+    public function bestLoads(Request $request): JsonResponse
+    {
+        return response()->json($this->bestLoadsQuery($request)->limit(50)->get());
     }
 
     public function saveSearch(Request $request): JsonResponse

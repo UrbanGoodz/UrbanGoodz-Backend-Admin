@@ -457,12 +457,14 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::match(['get','post'], 'saved-form', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@savedSearchesBlade')->name('saved-blade');
                 Route::match(['get','post'], 'assignments', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@assignmentsBlade')->name('assignments-blade');
                 Route::get('driver-matches/{loadId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@driverMatchesBlade')->name('driver-matches-blade');
+                // Admin navigation target. Must render HTML, never raw JSON.
+                Route::get('best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestLoadsBlade')->name('best-loads');
 
                 // ── JSON API ──
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboardBlade')->name('dashboard');
                 Route::get('api/dashboard', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@dashboard')->name('api-dashboard');
                 Route::post('search', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@searchAllSources')->name('search');
-                Route::get('best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestLoads')->name('best-loads');
+                Route::get('api/best-loads', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestLoads')->name('api-best-loads');
                 Route::get('best-for-driver/{driverId}', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@bestForDriver')->name('best-for-driver');
                 Route::post('saved-searches', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@saveSearch')->name('save-search');
                 Route::get('saved-searches', 'UrbanGoodz\UrbanGoodzDispatcherLoadSourcingController@savedSearches')->name('saved-searches');
