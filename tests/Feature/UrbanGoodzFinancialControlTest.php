@@ -105,6 +105,29 @@ class UrbanGoodzFinancialControlTest extends TestCase
         self::assertSame(4625, $result['provider_proceeds_cents']);
     }
 
+    public function test_route_contract_floor_is_paid_unless_rules_pay_more(): void
+    {
+        $rule = $this->rule('driver_compensation', 'per_route', amountCents: 500);
+        $this->rule('driver_admin_fee', 'percentage', rateBasisPoints: 1000);
+
+        $floor = $this->financialControl->simulate($this->context([
+            'guaranteed_driver_compensation_cents' => 1200,
+        ]));
+
+        self::assertSame(1200, $floor['driver_compensation_cents']);
+        self::assertSame(120, $floor['driver_admin_fee_cents']);
+        self::assertSame(1080, $floor['driver_net_cents']);
+        self::assertSame(1200, $floor['rules']['guaranteed_driver_compensation_cents']);
+
+        $rule->update(['amount_cents' => 1500]);
+        $higherRule = $this->financialControl->simulate($this->context([
+            'guaranteed_driver_compensation_cents' => 1200,
+        ]));
+
+        self::assertSame(1500, $higherRule['driver_compensation_cents']);
+        self::assertSame(1350, $higherRule['driver_net_cents']);
+    }
+
     public function test_rule_hierarchy_honors_effective_dates_priority_scope_and_service(): void
     {
         $at = CarbonImmutable::parse('2026-07-30 12:00:00', 'UTC');

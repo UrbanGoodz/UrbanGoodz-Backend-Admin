@@ -35,6 +35,7 @@ class UrbanGoodzDriverEarning extends Model
         'gross_cents', 'admin_fee_cents', 'net_cents',
         'calculation_inputs', 'policy_snapshot',
         'settlement_snapshot_id', 'idempotency_key',
+        'financial_settlement_snapshot_id',
     ];
 
     protected $casts = [
@@ -81,6 +82,14 @@ class UrbanGoodzDriverEarning extends Model
     public function approver()
     {
         return $this->belongsTo(Admin::class, 'approved_by');
+    }
+
+    public function financialSettlement()
+    {
+        return $this->belongsTo(
+            UrbanGoodzFinancialSettlementSnapshot::class,
+            'financial_settlement_snapshot_id'
+        );
     }
 
     public function scopePending($query)

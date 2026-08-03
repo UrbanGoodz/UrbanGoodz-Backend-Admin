@@ -21,48 +21,68 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('urban_goodz_package_scans')) {
+            return;
+        }
+
+        $addIdempotencyKey = ! Schema::hasColumn('urban_goodz_package_scans', 'idempotency_key');
+
         Schema::table('urban_goodz_package_scans', function (Blueprint $table) {
-            $table->unsignedBigInteger('route_id')->nullable()->after('package_id');
-            $table->unsignedBigInteger('stop_id')->nullable()->after('route_id');
-            $table->unsignedBigInteger('business_client_id')->nullable()->after('stop_id');
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'route_id')) {
+                $table->unsignedBigInteger('route_id')->nullable()->after('package_id');
+            }
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'stop_id')) {
+                $table->unsignedBigInteger('stop_id')->nullable()->after('route_id');
+            }
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'business_client_id')) {
+                $table->unsignedBigInteger('business_client_id')->nullable()->after('stop_id');
+            }
 
             // barcode | qr | tracking_id | package_id | manual
-            $table->string('identifier_type')->nullable()->after('scanner_type');
-            $table->string('identifier_value')->nullable()->after('identifier_type');
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'identifier_type')) {
+                $table->string('identifier_type')->nullable()->after('scanner_type');
+            }
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'identifier_value')) {
+                $table->string('identifier_value')->nullable()->after('identifier_type');
+            }
 
-            $table->string('status_before')->nullable()->after('identifier_value');
-            $table->string('status_after')->nullable()->after('status_before');
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'status_before')) {
+                $table->string('status_before')->nullable()->after('identifier_value');
+            }
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'status_after')) {
+                $table->string('status_after')->nullable()->after('status_before');
+            }
 
-            $table->string('proof_reference')->nullable()->after('signature');
-            $table->string('device_source')->nullable()->after('proof_reference');
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'proof_reference')) {
+                $table->string('proof_reference')->nullable()->after('signature');
+            }
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'device_source')) {
+                $table->string('device_source')->nullable()->after('proof_reference');
+            }
 
-            $table->json('metadata')->nullable()->after('notes');
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'metadata')) {
+                $table->json('metadata')->nullable()->after('notes');
+            }
 
-            $table->timestamp('occurred_at')->nullable()->after('metadata');
-            $table->string('idempotency_key')->nullable()->after('occurred_at');
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'occurred_at')) {
+                $table->timestamp('occurred_at')->nullable()->after('metadata');
+            }
+            if (! Schema::hasColumn('urban_goodz_package_scans', 'idempotency_key')) {
+                $table->string('idempotency_key')->nullable()->after('occurred_at');
+            }
+        });
 
-            $table->unique('idempotency_key', 'ug_ps_idempotency_unique');
+        Schema::table('urban_goodz_package_scans', function (Blueprint $table) use ($addIdempotencyKey) {
+            if ($addIdempotencyKey) {
+                $table->unique('idempotency_key', 'ug_ps_idempotency_unique');
+            }
             $table->index(['route_id', 'scan_type'], 'ug_ps_route_type_idx');
-            $table->index('business_client_id', 'ug_ps_business_idx');
-            $table->index('package_id', 'ug_ps_package_idx');
         });
     }
 
     public function down(): void
     {
-        Schema::table('urban_goodz_package_scans', function (Blueprint $table) {
-            $table->dropUnique('ug_ps_idempotency_unique');
-            $table->dropIndex('ug_ps_route_type_idx');
-            $table->dropIndex('ug_ps_business_idx');
-            $table->dropIndex('ug_ps_package_idx');
-
-            $table->dropColumn([
-                'route_id', 'stop_id', 'business_client_id',
-                'identifier_type', 'identifier_value',
-                'status_before', 'status_after',
-                'proof_reference', 'device_source',
-                'metadata', 'occurred_at', 'idempotency_key',
-            ]);
-        });
+        // Intentionally non-destructive. These audit columns may predate this
+        // release in production and deleting them would destroy scan history.
     }
 };

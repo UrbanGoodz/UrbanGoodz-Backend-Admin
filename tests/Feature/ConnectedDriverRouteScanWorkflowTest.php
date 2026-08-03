@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\DeliveryMan;
 use App\Models\UrbanGoodzBusinessClient;
 use App\Models\UrbanGoodzDedicatedRoute;
+use App\Models\UrbanGoodzDriverEarning;
+use App\Models\UrbanGoodzFinancialRule;
+use App\Models\UrbanGoodzFinancialSettlementSnapshot;
 use App\Models\UrbanGoodzPackageScan;
 use App\Models\UrbanGoodzRouteOperationalMetric;
 use App\Models\UrbanGoodzRouteOptimizationStop;
@@ -380,6 +383,84 @@ class ConnectedDriverRouteScanWorkflowTest extends TestCase
         $this->assertSame('ineligible_non_road_or_unaccepted', $metric->mileage_eligibility);
         $this->assertSame(0, $financial->context['miles_milli']);
         $this->assertSame(12350, $financial->context['measured_miles_milli']);
+    }
+
+    public function test_completed_canonical_route_materializes_exactly_one_payout_visible_earning(): void
+    {
+        UrbanGoodzFinancialRule::query()->delete();
+        $this->route->update([
+            'status' => 'completed',
+            'route_completed_at' => now(),
+            'route_offer_amount' => 25.00,
+            'driver_pay_per_package' => 5.00,
+            'priority_package_bonus' => 2.00,
+            'pickup_bonus' => 1.00,
+            'route_completion_bonus' => 3.00,
+        ]);
+        $this->route->packages()->update(['status' => 'delivered']);
+
+        $service = new RouteCompletionSettlementService;
+        $first = $service->captureAndSettle($this->route->fresh());
+        $second = $service->captureAndSettle($this->route->fresh());
+
+        $this->assertSame('settled', $first['status']);
+        $this->assertSame('materialized', $first['payout']['status']);
+        $this->assertSame('already_materialized', $second['payout']['status']);
+        $this->assertSame($first['settlement_snapshot_id'], $second['settlement_snapshot_id']);
+        $this->assertSame(1, UrbanGoodzFinancialSettlementSnapshot::query()
+            ->where('source_type', 'dedicated_route')
+            ->where('source_id', (string) $this->route->id)
+            ->count());
+
+        $earning = UrbanGoodzDriverEarning::query()
+            ->where('financial_settlement_snapshot_id', $first['settlement_snapshot_id'])
+            ->firstOrFail();
+        $this->assertSame('25.00', $earning->amount);
+        $this->assertSame(2500, $earning->net_cents);
+        $this->assertSame('pending', $earning->status);
+        $this->assertSame(1, UrbanGoodzDriverEarning::query()
+            ->where('financial_settlement_snapshot_id', $first['settlement_snapshot_id'])
+            ->count());
+    }
+
+    public function test_settlement_materializes_only_the_delta_above_legacy_route_earnings(): void
+    {
+        UrbanGoodzFinancialRule::query()->delete();
+        $this->route->update([
+            'status' => 'completed',
+            'route_completed_at' => now(),
+            'route_offer_amount' => 20.00,
+        ]);
+        $this->route->packages()->update(['status' => 'delivered']);
+        UrbanGoodzDriverEarning::create([
+            'delivery_man_id' => $this->driver->id,
+            'dedicated_route_id' => $this->route->id,
+            'earning_type' => 'per_package',
+            'amount' => 8.00,
+            'status' => 'pending',
+            'description' => 'Legacy route component pay',
+        ]);
+
+        $result = (new RouteCompletionSettlementService)
+            ->captureAndSettle($this->route->fresh());
+
+        $this->assertSame('materialized', $result['payout']['status']);
+        $this->assertSame(800, $result['payout']['legacy_earnings_cents']);
+        $this->assertSame(1200, $result['payout']['materialized_cents']);
+        $this->assertSame(
+            '12.00',
+            UrbanGoodzDriverEarning::query()
+                ->where('financial_settlement_snapshot_id', $result['settlement_snapshot_id'])
+                ->firstOrFail()
+                ->amount
+        );
+        $this->assertSame(
+            '20.00',
+            number_format((float) UrbanGoodzDriverEarning::query()
+                ->where('delivery_man_id', $this->driver->id)
+                ->where('dedicated_route_id', $this->route->id)
+                ->sum('amount'), 2, '.', '')
+        );
     }
 
     public function test_wrong_route_or_business_package_is_never_scanned(): void

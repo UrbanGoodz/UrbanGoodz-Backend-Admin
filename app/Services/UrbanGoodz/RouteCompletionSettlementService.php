@@ -3,7 +3,11 @@
 namespace App\Services\UrbanGoodz;
 
 use App\Models\UrbanGoodzDedicatedRoute;
+use App\Models\UrbanGoodzDriverEarning;
+use App\Models\UrbanGoodzFinancialSettlementSnapshot;
 use App\Models\UrbanGoodzRouteOperationalMetric;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class RouteCompletionSettlementService
@@ -92,6 +96,7 @@ class RouteCompletionSettlementService
             'hours_minutes' => $metric->duration_minutes,
             'return_count' => $metric->return_count,
             'exception_count' => $metric->exception_count,
+            'guaranteed_driver_compensation_cents' => $this->guaranteedCompensationCents($route),
             'currency' => 'USD',
         ];
         $completionTimestamp = $route->route_completed_at?->timestamp ?? $route->updated_at->timestamp;
@@ -104,11 +109,15 @@ class RouteCompletionSettlementService
                 $context,
                 $idempotencyKey
             );
+            $payout = $snapshot instanceof UrbanGoodzFinancialSettlementSnapshot
+                ? $this->materializePayoutEarning($route, $snapshot)
+                : ['status' => 'not_materialized_non_persistent_test_double'];
 
             return [
                 'status' => 'settled',
                 'metric_id' => $metric->id,
                 'settlement_snapshot_id' => $snapshot->id,
+                'payout' => $payout,
             ];
         } catch (\Throwable $exception) {
             Log::error('Dedicated route financial settlement failed', [
@@ -123,5 +132,137 @@ class RouteCompletionSettlementService
                 'metric_id' => $metric->id,
             ];
         }
+    }
+
+    private function guaranteedCompensationCents(UrbanGoodzDedicatedRoute $route): int
+    {
+        $delivered = $route->packages->whereIn('status', [
+            'delivered', 'payout_eligible', 'completed',
+        ]);
+        $failed = $route->packages->whereIn('status', [
+            'failed', 'unable_to_deliver',
+        ]);
+        $returned = $route->packages->whereIn('status', [
+            'return_required', 'returning_to_pickup', 'returning_to_hub',
+            'returning_to_business', 'returned_to_pickup', 'returned_to_hub',
+            'returned_to_business',
+        ]);
+        $priorityDelivered = $delivered->whereIn('priority', [
+            'high', 'urgent', 'medical',
+        ])->count();
+
+        $componentCents =
+            ($delivered->count() * $this->moneyToCents($route->driver_pay_per_package))
+            + ($priorityDelivered * $this->moneyToCents($route->priority_package_bonus))
+            + ($failed->count() * $this->moneyToCents($route->failed_delivery_partial_pay))
+            + ($returned->count() * $this->moneyToCents($route->return_to_sender_pay))
+            + $this->moneyToCents($route->pickup_bonus)
+            + $this->moneyToCents($route->route_completion_bonus);
+
+        return max(
+            $componentCents,
+            $this->moneyToCents($route->route_offer_amount),
+            $this->existingRouteEarningsCents($route)
+        );
+    }
+
+    private function materializePayoutEarning(
+        UrbanGoodzDedicatedRoute $route,
+        UrbanGoodzFinancialSettlementSnapshot $snapshot
+    ): array {
+        return DB::transaction(function () use ($route, $snapshot) {
+            $snapshot = UrbanGoodzFinancialSettlementSnapshot::query()
+                ->lockForUpdate()
+                ->findOrFail($snapshot->id);
+
+            $existing = UrbanGoodzDriverEarning::query()
+                ->where('financial_settlement_snapshot_id', $snapshot->id)
+                ->first();
+            if ($existing) {
+                return [
+                    'status' => 'already_materialized',
+                    'earning_id' => $existing->id,
+                    'legacy_earnings_cents' => $this->existingRouteEarningsCents($route),
+                    'materialized_cents' => $this->earningCents($existing),
+                ];
+            }
+
+            $legacyCents = $this->existingRouteEarningsCents($route, true);
+            $materializedCents = max(0, (int) $snapshot->driver_net_cents - $legacyCents);
+            if ($materializedCents === 0) {
+                return [
+                    'status' => 'covered_by_existing_earnings',
+                    'earning_id' => null,
+                    'legacy_earnings_cents' => $legacyCents,
+                    'materialized_cents' => 0,
+                ];
+            }
+
+            try {
+                $earning = UrbanGoodzDriverEarning::create([
+                    'delivery_man_id' => $route->assigned_driver_id,
+                    'dedicated_route_id' => $route->id,
+                    'earning_type' => 'dedicated_routes',
+                    'amount' => number_format($materializedCents / 100, 2, '.', ''),
+                    'currency' => $snapshot->currency,
+                    'status' => 'pending',
+                    'description' => 'Financial settlement payout for route '.$route->route_name,
+                    'gross_cents' => $materializedCents,
+                    'admin_fee_cents' => 0,
+                    'net_cents' => $materializedCents,
+                    'calculation_inputs' => [
+                        'route_id' => $route->id,
+                        'legacy_earnings_cents' => $legacyCents,
+                        'settlement_driver_net_cents' => (int) $snapshot->driver_net_cents,
+                    ],
+                    'policy_snapshot' => $snapshot->rule_snapshot,
+                    'financial_settlement_snapshot_id' => $snapshot->id,
+                    'idempotency_key' => 'financial-settlement:'.$snapshot->id,
+                ]);
+            } catch (QueryException $exception) {
+                $earning = UrbanGoodzDriverEarning::query()
+                    ->where('financial_settlement_snapshot_id', $snapshot->id)
+                    ->first();
+                if (! $earning) {
+                    throw $exception;
+                }
+            }
+
+            return [
+                'status' => 'materialized',
+                'earning_id' => $earning->id,
+                'legacy_earnings_cents' => $legacyCents,
+                'materialized_cents' => $this->earningCents($earning),
+            ];
+        });
+    }
+
+    private function existingRouteEarningsCents(
+        UrbanGoodzDedicatedRoute $route,
+        bool $lockForUpdate = false
+    ): int {
+        $query = UrbanGoodzDriverEarning::query()
+            ->where('delivery_man_id', $route->assigned_driver_id)
+            ->where('dedicated_route_id', $route->id)
+            ->whereNull('financial_settlement_snapshot_id');
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->get()->sum(fn (UrbanGoodzDriverEarning $earning) =>
+            $this->earningCents($earning)
+        );
+    }
+
+    private function earningCents(UrbanGoodzDriverEarning $earning): int
+    {
+        return $earning->net_cents !== null
+            ? (int) $earning->net_cents
+            : $this->moneyToCents($earning->amount);
+    }
+
+    private function moneyToCents(mixed $amount): int
+    {
+        return max(0, (int) round(((float) ($amount ?? 0)) * 100));
     }
 }

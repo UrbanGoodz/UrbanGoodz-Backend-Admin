@@ -42,13 +42,17 @@ class FinancialControlService
 
         $compensationRules = $this->stackedRules('driver_compensation', $context, $at);
         $premiumRules = $this->stackedRules('driver_premium', $context, $at);
-        $driverCompensationCents = $compensationRules
+        $calculatedDriverCompensationCents = $compensationRules
             ->merge($premiumRules)
             ->sum(fn (UrbanGoodzFinancialRule $rule) => $this->calculateRule(
                 $rule,
                 $context,
                 $context['delivery_charge_cents']
             ));
+        $driverCompensationCents = max(
+            $calculatedDriverCompensationCents,
+            $context['guaranteed_driver_compensation_cents']
+        );
 
         $feeRule = $this->bestRule('driver_admin_fee', $context, $at);
         $driverAdminFeeCents = $feeRule
@@ -78,6 +82,7 @@ class FinancialControlService
                 'driver_compensation' => $compensationRules->map(fn ($rule) => $this->ruleDecision($rule))->values()->all(),
                 'driver_premiums' => $premiumRules->map(fn ($rule) => $this->ruleDecision($rule))->values()->all(),
                 'driver_admin_fee' => $this->ruleDecision($feeRule),
+                'guaranteed_driver_compensation_cents' => $context['guaranteed_driver_compensation_cents'],
             ],
             'inputs' => $context,
         ];
@@ -428,6 +433,10 @@ class FinancialControlService
             'hours_minutes' => $this->nonNegativeInteger($context, 'hours_minutes'),
             'return_count' => $this->nonNegativeInteger($context, 'return_count'),
             'exception_count' => $this->nonNegativeInteger($context, 'exception_count'),
+            'guaranteed_driver_compensation_cents' => $this->nonNegativeInteger(
+                $context,
+                'guaranteed_driver_compensation_cents'
+            ),
         ];
 
         if ($normalized['currency'] === '' || strlen($normalized['currency']) > 8) {

@@ -270,9 +270,8 @@ return new class extends Migration
         if (Schema::hasTable('urban_goodz_package_scans')) {
             Schema::table('urban_goodz_package_scans', function (Blueprint $table) {
                 $columns = [
-                    'idempotency_key', 'business_client_id', 'dedicated_route_id',
-                    'input_method', 'device_id', 'occurred_at', 'received_at',
-                    'was_offline', 'metadata',
+                    'dedicated_route_id', 'input_method', 'device_id',
+                    'received_at', 'was_offline',
                 ];
                 foreach ($columns as $column) {
                     if (Schema::hasColumn('urban_goodz_package_scans', $column)) {

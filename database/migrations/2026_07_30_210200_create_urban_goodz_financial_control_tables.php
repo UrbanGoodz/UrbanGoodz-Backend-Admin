@@ -41,10 +41,10 @@ return new class extends Migration
         if (! Schema::hasTable('urban_goodz_financial_settlement_snapshots')) {
             Schema::create('urban_goodz_financial_settlement_snapshots', function (Blueprint $table) {
                 $table->id();
-                $table->string('snapshot_number')->unique();
+                $table->string('snapshot_number');
                 $table->string('source_type');
                 $table->string('source_id');
-                $table->string('idempotency_key')->unique();
+                $table->string('idempotency_key');
                 $table->unsignedBigInteger('customer_id')->nullable();
                 $table->unsignedBigInteger('business_id')->nullable();
                 $table->unsignedBigInteger('provider_id')->nullable();
@@ -70,6 +70,8 @@ return new class extends Migration
                 $table->timestamp('settled_at');
                 $table->timestamps();
 
+                $table->unique('snapshot_number', 'ug_fin_snapshot_number_uniq');
+                $table->unique('idempotency_key', 'ug_fin_snapshot_idem_uniq');
                 $table->index(['source_type', 'source_id'], 'ug_fin_snapshot_source_idx');
                 $table->index(['customer_id', 'status'], 'ug_fin_snapshot_customer_idx');
                 $table->index(['business_id', 'provider_id'], 'ug_fin_snapshot_business_idx');
