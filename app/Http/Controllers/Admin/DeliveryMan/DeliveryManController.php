@@ -25,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use App\Exports\DeliveryManListExport;
 use App\Exports\DeliveryManReviewExport;
 use App\Http\Controllers\BaseController;
+use App\Http\Controllers\Api\UrbanGoodzDriverCapabilityController;
 use App\Exports\DeliveryManEarningExport;
 use App\Exports\DisbursementHistoryExport;
 use Illuminate\Database\Eloquent\Collection;
@@ -164,7 +165,21 @@ class DeliveryManController extends BaseController
         $deliveryMan = $this->deliveryManRepo->getFirstWithoutGlobalScopeWhere(params: ['id' => $id]);
         $language = getWebConfig('language');
         $defaultLang = str_replace('_', '-', app()->getLocale());
-        return view(DeliveryManViewPath::UPDATE[VIEW], compact('deliveryMan', 'language', 'defaultLang'));
+        $identityImages = json_decode((string) ($deliveryMan['identity_image'] ?? ''), true);
+        $identityImages = is_array($identityImages) ? $identityImages : [];
+        $capabilityOptions = UrbanGoodzDriverCapabilityController::vehicleOptions();
+
+        return view(DeliveryManViewPath::UPDATE[VIEW], [
+            'deliveryMan' => $deliveryMan,
+            'language' => $language,
+            'defaultLang' => $defaultLang,
+            'identityImages' => $identityImages,
+            'vehicleTypes' => $capabilityOptions['vehicle_types'],
+            'trailerTypes' => $capabilityOptions['trailer_types'],
+            'hitchTypes' => $capabilityOptions['hitch_types'],
+            'cdlClasses' => $capabilityOptions['cdl_classes'],
+            'cdlStatuses' => $capabilityOptions['cdl_statuses'],
+        ]);
     }
 
     public function update(DeliveryManUpdateRequest $request, $id): JsonResponse

@@ -223,8 +223,7 @@
                             </div>
                             <div class="identity_documnet_body multiple_coba-img tabs-slide-wrap position-relative">
                                 <div class="tabs-inner pt-3 d-flex gap-3 identity_documnet_wrap" id="coba">
-                                    @php($identity_images = json_decode($deliveryMan['identity_image'], true) ?? [])
-                                    @foreach($identity_images as $key => $img)
+                                    @foreach($identityImages as $key => $img)
                                         <div class="spartan_item_wrapper size--md existing_image" id="existing_image_{{ $key }}">
                                             <div style="position: relative;">
                                                 <label class="file_upload" style="width: 100%; height: 100px; border: 2px dashed #ddd; border-radius: 3px; cursor: pointer; text-align: center; overflow: hidden; padding: 5px; margin-top: 5px; margin-bottom : 5px; position : relative; display: flex; align-items: center; margin: auto; justify-content: center; flex-direction: column;">
@@ -344,34 +343,6 @@
                    </div>
                 </div>
                 <div class="card-body">
-                    @php
-                        $vehicleTypes = [
-                            'car' => 'Car', 'suv' => 'SUV', 'pickup_truck' => 'Pickup Truck',
-                            'cargo_van' => 'Cargo Van', 'passenger_van' => 'Passenger Van',
-                            'sprinter_van' => 'Sprinter Van', 'box_truck' => 'Box Truck',
-                            'straight_truck' => 'Straight Truck', 'bicycle' => 'Bicycle',
-                            'motorcycle' => 'Motorcycle', 'scooter_moped' => 'Scooter/Moped',
-                            'tractor_trailer_18_wheeler' => 'Tractor Trailer / 18-Wheeler',
-                            'flatbed_truck' => 'Flatbed Truck', 'tow_truck' => 'Tow Truck',
-                            'refrigerated_truck' => 'Refrigerated Truck',
-                            'other_commercial_vehicle' => 'Other Commercial Vehicle',
-                        ];
-                        $trailerTypes = [
-                            'utility' => 'Utility', 'enclosed' => 'Enclosed', 'flatbed' => 'Flatbed',
-                            'car_hauler' => 'Car Hauler', 'gooseneck' => 'Gooseneck',
-                            'fifth_wheel' => 'Fifth Wheel', 'step_deck' => 'Step Deck',
-                            'lowboy' => 'Lowboy', 'refrigerated' => 'Refrigerated',
-                            'dry_van' => 'Dry Van', 'other' => 'Other',
-                        ];
-                        $hitchTypes = [
-                            'ball' => 'Ball', 'pintle' => 'Pintle', 'gooseneck' => 'Gooseneck',
-                            'fifth_wheel' => 'Fifth Wheel', 'bumper_pull' => 'Bumper Pull',
-                            'pintle_hook' => 'Pintle Hook', 'other' => 'Other',
-                        ];
-                        $cdlClasses = ['A' => 'Class A', 'B' => 'Class B', 'C' => 'Class C', 'none' => 'None', 'not_applicable' => 'Not Applicable'];
-                        $cdlStatuses = ['valid' => 'Valid', 'expired' => 'Expired', 'pending' => 'Pending', 'suspended' => 'Suspended', 'none' => 'None/Not Required'];
-                    @endphp
-
                     <div class="shadow-sm p-xxl-20 p-xl-3 p-2 bg-white mb-20">
                         <div class="mb-20">
                             <h4 class="mb-1">{{ translate('Vehicle & Trailer Details') }}</h4>
