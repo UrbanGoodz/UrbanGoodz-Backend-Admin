@@ -301,7 +301,7 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
     // Support AI
     Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
         Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
-        Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@autoResolve');
+        Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@attemptAutoResolution');
         Route::post('escalate', 'Api\V1\UrbanGoodz\SupportAIController@escalateToHuman');
         Route::get('knowledge-base', 'Api\V1\UrbanGoodz\SupportAIController@searchKnowledgeBase');
         Route::post('feedback', 'Api\V1\UrbanGoodz\SupportAIController@submitFeedback');

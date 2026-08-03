@@ -28,9 +28,9 @@ class SupportAIController extends Controller
 
     public function classifyIssue(Request $request): JsonResponse
     {
+        $customerId = $this->authenticatedCustomerId($request);
         $data = $request->validate([
             'query_text' => ['required', 'string', 'max:2000'],
-            'customer_id' => ['nullable', 'integer'],
             'order_id' => ['nullable', 'integer'],
         ]);
 
@@ -52,7 +52,9 @@ class SupportAIController extends Controller
         // Enrich with context if order_id provided
         $context = [];
         if (!empty($data['order_id'])) {
-            $order = Order::with(['details.item', 'customer', 'store', 'deliveryMan'])->find($data['order_id']);
+            $order = Order::where('user_id', $customerId)
+                ->with(['details.item', 'customer', 'store', 'deliveryMan'])
+                ->find($data['order_id']);
             if ($order) {
                 $context = [
                     'order_number' => $order->order_number,
@@ -149,17 +151,20 @@ class SupportAIController extends Controller
 
     public function lookupTransaction(Request $request): JsonResponse
     {
+        $customerId = $this->authenticatedCustomerId($request);
         $data = $request->validate([
             'order_number' => ['nullable', 'string'],
             'transaction_id' => ['nullable', 'string'],
-            'customer_id' => ['nullable', 'integer'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'amount_min' => ['nullable', 'numeric', 'min:0'],
             'amount_max' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $query = UrbanGoodzPaymentTransaction::query();
+        $query = UrbanGoodzPaymentTransaction::whereHas(
+            'order',
+            fn ($orderQuery) => $orderQuery->where('user_id', $customerId)
+        );
 
         if ($data['order_number'] ?? false) {
             $order = Order::where('order_number', $data['order_number'])->first();
@@ -167,9 +172,6 @@ class SupportAIController extends Controller
         }
         if ($data['transaction_id'] ?? false) {
             $query->where('transaction_id', $data['transaction_id']);
-        }
-        if ($data['customer_id'] ?? false) {
-            $query->whereHas('order', fn($q) => $q->where('user_id', $data['customer_id']));
         }
         if ($data['date_from'] ?? false) {
             $query->whereDate('created_at', '>=', $data['date_from']);
@@ -213,14 +215,15 @@ class SupportAIController extends Controller
 
     public function attemptAutoResolution(Request $request): JsonResponse
     {
+        $customerId = $this->authenticatedCustomerId($request);
         $data = $request->validate([
             'conversation_id' => ['required', 'integer'],
             'action' => ['required', 'string', 'in:track_order,cancel_order,refund,provide_eta,contact_driver,reset_password,view_policy'],
             'params' => ['nullable', 'array'],
         ]);
 
-        $conversation = UrbanGoodzAIConversation::findOrFail($data['conversation_id']);
-        $customerId = $conversation->customer_id;
+        $conversation = UrbanGoodzAIConversation::where('customer_id', $customerId)
+            ->findOrFail($data['conversation_id']);
 
         $result = match ($data['action']) {
             'track_order' => $this->resolveTrackOrder($data['params']['order_id'] ?? null, $customerId),
@@ -353,13 +356,15 @@ class SupportAIController extends Controller
 
     public function escalateToHuman(Request $request): JsonResponse
     {
+        $customerId = $this->authenticatedCustomerId($request);
         $data = $request->validate([
             'conversation_id' => ['required', 'integer'],
             'reason' => ['required', 'string'],
             'priority' => ['nullable', 'string', 'in:low,normal,high,urgent'],
         ]);
 
-        $conversation = UrbanGoodzAIConversation::findOrFail($data['conversation_id']);
+        $conversation = UrbanGoodzAIConversation::where('customer_id', $customerId)
+            ->findOrFail($data['conversation_id']);
         $conversation->update([
             'status' => 'pending',
             'admin_notes' => "Escalated to human: {$data['reason']}",
@@ -372,5 +377,66 @@ class SupportAIController extends Controller
             'message' => 'Your request has been escalated to a human agent. You will receive a response within 2 hours during business hours.',
             'ticket_id' => 'TKT-' . now()->format('YmdHis') . '-' . random_int(1000, 9999),
         ]);
+    }
+
+    public function searchKnowledgeBase(Request $request): JsonResponse
+    {
+        $this->authenticatedCustomerId($request);
+        $data = $request->validate([
+            'query' => ['required', 'string', 'min:2', 'max:500'],
+        ]);
+        $query = trim($data['query']);
+
+        $articles = UrbanGoodzAIIntent::query()
+            ->where('is_active', true)
+            ->where(function ($intentQuery) use ($query) {
+                $intentQuery->where('name', 'like', "%{$query}%")
+                    ->orWhere('description', 'like', "%{$query}%")
+                    ->orWhere('keywords', 'like', "%{$query}%");
+            })
+            ->orderBy('sort_order')
+            ->limit(20)
+            ->get(['slug', 'name', 'description']);
+
+        return response()->json([
+            'success' => true,
+            'query' => $query,
+            'articles' => $articles,
+        ]);
+    }
+
+    public function submitFeedback(Request $request): JsonResponse
+    {
+        $customerId = $this->authenticatedCustomerId($request);
+        $data = $request->validate([
+            'conversation_id' => ['required', 'integer'],
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'helpful' => ['nullable', 'boolean'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $conversation = UrbanGoodzAIConversation::where('customer_id', $customerId)
+            ->findOrFail($data['conversation_id']);
+        $metadata = is_array($conversation->metadata) ? $conversation->metadata : [];
+        $metadata['feedback'] = [
+            'rating' => $data['rating'],
+            'helpful' => $data['helpful'] ?? null,
+            'comment' => $data['comment'] ?? null,
+            'submitted_at' => now()->toISOString(),
+        ];
+        $conversation->update(['metadata' => $metadata]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Feedback recorded.',
+        ]);
+    }
+
+    private function authenticatedCustomerId(Request $request): int
+    {
+        $customerId = $request->user('api')?->getAuthIdentifier() ?? auth('api')->id();
+        abort_unless(is_numeric($customerId) && (int) $customerId > 0, 401, 'Unauthenticated.');
+
+        return (int) $customerId;
     }
 }
