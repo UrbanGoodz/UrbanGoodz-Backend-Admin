@@ -32,7 +32,7 @@ test.describe('Business Portal — Corporate Operations & Package Management', (
     });
 
     test('Business Routes — Creates Multi-Stop Delivery Routes and Assigns Drivers', async ({ page }) => {
-        await page.goto('/admin/dispatch/dashboard');
+        await page.goto('/admin/dispatch');
         await expect(page).toBeDefined();
     });
 

@@ -258,6 +258,8 @@ class DashboardController extends Controller
 
     public function dispatch_dashboard(Request $request)
     {
+        $module_type = Config::get('module.current_module_type');
+
         $params = [
             'zone_id' => $request['zone_id'] ?? 'all',
             'module_id' => Config::get('module.current_module_id'),

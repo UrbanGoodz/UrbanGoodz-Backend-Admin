@@ -7,7 +7,7 @@ test.describe('Cross-Role End-to-End Platform Workflows', () => {
     });
 
     test('E2E Flow 2 — Business Scan to Package Pool to Multi-Stop Route to Driver Delivery to Invoice', async ({ page }) => {
-        await page.goto('/admin/dispatch/dashboard');
+        await page.goto('/admin/dispatch');
         await expect(page).toBeDefined();
     });
 
@@ -17,7 +17,7 @@ test.describe('Cross-Role End-to-End Platform Workflows', () => {
     });
 
     test('E2E Flow 4 — Customer Genie to Order Anywhere to Purchase-Card Reconciliation to Delivery', async ({ page }) => {
-        await page.goto('/admin/dispatch/dashboard');
+        await page.goto('/admin/dispatch');
         await expect(page).toBeDefined();
     });
 
