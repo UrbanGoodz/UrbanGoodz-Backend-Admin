@@ -151,8 +151,13 @@ class OrderController extends Controller
         return view('admin-views.order.list', compact('orders', 'status', 'orderstatus', 'scheduled', 'vendor_ids', 'zone_ids', 'from_date', 'to_date', 'total', 'order_type'));
     }
 
-    public function dispatch_list($module,$status, Request $request)
+    public function dispatch_list(Request $request, $module = null, $status = null)
     {
+        if (! is_numeric($module)
+            || ! in_array($status, ['searching_for_deliverymen', 'on_going'], true)) {
+            return redirect()->route('admin.dispatch.dashboard');
+        }
+
         $module_id = $request->query('module_id', null);
         $key = isset($request->search) ?explode(' ', $request->search): ($request['amp;search'] ? explode(' ', $request['amp;search']) : null) ;
         if (session()->has('order_filter')) {
