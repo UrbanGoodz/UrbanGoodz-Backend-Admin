@@ -41,7 +41,7 @@ test.describe('Admin Portal — Markets, Zones, Vendors & Drivers', () => {
 
 test.describe('Admin Portal — Dispatch, Freight, Pricing & AI Ops', () => {
     test('Admin Dispatch — Assigns Eligible Drivers by Vehicle and Proximity', async ({ page }) => {
-        await page.goto('/admin/dispatch/dashboard');
+        await page.goto('/admin/dispatch');
         await expect(page).toBeDefined();
     });
 
