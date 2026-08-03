@@ -19,6 +19,7 @@ use App\Models\MerchantProspect;
 use App\Models\UrbanGoodzAIConversation;
 use App\Models\UrbanGoodzAIIntent;
 use App\Services\UrbanGoodz\AiChiefOfStaffService;
+use App\Services\UrbanGoodz\AiWorkforceSettingsService;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Services\UrbanGoodz\UrbanGoodzAIConciergeService;
 use App\Services\UrbanGoodz\UrbanGoodzAIService;
@@ -31,6 +32,7 @@ class AiOperationsController extends Controller
     public function __construct(
         protected UrbanGoodzAIConciergeService $conciergeService,
         protected UrbanGoodzAIService $aiService,
+        protected AiWorkforceSettingsService $workforceSettingsService,
     ) {}
 
     public function index()
@@ -456,12 +458,32 @@ class AiOperationsController extends Controller
 
     public function settings(Request $request)
     {
-        $settings = config('urban_goodz.ai_workforce');
+        $settings = $this->workforceSettingsService->all();
         return view('admin-views.urban-goodz.ai-operations.workforce.settings', compact('settings'));
     }
 
     public function updateSettings(Request $request)
     {
+        $validated = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'global_kill_switch' => ['nullable', 'boolean'],
+            'demand_min_requests' => ['required', 'integer', 'min:1', 'max:100000'],
+            'demand_min_customers' => ['required', 'integer', 'min:1', 'max:100000'],
+            'demand_window_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'demand_cooldown_days' => ['required', 'integer', 'min:0', 'max:365'],
+            'sender_name' => ['required', 'string', 'max:100'],
+            'sender_email' => ['nullable', 'email:rfc', 'max:191'],
+            'max_attempts' => ['required', 'integer', 'min:1', 'max:20'],
+            'hours_start' => ['required', 'date_format:H:i'],
+            'hours_end' => ['required', 'date_format:H:i', 'after:hours_start'],
+        ]);
+
+        $validated['enabled'] = $request->boolean('enabled');
+        $validated['global_kill_switch'] = $request->boolean('global_kill_switch');
+        $validated['sender_email'] = $validated['sender_email'] ?? '';
+
+        $this->workforceSettingsService->save($validated);
+
         Toastr::success(translate('AI Workforce settings updated successfully.'));
         return back();
     }

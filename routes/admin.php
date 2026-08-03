@@ -300,34 +300,35 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('ai-concierge/conversations/{id}', 'UrbanGoodzAIConciergeController@conversationsShow')->name('ai-concierge.conversations.show');
             Route::put('ai-concierge/conversations/{id}', 'UrbanGoodzAIConciergeController@conversationsUpdate')->name('ai-concierge.conversations.update');
 
-            Route::group(['prefix' => 'ai-copilot', 'as' => 'ai-copilot.'], function () {
+            Route::group(['prefix' => 'ai-copilot', 'as' => 'ai-copilot.', 'middleware' => ['module:urban_goodz_ai_copilot_use']], function () {
                 Route::get('/', 'UrbanGoodz\AiCopilotController@index')->name('index');
-                Route::get('generate', 'UrbanGoodz\AiCopilotController@generate')->name('generate');
+                Route::get('generate', 'UrbanGoodz\AiCopilotController@generateMethodNotAllowed')->name('generate.get-blocked');
+                Route::post('generate', 'UrbanGoodz\AiCopilotController@generate')->name('generate');
 
-                Route::get('module-settings', 'UrbanGoodz\AiCopilotController@moduleSettings')->name('module-settings');
-                Route::post('module-settings', 'UrbanGoodz\AiCopilotController@saveModuleSettings')->name('module-settings.save');
+                Route::get('module-settings', 'UrbanGoodz\AiCopilotController@moduleSettings')->middleware('module:urban_goodz_ai_settings_view')->name('module-settings');
+                Route::post('module-settings', 'UrbanGoodz\AiCopilotController@saveModuleSettings')->middleware('module:urban_goodz_ai_settings_manage')->name('module-settings.save');
 
-                Route::get('risk-rules', 'UrbanGoodz\AiCopilotController@riskRules')->name('risk-rules');
-                Route::post('risk-rules', 'UrbanGoodz\AiCopilotController@saveRiskRule')->name('risk-rules.save');
-                Route::get('risk-rules/{id}/edit', 'UrbanGoodz\AiCopilotController@editRiskRule')->name('risk-rules.edit');
-                Route::put('risk-rules/{id}', 'UrbanGoodz\AiCopilotController@updateRiskRule')->name('risk-rules.update');
-                Route::delete('risk-rules/{id}', 'UrbanGoodz\AiCopilotController@deleteRiskRule')->name('risk-rules.delete');
-                Route::post('risk-rules/{id}/toggle', 'UrbanGoodz\AiCopilotController@toggleRiskRule')->name('risk-rules.toggle');
+                Route::get('risk-rules', 'UrbanGoodz\AiCopilotController@riskRules')->middleware('module:urban_goodz_ai_settings_view')->name('risk-rules');
+                Route::post('risk-rules', 'UrbanGoodz\AiCopilotController@saveRiskRule')->middleware('module:urban_goodz_ai_settings_manage')->name('risk-rules.save');
+                Route::get('risk-rules/{id}/edit', 'UrbanGoodz\AiCopilotController@editRiskRule')->middleware('module:urban_goodz_ai_settings_view')->whereNumber('id')->name('risk-rules.edit');
+                Route::put('risk-rules/{id}', 'UrbanGoodz\AiCopilotController@updateRiskRule')->middleware('module:urban_goodz_ai_settings_manage')->name('risk-rules.update');
+                Route::delete('risk-rules/{id}', 'UrbanGoodz\AiCopilotController@deleteRiskRule')->middleware('module:urban_goodz_ai_settings_manage')->name('risk-rules.delete');
+                Route::post('risk-rules/{id}/toggle', 'UrbanGoodz\AiCopilotController@toggleRiskRule')->middleware('module:urban_goodz_ai_settings_manage')->name('risk-rules.toggle');
 
-                Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->name('action-logs');
-                Route::post('action-logs/{logId}/rollback', 'UrbanGoodz\AiCopilotController@rollback')->name('action-logs.rollback');
+                Route::get('action-logs', 'UrbanGoodz\AiCopilotController@actionLogs')->middleware('module:urban_goodz_ai_usage_view')->name('action-logs');
+                Route::post('action-logs/{logId}/rollback', 'UrbanGoodz\AiCopilotController@rollback')->middleware('module:urban_goodz_ai_settings_manage')->whereNumber('logId')->name('action-logs.rollback');
                 Route::get('load-board-analytics', 'UrbanGoodz\AiCopilotController@loadBoardAnalytics')->name('load-board-analytics');
                 Route::get('suppressed', 'UrbanGoodz\AiCopilotController@suppressed')->name('suppressed');
 
-                Route::get('settings', 'UrbanGoodz\AiCopilotController@settings')->name('settings');
-                Route::post('settings', 'UrbanGoodz\AiCopilotController@saveSettings')->name('settings.save');
-                Route::get('{id}', 'UrbanGoodz\AiCopilotController@show')->name('show');
-                Route::post('{id}/accept', 'UrbanGoodz\AiCopilotController@accept')->name('accept');
-                Route::post('{id}/dismiss', 'UrbanGoodz\AiCopilotController@dismiss')->name('dismiss');
-                Route::post('{id}/snooze', 'UrbanGoodz\AiCopilotController@snooze')->name('snooze');
-                Route::post('{id}/dont-show-again', 'UrbanGoodz\AiCopilotController@dontShowAgain')->name('dont-show-again');
-                Route::post('{id}/resolve', 'UrbanGoodz\AiCopilotController@resolve')->name('resolve');
-                Route::post('{id}/restore', 'UrbanGoodz\AiCopilotController@restore')->name('restore');
+                Route::get('settings', 'UrbanGoodz\AiCopilotController@settings')->middleware('module:urban_goodz_ai_settings_view')->name('settings');
+                Route::post('settings', 'UrbanGoodz\AiCopilotController@saveSettings')->middleware('module:urban_goodz_ai_settings_manage')->name('settings.save');
+                Route::get('{id}', 'UrbanGoodz\AiCopilotController@show')->whereNumber('id')->name('show');
+                Route::post('{id}/accept', 'UrbanGoodz\AiCopilotController@accept')->whereNumber('id')->name('accept');
+                Route::post('{id}/dismiss', 'UrbanGoodz\AiCopilotController@dismiss')->whereNumber('id')->name('dismiss');
+                Route::post('{id}/snooze', 'UrbanGoodz\AiCopilotController@snooze')->whereNumber('id')->name('snooze');
+                Route::post('{id}/dont-show-again', 'UrbanGoodz\AiCopilotController@dontShowAgain')->whereNumber('id')->name('dont-show-again');
+                Route::post('{id}/resolve', 'UrbanGoodz\AiCopilotController@resolve')->whereNumber('id')->name('resolve');
+                Route::post('{id}/restore', 'UrbanGoodz\AiCopilotController@restore')->whereNumber('id')->name('restore');
             });
 
             Route::group(['prefix' => 'ai', 'as' => 'ai.'], function () {

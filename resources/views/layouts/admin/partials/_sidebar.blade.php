@@ -275,6 +275,14 @@
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">AI Operations</span>
                         </a>
                         <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="{{ Request::is('admin/urban-goodz/ai-operations*') || Request::is('admin/urban-goodz/load-sourcing*') ? 'display-block' : 'display-none' }}">
+                            @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_settings_view'))
+                            <li class="nav-item {{ Request::is('admin/urban-goodz/ai-operations') ? 'active' : '' }}">
+                                <a class="nav-link" href="{{ route('admin.urban-goodz.ai-operations.index') }}" title="AI Operations Center">
+                                    <span class="tio-circle nav-indicator-icon"></span>
+                                    <span class="text-truncate">AI Operations Center</span>
+                                </a>
+                            </li>
+                            @endif
                             <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/load-sourcing*') ? 'active' : '' }}">
                                 <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:" title="Load Sourcing">
                                     <span class="tio-truck nav-indicator-icon"></span>
@@ -339,7 +347,7 @@
                             </li>
                         </ul>
                     </li>
-                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_view') && ($ugModules['ai-copilot']['readiness'] ?? '') !== 'no_table')
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_ai_copilot_use') && ($ugModules['ai-copilot']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-copilot*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-copilot.index') }}" title="AI Ops Copilot">
                             <i class="tio-robot nav-icon" style="color: #ED9914;"></i>

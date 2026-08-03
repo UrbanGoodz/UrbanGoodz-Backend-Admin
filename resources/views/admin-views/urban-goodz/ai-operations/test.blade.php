@@ -33,7 +33,7 @@
                 <small class="text-muted">{{ translate('This will send a query through the UrbanGoodzAIConciergeService. No API keys are exposed.') }}</small>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.urban-goodz.ai-operations.test') }}">
+                <form method="POST" action="{{ route('admin.urban-goodz.ai-operations.test.run') }}">
                     @csrf
                     <div class="mb-3">
                         <label for="query" class="form-label fw-bold">{{ translate('Query') }}</label>

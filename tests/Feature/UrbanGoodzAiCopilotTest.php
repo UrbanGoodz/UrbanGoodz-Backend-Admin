@@ -276,15 +276,22 @@ class UrbanGoodzAiCopilotTest extends TestCase
             ->assertExitCode(0);
     }
 
-    public function test_generate_route_does_not_throw_500(): void
+    public function test_generate_route_requires_post_and_does_not_throw_500(): void
     {
         $admin = Admin::firstOrCreate(
             ['email' => 'copilot-test-admin@urbangoodz.com'],
             ['f_name' => 'Copilot', 'l_name' => 'Admin', 'phone' => '5551009999', 'password' => bcrypt('password'), 'role_id' => 1]
         );
 
-        $response = $this->actingAs($admin, 'admin')
+        $beforeGet = DB::table('ai_copilot_recommendations')->count();
+        $getResponse = $this->actingAs($admin, 'admin')
             ->get('/admin/urban-goodz/ai-copilot/generate');
+
+        $this->assertContains($getResponse->getStatusCode(), [302, 405]);
+        $this->assertSame($beforeGet, DB::table('ai_copilot_recommendations')->count());
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post('/admin/urban-goodz/ai-copilot/generate');
 
         // Should redirect back to settings or index
         $response->assertStatus(302);

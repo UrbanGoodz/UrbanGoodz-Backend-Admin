@@ -82,7 +82,7 @@ class AiCopilotController extends Controller
     public function generate(Request $request)
     {
         try {
-            $type = $request->query('type');
+            $type = $request->input('type');
             $results = $this->copilotService->generateRecommendations($type);
 
             if (empty($results)) {
@@ -102,6 +102,11 @@ class AiCopilotController extends Controller
             Toastr::error('Failed to generate recommendations: ' . $e->getMessage());
             return redirect()->back();
         }
+    }
+
+    public function generateMethodNotAllowed()
+    {
+        abort(405);
     }
 
     public function accept(Request $request, $id)

@@ -34,9 +34,15 @@
                 <a href="{{ route('admin.urban-goodz.ai-copilot.settings') }}" class="btn btn-outline--primary">
                     <i class="tio-settings"></i> {{ translate('Settings') }}
                 </a>
-                <a href="{{ route('admin.urban-goodz.ai-copilot.generate', array_filter(['type' => request('type')])) }}" class="btn btn--primary" onclick="return confirm('Generate AI recommendations?')">
-                    <i class="tio-refresh"></i> {{ translate('Generate Recommendations') }}
-                </a>
+                <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.generate') }}" class="d-inline">
+                    @csrf
+                    @if(request('type'))
+                        <input type="hidden" name="type" value="{{ request('type') }}">
+                    @endif
+                    <button type="submit" class="btn btn--primary" onclick="return confirm('Generate AI recommendations?')">
+                        <i class="tio-refresh"></i> {{ translate('Generate Recommendations') }}
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -301,9 +307,15 @@
                                 <td colspan="7" class="text-center text-muted py-4">
                                     {{ translate('No recommendations found matching selected filters.') }}
                                     <br>
-                                    <a href="{{ route('admin.urban-goodz.ai-copilot.generate', array_filter(['type' => request('type')])) }}" class="btn btn-sm btn--primary mt-2">
-                                        <i class="tio-refresh"></i> {{ translate('Generate Now') }}
-                                    </a>
+                                    <form method="POST" action="{{ route('admin.urban-goodz.ai-copilot.generate') }}" class="d-inline-block mt-2">
+                                        @csrf
+                                        @if(request('type'))
+                                            <input type="hidden" name="type" value="{{ request('type') }}">
+                                        @endif
+                                        <button type="submit" class="btn btn-sm btn--primary">
+                                            <i class="tio-refresh"></i> {{ translate('Generate Now') }}
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             @endforelse

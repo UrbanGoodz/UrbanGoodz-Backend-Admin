@@ -285,7 +285,7 @@ class UrbanGoodzAiWorkforceTest extends TestCase
         $this->assertTrue(in_array($indexResponse->getStatusCode(), [200, 302]));
 
         // 2. Test Type-Specific Generation
-        $genResponse = $this->actingAs($admin, 'admin')->get(route('admin.urban-goodz.ai-copilot.generate', ['type' => 'load_board_alert']));
+        $genResponse = $this->actingAs($admin, 'admin')->post(route('admin.urban-goodz.ai-copilot.generate'), ['type' => 'load_board_alert']);
         $this->assertEquals(302, $genResponse->getStatusCode());
 
         // 3. Create dummy recommendation and test suppression actions

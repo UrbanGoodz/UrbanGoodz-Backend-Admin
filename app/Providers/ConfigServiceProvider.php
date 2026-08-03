@@ -256,6 +256,8 @@ class ConfigServiceProvider extends ServiceProvider
                     Config::set('openai.organization', $openAi['OPENAI_ORGANIZATION'] ?? null);
                 }
             }
+
+            app(\App\Services\UrbanGoodz\AiWorkforceSettingsService::class)->apply();
             
         } catch (\Exception $exception) {
             info([$exception->getFile(), $exception->getLine(), $exception->getMessage()]);

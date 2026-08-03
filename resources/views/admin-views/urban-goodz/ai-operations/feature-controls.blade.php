@@ -11,7 +11,7 @@
             <h1 class="page-header-title">{{ translate('AI Feature Controls') }}</h1>
         </div>
 
-        <form method="POST" action="{{ route('admin.urban-goodz.ai-operations.feature-controls') }}">
+        <form method="POST" action="{{ route('admin.urban-goodz.ai-operations.feature-controls.update') }}">
             @csrf
 
             <div class="card mb-3">
