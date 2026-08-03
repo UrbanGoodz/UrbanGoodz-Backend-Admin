@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzFinancialLedgerEntry;
 use App\Models\UrbanGoodzFinancialRule;
 use App\Models\UrbanGoodzReconciliationRun;
-use App\Models\UrbanGoodzSettlementSnapshot;
+use App\Models\UrbanGoodzFinancialSettlementSnapshot;
 use App\Services\UrbanGoodz\FinancialControl\FinancialControlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,18 +29,18 @@ class UrbanGoodzFinancialControlController extends Controller
             ->orderByDesc('version')
             ->paginate(25, ['*'], 'rules_page');
 
-        $settlements = UrbanGoodzSettlementSnapshot::query()
+        $settlements = UrbanGoodzFinancialSettlementSnapshot::query()
             ->with('reconciliationRuns')
             ->latest('settled_at')
             ->paginate(25, ['*'], 'settlements_page');
 
         $stats = [
             'active_rules' => UrbanGoodzFinancialRule::where('is_active', true)->count(),
-            'settled_cents' => (int) UrbanGoodzSettlementSnapshot::sum('shopper_total_cents'),
-            'provider_proceeds_cents' => (int) UrbanGoodzSettlementSnapshot::sum('provider_proceeds_cents'),
-            'driver_net_cents' => (int) UrbanGoodzSettlementSnapshot::sum('driver_net_cents'),
-            'platform_net_cents' => (int) UrbanGoodzSettlementSnapshot::sum('platform_net_cents'),
-            'out_of_balance' => UrbanGoodzSettlementSnapshot::where('reconciliation_status', 'out_of_balance')->count(),
+            'settled_cents' => (int) UrbanGoodzFinancialSettlementSnapshot::sum('shopper_total_cents'),
+            'provider_proceeds_cents' => (int) UrbanGoodzFinancialSettlementSnapshot::sum('provider_proceeds_cents'),
+            'driver_net_cents' => (int) UrbanGoodzFinancialSettlementSnapshot::sum('driver_net_cents'),
+            'platform_net_cents' => (int) UrbanGoodzFinancialSettlementSnapshot::sum('platform_net_cents'),
+            'out_of_balance' => UrbanGoodzFinancialSettlementSnapshot::where('reconciliation_status', 'out_of_balance')->count(),
         ];
 
         return view('admin-views.urban-goodz.financial-control.index', [
@@ -155,7 +155,7 @@ class UrbanGoodzFinancialControlController extends Controller
             : back()->with('success', translate('Settlement snapshot recorded and reconciled.'));
     }
 
-    public function showSettlement(UrbanGoodzSettlementSnapshot $settlement)
+    public function showSettlement(UrbanGoodzFinancialSettlementSnapshot $settlement)
     {
         $this->authorizeView();
 
@@ -164,7 +164,7 @@ class UrbanGoodzFinancialControlController extends Controller
         ]);
     }
 
-    public function refund(Request $request, UrbanGoodzSettlementSnapshot $settlement)
+    public function refund(Request $request, UrbanGoodzFinancialSettlementSnapshot $settlement)
     {
         $this->authorizeManage();
         $data = $request->validate([
@@ -184,7 +184,7 @@ class UrbanGoodzFinancialControlController extends Controller
             : back()->with('success', translate('Refund reversal was posted and reconciled.'));
     }
 
-    public function reverse(Request $request, UrbanGoodzSettlementSnapshot $settlement)
+    public function reverse(Request $request, UrbanGoodzFinancialSettlementSnapshot $settlement)
     {
         $this->authorizeManage();
         $data = $request->validate([
@@ -202,7 +202,7 @@ class UrbanGoodzFinancialControlController extends Controller
             : back()->with('success', translate('Settlement was fully reversed and reconciled.'));
     }
 
-    public function reconcile(UrbanGoodzSettlementSnapshot $settlement)
+    public function reconcile(UrbanGoodzFinancialSettlementSnapshot $settlement)
     {
         $this->authorizeManage();
         $run = $this->financialControl->reconcile($settlement, auth('admin')->id());

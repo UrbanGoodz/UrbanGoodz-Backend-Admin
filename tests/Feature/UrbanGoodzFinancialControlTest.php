@@ -341,7 +341,7 @@ class UrbanGoodzFinancialControlTest extends TestCase
             'app/Models/UrbanGoodzFinancialRule.php',
             'app/Models/UrbanGoodzFinancialLedgerEntry.php',
             'app/Models/UrbanGoodzReconciliationRun.php',
-            'app/Models/UrbanGoodzSettlementSnapshot.php',
+            'app/Models/UrbanGoodzFinancialSettlementSnapshot.php',
             'app/Services/UrbanGoodz/FinancialControl/FinancialControlService.php',
         ] as $source) {
             require_once $this->root.'/'.$source;

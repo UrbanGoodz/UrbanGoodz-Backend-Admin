@@ -5,8 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
-class UrbanGoodzSettlementSnapshot extends Model
+class UrbanGoodzFinancialSettlementSnapshot extends Model
 {
+    protected $table = 'urban_goodz_financial_settlement_snapshots';
+
     /**
      * Financial facts are frozen when the settlement is created. Operational
      * state changes (refund/status/reconciliation) are represented separately
@@ -113,5 +115,10 @@ class UrbanGoodzSettlementSnapshot extends Model
     public function reconciliationRuns()
     {
         return $this->hasMany(UrbanGoodzReconciliationRun::class, 'settlement_snapshot_id');
+    }
+
+    public function driverEarning()
+    {
+        return $this->hasOne(UrbanGoodzDriverEarning::class, 'financial_settlement_snapshot_id');
     }
 }

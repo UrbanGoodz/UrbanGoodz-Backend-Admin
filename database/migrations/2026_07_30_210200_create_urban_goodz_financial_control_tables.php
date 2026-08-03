@@ -38,8 +38,8 @@ return new class extends Migration
             });
         }
 
-        if (! Schema::hasTable('urban_goodz_settlement_snapshots')) {
-            Schema::create('urban_goodz_settlement_snapshots', function (Blueprint $table) {
+        if (! Schema::hasTable('urban_goodz_financial_settlement_snapshots')) {
+            Schema::create('urban_goodz_financial_settlement_snapshots', function (Blueprint $table) {
                 $table->id();
                 $table->string('snapshot_number')->unique();
                 $table->string('source_type');
@@ -123,7 +123,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('urban_goodz_reconciliation_runs');
         Schema::dropIfExists('urban_goodz_financial_ledger_entries');
-        Schema::dropIfExists('urban_goodz_settlement_snapshots');
+        Schema::dropIfExists('urban_goodz_financial_settlement_snapshots');
         Schema::dropIfExists('urban_goodz_financial_rules');
     }
 };

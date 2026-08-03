@@ -5,7 +5,7 @@ namespace App\Services\UrbanGoodz\FinancialControl;
 use App\Models\UrbanGoodzFinancialLedgerEntry;
 use App\Models\UrbanGoodzFinancialRule;
 use App\Models\UrbanGoodzReconciliationRun;
-use App\Models\UrbanGoodzSettlementSnapshot;
+use App\Models\UrbanGoodzFinancialSettlementSnapshot;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -91,17 +91,17 @@ class FinancialControlService
         string|int $sourceId,
         array $context,
         string $idempotencyKey
-    ): UrbanGoodzSettlementSnapshot {
+    ): UrbanGoodzFinancialSettlementSnapshot {
         if ($sourceType === '' || (string) $sourceId === '' || $idempotencyKey === '') {
             throw new InvalidArgumentException('Source type, source id, and idempotency key are required.');
         }
 
-        if ($existing = UrbanGoodzSettlementSnapshot::where('idempotency_key', $idempotencyKey)->first()) {
+        if ($existing = UrbanGoodzFinancialSettlementSnapshot::where('idempotency_key', $idempotencyKey)->first()) {
             return $existing;
         }
 
         return DB::transaction(function () use ($sourceType, $sourceId, $context, $idempotencyKey) {
-            if ($existing = UrbanGoodzSettlementSnapshot::where('idempotency_key', $idempotencyKey)
+            if ($existing = UrbanGoodzFinancialSettlementSnapshot::where('idempotency_key', $idempotencyKey)
                 ->lockForUpdate()
                 ->first()) {
                 return $existing;
@@ -110,7 +110,7 @@ class FinancialControlService
             $result = $this->simulate($context);
             $inputs = $result['inputs'];
 
-            $snapshot = UrbanGoodzSettlementSnapshot::create([
+            $snapshot = UrbanGoodzFinancialSettlementSnapshot::create([
                 'snapshot_number' => $this->number('UGS'),
                 'source_type' => $sourceType,
                 'source_id' => (string) $sourceId,
@@ -148,26 +148,26 @@ class FinancialControlService
     }
 
     public function refund(
-        UrbanGoodzSettlementSnapshot $snapshot,
+        UrbanGoodzFinancialSettlementSnapshot $snapshot,
         int $amountCents,
         string $reason,
         string $idempotencyKey
-    ): UrbanGoodzSettlementSnapshot {
+    ): UrbanGoodzFinancialSettlementSnapshot {
         return $this->recordReversal($snapshot, $amountCents, $reason, $idempotencyKey, 'refund');
     }
 
     public function reverse(
-        UrbanGoodzSettlementSnapshot $snapshot,
+        UrbanGoodzFinancialSettlementSnapshot $snapshot,
         string $reason,
         string $idempotencyKey
-    ): UrbanGoodzSettlementSnapshot {
+    ): UrbanGoodzFinancialSettlementSnapshot {
         $remaining = $snapshot->shopper_total_cents - $snapshot->refunded_cents;
 
         return $this->recordReversal($snapshot, $remaining, $reason, $idempotencyKey, 'reversal');
     }
 
     public function reconcile(
-        UrbanGoodzSettlementSnapshot $snapshot,
+        UrbanGoodzFinancialSettlementSnapshot $snapshot,
         ?int $adminId = null
     ): UrbanGoodzReconciliationRun {
         $debits = (int) $snapshot->ledgerEntries()->where('direction', 'debit')->sum('amount_cents');
@@ -197,7 +197,7 @@ class FinancialControlService
 
     public function visibleSettlements(string $role, ?int $partyId = null): Builder
     {
-        $query = UrbanGoodzSettlementSnapshot::query();
+        $query = UrbanGoodzFinancialSettlementSnapshot::query();
 
         return match ($role) {
             'master_admin', 'admin' => $query,
@@ -283,7 +283,7 @@ class FinancialControlService
         });
     }
 
-    private function writeSettlementLedger(UrbanGoodzSettlementSnapshot $snapshot): void
+    private function writeSettlementLedger(UrbanGoodzFinancialSettlementSnapshot $snapshot): void
     {
         $prefix = $snapshot->idempotency_key.':settlement:';
 
@@ -296,18 +296,18 @@ class FinancialControlService
     }
 
     private function recordReversal(
-        UrbanGoodzSettlementSnapshot $snapshot,
+        UrbanGoodzFinancialSettlementSnapshot $snapshot,
         int $amountCents,
         string $reason,
         string $idempotencyKey,
         string $event
-    ): UrbanGoodzSettlementSnapshot {
+    ): UrbanGoodzFinancialSettlementSnapshot {
         if ($amountCents <= 0 || $reason === '' || $idempotencyKey === '') {
             throw new InvalidArgumentException('A positive refund amount, reason, and idempotency key are required.');
         }
 
         return DB::transaction(function () use ($snapshot, $amountCents, $reason, $idempotencyKey, $event) {
-            $snapshot = UrbanGoodzSettlementSnapshot::lockForUpdate()->findOrFail($snapshot->id);
+            $snapshot = UrbanGoodzFinancialSettlementSnapshot::lockForUpdate()->findOrFail($snapshot->id);
             if (UrbanGoodzFinancialLedgerEntry::where('idempotency_key', $idempotencyKey.':shopper')->exists()) {
                 return $snapshot;
             }
@@ -378,7 +378,7 @@ class FinancialControlService
     }
 
     private function writeSignedEntry(
-        UrbanGoodzSettlementSnapshot $snapshot,
+        UrbanGoodzFinancialSettlementSnapshot $snapshot,
         string $event,
         string $account,
         int $signedCreditCents,

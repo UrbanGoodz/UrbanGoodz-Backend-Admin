@@ -42,6 +42,6 @@ class UrbanGoodzFinancialLedgerEntry extends Model
 
     public function settlement()
     {
-        return $this->belongsTo(UrbanGoodzSettlementSnapshot::class, 'settlement_snapshot_id');
+        return $this->belongsTo(UrbanGoodzFinancialSettlementSnapshot::class, 'settlement_snapshot_id');
     }
 }
