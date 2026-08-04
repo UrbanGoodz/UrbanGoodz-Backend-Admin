@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vendor;
+use App\Models\UrbanGoodzCreatorApplication;
 use App\Models\UrbanGoodzCreatorProfile;
 use App\Models\UrbanGoodzCreatorCampaign;
 use App\Models\UrbanGoodzCreatorProduct;
@@ -75,6 +76,18 @@ class CreatorSpaceAIController extends Controller
             'product_ids.*' => ['integer'],
         ]);
 
+        $products = UrbanGoodzCreatorProduct::with('application')
+            ->whereIn('id', array_unique($data['product_ids']))
+            ->get();
+
+        if ($products->count() !== count(array_unique($data['product_ids']))) {
+            return response()->json(['success' => false, 'error' => 'Product not found.'], 404);
+        }
+
+        if ($products->contains(fn (UrbanGoodzCreatorProduct $product) => ! $this->canAccessApplication($request, $product->application))) {
+            return response()->json(['success' => false, 'error' => 'Forbidden.'], 403);
+        }
+
         $result = $this->creatorAI->generateProductTags($data['product_ids']);
 
         if (!($result['success'] ?? false)) {
@@ -116,6 +129,16 @@ class CreatorSpaceAIController extends Controller
             'creator_id' => ['required', 'integer'],
         ]);
 
+        $profile = UrbanGoodzCreatorProfile::with('application')->find($data['creator_id']);
+
+        if (!$profile) {
+            return response()->json(['success' => false, 'error' => 'Creator profile not found.'], 404);
+        }
+
+        if (!$this->canAccessApplication($request, $profile->application)) {
+            return response()->json(['success' => false, 'error' => 'Forbidden.'], 403);
+        }
+
         $result = $this->creatorAI->analyzeCreatorPerformance($data['creator_id']);
 
         if (!($result['success'] ?? false)) {
@@ -127,11 +150,21 @@ class CreatorSpaceAIController extends Controller
 
     // ─── BRAND MATCHING ────────────────────────────────────────────────
 
-    public function matchBrands(Request $request): JsonResponse
+    public function matchBrand(Request $request): JsonResponse
     {
         $data = $request->validate([
             'creator_id' => ['required', 'integer'],
         ]);
+
+        $profile = UrbanGoodzCreatorProfile::with('application')->find($data['creator_id']);
+
+        if (!$profile) {
+            return response()->json(['success' => false, 'error' => 'Creator profile not found.'], 404);
+        }
+
+        if (!$this->canAccessApplication($request, $profile->application)) {
+            return response()->json(['success' => false, 'error' => 'Forbidden.'], 403);
+        }
 
         $result = $this->creatorAI->matchCreatorToBrand($data['creator_id']);
 
@@ -142,13 +175,30 @@ class CreatorSpaceAIController extends Controller
         return response()->json($result);
     }
 
+    public function matchBrands(Request $request): JsonResponse
+    {
+        return $this->matchBrand($request);
+    }
+
     // ─── REEL ANALYTICS ────────────────────────────────────────────────
 
-    public function analyzeReel(Request $request): JsonResponse
+    public function generateReelAnalytics(Request $request): JsonResponse
     {
         $data = $request->validate([
             'content_id' => ['required', 'integer'],
         ]);
+
+        $content = UrbanGoodzCreatorContent::with(['application', 'profile.application'])->find($data['content_id']);
+
+        if (!$content) {
+            return response()->json(['success' => false, 'error' => 'Content not found.'], 404);
+        }
+
+        $application = $content->profile?->application ?: $content->application;
+
+        if (!$this->canAccessApplication($request, $application)) {
+            return response()->json(['success' => false, 'error' => 'Forbidden.'], 403);
+        }
 
         $result = $this->creatorAI->generateReelAnalytics($data['content_id']);
 
@@ -157,6 +207,11 @@ class CreatorSpaceAIController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    public function analyzeReel(Request $request): JsonResponse
+    {
+        return $this->generateReelAnalytics($request);
     }
 
     // ─── CAMPAIGN MANAGEMENT ──────────────────────────────────────────
@@ -306,5 +361,22 @@ class CreatorSpaceAIController extends Controller
             'earnings' => $earnings,
             'summary' => $summary,
         ]);
+    }
+
+    private function canAccessApplication(Request $request, ?UrbanGoodzCreatorApplication $application): bool
+    {
+        $user = $request->user();
+
+        if (!$user || !$application) {
+            return false;
+        }
+
+        $email = strtolower(trim((string) $user->email));
+        $phone = preg_replace('/\D+/', '', (string) $user->phone);
+        $applicationEmail = strtolower(trim((string) $application->email));
+        $applicationPhone = preg_replace('/\D+/', '', (string) $application->phone);
+
+        return ($email !== '' && $applicationEmail !== '' && $email === $applicationEmail)
+            || ($phone !== '' && $applicationPhone !== '' && $phone === $applicationPhone);
     }
 }
