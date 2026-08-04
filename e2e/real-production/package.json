@@ -1,0 +1,31 @@
+{
+  "name": "urban-goodz-real-production-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Real UI-driven production certification for Urban Goodz. No direct database mutation.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "install:browsers": "playwright install chromium",
+    "test:playwright": "playwright test",
+    "test:mobile": "tsx --test tests/appium/*.test.ts",
+    "test:marketplace": "tsx --test tests/flows/marketplace.test.ts",
+    "test:order-anywhere": "tsx --test tests/flows/order-anywhere.test.ts",
+    "test:services": "tsx --test tests/flows/services-fashion-fit.test.ts",
+    "test:package-route": "tsx --test tests/flows/package-route.test.ts",
+    "test:financial-notifications": "tsx --test tests/flows/financial-notifications.test.ts",
+    "test:critical": "npm run test:playwright && npm run test:mobile && npm run test:marketplace && npm run test:order-anywhere && npm run test:services && npm run test:package-route && npm run test:financial-notifications"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.54.0",
+    "dotenv": "^16.6.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "webdriverio": "^9.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0"
+  }
+}
