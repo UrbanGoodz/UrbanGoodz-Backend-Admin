@@ -2,9 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('fashion-fit')->middleware(['auth:api', 'throttle:api'])->group(function () {
+Route::prefix('fashion-fit')->middleware(['throttle:api'])->group(function () {
     Route::get('requirements', 'Api\V1\FashionFitCustomerController@requirements');
     Route::get('providers', 'Api\V1\FashionFitCustomerController@providers');
+});
+
+Route::prefix('fashion-fit')->middleware(['auth:api', 'throttle:api'])->group(function () {
     Route::get('profiles', 'Api\V1\FashionFitCustomerController@index');
     Route::post('profiles', 'Api\V1\FashionFitCustomerController@store');
     Route::get('profiles/{uuid}', 'Api\V1\FashionFitCustomerController@show');
@@ -23,20 +26,20 @@ Route::prefix('fashion-fit')->middleware(['auth:api', 'throttle:api'])->group(fu
     Route::get('requests/{uuid}', 'Api\V1\FashionFitCustomerController@requestDetails');
     Route::post('requests/{requestUuid}/estimates/{estimateId}/decision', 'Api\V1\FashionFitCustomerController@decideEstimate');
     Route::post('requests/{uuid}/staged-payment', 'Api\V1\FashionFitCustomerController@stagedPayment')->middleware('throttle:3,1');
-Route::post('requests/{uuid}/revoke', 'Api\V1\FashionFitCustomerController@revoke');
+    Route::post('requests/{uuid}/revoke', 'Api\V1\FashionFitCustomerController@revoke');
 
-        // Fashion Fit AI
-        Route::prefix('ai')->group(function () {
-            Route::post('extract-measurements', 'Api\V1\UrbanGoodz\FashionFitAIController@extractMeasurements');
-            Route::post('match-size', 'Api\V1\UrbanGoodz\FashionFitAIController@matchSize');
-            Route::post('suggest-adjustments', 'Api\V1\UrbanGoodz\FashionFitAIController@suggestAdjustments');
-            Route::post('size-profile', 'Api\V1\UrbanGoodz\FashionFitAIController@generateSizeProfile');
-            Route::get('providers', 'Api\V1\UrbanGoodz\FashionFitAIController@matchProviders');
-            Route::post('quote-request', 'Api\V1\UrbanGoodz\FashionFitAIController@requestQuote');
-            Route::get('requests', 'Api\V1\UrbanGoodz\FashionFitAIController@getMeasurementRequests');
-            Route::put('measurements', 'Api\V1\UrbanGoodz\FashionFitAIController@updateMeasurements');
-        });
+    // Fashion Fit AI
+    Route::prefix('ai')->group(function () {
+        Route::post('extract-measurements', 'Api\V1\UrbanGoodz\FashionFitAIController@extractMeasurements');
+        Route::post('match-size', 'Api\V1\UrbanGoodz\FashionFitAIController@matchSize');
+        Route::post('suggest-adjustments', 'Api\V1\UrbanGoodz\FashionFitAIController@suggestAdjustments');
+        Route::post('size-profile', 'Api\V1\UrbanGoodz\FashionFitAIController@generateSizeProfile');
+        Route::get('providers', 'Api\V1\UrbanGoodz\FashionFitAIController@matchProviders');
+        Route::post('quote-request', 'Api\V1\UrbanGoodz\FashionFitAIController@requestQuote');
+        Route::get('requests', 'Api\V1\UrbanGoodz\FashionFitAIController@getMeasurementRequests');
+        Route::put('measurements', 'Api\V1\UrbanGoodz\FashionFitAIController@updateMeasurements');
     });
+});
 
 Route::prefix('vendor/fashion-fit')->middleware(['vendor.api', 'actch:vendor_app', 'throttle:api'])->group(function () {
     Route::get('profile', 'Api\V1\Vendor\FashionFitWorkflowController@profile');
