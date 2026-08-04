@@ -23,6 +23,8 @@ class UrbanGoodzVendorBusinessDirectoryTest extends TestCase
     private int $baselineBusinessClients;
     private int $baselineServiceProviders;
     private int $baselineCreators;
+    private array $baselineSummary;
+    private string $fixtureSuffix;
 
     protected function setUp(): void
     {
@@ -30,7 +32,10 @@ class UrbanGoodzVendorBusinessDirectoryTest extends TestCase
         $this->withoutMiddleware(ActivationCheckMiddleware::class);
 
         $suffix = (string) random_int(100000, 999999);
+        $this->fixtureSuffix = $suffix;
         $now = now();
+        $this->directory = app(VendorBusinessDirectoryService::class);
+        $this->baselineSummary = $this->directory->summary();
         $this->baselineBusinessClients = DB::table('urban_goodz_business_clients')->whereNull('deleted_at')->count();
         $this->baselineServiceProviders = DB::table('urban_goodz_service_providers')->count();
         $this->baselineCreators = DB::table('urban_goodz_creator_applications')->count();
@@ -120,24 +125,25 @@ class UrbanGoodzVendorBusinessDirectoryTest extends TestCase
     {
         $summary = $this->directory->summary();
 
-        $this->assertSame(4, $summary['vendor_accounts']);
-        $this->assertSame(1, $summary['active_vendors']);
-        $this->assertSame(3, $summary['stores']);
-        $this->assertSame(1, $summary['active_stores']);
-        $this->assertSame(1, $summary['pending_vendors']);
-        $this->assertSame(1, $summary['orphaned_vendors']);
-        $this->assertSame(1, $summary['imported_demo']);
+        $this->assertSame($this->baselineSummary['vendor_accounts'] + 4, $summary['vendor_accounts']);
+        $this->assertSame($this->baselineSummary['active_vendors'] + 1, $summary['active_vendors']);
+        $this->assertSame($this->baselineSummary['stores'] + 3, $summary['stores']);
+        $this->assertSame($this->baselineSummary['active_stores'] + 1, $summary['active_stores']);
+        $this->assertSame($this->baselineSummary['pending_vendors'] + 1, $summary['pending_vendors']);
+        $this->assertSame($this->baselineSummary['orphaned_vendors'] + 1, $summary['orphaned_vendors']);
+        $this->assertSame($this->baselineSummary['imported_demo'] + 1, $summary['imported_demo']);
         $this->assertSame($this->baselineBusinessClients + 1, $summary['business_clients']);
         $this->assertSame($this->baselineServiceProviders + 1, $summary['service_providers']);
         $this->assertSame($this->baselineCreators + 1, $summary['creators']);
-        $this->assertSame(1, $summary['eligible_without_offerings']);
-        $this->assertSame(3, $summary['unverified_lifecycle']);
-        $this->assertSame(4, $summary['data_issues']);
+        $this->assertSame($this->baselineSummary['eligible_without_offerings'] + 1, $summary['eligible_without_offerings']);
+        $this->assertSame($this->baselineSummary['unverified_lifecycle'] + 3, $summary['unverified_lifecycle']);
+        $this->assertSame($this->baselineSummary['data_issues'] + 4, $summary['data_issues']);
     }
 
     public function test_tabs_and_search_return_truthful_classifications(): void
     {
-        $accounts = $this->directory->paginate(['tab' => 'accounts', 'per_page' => 25]);
+        $filters = ['search' => $this->fixtureSuffix, 'per_page' => 25];
+        $accounts = $this->directory->paginate($filters + ['tab' => 'accounts']);
         $this->assertSame(4, $accounts->total());
         $this->assertSame(
             'active_store_with_offering',
@@ -152,10 +158,10 @@ class UrbanGoodzVendorBusinessDirectoryTest extends TestCase
             $accounts->firstWhere('vendor_id', $this->orphanVendorId)->classification
         );
 
-        $this->assertSame(1, $this->directory->paginate(['tab' => 'active-stores'])->total());
-        $this->assertSame(1, $this->directory->paginate(['tab' => 'missing-store'])->total());
-        $this->assertSame(1, $this->directory->paginate(['tab' => 'imported-demo'])->total());
-        $this->assertSame(4, $this->directory->paginate(['tab' => 'data-issues'])->total());
+        $this->assertSame(1, $this->directory->paginate($filters + ['tab' => 'active-stores'])->total());
+        $this->assertSame(1, $this->directory->paginate($filters + ['tab' => 'missing-store'])->total());
+        $this->assertSame(1, $this->directory->paginate($filters + ['tab' => 'imported-demo'])->total());
+        $this->assertSame(4, $this->directory->paginate($filters + ['tab' => 'data-issues'])->total());
         $this->assertSame($this->baselineBusinessClients + 1, $this->directory->paginate(['tab' => 'business-clients'])->total());
         $this->assertSame($this->baselineServiceProviders + 1, $this->directory->paginate(['tab' => 'service-providers'])->total());
         $this->assertSame($this->baselineCreators + 1, $this->directory->paginate(['tab' => 'creators'])->total());

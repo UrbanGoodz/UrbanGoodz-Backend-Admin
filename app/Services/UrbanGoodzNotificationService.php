@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserNotification;
 use App\Models\UrbanGoodzNotification;
 use App\Models\Vendor;
+use Illuminate\Support\Facades\DB;
 
 class UrbanGoodzNotificationService
 {
@@ -111,21 +112,16 @@ class UrbanGoodzNotificationService
     private function recipientExists(string $recipientType, int $recipientId): bool
     {
         return match ($recipientType) {
-            'customer' => User::whereKey($recipientId)->exists(),
-            'vendor' => Vendor::whereKey($recipientId)->exists(),
-            'driver' => DeliveryMan::whereKey($recipientId)->exists(),
+            'customer' => DB::table('users')->where('id', $recipientId)->exists(),
+            'vendor' => DB::table('vendors')->where('id', $recipientId)->exists(),
+            'driver' => DB::table('delivery_men')->where('id', $recipientId)->exists(),
             default => false,
         };
     }
 
     private function recipientHasToken(string $recipientType, int $recipientId): bool
     {
-        $token = match ($recipientType) {
-            'customer' => User::whereKey($recipientId)->value('cm_firebase_token'),
-            'vendor' => Vendor::whereKey($recipientId)->value('firebase_token'),
-            'driver' => DeliveryMan::whereKey($recipientId)->value('fcm_token'),
-            default => null,
-        };
+        $token = $this->resolveFirebaseToken($recipientType, $recipientId);
 
         return is_string($token) && trim($token) !== '';
     }
@@ -133,9 +129,9 @@ class UrbanGoodzNotificationService
     private function resolveFirebaseToken(string $recipientType, int $recipientId): ?string
     {
         return match ($recipientType) {
-            'customer' => User::whereKey($recipientId)->value('cm_firebase_token'),
-            'vendor' => Vendor::whereKey($recipientId)->value('firebase_token'),
-            'driver' => DeliveryMan::whereKey($recipientId)->value('fcm_token'),
+            'customer' => DB::table('users')->where('id', $recipientId)->value('cm_firebase_token'),
+            'vendor' => DB::table('vendors')->where('id', $recipientId)->value('firebase_token'),
+            'driver' => DB::table('delivery_men')->where('id', $recipientId)->value('fcm_token'),
             default => null,
         };
     }

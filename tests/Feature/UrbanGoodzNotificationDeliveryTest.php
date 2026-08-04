@@ -10,6 +10,7 @@ use App\Models\Vendor;
 use App\Services\FirebaseNotificationTransport;
 use App\Services\UrbanGoodzNotificationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
@@ -28,42 +29,44 @@ class UrbanGoodzNotificationDeliveryTest extends TestCase
     {
         parent::setUp();
 
+        $suffix = (string) random_int(100000, 999999);
+
         $this->customer = User::firstOrCreate(
-            ['email' => 'session9-notify-customer@urbangoodz.test'],
+            ['email' => "session9-notify-customer-{$suffix}@urbangoodz.test"],
             [
                 'f_name' => 'Notify',
                 'l_name' => 'Customer',
-                'phone' => '3125553901',
+                'phone' => '312'.$suffix,
                 'password' => bcrypt('password'),
                 'status' => 1,
             ]
         );
-        $this->customer->update(['cm_firebase_token' => 'session9-customer-fcm-token']);
+        DB::table('users')->where('id', $this->customer->id)->update(['cm_firebase_token' => 'session9-customer-fcm-token']);
 
         $this->vendor = Vendor::firstOrCreate(
-            ['email' => 'session9-notify-vendor@urbangoodz.test'],
+            ['email' => "session9-notify-vendor-{$suffix}@urbangoodz.test"],
             [
                 'f_name' => 'Notify',
                 'l_name' => 'Vendor',
-                'phone' => '3125553902',
+                'phone' => '313'.$suffix,
                 'password' => bcrypt('password'),
                 'status' => 1,
             ]
         );
-        $this->vendor->update(['firebase_token' => 'session9-vendor-fcm-token']);
+        DB::table('vendors')->where('id', $this->vendor->id)->update(['firebase_token' => 'session9-vendor-fcm-token']);
 
         $this->driver = DeliveryMan::firstOrCreate(
-            ['phone' => '3125553903'],
+            ['phone' => '314'.$suffix],
             [
                 'f_name' => 'Notify',
                 'l_name' => 'Driver',
-                'email' => 'session9-notify-driver@urbangoodz.test',
+                'email' => "session9-notify-driver-{$suffix}@urbangoodz.test",
                 'password' => bcrypt('password'),
                 'active' => 1,
                 'application_status' => 'approved',
             ]
         );
-        $this->driver->update(['fcm_token' => 'session9-driver-fcm-token']);
+        DB::table('delivery_men')->where('id', $this->driver->id)->update(['fcm_token' => 'session9-driver-fcm-token']);
     }
 
     public function test_customer_vendor_and_driver_notifications_persist_and_queue(): void
