@@ -221,6 +221,12 @@ class FashionFitCustomerController extends Controller
         ]);
         $profile->update(['status' => 'analysis_pending']);
         $service->audit('customer', $profile->customer_id, 'analysis_submitted', FashionFitAnalysis::class, $analysis->id);
+
+        if (config('queue.default') === 'sync' || config('fashion_fit_ai.sync_processing', true) || $request->boolean('sync')) {
+            $service->process($analysis);
+            return response()->json(['data' => $analysis->fresh(['measurements'])], 200);
+        }
+
         ProcessFashionFitAnalysis::dispatch($analysis->id);
         return response()->json(['data' => $analysis], 202);
     }

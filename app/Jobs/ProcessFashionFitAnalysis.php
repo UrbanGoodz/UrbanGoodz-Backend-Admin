@@ -20,7 +20,6 @@ class ProcessFashionFitAnalysis implements ShouldQueue
     public function __construct(public int $analysisId)
     {
         $this->tries = (int) config('fashion_fit_ai.max_attempts', 3);
-        $this->onQueue('fashion-fit');
     }
 
     public function handle(FashionFitAnalysisService $service): void

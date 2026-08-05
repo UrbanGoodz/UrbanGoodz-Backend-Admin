@@ -13,6 +13,22 @@ const passwordSelectors = [
 
 export async function login(driver: Browser, loginValue: string, password: string): Promise<void> {
   if (!loginValue || !password) throw new Error('Real login credentials are required for this E2E test.');
+
+  try {
+    const alreadyLoggedIn = await driver.$('android=new UiSelector().textMatches("(?i)Home|Dashboard|Orders|Account|Services")').isDisplayed();
+    if (alreadyLoggedIn) {
+      return;
+    }
+  } catch {
+    // Proceed to fill credentials
+  }
+
+  try {
+    await tapText(driver, ['Get Started', 'Sign In', 'Login', 'Next', 'Skip'], 4_000);
+  } catch {
+    // Splash screen not present or already on login screen
+  }
+
   await typeIntoFirstMatching(driver, loginSelectors, loginValue);
   await typeIntoFirstMatching(driver, passwordSelectors, password);
   await tapText(driver, ['Login', 'Sign In', 'Continue']);
