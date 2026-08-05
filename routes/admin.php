@@ -895,7 +895,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
 
         Route::get('addon/system-addons', function () {
-            return to_route('admin.system-addon.index');
+            return to_route('admin.business-settings.system-addon.index');
         })->name('addon.index');
 
         Route::get('order/generate-invoice/{id}', 'OrderController@generate_invoice')->name('order.generate-invoice');

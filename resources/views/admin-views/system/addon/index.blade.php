@@ -217,7 +217,7 @@
 
                     <div class="p-2 p-sm-3">
                         <div class="mb-2" id="activate_{{$key}}" style="display: none!important;">
-                            <form action="{{ route('admin.system-addon.activation') }}" method="post">
+                            <form action="{{ route('admin.business-settings.system-addon.activation') }}" method="post">
                                 @csrf
                                 <div class="form-group">
                                     <input type="text" name="username" value=""
