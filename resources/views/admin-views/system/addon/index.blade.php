@@ -217,7 +217,7 @@
 
                     <div class="p-2 p-sm-3">
                         <div class="mb-2" id="activate_{{$key}}" style="display: none!important;">
-                            <form action="" method="post">
+                            <form action="{{ route('admin.system-addon.activation') }}" method="post">
                                 @csrf
                                 <div class="form-group">
                                     <input type="text" name="username" value=""
@@ -226,11 +226,11 @@
                                 <div class="form-group">
                                     <input type="text" name="purchase_code" value=""
                                             class="form-control" placeholder="{{ translate('purchase_code') }}">
-                                    <input type="text" name="path" class="form-control" value="" hidden>
+                                    <input type="text" name="path" class="form-control" value="{{ $addon }}" hidden>
                                 </div>
 
                                 <div>
-                                    <input type="hidden" value="key" name="theme">
+                                    <input type="hidden" value="{{ $key }}" name="theme">
                                     <button type="submit" class="btn btn--primary radius-button text-end">{{translate('activate')}}</button>
                                 </div>
                             </form>

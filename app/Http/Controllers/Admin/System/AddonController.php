@@ -77,7 +77,7 @@ class AddonController extends Controller
                 'message'=> translate('messages.update_option_is_disable_for_demo')
             ]);
         }
-        $full_data = include($request['path'] . '/Addon/info.php');
+        $full_data = include(base_path($request['path'] . '/Addon/info.php'));
         $path = $request['path'];
         $addon_name = $full_data['name'];
         if ($full_data['purchase_code'] == null || $full_data['username'] == null) {
@@ -112,7 +112,7 @@ class AddonController extends Controller
         }
         $remove = ["http://", "https://", "www."];
         $url = str_replace($remove, "", url('/'));
-        $full_data = include($request['path'] . '/Addon/info.php');
+        $full_data = include(base_path($request['path'] . '/Addon/info.php'));
 
         $post = [
             base64_decode('dXNlcm5hbWU=') => $request['username'],

@@ -20,7 +20,7 @@ trait AddonHelper
 
         $array = [];
         foreach ($addons as $item) {
-            $full_data = include($item . '/Addon/info.php');
+            $full_data = include(base_path($item . '/Addon/info.php'));
             $array[] = [
                 'addon_name' => $full_data['name'],
                 'software_id' => $full_data['software_id'],
@@ -47,9 +47,9 @@ trait AddonHelper
 
         $full_data = [];
         foreach ($addons as $item) {
-            $info = include($item . '/Addon/info.php');
+            $info = include(base_path($item . '/Addon/info.php'));
             if ($info['is_published']){
-                $full_data[] = include($item . '/Addon/admin_routes.php');
+                $full_data[] = include(base_path($item . '/Addon/admin_routes.php'));
             }
         }
 
@@ -73,7 +73,7 @@ trait AddonHelper
 
         $array = [];
         foreach ($addons as $item) {
-            $full_data = include($item . '/Addon/info.php');
+            $full_data = include(base_path($item . '/Addon/info.php'));
             $array[] = [
                 'is_published' => $full_data['is_published'],
             ];
