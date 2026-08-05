@@ -15,6 +15,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function () {
+    Route::group(['prefix' => 'app'], function () {
+        Route::get('version', 'MobileReleaseApiController@version');
+        Route::get('config', 'MobileReleaseApiController@config');
+        Route::get('feature-flags', 'MobileReleaseApiController@featureFlags');
+        Route::post('version/download-count', 'MobileReleaseApiController@downloadCount');
+        Route::post('version/install-count', 'MobileReleaseApiController@installCount');
+    });
+
     Route::group(['prefix' => 'configurations'], function () {
         Route::get('/', 'ExternalConfigurationController@getConfiguration');
         Route::get('/get-external', 'ExternalConfigurationController@getExternalConfiguration');
