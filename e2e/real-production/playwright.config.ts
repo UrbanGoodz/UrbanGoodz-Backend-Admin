@@ -7,7 +7,7 @@ export default defineConfig({
   testDir: './tests/playwright',
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: true,
   retries: 1,
   workers: 1,

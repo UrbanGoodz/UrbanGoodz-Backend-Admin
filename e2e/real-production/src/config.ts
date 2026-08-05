@@ -53,5 +53,5 @@ export const config = {
     businessLogin: optional('BUSINESS_LOGIN_PATH', '/business/login'),
     dispatcherLogin: optional('DISPATCHER_LOGIN_PATH', '/dispatcher/login'),
   },
-  require,
 };
+
