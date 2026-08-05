@@ -61,6 +61,7 @@ const pages = [
   { name: 'Package Scanner', paths: ['/admin/urban-goodz/package-scanner', '/admin/scanner'] },
   { name: 'Route Optimizer', paths: ['/admin/urban-goodz/route-optimizer', '/admin/route-optimizer'] },
   { name: 'AI Operations', paths: ['/admin/urban-goodz/ai-operations', '/admin/ai-operations'] },
+  { name: 'AI Chief of Staff', paths: ['/admin/urban-goodz/ai-chief-of-staff', '/admin/ai-chief-of-staff'] },
   { name: 'Creator Commerce', paths: ['/admin/urban-goodz/creator-commerce', '/admin/creator-commerce'] },
 ];
 

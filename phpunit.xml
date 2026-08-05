@@ -14,13 +14,9 @@
     <server name="APP_URL" value="http://localhost"/>
     <server name="BCRYPT_ROUNDS" value="4"/>
     <server name="CACHE_DRIVER" value="array"/>
-    <server name="DB_CONNECTION" value="mysql" force="true"/>
-    <server name="DB_HOST" value="127.0.0.1" force="true"/>
-    <server name="DB_PORT" value="3306" force="true"/>
-    <server name="DB_DATABASE" value="urbangoodz_codex_test_20260727" force="true"/>
-    <server name="DB_USERNAME" value="root" force="true"/>
-    <server name="DB_PASSWORD" value="" force="true"/>
-    <server name="UG_TEST_DB_ALLOWLIST" value="urbangoodz_codex_test_20260727" force="true"/>
+    <server name="DB_CONNECTION" value="sqlite" force="true"/>
+    <server name="DB_DATABASE" value=":memory:" force="true"/>
+    <server name="UG_TEST_DB_ALLOWLIST" value=":memory:,urbangoodz_codex_test_20260727" force="true"/>
     <server name="MAIL_MAILER" value="array"/>
     <server name="QUEUE_CONNECTION" value="sync"/>
     <server name="SESSION_DRIVER" value="array"/>
