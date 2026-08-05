@@ -92,8 +92,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             ->name('urban-goodz.vendors.index');
 
         Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
-            Route::get('ai-chief-of-staff', 'Admin\AiChiefOfStaffController@index')->name('ai-chief-of-staff.index');
-            Route::post('ai-chief-of-staff/query', 'Admin\AiChiefOfStaffController@query')->name('ai-chief-of-staff.query');
+            Route::get('ai-chief-of-staff', 'AiChiefOfStaffController@index')->name('ai-chief-of-staff.index');
+            Route::post('ai-chief-of-staff/query', 'AiChiefOfStaffController@query')->name('ai-chief-of-staff.query');
             Route::group(['prefix' => 'creator-commerce', 'as' => 'creator.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzCreatorController@dashboard')->name('dashboard');
                 Route::get('applications', 'UrbanGoodz\UrbanGoodzCreatorController@applications')->name('applications');
