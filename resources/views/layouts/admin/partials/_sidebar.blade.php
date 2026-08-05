@@ -70,6 +70,13 @@
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Control Center</span>
                         </a>
                     </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/ai-chief-of-staff*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.ai-chief-of-staff.index') }}" title="AI Chief of Staff">
+                            <i class="tio-robot nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">AI Chief of Staff</span>
+                            <span class="badge badge-warning badge-pill ml-1" style="font-size: 0.6rem; background-color: #ED9914; color: #fff;">AI</span>
+                        </a>
+                    </li>
                     <li class="navbar-vertical-aside-has-menu">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ url('/business/login') }}" target="_blank" title="Open Business Vendor Portal">
                             <i class="tio-business-bag nav-icon" style="color: #ED9914;"></i>
