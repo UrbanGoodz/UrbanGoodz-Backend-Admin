@@ -1,4 +1,4 @@
-@extends('layouts.admin.master')
+@extends('layouts.admin.app')
 @section('title', 'Medical Courier Job — ' . $job->job_number)
 
 @section('content')

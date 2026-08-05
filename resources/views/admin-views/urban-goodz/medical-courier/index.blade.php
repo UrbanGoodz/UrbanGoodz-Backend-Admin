@@ -1,4 +1,4 @@
-@extends('layouts.admin.master')
+@extends('layouts.admin.app')
 @section('title', 'Medical Courier Jobs')
 
 @section('content')
@@ -88,7 +88,7 @@
                         <select name="status" class="form-select form-select-sm">
                             <option value="">All</option>
                             @foreach(['pending','assigned','picked_up','in_transit','delivered','cancelled'] as $s)
-                            <option value="{{ $s }}" {{ request('status') === $s ? 'selected'' : '' }}>{{ ucfirst(str_replace('_',' ',$s)) }}</option>
+                            <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$s)) }}</option>
                             @endforeach
                         </select>
                     </div>
