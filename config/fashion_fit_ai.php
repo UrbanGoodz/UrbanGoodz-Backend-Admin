@@ -12,6 +12,7 @@ return [
     'timeout' => (int) env('FASHION_FIT_AI_TIMEOUT', 90),
     'max_attempts' => (int) env('FASHION_FIT_AI_MAX_ATTEMPTS', 3),
     'sync_processing' => (bool) env('FASHION_FIT_AI_SYNC_PROCESSING', true),
+    'staged_payments_enabled' => (bool) env('FASHION_FIT_STAGED_PAYMENTS_ENABLED', false),
     'consent_version' => env('FASHION_FIT_CONSENT_VERSION', '2026-07-12'),
     'required_views' => ['front', 'side'],
     'optional_views' => ['back'],

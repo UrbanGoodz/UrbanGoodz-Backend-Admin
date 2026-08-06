@@ -14,7 +14,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -136,9 +135,9 @@ class SendFirebaseNotification implements ShouldQueue
     private function recipientToken(): ?string
     {
         return match ($this->recipientType) {
-            'customer' => DB::table('users')->where('id', $this->recipientId)->value('cm_firebase_token'),
-            'vendor' => DB::table('vendors')->where('id', $this->recipientId)->value('firebase_token'),
-            'driver' => DB::table('delivery_men')->where('id', $this->recipientId)->value('fcm_token'),
+            'customer' => User::whereKey($this->recipientId)->value('cm_firebase_token'),
+            'vendor' => Vendor::whereKey($this->recipientId)->value('firebase_token'),
+            'driver' => DeliveryMan::whereKey($this->recipientId)->value('fcm_token'),
             default => null,
         };
     }
