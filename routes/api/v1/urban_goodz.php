@@ -368,13 +368,19 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         });
     });
 
-// Stranded Roadside Assistance.
-// The catalogue is intentionally public: the home-screen CTA must be able to
+// Urban Goodz Stranded -- "Never Stay Stranded Again."
+// Roadside assistance is a service category here, not the product name.
+//
+// The catalogue is intentionally public: the Services card must be able to
 // show available help before asking someone stranded on a shoulder to log in.
-Route::get('urban-goodz/roadside/services', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@services')->middleware('throttle:60,1');
+Route::get('urban-goodz/stranded/services', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@services')->middleware('throttle:60,1');
 
-Route::group(['prefix' => 'urban-goodz/roadside', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-    Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@store');
-    Route::get('requests/{record}', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@show');
-    Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@cancel');
+Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
+    Route::get('requests/{record}', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@show');
+    // The responders willing to help. Accepting shortlists a responder; the
+    // customer's selection is what actually assigns the job.
+    Route::get('requests/{record}/offers', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@offers');
+    Route::post('requests/{record}/offers/{offer}/select', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@selectOffer');
+    Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@cancel');
 });

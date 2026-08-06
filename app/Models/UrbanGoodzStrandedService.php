@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class UrbanGoodzRoadsideService extends Model
+class UrbanGoodzStrandedService extends Model
 {
-    protected $table = 'urban_goodz_roadside_services';
+    protected $table = 'urban_goodz_stranded_services';
 
     protected $fillable = [
         'slug', 'name', 'description', 'icon',
@@ -29,9 +29,8 @@ class UrbanGoodzRoadsideService extends Model
     }
 
     /**
-     * A quote-only service has no fixed starting price -- towing, mobile
-     * mechanic, fleet contracts. The client must show a quote flow for these
-     * rather than a dollar figure it cannot honour.
+     * No fixed starting price -- towing, mobile mechanic, fleet contracts.
+     * The client must show a quote flow rather than a figure it cannot honour.
      */
     public function getIsQuoteOnlyAttribute(): bool
     {
