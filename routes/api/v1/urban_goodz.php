@@ -367,3 +367,14 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
             Route::post('verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
         });
     });
+
+// Stranded Roadside Assistance.
+// The catalogue is intentionally public: the home-screen CTA must be able to
+// show available help before asking someone stranded on a shoulder to log in.
+Route::get('urban-goodz/roadside/services', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@services')->middleware('throttle:60,1');
+
+Route::group(['prefix' => 'urban-goodz/roadside', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@store');
+    Route::get('requests/{record}', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@show');
+    Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzRoadsideController@cancel');
+});
