@@ -160,11 +160,23 @@ class FashionFitCustomerController extends Controller
         $dimensions = @getimagesize($request->file('photo')->getRealPath());
         abort_unless($dimensions, 422, 'Image dimensions could not be validated.');
         $quality = ['width' => $dimensions[0], 'height' => $dimensions[1]];
-        if ($dimensions[0] < config('fashion_fit_ai.min_width') || $dimensions[1] < config('fashion_fit_ai.min_height')) {
+        // Compare orientation-independently. Phone cameras commonly write the
+        // file in sensor (landscape) orientation with an EXIF rotation flag, so
+        // a portrait capture arrives as 1920x1080 and a naive width/height
+        // check rejects it for being "too short" even though it is a perfectly
+        // good 1080x1920 portrait once rotated. The measurement engine applies
+        // EXIF orientation itself, so this gate must not disagree with it.
+        $shortEdge = min($dimensions[0], $dimensions[1]);
+        $longEdge = max($dimensions[0], $dimensions[1]);
+        $minShort = (int) config('fashion_fit_ai.min_width');
+        $minLong = (int) config('fashion_fit_ai.min_height');
+        if ($shortEdge < $minShort || $longEdge < $minLong) {
             return response()->json([
                 'error' => 'photo_quality',
                 'retake_required' => true,
-                'instructions' => ['Use a higher-resolution full-body portrait photo.'],
+                'instructions' => [
+                    "This photo is {$dimensions[0]}x{$dimensions[1]}. Fashion Fit needs at least {$minShort}x{$minLong}. Retake it with your camera at full resolution, or pick a larger photo.",
+                ],
             ], 422);
         }
 
