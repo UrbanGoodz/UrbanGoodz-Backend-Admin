@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -54,17 +55,10 @@ class UrbanGoodzStrandedRequest extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    /** Radius ladder, in miles. Widens until help is found. */
-    public const RADIUS_LADDER = [10, 15, 20, 25];
-
-    /** The $5 Help Request Fee, in minor units. */
-    public const HELP_REQUEST_FEE_MINOR = 500;
-
-    /** How long a responder has to answer a broadcast. */
-    public const OFFER_TTL_SECONDS = 45;
-
-    /** Community window before professionals are offered instead. */
-    public const ESCALATION_MINUTES = 10;
+    // No dispatch or money values are declared here. Radius ladder, fee,
+    // offer TTL and escalation window are all administrator-configurable and
+    // resolve through UrbanGoodzStrandedSettings, so changing a price is an
+    // admin action rather than a deploy.
 
     public function service(): BelongsTo
     {
@@ -79,7 +73,7 @@ class UrbanGoodzStrandedRequest extends Model
     /** The next radius to broadcast at, or null once the ladder is exhausted. */
     public function nextRadius(): ?int
     {
-        foreach (self::RADIUS_LADDER as $radius) {
+        foreach (UrbanGoodzStrandedSettings::radiusLadder() as $radius) {
             if ($radius > (int) $this->broadcast_radius_miles) {
                 return $radius;
             }

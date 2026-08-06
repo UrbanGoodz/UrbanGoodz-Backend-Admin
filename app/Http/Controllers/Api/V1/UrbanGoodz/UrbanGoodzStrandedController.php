@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedService;
+use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,12 @@ class UrbanGoodzStrandedController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'help_request_fee_minor' => UrbanGoodzStrandedRequest::HELP_REQUEST_FEE_MINOR,
+            // Resolved from admin settings, never hard-coded. A fee of 0 means
+            // the administrator has switched it off, and the client should
+            // show no fee line at all rather than "$0.00".
+            'help_request_fee_minor' => UrbanGoodzStrandedSettings::helpRequestFeeMinor(),
+            'help_request_fee_enabled' => UrbanGoodzStrandedSettings::feeEnabled(),
+            'priority_upgrade_minor' => UrbanGoodzStrandedSettings::priorityUpgradeMinor(),
             'currency' => 'USD',
             'total_size' => $services->count(),
             'services' => $services,
@@ -100,6 +106,10 @@ class UrbanGoodzStrandedController extends Controller
         $allowSamaritans = (bool) $request->input('allow_samaritans', true)
             && $service->samaritan_eligible;
 
+        // Priced at request time and stored on the row, so a later admin
+        // change cannot retroactively alter what this customer was quoted.
+        $feeMinor = UrbanGoodzStrandedSettings::helpRequestFeeMinor();
+
         $stranded = UrbanGoodzStrandedRequest::create([
             'uuid' => (string) Str::uuid(),
             'request_number' => 'ST-' . now()->format('Ymd') . '-' . strtoupper(Str::random(4)),
@@ -127,12 +137,15 @@ class UrbanGoodzStrandedController extends Controller
             'safety_status' => $request->input('safety_status'),
             'is_emergency' => (bool) $request->input('is_emergency', false),
             'allow_samaritans' => $allowSamaritans,
-            'help_request_fee_minor' => UrbanGoodzStrandedRequest::HELP_REQUEST_FEE_MINOR,
-            'help_request_fee_status' => 'unpaid',
+            'help_request_fee_minor' => $feeMinor,
+            // A fee of zero is not "unpaid" -- it is waived, and the request
+            // must still be eligible to broadcast. Leaving it `unpaid` would
+            // strand every request the moment an admin switched the fee off.
+            'help_request_fee_status' => $feeMinor > 0 ? 'unpaid' : 'waived',
             'reward_offer_minor' => (int) $request->input('reward_offer_minor', 0),
             'escrow_status' => 'none',
             'currency' => $service->currency,
-            'broadcast_radius_miles' => UrbanGoodzStrandedRequest::RADIUS_LADDER[0],
+            'broadcast_radius_miles' => UrbanGoodzStrandedSettings::radiusLadder()[0],
         ]);
 
         return response()->json([
