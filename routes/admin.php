@@ -19,6 +19,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::get('two-factor/verify', 'TwoFactorLoginController@showVerify')->name('two-factor.verify');
         Route::post('two-factor/verify', 'TwoFactorLoginController@verify')->name('two-factor.verify-submit');
         Route::get('two-factor/verify-recovery', 'TwoFactorLoginController@showRecoveryVerify')->name('two-factor.verify-recovery');
+        Route::post('two-factor/verify-recovery', 'TwoFactorLoginController@verifyRecovery')->name('two-factor.verify-recovery-submit');
         Route::get('mobile-releases', 'MobileReleaseController@index')->name('mobile-releases.index');
         Route::post('mobile-releases', 'MobileReleaseController@store')->name('mobile-releases.store');
         Route::get('mobile-releases/{id}/toggle', 'MobileReleaseController@toggle')->name('mobile-releases.toggle');
