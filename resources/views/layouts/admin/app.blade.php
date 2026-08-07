@@ -103,6 +103,9 @@ $countryCode = strtolower($country ? $country : 'auto');
         @include('layouts.admin.partials._footer')
         <!-- End Footer -->
 
+        <!-- Global Command Palette Modal Overlay -->
+        @include('layouts.admin.partials._command_palette')
+
         <div class="d-none" id="text-validate-translate" data-required="{{ translate('this_field_is_required') }}"
             data-something-went-wrong="{{ translate('something_went_wrong!') }}"
             data-max-limit-crossed="{{ translate('max_limit_crossed') }}"
