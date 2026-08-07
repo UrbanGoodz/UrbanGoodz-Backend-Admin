@@ -160,6 +160,9 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     // Uses the same solver as the admin Optimize button, which persists the
     // order; the older driver-side optimiser did not.
     Route::get('routes-awaiting-finish', 'Api\UrbanGoodzDriverRouteFinishController@index');
+    // Scanned stack -> runnable route. Comes back unsorted on purpose;
+    // choosing the finish below is what sequences it.
+    Route::post('routes/from-batch', 'Api\UrbanGoodzDriverRouteFinishController@buildFromBatch');
     Route::post('routes/{route}/finish', 'Api\UrbanGoodzDriverRouteFinishController@finish');
     Route::post('routes/{routeId}/started', 'Api\UrbanGoodzDriverApiController@routeStarted');
     Route::post('routes/{routeId}/completed', 'Api\UrbanGoodzDriverApiController@routeCompleted');

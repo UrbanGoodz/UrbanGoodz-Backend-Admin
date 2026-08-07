@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzDedicatedRoute;
+use App\Models\UrbanGoodzIntakeBatch;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Services\UrbanGoodz\DedicatedRouteOptimizationService;
+use App\Services\UrbanGoodz\Routing\Services\BatchToRouteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -51,6 +53,65 @@ class UrbanGoodzDriverRouteFinishController extends Controller
             ]);
 
         return response()->json(['status' => 'success', 'total_size' => $routes->count(), 'routes' => $routes]);
+    }
+
+    /**
+     * Turn a scanned intake batch into a route this driver can run.
+     *
+     * This is the step that was missing between scanning a stack of packages
+     * and getting a sorted run sheet. The route comes back with no finish
+     * point set, because choosing the finish is what triggers the sort.
+     */
+    public function buildFromBatch(Request $request, BatchToRouteService $builder): JsonResponse
+    {
+        $driver = $this->driver($request);
+
+        if (!$driver) {
+            return response()->json(['errors' => [['code' => 'auth', 'message' => 'Unauthorized']]], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'batch_id' => 'required|integer',
+            'pickup_lat' => 'nullable|numeric|between:-90,90',
+            'pickup_lng' => 'nullable|numeric|between:-180,180',
+            'pickup_label' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $batch = UrbanGoodzIntakeBatch::find($request->input('batch_id'));
+
+        if (!$batch) {
+            return response()->json(['status' => 'error', 'message' => 'Batch not found.'], 404);
+        }
+
+        try {
+            $result = $builder->convert($batch, [
+                'driver_id' => $driver->id,
+                'pickup_lat' => $request->input('pickup_lat'),
+                'pickup_lng' => $request->input('pickup_lng'),
+                'pickup_label' => $request->input('pickup_label'),
+            ], $driver->id);
+        } catch (\Throwable $e) {
+            // These messages name the actual obstacle -- ungeocoded packages,
+            // a batch already routed, no pickup point -- which is more use to
+            // a driver holding a stack of parcels than a generic failure.
+            return response()->json([
+                'status' => 'error',
+                'code' => 'batch_not_routable',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'routed' => $result['routed'],
+            'skipped_no_coordinates' => $result['skipped_no_coordinates'],
+            'next' => 'Choose where you want to finish to sort these stops.',
+            'route' => $this->runSheet($result['route']),
+        ], 201);
     }
 
     /**
