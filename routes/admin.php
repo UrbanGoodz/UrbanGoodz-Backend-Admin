@@ -101,6 +101,10 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::group(['prefix' => 'stranded', 'as' => 'stranded.'], function () {
                 Route::get('settings', 'UrbanGoodz\UrbanGoodzStrandedSettingsController@index')->name('settings');
                 Route::post('settings', 'UrbanGoodz\UrbanGoodzStrandedSettingsController@update')->name('settings.update');
+                // Live operations. The feed is polled by the page and is kept
+                // separate so it stays cheap enough to hit every few seconds.
+                Route::get('live', 'UrbanGoodz\UrbanGoodzStrandedLiveController@index')->name('live');
+                Route::get('live-feed', 'UrbanGoodz\UrbanGoodzStrandedLiveController@feed')->name('live-feed');
             });
 
             // Same-day payout pricing. Weekly payouts are free and carry no
