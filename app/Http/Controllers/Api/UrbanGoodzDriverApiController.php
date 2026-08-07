@@ -18,6 +18,7 @@ use App\Models\UrbanGoodzAgeVerification;
 use App\Models\UrbanGoodzPaymentSplit;
 use App\Models\DeliveryMan;
 use App\Services\UrbanGoodz\RouteCompletionSettlementService;
+use App\Services\UrbanGoodzPayoutSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -848,6 +849,48 @@ class UrbanGoodzDriverApiController extends Controller
         ]);
     }
 
+    /**
+     * What a cash-out would cost, before committing to it.
+     *
+     * Both options are returned together on purpose. If only the paid one
+     * were shown, the free one would effectively be hidden, and a driver in a
+     * hurry would pay for something they did not have to.
+     */
+    public function payoutOptions(Request $request)
+    {
+        $driver = $this->authDriver($request);
+
+        $pendingEarnings = (float) UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)
+            ->where('status', 'pending')
+            ->sum('amount');
+
+        $pendingPayouts = (float) UrbanGoodzDriverPayoutRequest::where('delivery_man_id', $driver->id)
+            ->whereIn('status', ['pending', 'approved', 'processing'])
+            ->sum('requested_amount');
+
+        $available = round(max($pendingEarnings - $pendingPayouts, 0), 2);
+        $quote = UrbanGoodzPayoutSettings::quote($available, UrbanGoodzPayoutSettings::PAYEE_DRIVER);
+
+        return response()->json([
+            'available_balance' => $available,
+            'currency' => 'USD',
+            'instant' => [
+                'available' => $quote['available'],
+                'code' => $quote['code'],
+                'message' => $quote['message'],
+                'fee' => $quote['fee'],
+                'you_receive' => $quote['net'],
+                'basis' => $quote['basis'],
+            ],
+            'weekly' => [
+                'available' => $available > 0,
+                'fee' => 0.0,
+                'you_receive' => $available,
+                'message' => 'Free. Paid on the weekly schedule.',
+            ],
+        ]);
+    }
+
     public function requestPayout(Request $request)
     {
         $driver = $this->authDriver($request);
@@ -879,17 +922,41 @@ class UrbanGoodzDriverApiController extends Controller
             ], 400);
         }
 
+        // Weekly payouts are free; same-day money costs something to front.
+        // The rate was hard-coded at 5% here, which meant repricing required a
+        // deploy and nobody could tell later what a given payout was charged.
         $instantFee = 0;
+        $basis = null;
+
         if ($request->payout_type === 'instant') {
-            $instantFee = round($request->amount * 0.05, 2);
+            $quote = UrbanGoodzPayoutSettings::quote((float) $request->amount, UrbanGoodzPayoutSettings::PAYEE_DRIVER);
+
+            if (!$quote['available']) {
+                return response()->json([
+                    'error' => $quote['message'],
+                    'code' => $quote['code'],
+                    // The free option always travels with the refusal, so
+                    // nobody is left thinking they cannot be paid at all.
+                    'weekly_alternative' => $quote['weekly_alternative'],
+                ], 422);
+            }
+
+            $instantFee = $quote['fee'];
+            $basis = $quote['basis'];
         }
 
         $payout = UrbanGoodzDriverPayoutRequest::create([
+            'payee_type' => UrbanGoodzPayoutSettings::PAYEE_DRIVER,
             'delivery_man_id' => $driver->id,
             'payout_type' => $request->payout_type,
             'requested_amount' => $request->amount,
             'instant_fee' => $instantFee,
-            'net_amount' => $request->amount - $instantFee,
+            // Snapshot of how the fee was reached, so the figure stays
+            // explainable after the configured rate changes.
+            'fee_percent_bps' => $basis['percent_bps'] ?? 0,
+            'fee_minimum' => $basis['minimum'] ?? 0,
+            'fee_cap' => $basis['cap'] ?? null,
+            'net_amount' => round($request->amount - $instantFee, 2),
             'status' => 'pending',
         ]);
 

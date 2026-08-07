@@ -177,6 +177,9 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::post('routes/{routeId}/age-refuse', 'Api\UrbanGoodzDriverApiController@submitAgeRefusal');
     Route::get('routes/{routeId}/age-status', 'Api\UrbanGoodzDriverApiController@checkAgeStatus');
     Route::get('earnings', 'Api\UrbanGoodzDriverApiController@earnings');
+    // What each cash-out option costs, before committing to one. Weekly is
+    // always free; same-day carries a configurable fee.
+    Route::get('payout-options', 'Api\UrbanGoodzDriverApiController@payoutOptions');
     Route::post('payout-request', 'Api\UrbanGoodzDriverApiController@requestPayout');
     Route::get('payout-history', 'Api\UrbanGoodzDriverApiController@payoutHistory');
     // Driver capability and vehicle profile
