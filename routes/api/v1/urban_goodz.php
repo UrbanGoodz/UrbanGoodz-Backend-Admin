@@ -375,7 +375,18 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
 // show available help before asking someone stranded on a shoulder to log in.
 Route::get('urban-goodz/stranded/services', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@services')->middleware('throttle:60,1');
 
+// Safety terms and the identity-privacy explanation are readable before sign
+// up: people are entitled to know what is asked of them, and what happens to
+// their licence, before they hand it over.
+Route::get('urban-goodz/stranded/safety/documents', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@documents')->middleware('throttle:60,1');
+
 Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    // Identity verification and consent. Both the person asking for help and
+    // the person providing it must clear this before taking part.
+    Route::get('safety/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@status');
+    Route::post('safety/accept', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@accept');
+    Route::post('safety/verification', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@submitVerification');
+
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
     Route::get('requests/{record}', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@show');
     // The responders willing to help. Accepting shortlists a responder; the

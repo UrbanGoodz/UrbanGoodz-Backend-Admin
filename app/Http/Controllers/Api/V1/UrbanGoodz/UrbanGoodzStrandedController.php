@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedService;
+use App\Models\UrbanGoodzStrandedVerification;
+use App\Services\UrbanGoodzStrandedSafety;
 use App\Services\UrbanGoodzStrandedNotifier;
 use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Http\JsonResponse;
@@ -65,6 +67,24 @@ class UrbanGoodzStrandedController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // Both sides of a rescue are verified. A stranded customer is inviting
+        // a stranger to their location, so the bar applies to them too, not
+        // only to the responder who turns up.
+        $gate = UrbanGoodzStrandedSafety::gate(
+            $request->user()?->id,
+            UrbanGoodzStrandedVerification::ROLE_CUSTOMER
+        );
+
+        if (!$gate['allowed']) {
+            return response()->json([
+                'status' => 'error',
+                'code' => $gate['code'],
+                'message' => $gate['message'],
+                'document' => $gate['document'] ?? null,
+                'version' => $gate['version'] ?? null,
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'service_slug' => 'required|string|max:60',
             'latitude' => 'required|numeric|between:-90,90',
