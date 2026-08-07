@@ -35,9 +35,25 @@
                 </div>
             </div>
 
-            <p id="skylar-narrative-text" class="mt-2 text-white-90" style="font-size: 15px; line-height: 1.6;">
-                {{ $narration['text'] ?? "Good morning, D'Andre. I've reviewed overnight activity across all Houston routes and dispatch boards." }}
-            </p>
+            {{--
+                No fabricated brief. A hardcoded "I've reviewed overnight activity"
+                would state work that never happened and assert Houston route facts
+                nothing generated — the exact thing PlatformInvariants forbids. When
+                the provider is down, say so.
+            --}}
+            @if($narration['available'] ?? false)
+                <p id="skylar-narrative-text" class="mt-2 text-white-90" style="font-size: 15px; line-height: 1.6;">
+                    {{ $narration['text'] }}
+                </p>
+                <small class="text-white-50">{{ translate('Briefed from live records at') }} {{ $narration['generated_at'] ?? '' }}</small>
+            @else
+                <p id="skylar-narrative-text" class="mt-2 text-white-50" style="font-size: 15px; line-height: 1.6;">
+                    {{ translate('The spoken brief is unavailable right now. The figures below are live; nothing has been summarised on your behalf.') }}
+                </p>
+                <small class="text-white-50">
+                    {{ translate('Reason') }}: <code class="text-white-50">{{ $narration['reason'] ?? 'unknown' }}</code>
+                </small>
+            @endif
 
             <div class="d-flex align-items-center mt-3 gap-2">
                 <button type="button" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech()">
@@ -68,11 +84,19 @@ function triggerSkylarSpeech() {
     .then(data => {
         if (data.success) {
             const dh = data.data.digital_human;
-            document.getElementById('skylar-mood-label').innerText = dh.mood;
+            const frames = (data.data.playback?.viseme_timeline || []).length;
+            // A modal alert blocks the whole admin page until dismissed. The
+            // state pill already exists for exactly this feedback.
+            document.getElementById('skylar-mood-label').innerText =
+                dh.mood + ' · ' + frames + ' visemes';
             console.log('Digital Human State Payload loaded:', data.data);
-            alert('Skylar Executive Brief voice stream initialized with ' + data.data.playback.viseme_timeline.length + ' viseme frames.');
+        } else {
+            document.getElementById('skylar-mood-label').innerText = 'Unavailable';
         }
     })
-    .catch(err => console.error('Digital Human API Error:', err));
+    .catch(err => {
+        document.getElementById('skylar-mood-label').innerText = 'Unavailable';
+        console.error('Digital Human API Error:', err);
+    });
 }
 </script>

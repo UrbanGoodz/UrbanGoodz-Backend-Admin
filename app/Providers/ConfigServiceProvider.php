@@ -255,6 +255,29 @@ class ConfigServiceProvider extends ServiceProvider
                 if (empty(config('openai.organization'))) {
                     Config::set('openai.organization', $openAi['OPENAI_ORGANIZATION'] ?? null);
                 }
+
+                // The superadmin panel is the credential store for the Urban Goodz
+                // AI stack, but its fields are legacy 6amtech and OpenAI-shaped.
+                // A key alone cannot say which provider it belongs to, and
+                // guessing from a key prefix is exactly what config/urban_goodz_ai
+                // forbids — so the provider is carried explicitly alongside it.
+                // Without this, an OpenRouter key is posted to api.openai.com and
+                // every AI call fails with a 401.
+                $provider = strtolower(trim((string) ($openAi['AI_PROVIDER'] ?? '')));
+
+                if (in_array($provider, ['openai', 'openrouter', 'gemini'], true)) {
+                    Config::set('urban_goodz_ai.provider', $provider);
+
+                    $apiKey = $openAi['OPENAI_API_KEY'] ?? null;
+                    if (!empty($apiKey) && empty(config("urban_goodz_ai.providers.{$provider}.api_key"))) {
+                        Config::set("urban_goodz_ai.providers.{$provider}.api_key", $apiKey);
+                    }
+
+                    $model = trim((string) ($openAi['AI_MODEL'] ?? ''));
+                    if ($model !== '') {
+                        Config::set("urban_goodz_ai.providers.{$provider}.model", $model);
+                    }
+                }
             }
             
         } catch (\Exception $exception) {

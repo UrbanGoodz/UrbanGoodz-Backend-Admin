@@ -7340,6 +7340,20 @@ class BusinessSettingsController extends Controller
             $apiKey = $existing['OPENAI_API_KEY'] ?? '';
         }
 
+        // The legacy 6amtech fields are OpenAI-shaped. The Urban Goodz AI stack
+        // also supports OpenRouter and Gemini, and a key cannot say which
+        // provider it belongs to — so the provider and model are stored
+        // explicitly alongside it. See ConfigServiceProvider.
+        $provider = strtolower(trim((string) ($request['AI_PROVIDER'] ?? '')));
+        if (!in_array($provider, ['openai', 'openrouter', 'gemini'], true)) {
+            $provider = $existing['AI_PROVIDER'] ?? 'openai';
+        }
+
+        $model = trim((string) ($request['AI_MODEL'] ?? ''));
+        if ($model === '') {
+            $model = $existing['AI_MODEL'] ?? '';
+        }
+
         Helpers::businessUpdateOrInsert(
             ['key' => 'openai_config'],
             [
@@ -7347,6 +7361,8 @@ class BusinessSettingsController extends Controller
                     'status' => $existing['status'] ?? 0,
                     'OPENAI_ORGANIZATION' => $request['OPENAI_ORGANIZATION'] ?? '',
                     'OPENAI_API_KEY' => $apiKey,
+                    'AI_PROVIDER' => $provider,
+                    'AI_MODEL' => $model,
                 ]),
                 'updated_at' => now(),
             ]
