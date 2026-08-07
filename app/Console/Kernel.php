@@ -20,6 +20,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\AiCopilotGenerateRecommendations::class,
         \App\Console\Commands\SyncLoadBoard::class,
         \App\Console\Commands\RunScheduledSourcing::class,
+        \App\Console\Commands\RecoverOrderAnywhereCardIssuance::class,
     ];
 
     /**
@@ -59,6 +60,11 @@ class Kernel extends ConsoleKernel
         // each driver's most recent point so the live map never goes blank.
         $schedule->command('delivery-history:prune')
             ->dailyAt('03:20')
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command('order-anywhere:recover-card-issuance')
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground();
     }

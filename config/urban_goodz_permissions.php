@@ -27,6 +27,26 @@ return [
             'group' => 'urban_goodz',
             'description' => 'Access to Order Anywhere admin management',
         ],
+        'urban_goodz_order_anywhere_request_card' => [
+            'label' => 'Order Anywhere: Request Purchase Card',
+            'group' => 'urban_goodz',
+            'description' => 'Issue a controlled driver purchase card after payment and assignment gates pass',
+        ],
+        'urban_goodz_order_anywhere_freeze_card' => [
+            'label' => 'Order Anywhere: Freeze Purchase Card',
+            'group' => 'urban_goodz',
+            'description' => 'Freeze an active Order Anywhere purchase card',
+        ],
+        'urban_goodz_order_anywhere_cancel_card' => [
+            'label' => 'Order Anywhere: Cancel Purchase Card',
+            'group' => 'urban_goodz',
+            'description' => 'Permanently revoke an Order Anywhere purchase card',
+        ],
+        'urban_goodz_order_anywhere_reconcile_card' => [
+            'label' => 'Order Anywhere: Reconcile Purchase Card',
+            'group' => 'urban_goodz',
+            'description' => 'Reconcile a receipt against an Order Anywhere purchase card transaction',
+        ],
         'urban_goodz_fashion_fit' => [
             'label' => 'Fashion Fit',
             'group' => 'urban_goodz',

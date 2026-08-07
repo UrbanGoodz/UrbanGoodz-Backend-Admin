@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Contracts\Payments\CardIssuingGatewayInterface;
+use App\Models\BusinessSetting;
 use InvalidArgumentException;
 
 class CardIssuingProviderManager
@@ -14,11 +15,11 @@ class CardIssuingProviderManager
         $provider = $provider ?? config('urban_goodz_payments.issuing.provider', 'manual');
 
         return match ($provider) {
-            'manual' => new ManualIssuingProvider(),
+            'disabled', 'unconfigured', 'manual' => new ManualIssuingProvider(),
             'staged_test' => new StagedTestIssuingGateway(),
             'stripe' => new \App\Services\Payments\StripeIssuingProvider(),
             default => throw new InvalidArgumentException(
-                "Card issuing provider [{$provider}] is not yet implemented. Available: manual, staged_test, stripe."
+                "Card issuing provider [{$provider}] is not implemented. Available: disabled, staged_test, stripe."
             ),
         };
     }
@@ -34,10 +35,37 @@ class CardIssuingProviderManager
 
     public function isAvailable(): bool
     {
-        $provider = config('urban_goodz_payments.issuing.provider', 'manual');
+        $provider = config('urban_goodz_payments.issuing.provider', 'disabled');
         $mode = config('urban_goodz_payments.issuing.mode', 'sandbox');
 
-        return $mode !== 'disabled' && in_array($provider, ['manual', 'staged_test', 'stripe'], true);
+        return ! $this->isEmergencyDisabled()
+            && $mode !== 'disabled'
+            && in_array($provider, ['staged_test', 'stripe'], true)
+            && ($provider !== 'staged_test' || app()->environment('testing'))
+            && $this->activeProvider()->isEnabled();
+    }
+
+    public function configuredProviderName(): string
+    {
+        return $this->isAvailable()
+            ? (string) config('urban_goodz_payments.issuing.provider')
+            : 'unconfigured';
+    }
+
+    public function configurationStatus(): string
+    {
+        if ($this->isEmergencyDisabled()) {
+            return 'emergency_disabled';
+        }
+
+        return $this->isAvailable() ? 'configured' : 'not_configured';
+    }
+
+    public function isEmergencyDisabled(): bool
+    {
+        return (string) BusinessSetting::withoutGlobalScopes()
+            ->where('key', 'order_anywhere_card_emergency_disabled')
+            ->value('value') === '1';
     }
 
     public function isLiveMode(): bool

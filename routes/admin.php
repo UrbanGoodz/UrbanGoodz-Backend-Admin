@@ -92,6 +92,13 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::get('urban-goodz/vendors', 'UrbanGoodz\UrbanGoodzVendorBusinessController@index')
             ->name('urban-goodz.vendors.index');
 
+        // Kept outside the legacy module middleware so unauthorized writes
+        // receive a true 403 from the owner check instead of a redirect.
+        Route::patch(
+            'urban-goodz/payments/platform-fee',
+            'UrbanGoodzAdminController@updatePlatformFee'
+        )->name('urban-goodz.payments.platform-fee.update');
+
         Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
             Route::get('ai-chief-of-staff', 'AiChiefOfStaffController@index')->name('ai-chief-of-staff.index');
             Route::post('ai-chief-of-staff/query', 'AiChiefOfStaffController@query')->name('ai-chief-of-staff.query');
@@ -317,6 +324,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('order-anywhere/{id}/freeze-card', 'UrbanGoodzAdminController@orderAnywhereFreezeCard')->name('order-anywhere.freeze-card');
             Route::post('order-anywhere/{id}/cancel-card', 'UrbanGoodzAdminController@orderAnywhereCancelCard')->name('order-anywhere.cancel-card');
             Route::post('order-anywhere/{id}/reconcile-card', 'UrbanGoodzAdminController@orderAnywhereReconcileCard')->name('order-anywhere.reconcile-card');
+            Route::get('order-anywhere/{id}/card-receipt', 'UrbanGoodzAdminController@orderAnywhereCardReceipt')->name('order-anywhere.card-receipt');
+            Route::post('order-anywhere/card-emergency-disable', 'UrbanGoodzAdminController@orderAnywhereCardEmergencyDisable')->name('order-anywhere.card-emergency-disable');
             Route::get('payments', 'UrbanGoodzAdminController@payments')->name('payments.index');
             // Referenced by the Payments page. Registering it is required or the
             // page's route() call throws and the whole page returns HTTP 500.

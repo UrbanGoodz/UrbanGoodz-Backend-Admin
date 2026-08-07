@@ -137,6 +137,37 @@
                                         </div>
                                     </div>
 
+                                    {{--
+                                        The fields above are legacy 6amtech and OpenAI-shaped.
+                                        The Urban Goodz AI stack also runs on OpenRouter and
+                                        Gemini, and an API key cannot say which provider it
+                                        belongs to. Selecting it here is what stops an
+                                        OpenRouter key being posted to api.openai.com.
+                                    --}}
+                                    <div class="col-sm-6">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label">{{ translate('AI Provider') }}</label><br>
+                                            <select class="form-control" name="AI_PROVIDER">
+                                                @php($selectedProvider = $data['AI_PROVIDER'] ?? 'openai')
+                                                <option value="openai" {{ $selectedProvider === 'openai' ? 'selected' : '' }}>OpenAI</option>
+                                                <option value="openrouter" {{ $selectedProvider === 'openrouter' ? 'selected' : '' }}>OpenRouter</option>
+                                                <option value="gemini" {{ $selectedProvider === 'gemini' ? 'selected' : '' }}>Gemini</option>
+                                            </select>
+                                            <small class="text-muted">{{ translate('Must match the key above. An OpenRouter key with OpenAI selected will fail every call.') }}</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-sm-6">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label">{{ translate('AI Model') }}</label><br>
+                                            <input type="text"
+                                                placeholder="{{ translate('messages.Ex:') }} openai/gpt-4o-mini"
+                                                class="form-control" name="AI_MODEL"
+                                                value="{{ getEnvMode() != 'demo' ? ($data['AI_MODEL'] ?? '') : '' }}">
+                                            <small class="text-muted">{{ translate('Leave blank to use the provider default.') }}</small>
+                                        </div>
+                                    </div>
+
                                     <div class="col-sm-12">
                                         <div class="btn--container justify-content-end">
                                             <button type="button" id="test-connection-btn"

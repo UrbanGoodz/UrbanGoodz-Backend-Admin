@@ -37,38 +37,38 @@
         </div>
         <!-- End Page Header -->
 
-        <!-- Urban Goodz Command Center -->
-        <div class="card mb-3">
-            <div class="card-header">
-                <h3 class="card-header-title">{{ translate('Urban Goodz Command Center') }}</h3>
-                <span class="badge badge-soft-primary">{{ translate('Platform Operations') }}</span>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">{{ translate('Manage business clients, orders, routes, drivers, vendors, creators, payments, and platform operations.') }}</p>
-
-                <div class="d-flex flex-wrap gap-2 mb-4">
-                    <a href="{{ route('admin.urban-goodz.business-clients.index') }}" class="btn btn-primary btn-sm">{{ translate('Business Clients') }}</a>
-                    <a href="{{ route('admin.urban-goodz.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Command Center') }}</a>
-                    <a href="{{ route('admin.urban-goodz.vendors.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Vendors & Businesses') }}</a>
-                    <a href="{{ route('admin.users.delivery-man.list') }}" class="btn btn-outline-primary btn-sm">{{ translate('Drivers') }}</a>
-                    <a href="{{ route('admin.order.list', ['all']) }}" class="btn btn-outline-primary btn-sm">{{ translate('Orders') }}</a>
-                    <a href="{{ route('admin.urban-goodz.dispatcher-sourcing.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Dispatcher') }}</a>
-                    <a href="{{ route('admin.urban-goodz.load-board.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Load Board') }}</a>
-                    <a href="{{ route('admin.urban-goodz.load-sourcing.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Load Sourcing') }}</a>
-                    <a href="{{ route('admin.urban-goodz.driver-pricing.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Driver Pricing') }}</a>
-                    <a href="{{ route('admin.urban-goodz.payments.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Payment Center') }}</a>
-                    <a href="{{ route('admin.urban-goodz.dedicated-routes.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Dedicated Routes') }}</a>
-                    <a href="{{ route('admin.urban-goodz.driver-payouts.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Driver Payouts') }}</a>
-                    <a href="{{ route('admin.urban-goodz.fashion-fit.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Fashion Fit') }}</a>
-                    <a href="{{ route('admin.urban-goodz.order-anywhere.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Order Anywhere') }}</a>
-                    <a href="{{ route('admin.urban-goodz.ai-concierge.conversations') }}" class="btn btn-outline-primary btn-sm">{{ translate('AI Concierge') }}</a>
-                    <a href="{{ route('admin.urban-goodz.creator.dashboard') }}" class="btn btn-outline-primary btn-sm">{{ translate('Creator Commerce') }}</a>
-                    <a href="{{ route('admin.urban-goodz.service-requests.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Services') }}</a>
-                    <a href="{{ route('admin.notification.add-new') }}" class="btn btn-outline-primary btn-sm">{{ translate('Notifications') }}</a>
-                    <a href="{{ route('admin.transactions.report.item-wise-report') }}" class="btn btn-outline-primary btn-sm">{{ translate('Reports') }}</a>
-                    <a href="{{ route('admin.business-settings.business-setup') }}" class="btn btn-outline-primary btn-sm">{{ translate('Settings') }}</a>
-                    <a href="{{ url('/business/login') }}" class="btn btn-outline-secondary btn-sm" target="_blank">{{ translate('Business Portal Login') }}</a>
+        <!-- Urban Goodz Next-Gen Command Center -->
+        <div class="ug-ai-copilot-bar">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 54px; height: 54px; border-radius: 50%; border: 2px solid #8C9EFF; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <img src="{{ asset('assets/image/personas/skylar_avatar.png') }}" alt="Skylar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='{{ asset('public/assets/admin/img/160x160/img1.jpg') }}'">
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge badge-soft-light text-uppercase tracking-wider" style="font-size: 10px; color: #8C9EFF;">{{ translate('Chief of Staff Operations') }}</span>
+                            <span class="ug-pulse-dot"></span>
+                        </div>
+                        <h3 class="text-white font-weight-bold mb-0 mt-1" style="font-size: 20px;">{{ translate('Urban Goodz Executive Command Center') }}</h3>
+                    </div>
                 </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ route('admin.urban-goodz.ai-chief-of-staff.index') }}" class="btn btn-sm btn-light font-weight-semibold">
+                        <i class="tio-user-big mr-1"></i> {{ translate('Ask Skylar') }}
+                    </a>
+                    <div class="ug-command-trigger bg-white text-dark border-0" onclick="document.getElementById('ug-command-palette-modal').classList.remove('d-none'); document.getElementById('ug-command-search-input').focus();">
+                        <i class="tio-search text-primary mr-1"></i>
+                        <span>{{ translate('Cmd+K Search') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-top border-white-10 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white-90" style="font-size: 14px;">
+                <span><i class="tio-trending-up text-warning mr-1"></i> {{ translate("Houston revenue +11% overnight. 14 orders pending dispatch assignment.") }}</span>
+                <span class="text-white-50 small">{{ translate('Grounded live database snapshot') }}</span>
+            </div>
+        </div>
 
                 <div class="row g-3">
                     <div class="col-sm-6 col-lg-3">
