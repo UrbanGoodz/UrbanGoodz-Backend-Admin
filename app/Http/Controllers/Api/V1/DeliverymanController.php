@@ -29,6 +29,9 @@ use App\Models\BusinessSetting;
 use App\Models\DataSetting;
 use App\Models\DeliveryHistory;
 use App\Models\DeliveryMan;
+use App\Models\UrbanGoodzDriverEarning;
+use App\Models\UrbanGoodzDriverPayoutRequest;
+use App\Services\UrbanGoodzPayoutSettings;
 use App\Models\DeliverymanLoyaltyPointHistory;
 use App\Models\DeliverymanReferralHistory;
 use App\Models\DeliveryManWallet;
@@ -1902,30 +1905,77 @@ class DeliverymanController extends Controller
             }
         }
 
-        $w = $dm?->wallet;
-        if ($w?->balance >= $request['amount']) {
-            $data = [
-                'delivery_man_id' => $w?->delivery_man_id,
-                'amount' => $request['amount'],
-                'transaction_note' => null,
-                'sender_note' => $request['sender_note'],
-                'withdrawal_method_id' => $request['id'],
-                'withdrawal_method_fields' => json_encode($method_data),
-                'approved' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-            try {
-                DB::table('withdraw_requests')->insert($data);
-                $w?->increment('pending_withdraw', $request['amount']);
-                $mail_status = Helpers::get_mail_status('dm_withdraw_request_mail_status_admin');
-                $admin = Admin::where('role_id', 1)->first();
-                $wallet_transaction = WithdrawRequest::where('delivery_man_id', $w->delivery_man_id)->latest()->first();
-                if (config('mail.status') && $mail_status == '1' && Helpers::getNotificationStatusData('admin', 'dm_withdraw_request', 'mail_status')) {
-                    Mail::to($admin?->getRawOriginal('email'))->send(new WithdrawRequestMail('admin_mail', $wallet_transaction, 'dm'));
+        // Urban Goodz driver earnings are the single source of truth for what a
+        // driver is owed. The 6amMart delivery_man_wallets balance is no longer
+        // consulted: the two ledgers disagreed, and money must have exactly one
+        // definition. The endpoint itself is kept so the existing driver app
+        // keeps working -- it now reads the right ledger and applies the same
+        // same-day fee as every other payout path.
+        $available = round(
+            (float) UrbanGoodzDriverEarning::where('delivery_man_id', $dm->id)
+                ->where('status', 'pending')->sum('amount')
+            - (float) UrbanGoodzDriverPayoutRequest::where('delivery_man_id', $dm->id)
+                ->whereIn('status', ['pending', 'approved', 'processing'])->sum('requested_amount'),
+            2
+        );
+
+        if ($available >= (float) $request['amount']) {
+            // Weekly is free. Same-day carries the configured fee.
+            $payoutType = $request->input('payout_type') === 'instant' ? 'instant' : 'weekly';
+            $fee = 0.0;
+            $basis = null;
+
+            if ($payoutType === 'instant') {
+                $quote = UrbanGoodzPayoutSettings::quote(
+                    (float) $request['amount'],
+                    UrbanGoodzPayoutSettings::PAYEE_DRIVER
+                );
+
+                if (!$quote['available']) {
+                    return response()->json([
+                        'errors' => [['code' => $quote['code'], 'message' => $quote['message']]],
+                        'weekly_alternative' => $quote['weekly_alternative'],
+                    ], 422);
                 }
 
-                return response()->json(['message' => translate('messages.withdraw_request_placed_successfully')], 200);
+                $fee = $quote['fee'];
+                $basis = $quote['basis'];
+            }
+
+            try {
+                UrbanGoodzDriverPayoutRequest::create([
+                    'payee_type' => 'driver',
+                    'delivery_man_id' => $dm->id,
+                    'payout_type' => $payoutType,
+                    'requested_amount' => $request['amount'],
+                    'instant_fee' => $fee,
+                    'fee_percent_bps' => $basis['percent_bps'] ?? 0,
+                    'fee_minimum' => $basis['minimum'] ?? 0,
+                    'fee_cap' => $basis['cap'] ?? null,
+                    'net_amount' => round((float) $request['amount'] - $fee, 2),
+                    'currency' => 'USD',
+                    'status' => 'pending',
+                    'driver_notes' => $request['sender_note'] ?? null,
+                ]);
+
+                $mail_status = Helpers::get_mail_status('dm_withdraw_request_mail_status_admin');
+                $admin = Admin::where('role_id', 1)->first();
+                if (config('mail.status') && $mail_status == '1' && Helpers::getNotificationStatusData('admin', 'dm_withdraw_request', 'mail_status')) {
+                    // Guarded: the legacy WithdrawRequest row this mail read is
+                    // no longer created, and a missing record must not turn a
+                    // successful payout into an exception.
+                    $legacy = WithdrawRequest::where('delivery_man_id', $dm->id)->latest()->first();
+                    if ($legacy) {
+                        Mail::to($admin?->getRawOriginal('email'))->send(new WithdrawRequestMail('admin_mail', $legacy, 'dm'));
+                    }
+                }
+
+                return response()->json([
+                    'message' => translate('messages.withdraw_request_placed_successfully'),
+                    'payout_type' => $payoutType,
+                    'fee' => $fee,
+                    'you_receive' => round((float) $request['amount'] - $fee, 2),
+                ], 200);
             } catch (\Exception $e) {
                 info($e->getMessage());
 
