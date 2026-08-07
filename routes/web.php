@@ -272,3 +272,9 @@ Route::get('/image-proxy', function () {
         ->header('Content-Type', $response->header('Content-Type'))
         ->header('Access-Control-Allow-Origin', '*');
 });
+Route::get('order-anywhere/card-reveal/{token}', 'OrderAnywhereCardRevealController@show')
+    ->middleware('throttle:30,1')
+    ->name('order-anywhere.card-reveal');
+Route::post('order-anywhere/card-reveal/{token}/ephemeral-key', 'OrderAnywhereCardRevealController@ephemeralKey')
+    ->middleware('throttle:10,1')
+    ->name('order-anywhere.card-reveal.key');

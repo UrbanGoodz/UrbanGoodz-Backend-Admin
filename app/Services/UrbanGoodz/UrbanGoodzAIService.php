@@ -4,14 +4,19 @@ namespace App\Services\UrbanGoodz;
 
 use App\Contracts\AI\AIProviderInterface;
 use App\Services\UrbanGoodz\AI\AIProviderManager;
+use App\Services\UrbanGoodz\AI\Persona\Persona;
+use App\Services\UrbanGoodz\AI\Persona\PersonaRegistry;
 
 class UrbanGoodzAIService
 {
     private AIProviderInterface $provider;
 
-    public function __construct(?AIProviderManager $providers = null)
+    private PersonaRegistry $personas;
+
+    public function __construct(?AIProviderManager $providers = null, ?PersonaRegistry $personas = null)
     {
         $this->provider = ($providers ?? new AIProviderManager)->resolve();
+        $this->personas = $personas ?? new PersonaRegistry;
     }
 
     public function getBaseUrl(): string
@@ -46,6 +51,37 @@ class UrbanGoodzAIService
     public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
     {
         return $this->provider->chatResult($systemPrompt, $userMessage, $context);
+    }
+
+    public function persona(string $key): Persona
+    {
+        return $this->personas->get($key);
+    }
+
+    public function personaForSurface(string $surface): Persona
+    {
+        return $this->personas->forSurface($surface);
+    }
+
+    /**
+     * Speak as one of the Urban Goodz personalities.
+     *
+     * The persona supplies identity, voice, and the platform rule block; the
+     * caller supplies only the task. Every surface that routes through here
+     * inherits brand voice and the safety block without restating either.
+     */
+    public function chatAsPersona(string $persona, string $taskPrompt, string $userMessage, array $context = []): string
+    {
+        return $this->chatResultAsPersona($persona, $taskPrompt, $userMessage, $context)['response'];
+    }
+
+    public function chatResultAsPersona(string $persona, string $taskPrompt, string $userMessage, array $context = []): array
+    {
+        $systemPrompt = $this->personas->get($persona)->systemPrompt($taskPrompt, $context);
+
+        // Context is already grounded into the system prompt; passing it again
+        // would duplicate it in the provider payload.
+        return $this->provider->chatResult($systemPrompt, $userMessage);
     }
 
     public function classifyIntent(string $query, array $possibleIntents): ?array

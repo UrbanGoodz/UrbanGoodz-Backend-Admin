@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UrbanGoodzOrderAnywhereCardRequest extends Model
@@ -23,19 +24,36 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
         'cancelled',
         'failed',
         'reconciled',
+        'revocation_pending',
+        'awaiting_provider_configuration',
+        'issuance_pending',
+        'issuance_retry_pending',
     ];
 
     protected $fillable = [
+        'issuance_key',
+        'customer_payment_intent_id',
         'order_anywhere_request_id',
         'delivery_man_id',
         'provider',
         'provider_card_id',
         'provider_cardholder_id',
         'provider_reference',
+        'provider_authorization_id',
+        'provider_transaction_id',
         'card_status',
         'card_type',
         'last4',
         'spending_limit',
+        'approved_purchase_budget',
+        'approved_quote_version',
+        'market_zone_reference',
+        'payment_count_limit',
+        'eligible_at',
+        'provider_configuration_status',
+        'retry_eligible_at',
+        'issuance_attempts',
+        'final_failure_at',
         'buffer_amount',
         'currency',
         'authorized_amount',
@@ -45,7 +63,6 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
         'merchant_category_code',
         'allowed_merchant',
         'allowed_mccs',
-        'single_use',
         'usable_from',
         'expires_at',
         'issued_at',
@@ -54,6 +71,17 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
         'frozen_at',
         'cancelled_at',
         'failure_reason',
+        'failure_category',
+        'failure_reported_at',
+        'receipt_path',
+        'receipt_original_name',
+        'receipt_mime',
+        'receipt_size',
+        'receipt_total',
+        'receipt_notes',
+        'receipt_submitted_at',
+        'reconciled_at',
+        'reconciled_by',
         'metadata',
         'created_by',
     ];
@@ -62,11 +90,16 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
         'order_anywhere_request_id' => 'integer',
         'delivery_man_id' => 'integer',
         'spending_limit' => 'decimal:2',
+        'approved_purchase_budget' => 'decimal:2',
+        'payment_count_limit' => 'integer',
+        'eligible_at' => 'datetime',
+        'retry_eligible_at' => 'datetime',
+        'issuance_attempts' => 'integer',
+        'final_failure_at' => 'datetime',
         'buffer_amount' => 'decimal:2',
         'authorized_amount' => 'decimal:2',
         'captured_amount' => 'decimal:2',
         'refunded_amount' => 'decimal:2',
-        'single_use' => 'boolean',
         'usable_from' => 'datetime',
         'expires_at' => 'datetime',
         'issued_at' => 'datetime',
@@ -74,6 +107,12 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
         'used_at' => 'datetime',
         'frozen_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'failure_reported_at' => 'datetime',
+        'receipt_size' => 'integer',
+        'receipt_total' => 'decimal:2',
+        'receipt_submitted_at' => 'datetime',
+        'reconciled_at' => 'datetime',
+        'reconciled_by' => 'integer',
         'allowed_mccs' => 'array',
         'metadata' => 'array',
         'created_by' => 'integer',
@@ -89,6 +128,11 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
     public function driver(): BelongsTo
     {
         return $this->belongsTo(\App\Models\DeliveryMan::class, 'delivery_man_id');
+    }
+
+    public function reconciliation(): HasOne
+    {
+        return $this->hasOne(UrbanGoodzOrderAnywhereCardReconciliation::class, 'card_request_id');
     }
 
     // ─── Status Helpers ─────────────────────────────────────────────────
@@ -125,6 +169,10 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
             'cancelled' => 'Card Cancelled',
             'failed' => 'Card Failed',
             'reconciled' => 'Reconciled',
+            'revocation_pending' => 'Revocation Pending',
+            'awaiting_provider_configuration' => 'Awaiting Provider Configuration',
+            'issuance_pending' => 'Issuance Pending',
+            'issuance_retry_pending' => 'Issuance Retry Pending',
             default => ucfirst($this->card_status),
         };
     }
@@ -134,7 +182,18 @@ class UrbanGoodzOrderAnywhereCardRequest extends Model
     public static function activeForRequest(int $requestId): ?self
     {
         return static::where('order_anywhere_request_id', $requestId)
-            ->whereIn('card_status', ['issued', 'active'])
+            ->whereIn('card_status', [
+                'requested',
+                'provider_pending',
+                'awaiting_provider_configuration',
+                'issuance_pending',
+                'issuance_retry_pending',
+                'issued',
+                'active',
+                'authorized',
+                'frozen',
+                'revocation_pending',
+            ])
             ->whereNull('cancelled_at')
             ->first();
     }

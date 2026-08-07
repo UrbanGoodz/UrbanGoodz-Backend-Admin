@@ -493,8 +493,13 @@ class AiOperationsController extends Controller
         $brief = $chiefOfStaffService->generateExecutiveDailyBrief();
         $summary = $chiefOfStaffService->getCommandCenterSummary();
         $diagnostics = $chiefOfStaffService->runDiagnosticScan();
+        $persona = config('urban_goodz_personas.personas.chief_of_staff.presentation', []);
+        $narration = $chiefOfStaffService->narrateExecutiveBrief(auth('admin')->user()?->f_name);
 
-        return view('admin-views.urban-goodz.ai-chief-of-staff.index', compact('brief', 'summary', 'diagnostics'));
+        return view(
+            'admin-views.urban-goodz.ai-chief-of-staff.index',
+            compact('brief', 'summary', 'diagnostics', 'persona', 'narration')
+        );
     }
 
     private function maskUrl(string $url): string

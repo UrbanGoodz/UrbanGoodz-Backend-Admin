@@ -87,6 +87,9 @@ Route::post('adyen/webhook', 'Api\V1\AdyenWebhookController@handle');
 Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@handle')
     ->where('provider', 'adyen|stripe|staged_test');
 
+Route::post('order-anywhere/cards/stripe/webhook', 'Api\V1\StripeIssuingWebhookController@handle')
+    ->middleware('throttle:120,1');
+
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
     Route::post('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
@@ -243,6 +246,10 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('order-anywhere/{requestId}/purchase-card', 'Api\V1\UrbanGoodzDriverPurchaseCardController@getCard');
     Route::post('order-anywhere/{requestId}/purchase-card/authorize', 'Api\V1\UrbanGoodzDriverPurchaseCardController@authorizePurchase');
     Route::post('order-anywhere/{requestId}/purchase-card/complete', 'Api\V1\UrbanGoodzDriverPurchaseCardController@completePurchase');
+    Route::post('order-anywhere/{requestId}/purchase-card/receipt', 'Api\V1\UrbanGoodzDriverPurchaseCardController@uploadReceipt');
+    Route::post('order-anywhere/{requestId}/purchase-card/failure', 'Api\V1\UrbanGoodzDriverPurchaseCardController@reportFailure');
+    Route::post('order-anywhere/{requestId}/purchase-card/secure-reveal', 'Api\V1\UrbanGoodzDriverPurchaseCardController@secureReveal')
+        ->middleware('throttle:10,1');
 
     // Driver active jobs (unified across all sources)
     Route::get('active-jobs', 'Api\UrbanGoodzDriverActiveJobsController@index');
@@ -374,12 +381,49 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
             Route::post('prep-time', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPrepTime');
         });
 
+<<<<<<< HEAD
         Route::group(['prefix' => 'driver', 'middleware' => ['dm.api']], function () {
             Route::get('daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
             Route::post('route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
             Route::post('verify-package', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyPackage');
             Route::post('verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
         });
+=======
+        // Driver
+        Route::get('driver/daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
+        Route::post('driver/route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
+        Route::post('driver/verify-package', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyPackage');
+        Route::post('driver/verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
+
+        // Business
+        Route::post('business/manifest/import', 'Api\V1\UrbanGoodz\CrossAppAIController@importManifest');
+        Route::post('business/packages/group', 'Api\V1\UrbanGoodz\CrossAppAIController@groupPackages');
+        Route::post('business/route/create', 'Api\V1\UrbanGoodz\CrossAppAIController@createRoute');
+        Route::post('business/route/optimize', 'Api\V1\UrbanGoodz\CrossAppAIController@optimizeRoute');
+        Route::post('business/driver/match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
+        Route::post('business/route/predict', 'Api\V1\UrbanGoodz\CrossAppAIController@predictRouteCompletion');
+        Route::post('business/route/risk', 'Api\V1\UrbanGoodz\CrossAppAIController@assessRouteRisk');
+        Route::get('business/performance', 'Api\V1\UrbanGoodz\CrossAppAIController@routePerformance');
+        Route::get('business/cost-anomaly', 'Api\V1\UrbanGoodz\CrossAppAIController@costAnomalyAlert');
+        Route::post('business/invoice-support', 'Api\V1\UrbanGoodz\CrossAppAIController@generateInvoiceSupport');
+        Route::post('business/delivery-proof', 'Api\V1\UrbanGoodz\CrossAppAIController@compileDeliveryProof');
+
+        // Dispatcher
+        Route::post('dispatcher/load-ranking', 'Api\V1\UrbanGoodz\CrossAppAIController@rankLoads');
+        Route::post('dispatcher/driver-match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
+        Route::post('dispatcher/rate-estimate', 'Api\V1\UrbanGoodz\CrossAppAIController@estimateRate');
+        Route::post('dispatcher/duplicate-check', 'Api\V1\UrbanGoodz\CrossAppAIController@checkDuplicates');
+        Route::get('dispatcher/ops-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@opsSummary');
+        Route::post('dispatcher/parse-load', 'Api\V1\UrbanGoodz\CrossAppAIController@parseLoad');
+        Route::post('dispatcher/parse-email', 'Api\V1\UrbanGoodz\CrossAppAIController@parseEmail');
+        Route::post('dispatcher/parse-batch', 'Api\V1\UrbanGoodz\CrossAppAIController@parseBatch');
+        Route::get('dispatcher/source-status', 'Api\V1\UrbanGoodz\CrossAppAIController@sourceStatus');
+        Route::post('dispatcher/sync-source', 'Api\V1\UrbanGoodz\CrossAppAIController@syncSource');
+
+        // Digital Human Platform
+        Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
+        Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
+>>>>>>> origin/fix-load-sourcing-admin-pages-20260729
     });
 
 // Urban Goodz Stranded -- "Never Stay Stranded Again."

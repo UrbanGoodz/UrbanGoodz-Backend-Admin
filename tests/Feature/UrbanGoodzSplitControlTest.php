@@ -13,6 +13,7 @@ use App\Models\UrbanGoodzBusinessClient;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzPaymentSplit;
+use App\Models\UrbanGoodzPaymentSetting;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\UrbanGoodzPaymentService;
@@ -133,6 +134,32 @@ class UrbanGoodzSplitControlTest extends TestCase
 
         $splits = UrbanGoodzPaymentSplit::where('payable_id', $request->id)->get();
         $this->assertCount(3, $splits); // platform fee + residual revenue + driver (no vendor)
+    }
+
+    public function test_owner_database_platform_fee_controls_split_and_snapshot_source(): void
+    {
+        UrbanGoodzPaymentSetting::setPlatformFeePercent(12.5, $this->admin->id);
+
+        $request = OrderAnywhereRequest::create([
+            'request_number' => 'OA-SPLIT-OWNER-FEE-1',
+            'customer_id' => 1,
+            'vendor_id' => $this->vendor->id,
+            'assigned_delivery_man_id' => $this->driver->id,
+            'fulfillment_type' => 'participating_vendor',
+            'status' => 'quote_ready',
+            'payment_status' => 'quoted',
+            'quote_amount' => 100.00,
+            'final_amount' => 100.00,
+            'service_fee' => 0,
+            'delivery_fee' => 0,
+        ]);
+
+        $this->paymentService->calculateSplits($request, 100.00, ['driver_amount' => 0]);
+
+        $request->refresh();
+        $this->assertSame(12.5, (float) $request->platform_fee);
+        $this->assertSame(12.5, (float) $request->financial_rules_snapshot['platform_fee_percent']);
+        $this->assertSame('owner_database', $request->financial_rules_snapshot['platform_fee_source']);
     }
 
     public function test_no_dispatcher_commission_when_no_dispatcher(): void
