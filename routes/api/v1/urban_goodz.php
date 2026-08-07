@@ -153,6 +153,14 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('routes', 'Api\UrbanGoodzDriverApiController@assignedRoutes');
     Route::get('routes/{routeId}', 'Api\UrbanGoodzDriverApiController@routeDetail');
     Route::post('routes/{routeId}/sequence', 'Api\UrbanGoodzDriverApiController@resequenceRoute');
+
+    // Driver sets where they want to finish, then the run is sorted for them.
+    // Drivers are paid per package rather than per mile, so the finish point
+    // is theirs to choose -- the extra mileage is their own trade.
+    // Uses the same solver as the admin Optimize button, which persists the
+    // order; the older driver-side optimiser did not.
+    Route::get('routes-awaiting-finish', 'Api\UrbanGoodzDriverRouteFinishController@index');
+    Route::post('routes/{route}/finish', 'Api\UrbanGoodzDriverRouteFinishController@finish');
     Route::post('routes/{routeId}/started', 'Api\UrbanGoodzDriverApiController@routeStarted');
     Route::post('routes/{routeId}/completed', 'Api\UrbanGoodzDriverApiController@routeCompleted');
     Route::post('routes/{routeId}/scan-pickup', 'Api\UrbanGoodzDriverApiController@scanPickup');
