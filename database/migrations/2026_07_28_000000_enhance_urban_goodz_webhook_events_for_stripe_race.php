@@ -2,17 +2,13 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-<<<<<<< HEAD
 use Illuminate\Support\Facades\DB;
-=======
->>>>>>> origin/fix-load-sourcing-admin-pages-20260729
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-<<<<<<< HEAD
         if (! Schema::hasTable('urban_goodz_webhook_events')) {
             return;
         }
@@ -51,19 +47,6 @@ return new class extends Migration
             'SHOW INDEX FROM urban_goodz_webhook_events WHERE Key_name = ?',
             [$name]
         ))->isNotEmpty();
-=======
-        Schema::table('urban_goodz_webhook_events', function (Blueprint $table) {
-            $table->string('payment_intent_id')->nullable()->after('event_type');
-            $table->string('charge_id')->nullable()->after('payment_intent_id');
-            $table->timestamp('received_at')->nullable()->after('processed_at');
-            $table->string('status')->nullable()->after('received_at');
-            $table->string('failure_type')->nullable()->after('status');
-        });
-
-        Schema::table('urban_goodz_webhook_events', function (Blueprint $table) {
-            $table->unique(['provider', 'event_id'], 'ugwe_provider_event_unique');
-        });
->>>>>>> origin/fix-load-sourcing-admin-pages-20260729
     }
 
     public function down(): void

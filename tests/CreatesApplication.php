@@ -25,6 +25,11 @@ trait CreatesApplication
             throw new \RuntimeException('Unsafe test target: APP_ENV must be testing.');
         }
 
+        // Both halves matter. The allowlist stops a stray DB_DATABASE, and the
+        // "_test_" requirement stops the allowlist itself from being pointed at
+        // a working database -- which is exactly how the local development
+        // database was destroyed once: a RefreshDatabase suite dropped every
+        // table, and the from-scratch migrate that followed did not complete.
         if (!in_array($database, $allowlist, true) || !str_contains($database, '_test_')) {
             throw new \RuntimeException('Unsafe test target: database is not explicitly allowlisted.');
         }

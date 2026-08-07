@@ -10,6 +10,16 @@ if (getEnvMode() == 'demo') {
 $countryCode = \App\CentralLogics\Helpers::get_business_settings('country') ?? 'auto';
 $moduleType = \App\CentralLogics\Helpers::get_store_data()->module_type;
 $storeDataForBadge = \App\CentralLogics\Helpers::get_store_data();
+
+// _sidebar reads $store_data->module->module_type. It was only ever assigned
+// inside _header, and a Blade @include does not leak its locals to a sibling
+// include, so the sidebar saw an undefined variable and every vendor page whose
+// module_type reached one of those branches returned a 500. Defining it here,
+// in the parent scope, is what actually makes it visible to the includes below.
+$store_data = $storeDataForBadge;
+if ($store_data && !$store_data->relationLoaded('module')) {
+    $store_data->load('module');
+}
 $verifiedBadgePopupShow = (bool) ($storeDataForBadge?->storeConfig?->verified_seller && !($storeDataForBadge?->storeConfig?->has_seen_verified_badge_popup));
 $verifiedBadgePopupLabel = isset($moduleType) && $moduleType == 'rental' ? translate('messages.provider') : translate('messages.store');
 

@@ -15,7 +15,7 @@
                 <i class="tio-flash mr-1 text-warning"></i> {{ translate('Skylar AI Quick Actions') }}
             </div>
             
-            <a href="{{ route('admin.urban-goodz.ai-chief-of-staff.index') }}" class="ug-command-item active">
+            <a href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}" class="ug-command-item active">
                 <div class="d-flex align-items-center">
                     <i class="tio-user-big"></i>
                     <div>

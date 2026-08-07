@@ -14,9 +14,18 @@
     <server name="APP_URL" value="http://localhost"/>
     <server name="BCRYPT_ROUNDS" value="4"/>
     <server name="CACHE_DRIVER" value="array"/>
-    <server name="DB_CONNECTION" value="sqlite" force="true"/>
-    <server name="DB_DATABASE" value=":memory:" force="true"/>
-    <server name="UG_TEST_DB_ALLOWLIST" value=":memory:,urbangoodz_codex_test_20260727" force="true"/>
+    <server name="DB_CONNECTION" value="mysql" force="true"/>
+    <server name="DB_HOST" value="127.0.0.1" force="true"/>
+    <!--
+      A DEDICATED test database, never the local development one. Two things
+      make this non-negotiable: some suites use RefreshDatabase, which drops
+      every table before re-migrating, and a from-scratch migrate does not
+      currently complete in this repo. Pointed at a working database, that
+      combination destroys it and leaves a half-migrated shell behind.
+      The name must contain "_test_"; tests/CreatesApplication.php enforces it.
+    -->
+    <server name="DB_DATABASE" value="urban_goodz_local_test_20260807" force="true"/>
+    <server name="UG_TEST_DB_ALLOWLIST" value="urban_goodz_local_test_20260807" force="true"/>
     <server name="MAIL_MAILER" value="array"/>
     <server name="QUEUE_CONNECTION" value="sync"/>
     <server name="SESSION_DRIVER" value="array"/>

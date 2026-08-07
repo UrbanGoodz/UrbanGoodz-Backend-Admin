@@ -54,7 +54,7 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
-                    <a href="{{ route('admin.urban-goodz.ai-chief-of-staff.index') }}" class="btn btn-sm btn-light font-weight-semibold">
+                    <a href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}" class="btn btn-sm btn-light font-weight-semibold">
                         <i class="tio-user-big mr-1"></i> {{ translate('Ask Skylar') }}
                     </a>
                     <div class="ug-command-trigger bg-white text-dark border-0" onclick="document.getElementById('ug-command-palette-modal').classList.remove('d-none'); document.getElementById('ug-command-search-input').focus();">

@@ -99,7 +99,13 @@ class UrbanGoodzStrandedDispatcher
 
         if ($created > 0) {
             $request->update([
-                'status' => 'broadcasting',
+                // An escalated request is still broadcasting, but saying so
+                // would erase the more specific fact that samaritans have been
+                // dropped -- which is what an operator watching the live board
+                // needs to see, and which the feeds already list as a state.
+                'status' => $request->status === 'escalated_professional'
+                    ? 'escalated_professional'
+                    : 'broadcasting',
                 'broadcast_at' => $request->broadcast_at ?? now(),
                 'broadcast_expires_at' => $expiresAt,
                 'escalation_due_at' => $request->escalation_due_at

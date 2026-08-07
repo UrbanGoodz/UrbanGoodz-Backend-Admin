@@ -29,6 +29,10 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
                 Route::get('{id}', 'UrbanGoodzController@orderAnywhereShow')->name('show');
                 Route::put('{id}', 'UrbanGoodzController@orderAnywhereUpdate')->name('update');
             });
+            Route::group(['prefix' => 'stranded', 'as' => 'stranded.'], function () {
+                Route::get('live', 'UrbanGoodzStrandedVendorLiveController@index')->name('live');
+                Route::get('live-feed', 'UrbanGoodzStrandedVendorLiveController@feed')->name('live-feed');
+            });
             Route::get('fashion-fit', 'UrbanGoodzFashionMeasurementController@index')->name('fashion-fit.index');
             Route::get('{section}', 'UrbanGoodzController@section')->name('section');
         });

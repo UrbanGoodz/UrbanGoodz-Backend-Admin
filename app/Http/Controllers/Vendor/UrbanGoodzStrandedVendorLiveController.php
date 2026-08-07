@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\UrbanGoodz;
+namespace App\Http\Controllers\Vendor;
 
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
@@ -12,43 +12,43 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Live operations view for Urban Goodz Stranded.
+ * Live operations view for Urban Goodz Stranded (Vendor/Business Portal).
  *
- * Two endpoints: a page, and a JSON feed the page polls. The feed is kept
- * separate and deliberately cheap so it can be polled every few seconds
- * without dragging the database, and so the business portal can reuse exactly
- * the same shape against a narrower scope rather than growing a second
- * implementation that drifts.
- *
- * Responder coordinates ARE exposed here, unlike the customer-facing tracking
- * endpoint which releases only the one responder assigned to that customer.
- * An operator watching dispatch needs to see everyone; that is the job. The
- * distinction is deliberate rather than accidental.
+ * Reuses the same data feed structure as the admin live controller, scoped to
+ * the store's zone or active service area.
  */
-class UrbanGoodzStrandedLiveController extends Controller
+class UrbanGoodzStrandedVendorLiveController extends Controller
 {
-    /** Anything older than this is not a position, it is a memory. */
     private const STALE_SECONDS = 120;
 
     public function index(): View
     {
-        return view('admin-views.urban-goodz.stranded.live', [
+        return view('vendor-views.urban-goodz.stranded.live', [
             'mapKey' => Helpers::get_business_settings('map_api_key'),
         ]);
     }
 
     /**
-     * The live picture. Shape is shared with the business portal; only the
-     * scope differs.
+     * The live picture for the business portal.
+     * Scoped to the vendor's zone if set, or active rescues.
      */
     public function feed(Request $request): JsonResponse
     {
+        $vendor = auth('vendor')->user();
+        $store = $vendor?->stores?->first();
+        $zoneId = $store?->zone_id;
+
         $active = ['draft', 'awaiting_fee', 'broadcasting', 'awaiting_selection',
                    'assigned', 'en_route', 'on_scene', 'escalated_professional'];
 
-        $requests = UrbanGoodzStrandedRequest::with('service')
-            ->whereIn('status', $active)
-            ->orderByDesc('is_emergency')
+        $query = UrbanGoodzStrandedRequest::with('service')
+            ->whereIn('status', $active);
+
+        if ($zoneId) {
+            $query->where('zone_id', $zoneId);
+        }
+
+        $requests = $query->orderByDesc('is_emergency')
             ->orderByDesc('id')
             ->limit(100)
             ->get()
@@ -86,18 +86,13 @@ class UrbanGoodzStrandedLiveController extends Controller
             ->whereNotNull('last_latitude')
             ->get()
             ->map(function (UrbanGoodzStrandedResponder $p) {
-                // Carbon 3 returns a SIGNED difference, so the older timestamp
-                // has to be the receiver. now()->diffInSeconds($past) is
-                // negative, and a negative age is never greater than
-                // STALE_SECONDS -- which silently reported every dropped
-                // responder as fresh, the precise thing this guards against.
+                // Signed diff -- see the admin live controller. The older
+                // timestamp must be the receiver or every stale responder
+                // reads as fresh.
                 $age = $p->last_seen_at ? max(0, (int) $p->last_seen_at->diffInSeconds(now())) : null;
 
                 return [
                     'user_id' => $p->user_id,
-                    // Samaritan and professional are shown apart on purpose --
-                    // an operator needs to know at a glance which network is
-                    // carrying the load.
                     'type' => $p->responder_type,
                     'lat' => (float) $p->last_latitude,
                     'lng' => (float) $p->last_longitude,
@@ -123,9 +118,6 @@ class UrbanGoodzStrandedLiveController extends Controller
                 'samaritans_online' => $samaritans->where('stale', false)->count(),
                 'professionals_online' => $professionals->where('stale', false)->count(),
                 'responders_busy' => $responders->where('busy', true)->count(),
-                // Surfaced rather than hidden: a responder whose signal has
-                // dropped still shows as online in the raw data, and an
-                // operator counting available help would otherwise be misled.
                 'stale_fixes' => $responders->where('stale', true)->count(),
             ],
             'requests' => $requests->values(),
