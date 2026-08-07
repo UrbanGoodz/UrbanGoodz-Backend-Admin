@@ -18,6 +18,61 @@
         padding: 4px 10px;
         border-radius: 6px;
     }
+
+    /* Chief of Staff executive presence. Accent is persona-config driven so
+       identity changes do not require a deploy. */
+    .cos-panel {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 24px;
+        background: #fff;
+        border-left: 4px solid {{ $persona['accent'] ?? '#1F3A5F' }};
+        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    .cos-avatar {
+        flex: 0 0 64px;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        object-fit: cover;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 20px;
+        letter-spacing: 0.5px;
+        color: {{ $persona['accent'] ?? '#1F3A5F' }};
+        background: {{ $persona['accent_soft'] ?? '#E8EDF4' }};
+    }
+    .cos-name {
+        font-size: 17px;
+        font-weight: 700;
+        color: #1e2022;
+        margin: 0;
+        line-height: 1.3;
+    }
+    .cos-role {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 600;
+        color: {{ $persona['accent'] ?? '#1F3A5F' }};
+    }
+    .cos-brief {
+        margin: 12px 0 0;
+        font-size: 15px;
+        line-height: 1.65;
+        color: #333b46;
+    }
+    .cos-muted {
+        margin: 12px 0 0;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #77838f;
+    }
 </style>
 @endpush
 
@@ -36,6 +91,39 @@
                     {{ $brief['generated_at'] ?? now()->toIso8601String() }}
                 </small>
             </div>
+        </div>
+    </div>
+
+    <div class="cos-panel">
+        @if(!empty($persona['avatar']))
+            <img class="cos-avatar" src="{{ asset($persona['avatar']) }}"
+                 alt="{{ $persona['display_name'] ?? translate('Chief of Staff') }}">
+        @else
+            <div class="cos-avatar">{{ $persona['initials'] ?? 'CS' }}</div>
+        @endif
+
+        <div class="flex-grow-1">
+            <div class="cos-role">{{ $persona['role_title'] ?? translate('Executive Advisor') }}</div>
+            <h4 class="cos-name">{{ $persona['display_name'] ?? translate('Chief of Staff') }}</h4>
+
+            @if($narration['available'] ?? false)
+                <p class="cos-brief">{{ $narration['text'] }}</p>
+                <small class="text-muted">
+                    {{ translate('Briefed from live records at') }} {{ $narration['generated_at'] }}
+                </small>
+            @else
+                <p class="cos-muted">
+                    {{ translate('The spoken brief is unavailable right now, so the figures below are shown without narration. Nothing has been inferred or summarised on your behalf.') }}
+                </p>
+                <small class="text-muted">
+                    {{ translate('Reason') }}:
+                    <code>{{ $narration['reason'] ?? 'unknown' }}</code>
+                    @if(($narration['reason'] ?? null) === 'provider_not_configured' && \Illuminate\Support\Facades\Route::has('admin.business-settings.openAI'))
+                        &mdash;
+                        <a href="{{ route('admin.business-settings.openAI') }}">{{ translate('configure the AI provider') }}</a>
+                    @endif
+                </small>
+            @endif
         </div>
     </div>
 

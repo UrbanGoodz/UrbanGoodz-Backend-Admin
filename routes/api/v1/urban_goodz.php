@@ -389,4 +389,8 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         Route::post('dispatcher/parse-batch', 'Api\V1\UrbanGoodz\CrossAppAIController@parseBatch');
         Route::get('dispatcher/source-status', 'Api\V1\UrbanGoodz\CrossAppAIController@sourceStatus');
         Route::post('dispatcher/sync-source', 'Api\V1\UrbanGoodz\CrossAppAIController@syncSource');
+
+        // Digital Human Platform
+        Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
+        Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
     });

@@ -7,11 +7,98 @@ use App\Models\AiTask;
 use App\Models\BusinessNeed;
 use App\Models\HumanActionItem;
 use App\Models\MerchantProspect;
+use App\Services\UrbanGoodz\AI\Persona\PersonaRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class AiChiefOfStaffService
 {
+    private ?UrbanGoodzAIService $ai;
+
+    public function __construct(?UrbanGoodzAIService $ai = null)
+    {
+        $this->ai = $ai;
+    }
+
+    private function ai(): UrbanGoodzAIService
+    {
+        return $this->ai ??= new UrbanGoodzAIService;
+    }
+
+    /**
+     * The Chief of Staff's spoken read on the current operating picture.
+     *
+     * Grounded strictly in the counts this service already computed. When the
+     * AI provider is unavailable the brief reports itself unavailable rather
+     * than narrating an executive summary nobody generated.
+     *
+     * @see docs/URBAN_GOODZ_AI_PERSONALITIES.md
+     *
+     * @return array{available: bool, text: ?string, reason: ?string, generated_at: string}
+     */
+    public function narrateExecutiveBrief(?string $ownerName = null): array
+    {
+        $unavailable = fn (string $reason): array => [
+            'available' => false,
+            'text' => null,
+            'reason' => $reason,
+            'generated_at' => now()->toIso8601String(),
+        ];
+
+        if (! $this->ai()->isConfigured()) {
+            return $unavailable('provider_not_configured');
+        }
+
+        $alerts = collect($this->getOperationalAlerts())
+            ->filter(fn (array $alert): bool => $alert['available'] && ($alert['count'] ?? 0) > 0)
+            ->map(fn (array $alert): array => [
+                'condition' => $alert['label'],
+                'count' => $alert['count'],
+                'severity' => $alert['severity'],
+            ])
+            ->values()
+            ->all();
+
+        $task = 'Deliver this morning\'s executive brief on Urban Goodz operations.
+
+Open by greeting the owner by name if you have one. State the operating picture in
+one sentence, then walk the conditions that actually need attention, worst first.
+For each one give a specific recommended action. Close with what is waiting on
+their approval.
+
+If nothing needs attention, say so in one short paragraph and do not manufacture
+concern. Six sentences maximum. Plain prose, no headings, no bullet lists, no
+markdown.';
+
+        $grounding = [
+            'owner_name' => $ownerName,
+            'date' => today()->toFormattedDateString(),
+            'command_center' => $this->getCommandCenterSummary(),
+            'conditions_needing_attention' => $alerts,
+            'note' => $alerts === []
+                ? 'No operational alert currently has a non-zero count.'
+                : null,
+        ];
+
+        $result = $this->ai()->chatResultAsPersona(
+            PersonaRegistry::CHIEF_OF_STAFF,
+            $task,
+            'Give me the brief.',
+            $grounding
+        );
+
+        if (! $result['success']) {
+            return $unavailable($result['error_code'] ?? 'provider_error');
+        }
+
+        return [
+            'available' => true,
+            'text' => $result['response'],
+            'reason' => null,
+            'generated_at' => now()->toIso8601String(),
+        ];
+    }
+
     public function getCommandCenterSummary(): array
     {
         return [
