@@ -76,3 +76,13 @@ storage/app/test-evidence/
 /error_log
 /public/storage
 /storage/app/runtime-translations/
+
+# Stray local debugging artifacts
+/query
+/scratch_*.php
+/storage/debugbar/
+
+# E2E harness local deps/output (harness source itself stays tracked)
+/e2e/real-production/node_modules/
+/e2e/real-production/package-lock.json
+/e2e/real-production/artifacts/
