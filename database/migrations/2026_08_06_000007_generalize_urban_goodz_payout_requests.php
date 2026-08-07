@@ -1,8 +1,10 @@
 <?php
 
+use App\Services\UrbanGoodzPayoutSettings;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Opens instant payouts to vendors as well as drivers.
@@ -53,10 +55,12 @@ return new class extends Migration
             }
         });
 
-        Schema::table('urban_goodz_driver_payout_requests', function (Blueprint $table) {
-            $table->index(['payee_type', 'status'], 'ug_payout_payee_status_idx');
-            $table->index(['vendor_id', 'status'], 'ug_payout_vendor_status_idx');
-        });
+        // Guarded individually. An earlier run of this migration added the
+        // columns and then threw before Laravel recorded it, so on that host
+        // the columns exist while the migration does not -- and an unguarded
+        // index would collide on the retry.
+        $this->addIndexIfMissing('ug_payout_payee_status_idx', ['payee_type', 'status']);
+        $this->addIndexIfMissing('ug_payout_vendor_status_idx', ['vendor_id', 'status']);
 
         // Materialise the rates so they are visible and editable immediately,
         // rather than existing only as code defaults until somebody saves.
@@ -64,6 +68,26 @@ return new class extends Migration
         foreach (UrbanGoodzPayoutSettings::all() as $key => $value) {
             UrbanGoodzPayoutSettings::put($key, $value);
         }
+    }
+
+    private function addIndexIfMissing(string $name, array $columns): void
+    {
+        $exists = DB::selectOne(
+            'SELECT 1 AS found FROM information_schema.statistics
+             WHERE table_schema = DATABASE()
+               AND table_name = ?
+               AND index_name = ?
+             LIMIT 1',
+            ['urban_goodz_driver_payout_requests', $name]
+        );
+
+        if ($exists) {
+            return;
+        }
+
+        Schema::table('urban_goodz_driver_payout_requests', function (Blueprint $table) use ($name, $columns) {
+            $table->index($columns, $name);
+        });
     }
 
     public function down(): void
