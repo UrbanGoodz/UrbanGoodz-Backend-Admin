@@ -381,19 +381,12 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
             Route::post('prep-time', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPrepTime');
         });
 
-<<<<<<< HEAD
         Route::group(['prefix' => 'driver', 'middleware' => ['dm.api']], function () {
             Route::get('daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
             Route::post('route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
             Route::post('verify-package', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyPackage');
             Route::post('verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
         });
-=======
-        // Driver
-        Route::get('driver/daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
-        Route::post('driver/route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
-        Route::post('driver/verify-package', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyPackage');
-        Route::post('driver/verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
 
         // Business
         Route::post('business/manifest/import', 'Api\V1\UrbanGoodz\CrossAppAIController@importManifest');
@@ -423,7 +416,6 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
         // Digital Human Platform
         Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
         Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
->>>>>>> origin/fix-load-sourcing-admin-pages-20260729
     });
 
 // Urban Goodz Stranded -- "Never Stay Stranded Again."
