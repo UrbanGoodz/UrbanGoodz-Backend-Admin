@@ -5,6 +5,10 @@ namespace App\Services\UrbanGoodz;
 use App\Models\UrbanGoodzPaymentTransaction;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
+// Lives in App\Services, not App\Services\UrbanGoodz. Without this import PHP
+// resolves it relative to this namespace and the container fails at runtime --
+// which php -l cannot catch.
+use App\Services\UrbanGoodzStrandedDispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
