@@ -102,6 +102,13 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('settings', 'UrbanGoodz\UrbanGoodzStrandedSettingsController@index')->name('settings');
                 Route::post('settings', 'UrbanGoodz\UrbanGoodzStrandedSettingsController@update')->name('settings.update');
             });
+
+            // Same-day payout pricing. Weekly payouts are free and carry no
+            // configuration; only the instant option is priced.
+            Route::group(['prefix' => 'payouts', 'as' => 'payouts.'], function () {
+                Route::get('settings', 'UrbanGoodz\UrbanGoodzPayoutSettingsController@index')->name('settings');
+                Route::post('settings', 'UrbanGoodz\UrbanGoodzPayoutSettingsController@update')->name('settings.update');
+            });
             Route::group(['prefix' => 'creator-commerce', 'as' => 'creator.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzCreatorController@dashboard')->name('dashboard');
                 Route::get('applications', 'UrbanGoodz\UrbanGoodzCreatorController@applications')->name('applications');
