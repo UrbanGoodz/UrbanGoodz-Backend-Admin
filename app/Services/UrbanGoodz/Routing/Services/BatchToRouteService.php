@@ -83,7 +83,11 @@ class BatchToRouteService
             $route = UrbanGoodzDedicatedRoute::create([
                 'business_client_id' => $batch->business_client_id,
                 'intake_batch_id' => $batch->id,
-                'route_name' => $options['route_name'] ?? ($batch->batch_name ?: 'Batch ' . $batch->id) . ' — Run',
+                // Plain hyphen, not an em dash: route names travel through
+                // scanners, CSV exports and terminal output, and a stray
+                // multi-byte character reads as a mojibake box in at least one
+                // of them.
+                'route_name' => $options['route_name'] ?? ($batch->batch_name ?: 'Batch ' . $batch->id) . ' - Run',
                 'route_type' => 'dedicated',
                 'source_module' => 'package_routes',
                 'status' => 'active',
