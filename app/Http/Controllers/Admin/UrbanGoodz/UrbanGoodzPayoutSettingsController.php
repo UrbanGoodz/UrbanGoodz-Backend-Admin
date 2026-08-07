@@ -55,15 +55,30 @@ class UrbanGoodzPayoutSettingsController extends Controller
             'minimum_amount' => 'required|numeric|min:0|max:10000',
         ]);
 
-        // A cap below the minimum can never be satisfied: every fee would be
-        // raised to the minimum and then cut back to the cap, so the cap would
-        // silently become the only rate charged.
         $validator->after(function ($v) use ($request) {
+            $floor = (float) $request->input('minimum_amount');
+
             foreach (['driver', 'vendor'] as $who) {
                 $cap = (float) $request->input("{$who}_cap");
                 $min = (float) $request->input("{$who}_min");
+
+                // A cap below the minimum can never be satisfied: every fee is
+                // raised to the minimum and then cut back to the cap, so the
+                // cap silently becomes the only rate ever charged.
                 if ($cap > 0 && $cap < $min) {
-                    $v->errors()->add("{$who}_cap", ucfirst($who) . ' cap cannot be lower than the minimum fee.');
+                    $v->errors()->add("{$who}_cap", ucfirst($who) . ' maximum fee cannot be lower than the minimum fee.');
+                }
+
+                // A minimum fee at or above the smallest allowed payout means
+                // the smallest payout is consumed entirely. This is not
+                // hypothetical: production briefly ran a $50 vendor minimum,
+                // which charged a $43.67 balance $43.67 and paid out nothing.
+                if ($floor > 0 && $min >= $floor) {
+                    $v->errors()->add(
+                        "{$who}_min",
+                        ucfirst($who) . ' minimum fee ($' . number_format($min, 2) . ') must be below the minimum payout ($'
+                        . number_format($floor, 2) . '), or the smallest payout is taken entirely in fees.'
+                    );
                 }
             }
         });
