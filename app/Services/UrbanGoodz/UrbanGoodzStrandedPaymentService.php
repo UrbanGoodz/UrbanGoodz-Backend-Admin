@@ -74,7 +74,7 @@ class UrbanGoodzStrandedPaymentService
             'automatic_payment_methods[allow_redirects]' => 'never',
         ]);
 
-        $this->record($request, 'fee', $amountMinor, $intent);
+        $ledgerRow = $this->record($request, 'fee', $amountMinor, $intent);
 
         if (($intent['status'] ?? null) !== 'succeeded') {
             throw new RuntimeException(
@@ -85,7 +85,11 @@ class UrbanGoodzStrandedPaymentService
 
         $request->update([
             'help_request_fee_status' => 'paid',
-            'help_request_fee_transaction_id' => $intent['id'] ?? null,
+            // The ledger row id, not the Stripe reference. This column is a
+            // bigint; a Stripe id like pi_3U1... silently casts to 0 in it.
+            // The provider's own id lives on the ledger row's
+            // provider_payment_id, which is a string and the right home for it.
+            'help_request_fee_transaction_id' => $ledgerRow->id,
         ]);
 
         return $this->broadcastAndReport($request->fresh(), $intent['id'] ?? null);
@@ -175,9 +179,9 @@ class UrbanGoodzStrandedPaymentService
         ];
     }
 
-    private function record(UrbanGoodzStrandedRequest $request, string $type, int $amountMinor, array $intent): void
+    private function record(UrbanGoodzStrandedRequest $request, string $type, int $amountMinor, array $intent): UrbanGoodzPaymentTransaction
     {
-        UrbanGoodzPaymentTransaction::create([
+        return UrbanGoodzPaymentTransaction::create([
             'payable_type' => UrbanGoodzStrandedRequest::class,
             'payable_id' => $request->id,
             'provider' => 'stripe',
