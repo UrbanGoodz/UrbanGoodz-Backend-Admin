@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedService;
+use App\Services\UrbanGoodzStrandedNotifier;
 use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,10 @@ use Illuminate\Support\Str;
 
 class UrbanGoodzStrandedController extends Controller
 {
+    public function __construct(private readonly UrbanGoodzStrandedNotifier $notifier)
+    {
+    }
+
     /**
      * Catalogue for the "I'm Stranded" flow. Unauthenticated on purpose: the
      * Services card must show what help exists before we ask somebody on a
@@ -276,11 +281,107 @@ class UrbanGoodzStrandedController extends Controller
             ], $conflict ? 409 : 410);
         }
 
+        $fresh = $stranded->fresh();
+
+        // Notifications are dispatched only after the transaction has
+        // committed, and never inside it: a Firebase hiccup must not roll back
+        // an assignment the customer has already been told about.
+        $this->notifySelectionOutcome($fresh, $offer);
+
         return response()->json([
             'status' => 'success',
-            'data' => $this->present($stranded->fresh()),
+            'data' => $this->present($fresh),
             'selected_offer_id' => $offer->getKey(),
         ]);
+    }
+
+    private function notifySelectionOutcome(UrbanGoodzStrandedRequest $stranded, UrbanGoodzStrandedOffer $selected): void
+    {
+        $this->notifier->responderSelected($stranded, $selected);
+
+        UrbanGoodzStrandedOffer::where('request_id', $stranded->getKey())
+            ->where('status', 'passed_over')
+            ->get()
+            ->each(fn (UrbanGoodzStrandedOffer $o) => $this->notifier->responderPassedOver($stranded, $o));
+    }
+
+    /**
+     * Move a request along its lifecycle and notify whoever is waiting on that
+     * step. One endpoint rather than six keeps the legal transitions in a
+     * single table instead of scattered across the controller.
+     */
+    public function updateStatus(Request $request, string $record): JsonResponse
+    {
+        $stranded = $this->findForUser($request, $record);
+
+        if (!$stranded) {
+            return response()->json(['status' => 'error', 'message' => 'Request not found.'], 404);
+        }
+
+        if ($stranded->isTerminal()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'This request is already ' . $stranded->status . '.',
+            ], 409);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'event' => 'required|in:en_route,nearby,delayed,arrived,started,completed,confirmed',
+            'minutes_away' => 'nullable|integer|min:0|max:600',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $event = $request->input('event');
+        $offer = $stranded->selected_offer_id
+            ? UrbanGoodzStrandedOffer::find($stranded->selected_offer_id)
+            : null;
+
+        // Nothing past broadcast makes sense without an assigned responder.
+        if (!$offer) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No responder has been selected for this request yet.',
+            ], 409);
+        }
+
+        match ($event) {
+            'en_route' => $this->applyStatus($stranded, 'en_route', ['en_route_at' => now()]),
+            'nearby' => null,
+            'delayed' => null,
+            'arrived' => $this->applyStatus($stranded, 'on_scene', ['arrived_at' => now()]),
+            'started' => $this->applyStatus($stranded, 'on_scene', []),
+            'completed' => $this->applyStatus($stranded, 'completed', ['completed_at' => now()]),
+            'confirmed' => $this->applyStatus($stranded, 'completed', [
+                'customer_confirmed_at' => now(),
+                // Confirmation is what releases escrow. A volunteer never had
+                // any held, so its status is left untouched.
+                'escrow_status' => $stranded->escrow_status === 'held' ? 'released' : $stranded->escrow_status,
+                'escrow_released_at' => $stranded->escrow_status === 'held' ? now() : $stranded->escrow_released_at,
+            ]),
+        };
+
+        $fresh = $stranded->fresh();
+
+        match ($event) {
+            'en_route' => $this->notifier->responderEnRoute($fresh),
+            'nearby' => $this->notifier->responderNearby($fresh, $request->input('minutes_away')),
+            'delayed' => $this->notifier->responderDelayed($fresh, $request->input('reason')),
+            'arrived' => $this->notifier->responderArrived($fresh),
+            'started' => $this->notifier->serviceStarted($fresh),
+            'completed' => $this->notifier->serviceCompleted($fresh),
+            'confirmed' => $this->notifier->completionConfirmed($fresh, $offer),
+        };
+
+        return response()->json(['status' => 'success', 'data' => $this->present($fresh)]);
+    }
+
+    private function applyStatus(UrbanGoodzStrandedRequest $stranded, string $status, array $extra): void
+    {
+        $stranded->update(array_merge(['status' => $status], $extra));
     }
 
     public function cancel(Request $request, string $record): JsonResponse
@@ -298,6 +399,12 @@ class UrbanGoodzStrandedController extends Controller
             ], 409);
         }
 
+        // Captured before the update, because a responder who was standing by
+        // still needs telling even though the request is about to be cancelled.
+        $assignedOffer = $stranded->selected_offer_id
+            ? UrbanGoodzStrandedOffer::find($stranded->selected_offer_id)
+            : null;
+
         $stranded->update([
             'status' => 'cancelled',
             'cancelled_at' => now(),
@@ -312,7 +419,10 @@ class UrbanGoodzStrandedController extends Controller
                 : $stranded->escrow_status,
         ]);
 
-        return response()->json(['status' => 'success', 'data' => $this->present($stranded->fresh())]);
+        $fresh = $stranded->fresh();
+        $this->notifier->cancelledByCustomer($fresh, $assignedOffer);
+
+        return response()->json(['status' => 'success', 'data' => $this->present($fresh)]);
     }
 
     private function findForUser(Request $request, string $record): ?UrbanGoodzStrandedRequest

@@ -382,5 +382,9 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     // customer's selection is what actually assigns the job.
     Route::get('requests/{record}/offers', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@offers');
     Route::post('requests/{record}/offers/{offer}/select', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@selectOffer');
+    // Lifecycle: en_route, nearby, delayed, arrived, started, completed,
+    // confirmed. Each transition notifies whoever is waiting on it, and
+    // `confirmed` is what releases escrow.
+    Route::post('requests/{record}/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@updateStatus');
     Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@cancel');
 });
