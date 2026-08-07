@@ -628,13 +628,39 @@ class DeliverymanController extends Controller
     public function record_location_data(Request $request)
     {
         $dm = DeliveryMan::where(['auth_token' => $request['token']])->first();
-        DeliveryHistory::updateOrCreate(['delivery_man_id' => $dm['id']], [
+
+        // An invalid token used to reach $dm['id'] on null and fatal.
+        if (!$dm) {
+            return response()->json(['errors' => [['code' => 'auth', 'message' => translate('Unauthorized')]]], 401);
+        }
+
+        // This records a breadcrumb, not a current position.
+        //
+        // It was updateOrCreate keyed on delivery_man_id alone, so every ping
+        // overwrote the last one and each driver had exactly one row for all
+        // time -- 2 rows across 15 drivers in production. Nothing downstream
+        // worked as designed: DeliveryMan::hasMany, hasOne()->latestOfMany(),
+        // Order::hasMany and the per-order trail query at get_order_history
+        // all expect a series of points.
+        //
+        // order_id was never written either, which is why that per-order
+        // query could never match a row regardless of how many existed.
+        $orderId = $request['order_id'] ?? null;
+
+        if (!$orderId) {
+            $orderId = Order::where('delivery_man_id', $dm->id)
+                ->whereIn('order_status', ['accepted', 'picked_up', 'handover'])
+                ->latest('id')
+                ->value('id');
+        }
+
+        DeliveryHistory::create([
+            'delivery_man_id' => $dm->id,
+            'order_id' => $orderId,
             'longitude' => $request['longitude'],
             'latitude' => $request['latitude'],
             'time' => now(),
             'location' => $request['location'],
-            'created_at' => now(),
-            'updated_at' => now()
         ]);
 
         if(addon_published_status('RideShare') && $dm->is_ride == 1){

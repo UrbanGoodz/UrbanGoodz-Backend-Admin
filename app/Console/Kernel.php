@@ -54,6 +54,13 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping()
             ->runInBackground();
+
+        // Driver breadcrumbs are unbounded by nature. Prune nightly, keeping
+        // each driver's most recent point so the live map never goes blank.
+        $schedule->command('delivery-history:prune')
+            ->dailyAt('03:20')
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**
