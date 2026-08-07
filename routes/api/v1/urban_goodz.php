@@ -429,3 +429,10 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
 
     Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@cancel');
 });
+
+// Vendor cash-out. Balance is read from store_wallets using the platform's
+// own formula, so a vendor sees the same number here as everywhere else.
+Route::group(['prefix' => 'urban-goodz/vendor', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
+    Route::get('payout-options', 'Api\V1\UrbanGoodz\UrbanGoodzVendorPayoutController@options');
+    Route::post('payout-request', 'Api\V1\UrbanGoodz\UrbanGoodzVendorPayoutController@request_');
+});
