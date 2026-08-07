@@ -366,6 +366,166 @@ class DashboardController extends Controller
         ];
     }
 
+    public static function ug_insights(array $data = [], array $ugData = [], array $directory = []): array
+    {
+        $insights = [];
+
+        $pendingRefunds = (int) ($ugData['pending_refunds'] ?? 0);
+        if ($pendingRefunds > 0) {
+            $insights[] = [
+                'tone' => 'warn',
+                'text' => $pendingRefunds.' pending refund'.($pendingRefunds > 1 ? 's' : '').' need attention in the Payment Center.',
+                'href' => route('admin.urban-goodz.payments.index'),
+                'action' => 'Review',
+            ];
+        }
+
+        $orphaned = (int) ($directory['orphaned_vendors'] ?? 0);
+        if ($orphaned > 0) {
+            $insights[] = [
+                'tone' => 'bad',
+                'text' => $orphaned.' vendor account'.($orphaned > 1 ? 's have' : ' has').' no store attached yet.',
+                'href' => route('admin.urban-goodz.vendors.index', ['tab' => 'missing-store']),
+                'action' => 'Resolve',
+            ];
+        }
+
+        $unassigned = (int) ($data['searching_for_dm'] ?? 0);
+        if ($unassigned > 0) {
+            $insights[] = [
+                'tone' => 'warn',
+                'text' => $unassigned.' order'.($unassigned > 1 ? 's are' : ' is').' waiting for dispatch assignment.',
+                'href' => route('admin.urban-goodz.dispatcher-sourcing.dashboard'),
+                'action' => 'Dispatch',
+            ];
+        }
+
+        $activeVendors = (int) ($directory['active_vendors'] ?? 0);
+        $activeStores = (int) ($directory['active_stores'] ?? 0);
+        if ($activeVendors > 0 || $activeStores > 0) {
+            $insights[] = [
+                'tone' => 'good',
+                'text' => $activeVendors.' active vendor'.($activeVendors === 1 ? '' : 's').' across '.$activeStores.' live store'.($activeStores === 1 ? '' : 's').' on the marketplace.',
+                'href' => route('admin.urban-goodz.vendors.index', ['tab' => 'active-stores']),
+                'action' => 'View',
+            ];
+        }
+
+        return $insights;
+    }
+
+    public function ug_live_feed(Request $request)
+    {
+        $feed = [];
+
+        try {
+            if (Schema::hasTable('orders')) {
+                $orders = Order::with('store:id,name')->latest()->limit(5)->get();
+                foreach ($orders as $o) {
+                    $feed[] = [
+                        'time' => optional($o->created_at)->diffForHumans() ?? '',
+                        'tone' => in_array($o->order_status, ['failed', 'canceled', 'refunded', 'refund_requested']) ? 'bad' : 'info',
+                        'icon' => 'tio-shopping-cart-outlined',
+                        'title' => 'Order #'.$o->id,
+                        'meta' => ucwords(str_replace('_', ' ', (string) $o->order_status)).($o->store?->name ? ' · '.$o->store->name : ''),
+                        'href' => route('admin.order.details', ['id' => $o->id]),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep the live feed resilient against schema drift.
+        }
+
+        try {
+            if (Schema::hasTable('urban_goodz_payment_ledgers')) {
+                $ledgers = UrbanGoodzPaymentLedger::latest()->limit(4)->get();
+                foreach ($ledgers as $l) {
+                    $feed[] = [
+                        'time' => optional($l->created_at)->diffForHumans() ?? '',
+                        'tone' => $l->event_type === 'refund' ? 'warn' : 'good',
+                        'icon' => 'tio-dollar-outlined',
+                        'title' => (string) $l->ledger_number,
+                        'meta' => ucwords(str_replace('_', ' ', (string) $l->feature)).' · '.Helpers::format_currency((float) $l->amount).' · '.ucwords(str_replace('_', ' ', (string) $l->payment_status)),
+                        'href' => route('admin.urban-goodz.payments.index'),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep the live feed resilient against schema drift.
+        }
+
+        try {
+            if (Schema::hasTable('urban_goodz_business_clients')) {
+                $clients = UrbanGoodzBusinessClient::latest()->limit(3)->get();
+                foreach ($clients as $c) {
+                    $feed[] = [
+                        'time' => optional($c->created_at)->diffForHumans() ?? '',
+                        'tone' => 'dijon',
+                        'icon' => 'tio-briefcase',
+                        'title' => (string) $c->company_name,
+                        'meta' => 'New business client'.($c->contact_name ? ' · '.$c->contact_name : ''),
+                        'href' => route('admin.urban-goodz.business-clients.index'),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep the live feed resilient against schema drift.
+        }
+
+        try {
+            if (Schema::hasTable('order_anywhere_requests')) {
+                $requests = OrderAnywhereRequest::latest()->limit(3)->get();
+                foreach ($requests as $r) {
+                    $feed[] = [
+                        'time' => optional($r->created_at)->diffForHumans() ?? '',
+                        'tone' => 'info',
+                        'icon' => 'tio-shop',
+                        'title' => 'Order Anywhere '.($r->request_number ?? '#'.$r->id),
+                        'meta' => ucwords(str_replace('_', ' ', (string) $r->status)).($r->customer_name ? ' · '.$r->customer_name : ''),
+                        'href' => route('admin.urban-goodz.order-anywhere.index'),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep the live feed resilient against schema drift.
+        }
+
+        try {
+            if (Schema::hasTable('urban_goodz_driver_payout_requests')) {
+                $payouts = UrbanGoodzDriverPayoutRequest::latest()->limit(3)->get();
+                foreach ($payouts as $p) {
+                    $feed[] = [
+                        'time' => optional($p->created_at)->diffForHumans() ?? '',
+                        'tone' => 'black',
+                        'icon' => 'tio-money',
+                        'title' => 'Driver payout '.Helpers::format_currency((float) $p->requested_amount),
+                        'meta' => ucwords(str_replace('_', ' ', (string) $p->status)),
+                        'href' => route('admin.urban-goodz.driver-payouts.index'),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep the live feed resilient against schema drift.
+        }
+
+        $ugData = self::urban_goodz_dashboard_data();
+        $directory = $ugData ? app(VendorBusinessDirectoryService::class)->summary() : [];
+        $orderStats = [];
+        try {
+            $params = session('dash_params', ['zone_id' => 'all', 'module_id' => Config::get('module.current_module_id')]);
+            $orderStats = self::order_stats_calc($params['zone_id'] ?? 'all', $params['module_id'] ?? null);
+        } catch (\Throwable $e) {
+            // Fall back to an empty insight set rather than failing the feed.
+        }
+
+        return response()->json([
+            'server_time' => now()->format('H:i:s'),
+            'ugData' => $ugData,
+            'insights' => self::ug_insights($orderStats, $ugData, $directory),
+            'feed' => $feed,
+        ]);
+    }
+
     public function dashboard(Request $request)
     {
         $params = [
@@ -388,10 +548,11 @@ class DashboardController extends Controller
         $vendorDirectorySummary = $ugData
             ? app(VendorBusinessDirectoryService::class)->summary()
             : [];
+        $insights = self::ug_insights($data, $ugData, $vendorDirectorySummary);
 
         if ($module_type == 'settings') {
             if (auth('admin')->check() && auth('admin')->user()->role_id == 1) {
-                return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData', 'vendorDirectorySummary'));
+                return view("admin-views.dashboard", compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData', 'vendorDirectorySummary', 'insights'));
             }
             return redirect()->route('admin.business-settings.business-setup');
         }
@@ -407,7 +568,7 @@ class DashboardController extends Controller
             return view('errors.404');
         }
         $viewName = (empty($module_type) || !view()->exists("admin-views.dashboard-{$module_type}")) ? "admin-views.dashboard" : "admin-views.dashboard-{$module_type}";
-        return view($viewName, compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData', 'vendorDirectorySummary'));
+        return view($viewName, compact('data', 'total_sell', 'commission', 'delivery_commission', 'label', 'params', 'module_type', 'ugData', 'vendorDirectorySummary', 'insights'));
     }
 
     public function order(Request $request)

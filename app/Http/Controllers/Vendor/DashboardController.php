@@ -70,7 +70,76 @@ class DashboardController extends Controller
             $item= $items->orderby('stock')->latest()->first();
         }
 
-        return view('vendor-views.dashboard', compact('data', 'earning', 'commission', 'params','out_of_stock_count','item'));
+        $suggestions = [];
+        if ($out_of_stock_count > 0) {
+            $suggestions[] = [
+                'title' => 'Low stock attention',
+                'text' => $out_of_stock_count.' item'.($out_of_stock_count > 1 ? 's are' : ' is').' at or below your minimum stock level.',
+                'href' => route('vendor.item.stock-limit-list'),
+                'action' => 'Restock',
+            ];
+        }
+        $topSeller = $top_sell->first();
+        if ($topSeller) {
+            $suggestions[] = [
+                'title' => 'Your best seller',
+                'text' => ($topSeller->name ?? 'This item').' has the highest order count — feature it in an ad to keep the momentum.',
+                'href' => route('vendor.item.edit', ['id' => $topSeller->id]),
+                'action' => 'Promote',
+            ];
+        }
+        $topRated = $most_rated_items->first();
+        if ($topRated) {
+            $suggestions[] = [
+                'title' => 'Highest rated',
+                'text' => (($topRated->name ?? 'This item')).' leads with a '.number_format((float) $topRated->avg_rating, 1).'★ rating — highlight it on your storefront.',
+                'href' => route('vendor.item.view', ['id' => $topRated->id]),
+                'action' => 'Feature',
+            ];
+        }
+        $yearEarning = array_sum($earning);
+        if ($yearEarning > 0) {
+            $suggestions[] = [
+                'title' => 'Year to date',
+                'text' => 'You earned '.Helpers::format_currency($yearEarning).' so far this year. Check the monthly chart below for seasonality.',
+                'href' => route('vendor.dashboard'),
+                'action' => 'Review',
+            ];
+        }
+
+        return view('vendor-views.dashboard', compact('data', 'earning', 'commission', 'params','out_of_stock_count','item', 'suggestions'));
+    }
+
+    public function live_feed()
+    {
+        $store = Helpers::get_store_data();
+        $feed = [];
+
+        try {
+            $orders = Order::with('customer:id,f_name,l_name')
+                ->where('store_id', $store->id)
+                ->latest()
+                ->limit(6)
+                ->get();
+
+            foreach ($orders as $o) {
+                $feed[] = [
+                    'time' => optional($o->created_at)->diffForHumans() ?? '',
+                    'tone' => in_array($o->order_status, ['failed', 'canceled', 'refunded', 'refund_requested']) ? 'bad' : 'info',
+                    'icon' => 'tio-shopping-cart-outlined',
+                    'title' => 'Order #'.$o->id,
+                    'meta' => ucwords(str_replace('_', ' ', (string) $o->order_status)),
+                    'href' => route('vendor.order.details', ['id' => $o->id]),
+                ];
+            }
+        } catch (\Throwable $e) {
+            // Keep the live feed resilient against schema drift.
+        }
+
+        return response()->json([
+            'server_time' => now()->format('H:i:s'),
+            'feed' => $feed,
+        ]);
     }
 
     public function store_data()

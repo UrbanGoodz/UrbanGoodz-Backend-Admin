@@ -81,6 +81,79 @@
         </div>
         <!-- End Page Header -->
 
+        <!-- Urban Goodz Warm Portal Overview -->
+        <div class="ug-portal mb-4">
+            <div class="ug-portal-hero">
+                <h4 class="ug-portal-hero-title">{{ translate('Your Store at a Glance') }}</h4>
+                <p class="ug-portal-hero-sub">{{ translate('Live, grounded performance across your store.') }}</p>
+                <div class="row g-3 mt-1 ug-stagger">
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--success h-100" href="{{ route('vendor.dashboard') }}">
+                            <div class="ug-kpi-label"><i class="tio-dollar-outlined"></i> {{ translate('Total Earning') }}</div>
+                            <div class="ug-kpi-value ug-count" data-target="{{ round(array_sum($earning)) }}" data-prefix="{{ \App\CentralLogics\Helpers::currency_symbol() }}">{{ \App\CentralLogics\Helpers::format_currency(array_sum($earning)) }}</div>
+                            <div class="ug-kpi-sub">{{ translate('this year') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--dijon h-100" href="{{ route('vendor.dashboard') }}">
+                            <div class="ug-kpi-label"><i class="tio-trending-down-outlined"></i> {{ translate('Commission') }}</div>
+                            <div class="ug-kpi-value ug-count" data-target="{{ round(array_sum($commission)) }}" data-prefix="{{ \App\CentralLogics\Helpers::currency_symbol() }}">{{ \App\CentralLogics\Helpers::format_currency(array_sum($commission)) }}</div>
+                            <div class="ug-kpi-sub">{{ translate('given this year') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi {{ ($out_of_stock_count ?? 0) > 0 ? 'ug-kpi--danger' : '' }} h-100" href="{{ route('vendor.item.stock-limit-list') }}">
+                            <div class="ug-kpi-label"><i class="tio-stock"></i> {{ translate('Low Stock Items') }}</div>
+                            <div class="ug-kpi-value ug-count" data-target="{{ $out_of_stock_count ?? 0 }}">{{ $out_of_stock_count ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ ($out_of_stock_count ?? 0) > 0 ? translate('restock recommended') : translate('all stocked up') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--info h-100" href="{{ route('vendor.order.list', ['all']) }}">
+                            <div class="ug-kpi-label"><i class="tio-shopping-cart-outlined"></i> {{ translate('Orders') }}</div>
+                            <div class="ug-kpi-value ug-count" data-target="{{ $data['all'] ?? 0 }}">{{ $data['all'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ $data['delivered'] ?? 0 }} {{ translate('delivered') }}</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-lg-7">
+                    <div class="ug-feed h-100">
+                        <div class="ug-feed-header">
+                            <h5 class="ug-feed-title"><span class="ug-live-dot"></span> {{ translate('Live Orders') }}</h5>
+                            <span class="ug-feed-status" id="ug-vendor-feed-status">{{ translate('Connecting…') }}</span>
+                        </div>
+                        <div class="ug-feed-body" id="ug-vendor-live-feed-body">
+                            <div class="ug-feed-empty">{{ translate('Loading live orders…') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="ug-feed h-100">
+                        <div class="ug-feed-header">
+                            <h5 class="ug-feed-title"><i class="tio-bulb-outlined text-warning"></i> {{ translate('Skylar Suggestions') }}</h5>
+                        </div>
+                        <div class="ug-feed-body" id="ug-vendor-suggestions-body">
+                            @forelse($suggestions ?? [] as $s)
+                                <div class="ug-feed-item">
+                                    <div class="ug-feed-icon ug-feed-icon--dijon"><i class="tio-bulb-outlined"></i></div>
+                                    <div class="ug-feed-body-text">
+                                        <p class="ug-feed-item-title">{{ $s['title'] }}</p>
+                                        <p class="ug-feed-item-meta">{{ $s['text'] }}</p>
+                                        <p class="ug-feed-item-meta"><a href="{{ $s['href'] }}" class="text-primary font-weight-bold">{{ $s['action'] }}</a></p>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="ug-feed-empty">{{ translate('No suggestions right now. Keep up the great work!') }}</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card mb-3">
             <div class="card-body">
                 <div class="row gx-2 gx-lg-3 mb-2">
@@ -340,5 +413,69 @@
             $('.hide-warning').hide();
         }
 
+    </script>
+@endpush
+
+@push('script_2')
+    <script>
+        "use strict";
+        (function () {
+            var FEED_URL = "{{ route('vendor.dashboard.live-feed') }}";
+            var POLL_MS = 10000;
+
+            function esc(s) {
+                return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+                });
+            }
+
+            function toneClass(t) {
+                return 'ug-feed-icon--' + (['good', 'bad', 'info', 'dijon', 'black'].indexOf(t) >= 0 ? t : 'info');
+            }
+
+            function renderFeed(items) {
+                var body = document.getElementById('ug-vendor-live-feed-body');
+                if (!body) return;
+                if (!items || !items.length) {
+                    body.innerHTML = '<div class="ug-feed-empty">No recent orders yet.</div>';
+                    return;
+                }
+                body.innerHTML = items.map(function (it) {
+                    var link = it.href ? '<a href="' + esc(it.href) + '">' + esc(it.title) + '</a>' : esc(it.title);
+                    return '<div class="ug-feed-item">'
+                        + '<div class="ug-feed-icon ' + toneClass(it.tone) + '"><i class="' + esc(it.icon) + '"></i></div>'
+                        + '<div class="ug-feed-body-text"><p class="ug-feed-item-title">' + link + '</p>'
+                        + '<p class="ug-feed-item-meta">' + esc(it.meta) + '</p></div>'
+                        + '<span class="ug-feed-item-time">' + esc(it.time) + '</span>'
+                        + '</div>';
+                }).join('');
+            }
+
+            function initCounts() {
+                document.querySelectorAll('.ug-count').forEach(function (el) {
+                    var target = Number(el.getAttribute('data-target')) || 0;
+                    var prefix = el.getAttribute('data-prefix') || '';
+                    el.textContent = prefix + target.toLocaleString();
+                });
+            }
+
+            function poll() {
+                fetch(FEED_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                    .then(function (d) {
+                        var status = document.getElementById('ug-vendor-feed-status');
+                        if (status) status.textContent = 'Updated ' + (d.server_time || '');
+                        renderFeed(d.feed || []);
+                    })
+                    .catch(function () {
+                        var status = document.getElementById('ug-vendor-feed-status');
+                        if (status) status.textContent = 'Reconnecting…';
+                    });
+            }
+
+            initCounts();
+            poll();
+            setInterval(poll, POLL_MS);
+        })();
     </script>
 @endpush

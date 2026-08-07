@@ -738,6 +738,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('user-overview', 'DashboardController@user_overview')->name('user-overview');
             Route::post('commission-overview', 'DashboardController@commission_overview')->name('commission-overview');
             Route::post('business-overview', 'DashboardController@business_overview')->name('business-overview');
+            Route::get('ug-live-feed', 'DashboardController@ug_live_feed')->name('ug-live-feed');
         });
 
         Route::post('item/variant-price', 'ItemController@variant_price')->name('item.variant-price');

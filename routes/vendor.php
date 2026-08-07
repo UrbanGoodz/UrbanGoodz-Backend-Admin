@@ -103,6 +103,7 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
 
         Route::group(['prefix' => 'dashboard', 'as' => 'dashboard.'], function () {
             Route::post('order-stats', 'DashboardController@order_stats')->name('order-stats');
+            Route::get('live-feed', 'DashboardController@live_feed')->name('live-feed');
         });
 
         Route::group(['prefix' => 'category', 'as' => 'category.', 'middleware' => ['module:category','subscription:category']], function () {

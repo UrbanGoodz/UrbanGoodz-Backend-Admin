@@ -36,6 +36,7 @@ $countryCode = strtolower($country ? $country : 'auto');
     <link rel="stylesheet" href="{{asset('public/assets/admin/intltelinput/css/intlTelInput.css')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/upload-single-image.css')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-admin.css')}}">
+    <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-portal.css')}}">
     @if (!isset($module_type))
     @php($module_type = Config::get('module.current_module_type'))
     @endif

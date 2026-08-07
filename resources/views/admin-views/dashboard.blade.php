@@ -65,8 +65,115 @@
             </div>
 
             <div class="mt-3 pt-3 border-top border-white-10 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white-90" style="font-size: 14px;">
-                <span><i class="tio-trending-up text-warning mr-1"></i> {{ translate("Houston revenue +11% overnight. 14 orders pending dispatch assignment.") }}</span>
+                <span><i class="tio-trending-up text-warning mr-1"></i> @if(!empty($insights)) {{ $insights[0]['text'] }} @else {{ translate('All systems nominal. No urgent items need attention right now.') }} @endif</span>
                 <span class="text-white-50 small">{{ translate('Grounded live database snapshot') }}</span>
+            </div>
+        </div>
+
+        <!-- Urban Goodz Warm Portal Command Overview -->
+        <div class="ug-portal mt-4">
+            <div class="ug-portal-hero">
+                <h4 class="ug-portal-hero-title">{{ translate('Urban Goodz Command Overview') }}</h4>
+                <p class="ug-portal-hero-sub">{{ translate('Live, grounded KPIs across the marketplace, logistics and creator ecosystem.') }}</p>
+                <div class="row g-3 mt-1 ug-stagger">
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--success h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="ug-kpi-label"><i class="tio-dollar-outlined"></i> {{ translate('Total Revenue') }}</div>
+                            <div class="ug-kpi-value ug-count" data-key="total_revenue" data-target="{{ round($ugData['total_revenue'] ?? 0) }}" data-prefix="{{ \App\CentralLogics\Helpers::currency_symbol() }}">{{ \App\CentralLogics\Helpers::format_currency($ugData['total_revenue'] ?? 0) }}</div>
+                            <div class="ug-kpi-sub">{{ $ugData['payment_ledgers_count'] ?? 0 }} {{ translate('ledger entries') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--danger h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
+                            <div class="ug-kpi-label"><i class="tio-refresh"></i> {{ translate('Pending Refunds') }}</div>
+                            <div class="ug-kpi-value ug-count" data-key="pending_refunds" data-target="{{ $ugData['pending_refunds'] ?? 0 }}">{{ $ugData['pending_refunds'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ $data['refund_requested'] ?? 0 }} {{ translate('failed/refund requested') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi h-100" href="{{ route('admin.urban-goodz.vendors.index', ['tab' => 'active-stores']) }}">
+                            <div class="ug-kpi-label"><i class="tio-shop"></i> {{ translate('Active Stores') }}</div>
+                            <div class="ug-kpi-value ug-count" data-target="{{ $vendorDirectorySummary['active_stores'] ?? 0 }}">{{ $vendorDirectorySummary['active_stores'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ $vendorDirectorySummary['active_vendors'] ?? 0 }} {{ translate('active vendors') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--info h-100" href="{{ route('admin.urban-goodz.order-anywhere.index') }}">
+                            <div class="ug-kpi-label"><i class="tio-shopping-cart-outlined"></i> {{ translate('Order Anywhere') }}</div>
+                            <div class="ug-kpi-value ug-count" data-key="order_anywhere_count" data-target="{{ $ugData['order_anywhere_count'] ?? 0 }}">{{ $ugData['order_anywhere_count'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ translate('requests received') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--black h-100" href="{{ route('admin.urban-goodz.driver-payouts.index') }}">
+                            <div class="ug-kpi-label"><i class="tio-money"></i> {{ translate('Driver Payouts') }}</div>
+                            <div class="ug-kpi-value ug-count" data-key="driver_payouts_count" data-target="{{ $ugData['driver_payouts_count'] ?? 0 }}">{{ $ugData['driver_payouts_count'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ $ugData['driver_earnings_count'] ?? 0 }} {{ translate('earnings records') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--dijon h-100" href="{{ route('admin.urban-goodz.section', 'logistics') }}">
+                            <div class="ug-kpi-label"><i class="tio-flight"></i> {{ translate('Logistics & Medical') }}</div>
+                            <div class="ug-kpi-value ug-count" data-key="logistics_medical" data-target="{{ ($ugData['logistics_jobs_count'] ?? 0) + ($ugData['medical_courier_jobs_count'] ?? 0) }}">{{ ($ugData['logistics_jobs_count'] ?? 0) + ($ugData['medical_courier_jobs_count'] ?? 0) }}</div>
+                            <div class="ug-kpi-sub">{{ $ugData['load_board_count'] ?? 0 }} {{ translate('loads on board') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--info h-100" href="{{ route('admin.urban-goodz.ai-concierge.conversations') }}">
+                            <div class="ug-kpi-label"><i class="tio-chat-outlined"></i> {{ translate('AI Conversations') }}</div>
+                            <div class="ug-kpi-value ug-count" data-key="ai_conversations_count" data-target="{{ $ugData['ai_conversations_count'] ?? 0 }}">{{ $ugData['ai_conversations_count'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ $ugData['discovery_searches_count'] ?? 0 }} {{ translate('discovery searches') }}</div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <a class="ug-kpi ug-kpi--canvas h-100" href="{{ route('admin.users.delivery-man.list') }}">
+                            <div class="ug-kpi-label"><i class="tio-user-big"></i> {{ translate('Drivers') }}</div>
+                            <div class="ug-kpi-value ug-count" data-target="{{ $data['delivery_man'] ?? 0 }}">{{ $data['delivery_man'] ?? 0 }}</div>
+                            <div class="ug-kpi-sub">{{ $data['searching_for_dm'] ?? 0 }} {{ translate('unassigned orders') }}</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-lg-7">
+                    <div class="ug-feed h-100">
+                        <div class="ug-feed-header">
+                            <h5 class="ug-feed-title"><span class="ug-live-dot"></span> {{ translate('Live Activity') }}</h5>
+                            <span class="ug-feed-status" id="ug-feed-status">{{ translate('Connecting…') }}</span>
+                        </div>
+                        <div class="ug-feed-body" id="ug-live-feed-body">
+                            <div class="ug-feed-empty">{{ translate('Loading live activity…') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="ug-feed h-100">
+                        <div class="ug-feed-header">
+                            <h5 class="ug-feed-title"><i class="tio-bulb-outlined text-warning"></i> {{ translate('Skylar Insights') }}</h5>
+                            <a class="ug-feed-status text-primary font-weight-bold" href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}">{{ translate('Ask Skylar') }}</a>
+                        </div>
+                        <div class="ug-feed-body" id="ug-insight-body">
+                            @forelse($insights as $i)
+                                <div class="ug-feed-item">
+                                    <div class="ug-feed-icon ug-feed-icon--{{ $i['tone'] }}"><i class="tio-bulb-outlined"></i></div>
+                                    <div class="ug-feed-body-text">
+                                        <p class="ug-feed-item-title">{{ $i['text'] }}</p>
+                                        <p class="ug-feed-item-meta"><a href="{{ $i['href'] }}" class="text-primary font-weight-bold">{{ $i['action'] }}</a></p>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="ug-feed-empty">{{ translate('All systems nominal. No urgent items need attention right now.') }}</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-end mt-3">
+                <a class="btn btn-sm btn-white border" href="{{ route('admin.transactions.report.item-wise-report') }}">
+                    <i class="tio-file-text-outlined mr-1"></i> {{ translate('Reports') }}
+                </a>
             </div>
         </div>
 
@@ -1079,5 +1186,122 @@
             // change url page with new params
             window.history.pushState('page2', 'Title', '{{url()->current()}}?' + params);
         }
+    </script>
+@endpush
+
+@push('script_2')
+    <script>
+        "use strict";
+        (function () {
+            var FEED_URL = "{{ route('admin.dashboard-stats.ug-live-feed') }}";
+            var POLL_MS = 10000;
+
+            function esc(s) {
+                return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+                });
+            }
+
+            function toneClass(t) {
+                return 'ug-feed-icon--' + (['good', 'bad', 'info', 'dijon', 'black'].indexOf(t) >= 0 ? t : 'info');
+            }
+
+            function renderFeed(items) {
+                var body = document.getElementById('ug-live-feed-body');
+                if (!body) return;
+                if (!items || !items.length) {
+                    body.innerHTML = '<div class="ug-feed-empty">No recent activity yet.</div>';
+                    return;
+                }
+                body.innerHTML = items.map(function (it) {
+                    var link = it.href ? '<a href="' + esc(it.href) + '">' + esc(it.title) + '</a>' : esc(it.title);
+                    return '<div class="ug-feed-item">'
+                        + '<div class="ug-feed-icon ' + toneClass(it.tone) + '"><i class="' + esc(it.icon) + '"></i></div>'
+                        + '<div class="ug-feed-body-text"><p class="ug-feed-item-title">' + link + '</p>'
+                        + '<p class="ug-feed-item-meta">' + esc(it.meta) + '</p></div>'
+                        + '<span class="ug-feed-item-time">' + esc(it.time) + '</span>'
+                        + '</div>';
+                }).join('');
+            }
+
+            function renderInsights(insights) {
+                var body = document.getElementById('ug-insight-body');
+                if (!body) return;
+                if (!insights || !insights.length) {
+                    body.innerHTML = '<div class="ug-feed-empty">All systems nominal. No urgent items need attention right now.</div>';
+                    return;
+                }
+                body.innerHTML = insights.map(function (i) {
+                    var action = (i.href && i.action)
+                        ? '<p class="ug-feed-item-meta"><a href="' + esc(i.href) + '" class="text-primary font-weight-bold">' + esc(i.action) + '</a></p>'
+                        : '';
+                    return '<div class="ug-feed-item">'
+                        + '<div class="ug-feed-icon ' + toneClass(i.tone) + '"><i class="tio-bulb-outlined"></i></div>'
+                        + '<div class="ug-feed-body-text"><p class="ug-feed-item-title">' + esc(i.text) + '</p>' + action + '</div>'
+                        + '</div>';
+                }).join('');
+            }
+
+            function animateCount(el, target) {
+                var prefix = el.getAttribute('data-prefix') || '';
+                var duration = 650;
+                var start = null;
+                function step(ts) {
+                    if (!start) start = ts;
+                    var p = Math.min((ts - start) / duration, 1);
+                    var eased = 1 - Math.pow(1 - p, 3);
+                    el.textContent = prefix + Math.round(target * eased).toLocaleString();
+                    if (p < 1) requestAnimationFrame(step);
+                }
+                requestAnimationFrame(step);
+            }
+
+            function initCounts() {
+                document.querySelectorAll('.ug-count').forEach(function (el) {
+                    var target = Number(el.getAttribute('data-target')) || 0;
+                    var prefix = el.getAttribute('data-prefix') || '';
+                    el.textContent = prefix + target.toLocaleString();
+                });
+            }
+
+            function refreshKpis(ug) {
+                var map = {
+                    total_revenue: ug.total_revenue,
+                    pending_refunds: ug.pending_refunds,
+                    order_anywhere_count: ug.order_anywhere_count,
+                    driver_payouts_count: ug.driver_payouts_count,
+                    logistics_medical: (ug.logistics_jobs_count || 0) + (ug.medical_courier_jobs_count || 0),
+                    ai_conversations_count: ug.ai_conversations_count
+                };
+                document.querySelectorAll('.ug-count').forEach(function (el) {
+                    var key = el.getAttribute('data-key');
+                    if (key && map[key] !== undefined && map[key] !== null) {
+                        var val = Number(map[key]) || 0;
+                        el.setAttribute('data-target', val);
+                        animateCount(el, val);
+                    }
+                });
+            }
+
+            function poll() {
+                fetch(FEED_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                    .then(function (d) {
+                        var status = document.getElementById('ug-feed-status');
+                        if (status) status.textContent = 'Updated ' + (d.server_time || '');
+                        renderFeed(d.feed || []);
+                        renderInsights(d.insights || []);
+                        if (d.ugData) refreshKpis(d.ugData);
+                    })
+                    .catch(function () {
+                        var status = document.getElementById('ug-feed-status');
+                        if (status) status.textContent = 'Reconnecting…';
+                    });
+            }
+
+            initCounts();
+            poll();
+            setInterval(poll, POLL_MS);
+        })();
     </script>
 @endpush
