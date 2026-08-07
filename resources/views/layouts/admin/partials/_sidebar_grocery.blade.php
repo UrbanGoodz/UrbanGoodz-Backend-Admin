@@ -438,6 +438,26 @@
                             </a>
                         </li>
                     @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_creator_commerce_view') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_creator_commerce'))
+                        <li class="nav-item">
+                            <small class="nav-subtitle" title="Creator Commerce">{{ translate('Creator Commerce') }}</small>
+                            <small class="tio-more-horizontal nav-subtitle-replacer"></small>
+                        </li>
+                        <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/creator-commerce*') || Request::is('admin/urban-goodz/modules/creator-commerce*') || Request::is('admin/urban-goodz/section/creators') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.creator.dashboard') }}" title="Creator Commerce">
+                                <i class="tio-star nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Creator Space</span>
+                            </a>
+                        </li>
+                    @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_waitlist_view') || \App\CentralLogics\Helpers::module_permission_check('urban_goodz_view'))
+                        <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/waitlist*') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.waitlist') }}" title="Website Waitlist">
+                                <i class="tio-messages nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Website Waitlist</span>
+                            </a>
+                        </li>
+                    @endif
                     <!-- End marketing section -->
                     @if (\App\CentralLogics\Helpers::module_permission_check('category') ||
     \App\CentralLogics\Helpers::module_permission_check('attribute') ||

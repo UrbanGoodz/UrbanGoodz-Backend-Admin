@@ -149,6 +149,14 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('ai-tools/generate', 'UrbanGoodz\UrbanGoodzCreatorController@aiGenerate')->name('ai-tools.generate');
             });
 
+            // Website lead capture. The marketing site is a static build with no
+            // server runtime, so signups land here and are worked from this page.
+            Route::group(['prefix' => 'waitlist'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzWaitlistController@index')->name('waitlist');
+                Route::post('{id}/status', 'UrbanGoodz\UrbanGoodzWaitlistController@updateStatus')->name('waitlist.status');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzWaitlistController@destroy')->name('waitlist.destroy');
+            });
+
             Route::group(['prefix' => 'business-clients', 'as' => 'business-clients.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzBusinessClientController@index')->name('index');
                 Route::get('create', 'UrbanGoodz\UrbanGoodzBusinessClientController@create')->name('create');

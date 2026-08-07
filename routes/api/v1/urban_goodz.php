@@ -425,6 +425,12 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
 // show available help before asking someone stranded on a shoulder to log in.
 Route::get('urban-goodz/stranded/services', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@services')->middleware('throttle:60,1');
 
+// Website lead capture. The marketing site is a static build with no server
+// runtime, so signups post here directly. Public by design (pre-signup),
+// throttled, and honeypot-guarded in the controller.
+Route::post('urban-goodz/waitlist', 'Api\V1\UrbanGoodz\UrbanGoodzWaitlistController@store')
+    ->middleware('throttle:20,1');
+
 // Safety terms and the identity-privacy explanation are readable before sign
 // up: people are entitled to know what is asked of them, and what happens to
 // their licence, before they hand it over.
