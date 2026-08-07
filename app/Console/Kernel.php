@@ -46,6 +46,14 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->when(fn() => config('urban_goodz_load_board.sourcing.enabled', true));
+
+        // Stranded is the one schedule here that somebody is waiting on in
+        // real time. The responder answer window is measured in seconds, so
+        // this runs every minute rather than on the usual cadence.
+        $schedule->command('stranded:dispatch-tick')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

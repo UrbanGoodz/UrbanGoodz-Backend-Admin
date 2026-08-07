@@ -7,6 +7,8 @@ use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedService;
 use App\Models\UrbanGoodzStrandedVerification;
+use App\Models\UrbanGoodzStrandedResponder;
+use App\Services\UrbanGoodzStrandedDispatcher;
 use App\Services\UrbanGoodzStrandedSafety;
 use App\Services\UrbanGoodzStrandedNotifier;
 use App\Services\UrbanGoodzStrandedSettings;
@@ -191,6 +193,51 @@ class UrbanGoodzStrandedController extends Controller
     }
 
     /**
+     * Send the request out to nearby responders.
+     *
+     * The fee is what buys the broadcast, so this refuses until it is settled
+     * or waived. Once a payment provider is connected this should be called by
+     * the payment webhook rather than the client.
+     */
+    public function broadcast(Request $request, string $record, UrbanGoodzStrandedDispatcher $dispatcher): JsonResponse
+    {
+        $stranded = $this->findForUser($request, $record);
+
+        if (!$stranded) {
+            return response()->json(['status' => 'error', 'message' => 'Request not found.'], 404);
+        }
+
+        if ($stranded->isTerminal()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'This request is already ' . $stranded->status . '.',
+            ], 409);
+        }
+
+        if (!in_array($stranded->help_request_fee_status, ['paid', 'waived'], true)) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'fee_outstanding',
+                'message' => 'The help request fee must be settled before we can send this out.',
+                'help_request_fee_minor' => $stranded->help_request_fee_minor,
+            ], 402);
+        }
+
+        $count = $dispatcher->broadcast($stranded);
+
+        if ($count === 0 && !$dispatcher->widen($stranded->fresh())) {
+            // Ladder exhausted with nobody reachable at any distance.
+            $this->notifier->noRespondersFound($stranded->fresh());
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'responders_notified' => $count,
+            'data' => $this->present($stranded->fresh()),
+        ]);
+    }
+
+    /**
      * The responders willing to help, for the customer's choice screen.
      * Accepting puts a responder on this list; it does not assign the job.
      */
@@ -288,6 +335,12 @@ class UrbanGoodzStrandedController extends Controller
                     // customer confirms the work is done.
                     'escrow_status' => $offer->payableAmountMinor() > 0 ? 'held' : 'none',
                 ]);
+
+                // Mark the responder busy so dispatch stops offering them
+                // other rescues while they are driving to this one.
+                UrbanGoodzStrandedResponder::where('user_id', $offer->responder_id)
+                    ->where('responder_type', $offer->responder_type)
+                    ->update(['active_request_id' => $fresh->getKey()]);
 
                 return $offer;
             });

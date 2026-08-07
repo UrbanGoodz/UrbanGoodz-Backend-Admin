@@ -387,7 +387,17 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     Route::post('safety/accept', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@accept');
     Route::post('safety/verification', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@submitVerification');
 
+    // Responder side. Presence is the heartbeat that makes "nearby" mean
+    // anything; accepting shortlists, it does not win the job.
+    Route::post('responder/presence', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@presence');
+    Route::get('responder/offers', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@offers');
+    Route::post('responder/offers/{offer}/accept', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@accept');
+    Route::post('responder/offers/{offer}/decline', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@decline');
+
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
+    // Sends the request to nearby responders. Once a payment provider exists
+    // this belongs on the payment webhook rather than the client.
+    Route::post('requests/{record}/broadcast', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@broadcast');
     Route::get('requests/{record}', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@show');
     // The responders willing to help. Accepting shortlists a responder; the
     // customer's selection is what actually assigns the job.
