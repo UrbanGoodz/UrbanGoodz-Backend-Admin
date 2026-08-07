@@ -397,5 +397,11 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     // confirmed. Each transition notifies whoever is waiting on it, and
     // `confirmed` is what releases escrow.
     Route::post('requests/{record}/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@updateStatus');
+    // Messaging between the two parties. Opens when a responder is selected,
+    // closes when the job ends. A message can carry a precise coordinate or a
+    // photo, which is what actually solves "I cannot find you".
+    Route::get('requests/{record}/messages', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedMessageController@index');
+    Route::post('requests/{record}/messages', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedMessageController@store');
+
     Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@cancel');
 });

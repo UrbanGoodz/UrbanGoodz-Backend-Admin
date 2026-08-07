@@ -216,6 +216,33 @@ class UrbanGoodzStrandedNotifier
             $r, ['event' => 'customer_cancelled']);
     }
 
+    // ---------------------------------------------------------------- messages
+
+    /**
+     * A new message goes to whichever side did not send it.
+     *
+     * This channel matters most when somebody cannot be found, so the
+     * notification carries a preview rather than a bare "new message" -- a
+     * shared location is worth surfacing on the lock screen.
+     */
+    public function messageReceived(UrbanGoodzStrandedRequest $r, string $senderRole, string $preview): void
+    {
+        $payload = ['event' => 'message_received', 'preview' => $preview];
+
+        if ($senderRole === 'customer') {
+            $offer = $r->selected_offer_id
+                ? UrbanGoodzStrandedOffer::find($r->selected_offer_id)
+                : null;
+
+            if ($offer) {
+                $this->toResponder($offer, 'Message from the customer', $preview, $r, $payload);
+            }
+            return;
+        }
+
+        $this->toCustomer($r, 'Message from your responder', $preview, $payload);
+    }
+
     // ---------------------------------------------------------------- plumbing
 
     private function serviceLabel(UrbanGoodzStrandedRequest $r): string
