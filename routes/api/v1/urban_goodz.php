@@ -436,3 +436,10 @@ Route::group(['prefix' => 'urban-goodz/vendor', 'middleware' => ['vendor.api', '
     Route::get('payout-options', 'Api\V1\UrbanGoodz\UrbanGoodzVendorPayoutController@options');
     Route::post('payout-request', 'Api\V1\UrbanGoodz\UrbanGoodzVendorPayoutController@request_');
 });
+
+// Stranded: pay the help request fee (which triggers the broadcast), and
+// live-track the responder who is on the way.
+Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('requests/{record}/pay-fee', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@payFee');
+    Route::get('requests/{record}/track', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedTrackingController@track');
+});

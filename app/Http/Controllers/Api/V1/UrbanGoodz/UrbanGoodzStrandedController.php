@@ -11,6 +11,7 @@ use App\Models\UrbanGoodzStrandedResponder;
 use App\Services\UrbanGoodzStrandedDispatcher;
 use App\Services\UrbanGoodzStrandedSafety;
 use App\Services\UrbanGoodzStrandedNotifier;
+use App\Services\UrbanGoodz\UrbanGoodzStrandedPaymentService;
 use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -238,6 +239,60 @@ class UrbanGoodzStrandedController extends Controller
     }
 
     /**
+     * Pay the help request fee, which is what buys the broadcast.
+     *
+     * The card is tokenised client-side by the Stripe SDK; only the resulting
+     * payment method id reaches this server. Card details never touch Urban
+     * Goodz infrastructure.
+     */
+    public function payFee(Request $request, string $record, UrbanGoodzStrandedPaymentService $payments): JsonResponse
+    {
+        $stranded = $this->findForUser($request, $record);
+
+        if (!$stranded) {
+            return response()->json(['status' => 'error', 'message' => 'Request not found.'], 404);
+        }
+
+        if ($stranded->isTerminal()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'This request is already ' . $stranded->status . '.',
+            ], 409);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'payment_method' => 'required|string|max:255',
+        ], [
+            'payment_method.required' => 'A payment method is required to send your request out.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $result = $payments->payFeeAndBroadcast($stranded, $request->input('payment_method'));
+        } catch (\Throwable $e) {
+            // The provider's own message is written for a person -- a declined
+            // card says why -- so it is passed through rather than replaced.
+            return response()->json([
+                'status' => 'error',
+                'code' => 'payment_failed',
+                'message' => $e->getMessage(),
+            ], 402);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'paid' => $result['paid'],
+            'broadcast' => $result['broadcast'],
+            'responders_notified' => $result['responders_notified'],
+            'message' => $result['message'],
+            'data' => $this->present($stranded->fresh()),
+        ]);
+    }
+
+    /**
      * The responders willing to help, for the customer's choice screen.
      * Accepting puts a responder on this list; it does not assign the job.
      */
@@ -428,14 +483,15 @@ class UrbanGoodzStrandedController extends Controller
             'arrived' => $this->applyStatus($stranded, 'on_scene', ['arrived_at' => now()]),
             'started' => $this->applyStatus($stranded, 'on_scene', []),
             'completed' => $this->applyStatus($stranded, 'completed', ['completed_at' => now()]),
-            'confirmed' => $this->applyStatus($stranded, 'completed', [
-                'customer_confirmed_at' => now(),
-                // Confirmation is what releases escrow. A volunteer never had
-                // any held, so its status is left untouched.
-                'escrow_status' => $stranded->escrow_status === 'held' ? 'released' : $stranded->escrow_status,
-                'escrow_released_at' => $stranded->escrow_status === 'held' ? now() : $stranded->escrow_released_at,
-            ]),
+            // Escrow release is money movement, so it runs through the payment
+            // service rather than being a status column written inline. That
+            // keeps it idempotent and ledgered.
+            'confirmed' => $this->applyStatus($stranded, 'completed', ['customer_confirmed_at' => now()]),
         };
+
+        if ($event === 'confirmed') {
+            app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($stranded->fresh());
+        }
 
         $fresh = $stranded->fresh();
 
