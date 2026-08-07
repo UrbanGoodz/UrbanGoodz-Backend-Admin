@@ -44,7 +44,7 @@ class ConversationController extends Controller
             ->latest()
             ->paginate(8);
         }else{
-            $conversations = [];
+            $conversations = collect();
         }
 
 
