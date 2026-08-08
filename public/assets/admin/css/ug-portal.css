@@ -117,8 +117,8 @@ a.ug-kpi:hover {
 .ug-kpi-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
   color: var(--ugp-muted);
   font-size: 12px;
   font-weight: 700;
@@ -130,6 +130,35 @@ a.ug-kpi:hover {
   color: var(--ugp-orange);
   font-size: 15px;
 }
+
+/* Icon chip — colored badge echoing the tile's variant stripe */
+.ug-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--ugp-orange);
+  box-shadow: 0 4px 10px rgba(237, 153, 20, .28);
+  transition: transform var(--ugp-tick);
+}
+a.ug-kpi:hover .ug-kpi-icon {
+  transform: scale(1.06);
+}
+.ug-kpi-icon i {
+  color: #fff;
+  font-size: 15px;
+}
+.ug-kpi--success .ug-kpi-icon { background: var(--ugp-success); box-shadow: 0 4px 10px rgba(30, 142, 90, .28); }
+.ug-kpi--danger .ug-kpi-icon  { background: var(--ugp-danger); box-shadow: 0 4px 10px rgba(194, 58, 58, .28); }
+.ug-kpi--info .ug-kpi-icon    { background: var(--ugp-info); box-shadow: 0 4px 10px rgba(44, 111, 168, .28); }
+.ug-kpi--black .ug-kpi-icon   { background: var(--ugp-black); box-shadow: 0 4px 10px rgba(22, 22, 22, .28); }
+.ug-kpi--dijon .ug-kpi-icon   { background: var(--ugp-dijon); box-shadow: 0 4px 10px rgba(229, 226, 118, .38); }
+.ug-kpi--dijon .ug-kpi-icon i { color: var(--ugp-black); }
+.ug-kpi--canvas .ug-kpi-icon   { background: var(--ugp-canvas); box-shadow: 0 4px 10px rgba(226, 211, 191, .38); }
+.ug-kpi--canvas .ug-kpi-icon i { color: var(--ugp-black); }
 
 .ug-kpi-value {
   color: var(--ugp-black);

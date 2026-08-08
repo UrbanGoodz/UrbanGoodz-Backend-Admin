@@ -89,28 +89,28 @@
                 <div class="row g-3 mt-1 ug-stagger">
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--success h-100" href="{{ route('vendor.dashboard') }}">
-                            <div class="ug-kpi-label"><i class="tio-dollar-outlined"></i> {{ translate('Total Earning') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-dollar-outlined"></i></span> {{ translate('Total Earning') }}</div>
                             <div class="ug-kpi-value ug-count" data-target="{{ round(array_sum($earning)) }}" data-prefix="{{ \App\CentralLogics\Helpers::currency_symbol() }}">{{ \App\CentralLogics\Helpers::format_currency(array_sum($earning)) }}</div>
                             <div class="ug-kpi-sub">{{ translate('this year') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--dijon h-100" href="{{ route('vendor.dashboard') }}">
-                            <div class="ug-kpi-label"><i class="tio-trending-down-outlined"></i> {{ translate('Commission') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-trending-down-outlined"></i></span> {{ translate('Commission') }}</div>
                             <div class="ug-kpi-value ug-count" data-target="{{ round(array_sum($commission)) }}" data-prefix="{{ \App\CentralLogics\Helpers::currency_symbol() }}">{{ \App\CentralLogics\Helpers::format_currency(array_sum($commission)) }}</div>
                             <div class="ug-kpi-sub">{{ translate('given this year') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi {{ ($out_of_stock_count ?? 0) > 0 ? 'ug-kpi--danger' : '' }} h-100" href="{{ route('vendor.item.stock-limit-list') }}">
-                            <div class="ug-kpi-label"><i class="tio-stock"></i> {{ translate('Low Stock Items') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-stock"></i></span> {{ translate('Low Stock Items') }}</div>
                             <div class="ug-kpi-value ug-count" data-target="{{ $out_of_stock_count ?? 0 }}">{{ $out_of_stock_count ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ ($out_of_stock_count ?? 0) > 0 ? translate('restock recommended') : translate('all stocked up') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--info h-100" href="{{ route('vendor.order.list', ['all']) }}">
-                            <div class="ug-kpi-label"><i class="tio-shopping-cart-outlined"></i> {{ translate('Orders') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-shopping-cart-outlined"></i></span> {{ translate('Orders') }}</div>
                             <div class="ug-kpi-value ug-count" data-target="{{ $data['all'] ?? 0 }}">{{ $data['all'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ $data['delivered'] ?? 0 }} {{ translate('delivered') }}</div>
                         </a>

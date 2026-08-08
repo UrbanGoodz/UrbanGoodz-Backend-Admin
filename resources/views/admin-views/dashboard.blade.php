@@ -78,56 +78,56 @@
                 <div class="row g-3 mt-1 ug-stagger">
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--success h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
-                            <div class="ug-kpi-label"><i class="tio-dollar-outlined"></i> {{ translate('Total Revenue') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-dollar-outlined"></i></span> {{ translate('Total Revenue') }}</div>
                             <div class="ug-kpi-value ug-count" data-key="total_revenue" data-target="{{ round($ugData['total_revenue'] ?? 0) }}" data-prefix="{{ \App\CentralLogics\Helpers::currency_symbol() }}">{{ \App\CentralLogics\Helpers::format_currency($ugData['total_revenue'] ?? 0) }}</div>
                             <div class="ug-kpi-sub">{{ $ugData['payment_ledgers_count'] ?? 0 }} {{ translate('ledger entries') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--danger h-100" href="{{ route('admin.urban-goodz.payments.index') }}">
-                            <div class="ug-kpi-label"><i class="tio-refresh"></i> {{ translate('Pending Refunds') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-refresh"></i></span> {{ translate('Pending Refunds') }}</div>
                             <div class="ug-kpi-value ug-count" data-key="pending_refunds" data-target="{{ $ugData['pending_refunds'] ?? 0 }}">{{ $ugData['pending_refunds'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ $data['refund_requested'] ?? 0 }} {{ translate('failed/refund requested') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi h-100" href="{{ route('admin.urban-goodz.vendors.index', ['tab' => 'active-stores']) }}">
-                            <div class="ug-kpi-label"><i class="tio-shop"></i> {{ translate('Active Stores') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-shop"></i></span> {{ translate('Active Stores') }}</div>
                             <div class="ug-kpi-value ug-count" data-target="{{ $vendorDirectorySummary['active_stores'] ?? 0 }}">{{ $vendorDirectorySummary['active_stores'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ $vendorDirectorySummary['active_vendors'] ?? 0 }} {{ translate('active vendors') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--info h-100" href="{{ route('admin.urban-goodz.order-anywhere.index') }}">
-                            <div class="ug-kpi-label"><i class="tio-shopping-cart-outlined"></i> {{ translate('Order Anywhere') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-shopping-cart-outlined"></i></span> {{ translate('Order Anywhere') }}</div>
                             <div class="ug-kpi-value ug-count" data-key="order_anywhere_count" data-target="{{ $ugData['order_anywhere_count'] ?? 0 }}">{{ $ugData['order_anywhere_count'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ translate('requests received') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--black h-100" href="{{ route('admin.urban-goodz.driver-payouts.index') }}">
-                            <div class="ug-kpi-label"><i class="tio-money"></i> {{ translate('Driver Payouts') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-money"></i></span> {{ translate('Driver Payouts') }}</div>
                             <div class="ug-kpi-value ug-count" data-key="driver_payouts_count" data-target="{{ $ugData['driver_payouts_count'] ?? 0 }}">{{ $ugData['driver_payouts_count'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ $ugData['driver_earnings_count'] ?? 0 }} {{ translate('earnings records') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--dijon h-100" href="{{ route('admin.urban-goodz.section', 'logistics') }}">
-                            <div class="ug-kpi-label"><i class="tio-flight"></i> {{ translate('Logistics & Medical') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-flight"></i></span> {{ translate('Logistics & Medical') }}</div>
                             <div class="ug-kpi-value ug-count" data-key="logistics_medical" data-target="{{ ($ugData['logistics_jobs_count'] ?? 0) + ($ugData['medical_courier_jobs_count'] ?? 0) }}">{{ ($ugData['logistics_jobs_count'] ?? 0) + ($ugData['medical_courier_jobs_count'] ?? 0) }}</div>
                             <div class="ug-kpi-sub">{{ $ugData['load_board_count'] ?? 0 }} {{ translate('loads on board') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--info h-100" href="{{ route('admin.urban-goodz.ai-concierge.conversations') }}">
-                            <div class="ug-kpi-label"><i class="tio-chat-outlined"></i> {{ translate('AI Conversations') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-chat-outlined"></i></span> {{ translate('AI Conversations') }}</div>
                             <div class="ug-kpi-value ug-count" data-key="ai_conversations_count" data-target="{{ $ugData['ai_conversations_count'] ?? 0 }}">{{ $ugData['ai_conversations_count'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ $ugData['discovery_searches_count'] ?? 0 }} {{ translate('discovery searches') }}</div>
                         </a>
                     </div>
                     <div class="col-sm-6 col-lg-3">
                         <a class="ug-kpi ug-kpi--canvas h-100" href="{{ route('admin.users.delivery-man.list') }}">
-                            <div class="ug-kpi-label"><i class="tio-user-big"></i> {{ translate('Drivers') }}</div>
+                            <div class="ug-kpi-label"><span class="ug-kpi-icon"><i class="tio-user-big"></i></span> {{ translate('Drivers') }}</div>
                             <div class="ug-kpi-value ug-count" data-target="{{ $data['delivery_man'] ?? 0 }}">{{ $data['delivery_man'] ?? 0 }}</div>
                             <div class="ug-kpi-sub">{{ $data['searching_for_dm'] ?? 0 }} {{ translate('unassigned orders') }}</div>
                         </a>
