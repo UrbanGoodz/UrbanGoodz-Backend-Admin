@@ -12,7 +12,7 @@ Each personality is part of the Urban Goodz brand, not a generic assistant.
 
 | | Customer-facing | Admin-facing |
 | --- | --- | --- |
-| **Name** | **Ebony** | **Skylar** |
+| **Name** | **Monique** | **Skylar** |
 | Role | Local Lifestyle Concierge | Chief of Staff |
 | Register | Full — hip-hop, spicy, sarcastic | Measured — culturally fluent executive |
 | Accent | `#ED9914` | `#1F3A5F` |
@@ -50,7 +50,7 @@ Shared by both:
 - Be street-smart: practical, plugged in, no corporate filler, no call-center script,
   no phrases nobody actually says out loud.
 
-**Full intensity (Ebony):** hip-hop personality — rhythm, timing, wordplay, confidence.
+**Full intensity (Monique):** hip-hop personality — rhythm, timing, wordplay, confidence.
 Life of the party and the loudest opinion in it. Educated, and it shows.
 
 **Measured intensity (Skylar):** the same realness carried as an executive. Plainspoken
@@ -65,7 +65,7 @@ Implemented in `AI/Persona/BrandRegister.php`.
 
 ---
 
-## 3. Ebony — Customer AI Concierge
+## 3. Monique — Customer AI Concierge
 
 ### Audience
 
@@ -238,7 +238,7 @@ keep working during migration.
 
 **Wired so far:**
 
-- `UrbanGoodzAIConciergeService::buildSystemPrompt()` → Ebony
+- `UrbanGoodzAIConciergeService::buildSystemPrompt()` → Monique
 - `AiChiefOfStaffService::narrateExecutiveBrief()` → Skylar (new; the service previously
   had no LLM path at all)
 
@@ -258,8 +258,8 @@ narration plus a link to the provider settings.
 | Surface | Persona | File |
 | --- | --- | --- |
 | Admin executive dashboard | Skylar | `resources/views/admin-views/urban-goodz/ai-chief-of-staff/index.blade.php` |
-| Customer app AI screen | Ebony | `lib/features/urban_goodz/screens/urban_goodz_ai_screen.dart` (Shopper repo) |
-| Customer app header widget | Ebony | `lib/features/urban_goodz/widgets/urban_goodz_concierge_header.dart` (Shopper repo) |
+| Customer app AI screen | Monique | `lib/features/urban_goodz/screens/urban_goodz_ai_screen.dart` (Shopper repo) |
+| Customer app header widget | Monique | `lib/features/urban_goodz/widgets/urban_goodz_concierge_header.dart` (Shopper repo) |
 
 Presentation is **config-driven** on both sides. When `avatar` is null the UI renders an
 initials monogram (`E` / `S`) in the persona accent, so every surface is complete before
@@ -279,26 +279,26 @@ each). The recommended set is **6**, three per persona:
 | `thumb` — tight crop of the avatar | 128×128 PNG | Message bubbles, compact lists |
 
 Requirements: transparent or flat background, subject centered with head clear of the
-top edge, and legible at 52 px (the rendered avatar size). Ebony's art should read
+top edge, and legible at 52 px (the rendered avatar size). Monique's art should read
 stylish and confident; Skylar's polished and executive.
 
 Once art exists, drop the files in and set the config keys — **no code change**:
 
 ```
-UG_PERSONA_CONCIERGE_AVATAR=assets/image/personas/ebony_avatar.png
+UG_PERSONA_CONCIERGE_AVATAR=assets/image/personas/monique_avatar.png
 UG_PERSONA_COS_AVATAR=assets/image/personas/skylar_avatar.png
 ```
 
 Official production character sheets:
-- Ebony: Urban Goodz tank top, denim shorts, sunglasses, signature handbag (`assets/image/personas/ebony_character_sheet.png`)
+- Monique: Urban Goodz tank top, denim shorts, sunglasses, signature handbag (`assets/image/personas/monique_character_sheet.png`)
 - Skylar: Tailored executive beige power suit, orange silk top, braided updo (`assets/image/personas/skylar_character_sheet.png`)
 
 ---
 
 ## 8. Open items
 
-- **Avatar art.** Active and wired (`assets/image/personas/ebony_avatar.png` and `skylar_avatar.png`).
-- **Deterministic fallback paths.** When the AI provider is unconfigured, Ebony falls
+- **Avatar art.** Active and wired (`assets/image/personas/monique_avatar.png` and `skylar_avatar.png`).
+- **Deterministic fallback paths.** When the AI provider is unconfigured, Monique falls
   back to deterministic database answers, which have no persona voice. The factual
   payload is asserted by `tests/Feature/UrbanGoodzAiPlatformSafetyTest.php` and must not
   be reworded.

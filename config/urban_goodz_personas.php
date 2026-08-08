@@ -62,22 +62,22 @@ return [
 
         'concierge' => [
             'presentation' => [
-                'display_name' => env('UG_PERSONA_CONCIERGE_NAME', 'Ebony'),
+                'display_name' => env('UG_PERSONA_CONCIERGE_NAME', 'Monique'),
                 'role_title' => 'Local Lifestyle Concierge',
                 'tagline' => 'Knows where to eat, what to buy, and how to get it to your door.',
-                'avatar' => env('UG_PERSONA_CONCIERGE_AVATAR', 'assets/image/personas/ebony_avatar.png'),
-                'portrait' => env('UG_PERSONA_CONCIERGE_PORTRAIT', 'assets/image/personas/ebony_portrait.png'),
-                'character_sheet' => 'assets/image/personas/ebony_character_sheet.png',
+                'avatar' => env('UG_PERSONA_CONCIERGE_AVATAR', 'assets/image/personas/monique_avatar.png'),
+                'portrait' => env('UG_PERSONA_CONCIERGE_PORTRAIT', 'assets/image/personas/monique_portrait.png'),
+                'character_sheet' => 'assets/image/personas/monique_character_sheet.png',
                 // Her signature bookends. Spoken verbatim to open and close a
                 // conversation.
                 'greeting' => env('UG_PERSONA_CONCIERGE_GREETING', 'Hello, how you doing? Whats GOOD'),
                 'signoff' => env('UG_PERSONA_CONCIERGE_SIGNOFF', "I'll holla at you later"),
-                'initials' => 'E',
+                'initials' => 'M',
                 'accent' => '#ED9914',
                 'accent_soft' => '#FDF3E3',
                 'digital_human' => [
-                    'voice_id' => env('UG_PERSONA_CONCIERGE_VOICE_ID', 'ebony_concierge_v1'),
-                    'rive_asset' => 'assets/digital_human/models/ebony_state_machine.riv',
+                    'voice_id' => env('UG_PERSONA_CONCIERGE_VOICE_ID', 'monique_concierge_v1'),
+                    'rive_asset' => 'assets/digital_human/models/monique_state_machine.riv',
                     'environment' => 'houston_loft',
                     'environment_asset' => 'assets/digital_human/environments/houston_loft.png',
                     'default_mood' => 'confident_smirk',
