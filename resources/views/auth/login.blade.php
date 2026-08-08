@@ -2,6 +2,8 @@
 <?php
 
     $log_email_succ = session()->get('log_email_succ');
+    $roleGroup = in_array($role ?? null, ['vendor', 'vendor_employee']) ? 'vendor' : 'admin';
+    $isVendor = $roleGroup === 'vendor';
 ?>
 
 <html dir="{{ $site_direction }}" lang="{{ $locale }}" class="{{ $site_direction === 'rtl'?'active':'' }}">
@@ -10,7 +12,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <!-- Title -->
-    <title>{{translate('messages.login')}}</title>
+    <title>{{ $isVendor ? 'Vendor Login' : 'Admin Login' }} — Urban Goodz</title>
 
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{asset('public/favicon.ico')}}">
@@ -31,10 +33,32 @@
 <body class="ug-command-page">
 <!-- ========== MAIN CONTENT ========== -->
 <main id="content" role="main" class="main">
-    <div class="ug-command-login ug-command-login--admin">
-        <aside class="ug-command-visual" aria-label="Urban Goodz Admin Command Center">
-            <img src="{{ asset('public/assets/admin/img/admin-command-center-reference.png') }}"
-                alt="Urban Goodz Admin Command Center powering commerce, delivery, logistics, and growth">
+    <div class="ug-command-login ug-command-login--{{ $roleGroup }}">
+        <aside class="ug-command-visual" aria-label="Urban Goodz {{ $isVendor ? 'Vendor' : 'Admin' }} Command Center">
+            <div class="ug-command-visual-bg" aria-hidden="true"></div>
+            <span class="ug-command-orb ug-command-orb--a" aria-hidden="true"></span>
+            <span class="ug-command-orb ug-command-orb--b" aria-hidden="true"></span>
+            <div class="ug-command-visual-content">
+                <img class="ug-command-visual-logo" src="{{ asset('public/assets/admin/svg/logos/urban-goodz-light.svg') }}" alt="Urban Goodz">
+                <p class="ug-command-visual-eyebrow">{{ $isVendor ? 'Vendor Command Center' : 'Admin Command Center' }}</p>
+                @if($isVendor)
+                    <h2 class="ug-command-visual-title">Run your store from one command deck.</h2>
+                    <p class="ug-command-visual-sub">Orders, payouts, and performance — live, in one view.</p>
+                    <ul class="ug-command-visual-features">
+                        <li><i class="tio-shopping-basket-outlined"></i><span>Storefront</span></li>
+                        <li><i class="tio-shopping-cart-outlined"></i><span>Orders</span></li>
+                        <li><i class="tio-dollar-outlined"></i><span>Payouts</span></li>
+                    </ul>
+                @else
+                    <h2 class="ug-command-visual-title">Powering local commerce, delivery, logistics, and growth.</h2>
+                    <p class="ug-command-visual-sub">Real-time visibility across the entire Urban Goodz network.</p>
+                    <ul class="ug-command-visual-features">
+                        <li><i class="tio-shop-outlined"></i><span>Commerce</span></li>
+                        <li><i class="tio-truck"></i><span>Delivery</span></li>
+                        <li><i class="tio-route"></i><span>Logistics</span></li>
+                    </ul>
+                @endif
+            </div>
         </aside>
         <section class="ug-command-auth">
             <div class="ug-command-card">
@@ -42,8 +66,8 @@
                     <img src="{{ asset('public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz">
                 </div>
                 <header class="ug-command-header">
-                    <h1>Admin Login</h1>
-                    <p>Welcome back. Sign in to manage the Urban Goodz network.</p>
+                    <h1>{{ $isVendor ? 'Vendor Login' : 'Admin Login' }}</h1>
+                    <p>{{ $isVendor ? 'Welcome back. Sign in to manage your store.' : 'Welcome back. Sign in to manage the Urban Goodz network.' }}</p>
                 </header>
 
                 <form action="{{route('login_post')}}" method="post" id="form-id">

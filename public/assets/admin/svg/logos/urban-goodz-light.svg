@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-labelledby="ug-logo-light-title ug-logo-light-description">
+  <title id="ug-logo-light-title">Urban Goodz</title>
+  <desc id="ug-logo-light-description">Urban Goodz official wordmark in Seasoning Orange and white, for dark backgrounds</desc>
+  <g fill="none" fill-rule="evenodd">
+    <rect width="80" height="80" x="8" y="8" rx="22" fill="#FFFFFF"/>
+    <path d="M28 26v27c0 12 7 19 20 19s20-7 20-19V26H57v27c0 6-3 9-9 9s-9-3-9-9V26H28Z" fill="#ED9914"/>
+    <path d="M49 43h24v10H59c1 6 5 9 12 9 4 0 8-1 12-4v11c-4 2-9 3-14 3-13 0-21-8-21-21 0-3 0-5 1-8Z" fill="#E5E276"/>
+    <text x="106" y="47" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="800" letter-spacing="1.5">URBAN</text>
+    <text x="106" y="79" fill="#ED9914" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="800" letter-spacing="1.5">GOODZ</text>
+  </g>
+</svg>
