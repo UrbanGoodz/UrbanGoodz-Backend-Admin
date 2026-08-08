@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/theme.minc619.css?v=1.0')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/style.css')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/toastr.css')}}">
-    <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-admin.css')}}">
+    <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-admin.css')}}?v={{ filemtime(public_path('assets/admin/css/ug-admin.css')) }}">
     <style>
         .navbar-dispatcher {
             background: #1a1a2e !important;
