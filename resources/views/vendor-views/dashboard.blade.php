@@ -226,14 +226,14 @@
                               "labels": ["Jan","Feb","Mar","April","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
                               "datasets": [{
                                 "data": [{{$earning[1]}},{{$earning[2]}},{{$earning[3]}},{{$earning[4]}},{{$earning[5]}},{{$earning[6]}},{{$earning[7]}},{{$earning[8]}},{{$earning[9]}},{{$earning[10]}},{{$earning[11]}},{{$earning[12]}}],
-                                "backgroundColor": "#00AA96",
-                                "hoverBackgroundColor": "#00AA96",
-                                "borderColor": "#00AA96"
+                                "backgroundColor": "#ED9914",
+                                "hoverBackgroundColor": "#d9880d",
+                                "borderColor": "#ED9914"
                               },
                               {
                                 "data": [{{$commission[1]}},{{$commission[2]}},{{$commission[3]}},{{$commission[4]}},{{$commission[5]}},{{$commission[6]}},{{$commission[7]}},{{$commission[8]}},{{$commission[9]}},{{$commission[10]}},{{$commission[11]}},{{$commission[12]}}],
-                                "backgroundColor": "#b9e0e0",
-                                "borderColor": "#b9e0e0"
+                                "backgroundColor": "#E5E276",
+                                "borderColor": "#E5E276"
                               }]
                             },
                             "options": {

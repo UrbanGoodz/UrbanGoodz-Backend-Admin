@@ -1,0 +1,314 @@
+/* Urban Goodz Vendor Web Portal Design System */
+
+:root {
+    --ug-orange: #ED9914;
+    --ug-orange-hover: #d9880d;
+    --ug-canvas: #E2D3BF;
+    --ug-dijon: #E5E276;
+    --ug-black: #161616;
+    --ug-black-surface: #202020;
+    --ug-black-card: #282828;
+    --ug-white: #FFFFFF;
+    --ug-gray-100: #F8F9FA;
+    --ug-gray-200: #E9ECEF;
+    --ug-gray-300: #DEE2E6;
+    --ug-gray-700: #495057;
+    --ug-gray-800: #343A40;
+    --ug-gray-900: #212529;
+
+    --ug-heading-font: 'Thyga Semirounded', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --ug-interface-font: 'Arial Nova', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body.footer-offset {
+    font-family: var(--ug-interface-font);
+    background-color: #F6F4F0;
+    color: var(--ug-black);
+}
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .ug-heading {
+    font-family: var(--ug-heading-font);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Header Modernization */
+#headerMain header.navbar {
+    background-color: var(--ug-black) !important;
+    border-bottom: 2px solid var(--ug-orange) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+#headerMain .navbar-nav-wrap-content-right .text-muted,
+#headerMain .card-title,
+#headerMain .card-text {
+    color: var(--ug-canvas) !important;
+}
+
+#headerMain .navbar-nav-wrap-content-right .card-title {
+    font-family: var(--ug-heading-font);
+    font-weight: 600;
+    color: var(--ug-white) !important;
+}
+
+/* Sidebar Overhaul */
+.navbar-vertical-aside {
+    background-color: var(--ug-black) !important;
+    border-right: 1px solid rgba(226, 211, 191, 0.15) !important;
+}
+
+.navbar-vertical-aside .navbar-brand-wrapper {
+    background: var(--ug-black) !important;
+    border-bottom: 1px solid rgba(237, 153, 20, 0.2) !important;
+    padding: 1.25rem 1rem;
+}
+
+.navbar-vertical-aside .navbar-nav .nav-link {
+    color: var(--ug-canvas) !important;
+    font-family: var(--ug-interface-font);
+    font-weight: 500;
+    font-size: 0.925rem;
+    border-radius: 8px;
+    margin: 2px 10px;
+    padding: 0.65rem 1rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.navbar-vertical-aside .navbar-nav .nav-link:hover {
+    color: var(--ug-orange) !important;
+    background-color: rgba(237, 153, 20, 0.1) !important;
+}
+
+.navbar-vertical-aside .navbar-nav .active > .nav-link,
+.navbar-vertical-aside .navbar-nav .nav-link.active {
+    color: var(--ug-black) !important;
+    background-color: var(--ug-orange) !important;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(237, 153, 20, 0.3);
+}
+
+.navbar-vertical-aside .navbar-nav .nav-indicator-icon {
+    color: var(--ug-orange) !important;
+}
+
+.navbar-vertical-aside .navbar-vertical-aside-has-menu.active > .nav-link {
+    color: var(--ug-orange) !important;
+    background-color: rgba(237, 153, 20, 0.12) !important;
+}
+
+.navbar-vertical-aside .nav-subtitle {
+    color: var(--ug-dijon) !important;
+    font-size: 0.725rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    padding-left: 1.25rem;
+}
+
+/* UG Cards & Dashboard Styling */
+.ug-vendor-card {
+    background: var(--ug-white);
+    border: 1px solid rgba(226, 211, 191, 0.5);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(22, 22, 22, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ug-vendor-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(22, 22, 22, 0.08);
+}
+
+.ug-vendor-card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--ug-gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ug-vendor-card-title {
+    font-family: var(--ug-heading-font);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ug-black);
+    margin: 0;
+}
+
+/* KPI Hero Cards */
+.ug-kpi-card {
+    background: var(--ug-white);
+    border-radius: 12px;
+    border-left: 5px solid var(--ug-orange);
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.ug-kpi-card--orange { border-left-color: var(--ug-orange); }
+.ug-kpi-card--dijon { border-left-color: #b5b228; background: #fafae6; }
+.ug-kpi-card--canvas { border-left-color: #8c765c; background: #f7f3ee; }
+.ug-kpi-card--black { border-left-color: var(--ug-black); background: #f0ede8; }
+
+.ug-kpi-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ug-gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.ug-kpi-val {
+    font-family: var(--ug-heading-font);
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--ug-black);
+    line-height: 1.2;
+}
+
+.ug-kpi-sub {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+/* Store Status Pill */
+.ug-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.35rem 0.85rem;
+    border-radius: 50px;
+    font-size: 0.825rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ug-status-badge--online {
+    background-color: rgba(40, 167, 69, 0.12);
+    color: #1e7e34;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.ug-status-badge--offline {
+    background-color: rgba(220, 53, 69, 0.12);
+    color: #bd2130;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.ug-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.ug-status-badge--online .ug-status-dot {
+    background-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+}
+
+.ug-status-badge--offline .ug-status-dot {
+    background-color: #dc3545;
+}
+
+/* Primary UG Button */
+.btn-ug-primary {
+    background-color: var(--ug-orange) !important;
+    color: var(--ug-black) !important;
+    font-family: var(--ug-heading-font);
+    font-weight: 700;
+    border: none !important;
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.btn-ug-primary:hover, .btn-ug-primary:focus {
+    background-color: var(--ug-orange-hover) !important;
+    color: var(--ug-black) !important;
+    box-shadow: 0 4px 12px rgba(237, 153, 20, 0.3);
+}
+
+.btn-ug-dark {
+    background-color: var(--ug-black) !important;
+    color: var(--ug-canvas) !important;
+    font-family: var(--ug-heading-font);
+    font-weight: 700;
+    border: none !important;
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.btn-ug-dark:hover {
+    background-color: #000000 !important;
+    color: var(--ug-orange) !important;
+}
+
+/* AI Copilot Badge & Widget */
+.ug-ai-card {
+    background: linear-gradient(135deg, var(--ug-black) 0%, #2a2a2a 100%);
+    border: 1px solid var(--ug-orange);
+    border-radius: 14px;
+    color: var(--ug-white);
+    padding: 1.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.ug-ai-card-title {
+    font-family: var(--ug-heading-font);
+    color: var(--ug-orange);
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ug-ai-chip {
+    background-color: var(--ug-dijon);
+    color: var(--ug-black);
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+/* Modernized Tables */
+.table.ug-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table.ug-table thead th {
+    background-color: var(--ug-black) !important;
+    color: var(--ug-canvas) !important;
+    font-family: var(--ug-heading-font);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: none !important;
+    padding: 1rem;
+}
+
+.table.ug-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table.ug-table tbody tr:hover {
+    background-color: rgba(226, 211, 191, 0.15) !important;
+}
+
+.table.ug-table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--ug-gray-200);
+}

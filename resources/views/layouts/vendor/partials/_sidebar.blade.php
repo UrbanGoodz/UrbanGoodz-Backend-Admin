@@ -36,7 +36,7 @@
             </div>
 
             <!-- Content -->
-            <div class="navbar-vertical-content text-capitalize bg--005555" id="navbar-vertical-content">
+            <div class="navbar-vertical-content text-capitalize ug-sidebar-content" id="navbar-vertical-content">
                 <form class="sidebar--search-form">
                     <div class="search--form-group">
                         <button type="button" class="btn"><i class="tio-search"></i></button>
