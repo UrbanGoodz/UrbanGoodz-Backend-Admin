@@ -31,11 +31,12 @@
                     </p>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-ug-primary" onclick="loadAIDailyBrief()">
+                    <button type="button" class="btn btn-ug-primary" id="ug-daily-brief-btn" onclick="loadAIDailyBrief()">
                         <i class="tio-flash mr-1"></i> {{ translate('Generate Daily Brief') }}
                     </button>
                 </div>
             </div>
+            <div id="ug-daily-brief-result" class="mt-3" style="display:none;"></div>
         </div>
 
         <!-- AI Insights Grid -->
@@ -133,4 +134,57 @@
             @endforeach
         </div>
     </div>
+
+    @push('script')
+    <script>
+        function loadAIDailyBrief() {
+            const btn = document.getElementById('ug-daily-brief-btn');
+            const result = document.getElementById('ug-daily-brief-result');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="tio-loading mr-1"></i> {{ translate('Generating…') }}';
+
+            fetch('{{ route('vendor.ai.daily-brief') }}', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const brief = data && data.brief ? data.brief : null;
+                    if (!data || data.success === false || !brief) {
+                        toastr.error('{{ translate('Could not generate the daily brief right now.') }}');
+                        return;
+                    }
+
+                    const metrics = (brief.key_metrics || []).map(function (m) {
+                        return '<div class="col-6 col-md-3 mb-2"><div class="text-white-70 fz-12">' + m.label
+                            + '</div><div class="fz-16 font-weight-bold">' + m.value + '</div></div>';
+                    }).join('');
+
+                    const actionItems = (brief.action_items || []).map(function (a) {
+                        return '<li>' + a + '</li>';
+                    }).join('');
+
+                    result.innerHTML = ''
+                        + '<hr class="border-white-10">'
+                        + '<p class="text-white mb-2 font-weight-bold">' + (brief.greeting || '') + '</p>'
+                        + '<p class="text-white-70 mb-3">' + (brief.todays_outlook || '') + '</p>'
+                        + '<div class="row">' + metrics + '</div>'
+                        + (actionItems ? '<ul class="text-white-70 mt-3 mb-0 pl-3">' + actionItems + '</ul>' : '');
+                    result.style.display = 'block';
+                })
+                .catch(() => {
+                    toastr.error('{{ translate('Could not generate the daily brief right now.') }}');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="tio-flash mr-1"></i> {{ translate('Generate Daily Brief') }}';
+                });
+        }
+    </script>
+    @endpush
 @endsection
