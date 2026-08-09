@@ -141,6 +141,11 @@ Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::post('chat', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
+    Route::match(['get', 'post'], 'state', 'Api\V1\UrbanGoodz\DigitalHumanStateController@getState');
+});
+
+Route::group(['prefix' => 'urban-goodz/digital-human', 'middleware' => ['throttle:120,1']], function () {
+    Route::match(['get', 'post'], 'state', 'Api\V1\UrbanGoodz\DigitalHumanStateController@getState');
 });
 
 Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
