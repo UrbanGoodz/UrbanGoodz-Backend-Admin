@@ -269,8 +269,13 @@ class UrbanGoodzDriverActiveJobsController extends Controller
     {
         $driver = $this->authDriver($request);
 
+        // Extended 2026-08-09 to cover the full driver delivery-lifecycle MVP
+        // (assigned/accepted/arrived_pickup/in_transit/failed_delivery added).
+        // Legacy values (en_route, in_progress) are kept accepted so any
+        // existing caller isn't broken by this change.
         $validator = Validator::make($request->all(), [
-            'driver_task_status' => 'required|string|in:en_route,picked_up,in_progress,delivered',
+            'driver_task_status' => 'required|string|in:assigned,accepted,en_route,arrived_pickup,picked_up,in_progress,in_transit,delivered,failed_delivery',
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($validator->fails()) {
@@ -282,7 +287,14 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Job not found');
         }
 
-        $job->update(['driver_task_status' => $request->driver_task_status]);
+        $updateFields = ['driver_task_status' => $request->driver_task_status];
+        if ($request->driver_task_status === 'failed_delivery'
+            && $request->filled('reason')
+            && $job->isFillable('driver_notes')) {
+            $updateFields['driver_notes'] = $request->reason;
+        }
+
+        $job->update($updateFields);
 
         return response()->json(['job' => $this->normalizeActiveJob($job->fresh(), $this->guessSource($job))]);
     }

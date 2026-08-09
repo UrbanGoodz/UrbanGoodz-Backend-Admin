@@ -214,8 +214,10 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('business-jobs/{jobId}', 'Api\UrbanGoodzDriverBusinessCourierController@jobDetail');
     Route::post('business-jobs/{jobId}/accept', 'Api\UrbanGoodzDriverBusinessCourierController@acceptJob');
     Route::post('business-jobs/{jobId}/start', 'Api\UrbanGoodzDriverBusinessCourierController@startJob');
+    Route::post('business-jobs/{jobId}/arrived-pickup', 'Api\UrbanGoodzDriverBusinessCourierController@markArrivedPickup');
     Route::post('business-jobs/{jobId}/pickup', 'Api\UrbanGoodzDriverBusinessCourierController@markPickup');
     Route::post('business-jobs/{jobId}/delivery', 'Api\UrbanGoodzDriverBusinessCourierController@markDelivery');
+    Route::post('business-jobs/{jobId}/fail-delivery', 'Api\UrbanGoodzDriverBusinessCourierController@failDelivery');
     Route::post('business-jobs/{jobId}/proof-pickup', 'Api\UrbanGoodzDriverBusinessCourierController@submitPickupProof');
     Route::post('business-jobs/{jobId}/proof-delivery', 'Api\UrbanGoodzDriverBusinessCourierController@submitDeliveryProof');
     Route::post('business-jobs/{jobId}/exception', 'Api\UrbanGoodzDriverBusinessCourierController@reportException');
