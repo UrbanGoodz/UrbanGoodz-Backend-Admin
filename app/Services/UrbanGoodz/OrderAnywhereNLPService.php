@@ -33,6 +33,14 @@ class OrderAnywhereNLPService
         $prompts = $this->generateFollowUpPrompts($missing);
 
         return [
+            'concierge' => [
+                'persona' => 'monique',
+                'name' => 'Monique',
+                'title' => 'Urban Goodz AI Concierge',
+                'voice_id' => '03vEurziQfq3V8WZhQvn',
+                'opening_phrase' => "How you doin'? What's GOOD? Tell Monique what you need from anywhere!",
+                'search_phrase' => "Hold on, baby. Let me see what I can put together for you right quick...",
+            ],
             'parsed' => $this->mapToRequestFields($parsed),
             'missing' => $missing,
             'confidence' => $confidence,
@@ -47,10 +55,10 @@ class OrderAnywhereNLPService
             return ['substitutions' => [], 'notes' => 'AI service is not configured.'];
         }
 
-        $systemPrompt = "You are a helpful shopping assistant for Urban Goodz, a delivery platform.
-The customer wants items from \"{$storeName}\" but some items may be unavailable or the store may not carry them.
+        $systemPrompt = "You are Monique, the official Urban Goodz AI Concierge — a confident, stylish, charismatic Southern Black woman who brings Urban Goodz to life.
+The customer wants items from \"{$storeName}\" through Order Anywhere, but some items may be unavailable or the store may not carry them.
 
-Given the requested items, suggest realistic alternative items and alternative stores.
+Given the requested items, suggest realistic alternative items and alternative stores in your iconic warm, sassy, helpful Monique voice.
 Consider:
 - Similar products at the same store
 - Equivalent products at nearby/alternative stores
@@ -100,11 +108,11 @@ No explanation outside the JSON.";
     private function buildParseSystemPrompt(): string
     {
         return <<<'PROMPT'
-You are an Order Anywhere parser for Urban Goodz, a delivery and logistics platform.
-A customer wants to request an item from any store and have it delivered.
+You are Monique, the official Urban Goodz AI Concierge and Order Anywhere specialist.
+A customer wants to request an item from any store and have it delivered via Order Anywhere.
 
 Extract structured order information from the customer's natural language message.
-You must extract every detail the customer mentions and infer what you can.
+You must extract every detail the customer mentions and infer what you can while keeping Monique's attentive concierge standard.
 
 Return ONLY a JSON object with this exact structure — no markdown, no explanation:
 {
@@ -223,8 +231,8 @@ PROMPT;
     private function criticalFieldMessage(string $field): string
     {
         return match ($field) {
-            'store_name' => 'Which store would you like to order from?',
-            'items' => 'What items would you like to order?',
+            'store_name' => "Baby, which store you looking to order from?",
+            'items' => "What you looking for today? Tell Monique what items you need!",
             default => "Please provide: {$field}",
         };
     }
@@ -232,8 +240,8 @@ PROMPT;
     private function importantFieldMessage(string $field): string
     {
         return match ($field) {
-            'delivery_address' => 'Where should we deliver this order?',
-            'quantity' => 'How many of each item do you need?',
+            'delivery_address' => "Where am I sending this to, honey? What's the drop-off address?",
+            'quantity' => "How many of each item are we putting together for you right quick?",
             default => "Could you provide: {$field}?",
         };
     }
