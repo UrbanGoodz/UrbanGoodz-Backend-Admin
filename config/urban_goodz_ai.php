@@ -5,7 +5,7 @@ return [
     | Supported providers: openai, openrouter, gemini, disabled.
     | Unknown values fail closed; provider selection is never inferred from a key.
     */
-    'provider' => env('AI_PROVIDER', 'openai'),
+    'provider' => env('AI_PROVIDER', 'gemini'),
     'request_timeout' => (int) env('AI_REQUEST_TIMEOUT', env('OPENAI_REQUEST_TIMEOUT', 30)),
     'max_retries' => (int) env('AI_MAX_RETRIES', 1),
     'retry_delay_ms' => (int) env('AI_RETRY_DELAY_MS', 250),

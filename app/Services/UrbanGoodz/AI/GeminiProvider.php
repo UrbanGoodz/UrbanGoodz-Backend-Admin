@@ -14,7 +14,7 @@ class GeminiProvider extends AbstractAIProvider
 
     public function model(): string
     {
-        return (string) config('urban_goodz_ai.providers.gemini.model', 'gemini-2.5-flash');
+        return (string) config('urban_goodz_ai.providers.gemini.model', 'gemini-3.6-flash');
     }
 
     public function isConfigured(): bool

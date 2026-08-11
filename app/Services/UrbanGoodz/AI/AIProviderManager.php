@@ -8,7 +8,7 @@ class AIProviderManager
 {
     public function resolve(?string $provider = null): AIProviderInterface
     {
-        $provider = strtolower(trim($provider ?? (string) config('urban_goodz_ai.provider', 'openai')));
+        $provider = strtolower(trim($provider ?? (string) config('urban_goodz_ai.provider', 'gemini')));
 
         return match ($provider) {
             'openai', 'openrouter' => new OpenAICompatibleProvider($provider),
