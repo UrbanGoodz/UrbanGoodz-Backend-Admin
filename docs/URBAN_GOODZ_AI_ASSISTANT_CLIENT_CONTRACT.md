@@ -267,14 +267,53 @@ Endpoints focused on sales optimization, menu pricing, demand analysis, and aler
 ### Vendor Daily Brief
 - **Method:** `GET`
 - **Route:** `/api/v1/urban-goodz/cross-app/ai/vendor/daily-brief`
-- **Authentication:** Bearer token (`auth:api` / `vendor` guard)
-- **Response Format:**
+- **Authentication:** Bearer token (`vendor.api` / `vendor` guard — same guard as all `vendor/*` mobile endpoints)
+- **Response Format:** `brief` is an **object**, not a string. The outer payload wraps the service result:
   ```json
   {
     "success": true,
-    "brief": "Yesterday revenue was $1,200 (+5%). 3 items are low in inventory. Suggested promotion: 10% off Dessert Combos."
+    "brief": {
+      "success": true,
+      "brief": {
+        "greeting": "Good morning! Here's your daily brief for Monday, August 10.",
+        "todays_outlook": "24 orders so far today. 5 pending, 12 in progress.",
+        "key_metrics": [
+          { "label": "Orders Today", "value": "24", "status": "good" },
+          { "label": "Pending", "value": "5", "status": "good" },
+          { "label": "Revenue So Far", "value": "$1,240.00", "status": "good" }
+        ],
+        "action_items": ["Review and accept pending orders"],
+        "revenue_forecast": "Yesterday same day had 18 orders.",
+        "staff_recommendations": [],
+        "summary": "Operational overview for the day."
+      },
+      "metrics": {
+        "vendor_id": 7,
+        "date": "Monday, August 10, 2026",
+        "todays_orders_total": 24,
+        "pending_orders": 5,
+        "processing_orders": 12,
+        "completed_orders_today": 7,
+        "todays_revenue_so_far": 1240,
+        "scheduled_orders_coming": 3,
+        "last_week_same_day_orders": 18,
+        "wallet_balance": 4920.5,
+        "order_type_breakdown": { "delivery": 20, "pickup": 4 }
+      }
+    }
   }
   ```
+  - When AI generation fails, the service returns `success: false` inside `brief` (still HTTP 200):
+  ```json
+  {
+    "success": true,
+    "brief": {
+      "success": false,
+      "error": "Unable to generate daily briefing."
+    }
+  }
+  ```
+  - The inner `brief` fields: `greeting` (string), `todays_outlook` (string), `key_metrics` (array of `{label, value, status}` with status one of `good` | `warning` | `critical`), `action_items` (array of strings), `revenue_forecast` (string), `staff_recommendations` (array of strings), `summary` (string). When the AI response cannot be parsed, the service returns a deterministic fallback brief (fields above populated from live order metrics) with `summary` set to `'Showing fallback briefing. AI analysis unavailable.'`.
 
 ### Store Alert Stream
 - **Method:** `GET`
