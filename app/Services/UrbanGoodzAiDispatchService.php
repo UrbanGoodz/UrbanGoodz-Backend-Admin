@@ -24,6 +24,11 @@ class UrbanGoodzAiDispatchService
         return AiDispatch::create($data);
     }
 
+    public function createDispatch(array $data): AiDispatch
+    {
+        return $this->createAndSend($data);
+    }
+
     public function sendToDriver(AiDispatch $dispatch): AiDispatch
     {
         DB::transaction(function () use ($dispatch) {
@@ -52,29 +57,28 @@ class UrbanGoodzAiDispatchService
             return;
         }
 
-        if (!$dm->fcm_token) {
-            Log::warning('AiDispatch push skipped: driver has no FCM token', ['dispatch_id' => $dispatch->id]);
+        if ($dm->fcm_token) {
+            $data = [
+                'type' => 'ai_dispatch',
+                'dispatch_id' => $dispatch->id,
+                'load_id' => $dispatch->load_id,
+                'route_id' => $dispatch->route_id,
+                'order_id' => $dispatch->order_id,
+                'offer_expires_at' => $dispatch->offer_expires_at?->toIso8601String(),
+                'title' => 'New dispatch offer',
+                'description' => 'You have a new dispatch offer. Tap to review.',
+            ];
+
+            try {
+                Helpers::send_push_notif_to_device($dm->fcm_token, $data);
+                $dispatch->update(['push_sent' => true, 'push_status' => 'sent']);
+            } catch (\Throwable $e) {
+                Log::error('AiDispatch push failed: ' . $e->getMessage(), ['dispatch_id' => $dispatch->id]);
+                $dispatch->update(['push_status' => 'failed', 'push_error' => $e->getMessage()]);
+            }
+        } else {
+            Log::info('AiDispatch push skipped: driver has no FCM token', ['dispatch_id' => $dispatch->id]);
             $dispatch->update(['push_status' => 'skipped_no_token']);
-            return;
-        }
-
-        $data = [
-            'type' => 'ai_dispatch',
-            'dispatch_id' => $dispatch->id,
-            'load_id' => $dispatch->load_id,
-            'route_id' => $dispatch->route_id,
-            'order_id' => $dispatch->order_id,
-            'offer_expires_at' => $dispatch->offer_expires_at?->toIso8601String(),
-            'title' => 'New dispatch offer',
-            'description' => 'You have a new dispatch offer. Tap to review.',
-        ];
-
-        try {
-            Helpers::send_push_notif_to_device($dm->fcm_token, $data);
-            $dispatch->update(['push_sent' => true, 'push_status' => 'sent']);
-        } catch (\Exception $e) {
-            Log::error('AiDispatch push failed: ' . $e->getMessage(), ['dispatch_id' => $dispatch->id]);
-            $dispatch->update(['push_status' => 'failed', 'push_error' => $e->getMessage()]);
         }
 
         try {

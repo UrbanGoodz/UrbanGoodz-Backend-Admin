@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Models\OrderAnywhereRequest;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Services\OrderAnywhereDispatchIntegrationService;
-use App\Services\UrbanGoodzAiDispatchService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 
@@ -17,7 +16,6 @@ class OrderAiDispatchAdminController extends Controller
 {
     public function __construct(
         private OrderAnywhereDispatchIntegrationService $integrationService,
-        private UrbanGoodzAiDispatchService $dispatchService,
     ) {}
 
     public function pendingOrders(Request $request)
@@ -105,8 +103,9 @@ class OrderAiDispatchAdminController extends Controller
             'created_by_type' => 'admin', 'created_by_id' => auth('admin')->id(),
             'pickup_address' => $store->address ?? '',
         ]);
-        $this->dispatchService->sendToDriver($dispatch);
-        $this->dispatchService->pushToDriver($dispatch);
+        // createDispatchForOrder sends the offer exactly once (single FCM push
+        // + single in-app notification). Redundant sendToDriver/pushToDriver
+        // calls here caused duplicate push notifications.
 
         return response()->json([
             'success' => true,
@@ -128,8 +127,7 @@ class OrderAiDispatchAdminController extends Controller
             'created_by_type' => 'admin', 'created_by_id' => auth('admin')->id(),
             'pickup_address' => $order->store->address ?? '',
         ]);
-        $this->dispatchService->sendToDriver($dispatch);
-        $this->dispatchService->pushToDriver($dispatch);
+        // Single send: createDispatchForOrder -> createAndSend handles it.
 
         return response()->json(['success' => true, 'data' => ['dispatch_id' => $dispatch->id]]);
     }

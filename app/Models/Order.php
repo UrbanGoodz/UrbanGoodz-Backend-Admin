@@ -16,6 +16,8 @@ class Order extends Model
 {
     use HasFactory , ReportFilter, DemoMaskable;
 
+    protected $guarded = [];
+
     protected $casts = [
         'order_amount' => 'float',
         'coupon_discount_amount' => 'float',

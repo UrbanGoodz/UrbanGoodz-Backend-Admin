@@ -27,7 +27,7 @@ class OrderAnywhereDispatchIntegrationService
             ->where('available_for_order_anywhere', true)
             ->whereNotNull('private_endpoint_lat')
             ->whereNotNull('private_endpoint_lng')
-            ->where('current_orders', '<', (int) (config('dm_maximum_orders') ?? 10));
+            ->where(fn($q) => $q->whereNull('current_orders')->orWhere('current_orders', '<', (int) (config('dm_maximum_orders') ?? 10)));
 
         if (!empty($criteria['vehicle_type'])) {
             $query->whereHas('vehicle', fn($q) => $q->where('type', $criteria['vehicle_type']));
@@ -35,7 +35,10 @@ class OrderAnywhereDispatchIntegrationService
         if (!empty($criteria['zone_id'])) {
             $query->where(function ($q) use ($criteria) {
                 $q->where('zone_id', $criteria['zone_id'])
-                  ->orWhereJsonContains('preferred_zones', (string) $criteria['zone_id']);
+                  ->orWhere(function ($sub) use ($criteria) {
+                      $sub->whereNotNull('preferred_zones')
+                          ->whereJsonContains('preferred_zones', (string) $criteria['zone_id']);
+                  });
             });
         }
 

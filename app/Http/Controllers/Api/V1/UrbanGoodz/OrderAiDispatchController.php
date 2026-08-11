@@ -8,7 +8,6 @@ use App\Models\Order;
 use App\Models\DeliveryMan;
 use App\Models\OrderAnywhereRequest;
 use App\Services\OrderAnywhereDispatchIntegrationService;
-use App\Services\UrbanGoodzAiDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -16,7 +15,6 @@ class OrderAiDispatchController extends Controller
 {
     public function __construct(
         private OrderAnywhereDispatchIntegrationService $integrationService,
-        private UrbanGoodzAiDispatchService $dispatchService,
     ) {}
 
     public function triggerNearestDriver(Request $request, $orderId)
@@ -114,9 +112,10 @@ class OrderAiDispatchController extends Controller
             'driver_payout_amount' => $order->delivery_charge ?? null,
         ]);
 
-        $this->dispatchService->sendToDriver($dispatch);
-        $this->dispatchService->pushToDriver($dispatch);
-
+        // createDispatchForOrder -> createAndSend already sends the offer to
+        // the driver exactly once (status 'sent' + one FCM push + one in-app
+        // notification). Do NOT call sendToDriver()/pushToDriver() again here:
+        // that is what produced duplicate push notifications.
         return response()->json([
             'message' => 'Nearest driver dispatched',
             'dispatch' => $dispatch->only(['id', 'status', 'uuid']),
