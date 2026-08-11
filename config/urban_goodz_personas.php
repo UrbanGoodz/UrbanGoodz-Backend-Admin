@@ -50,7 +50,7 @@ return [
                 'accent' => '#1D4ED8',
                 'accent_soft' => '#E8EDF4',
                 'digital_human' => [
-                    'voice_id' => env('SKYLAR_ELEVENLABS_VOICE_ID', env('UG_PERSONA_COS_VOICE_ID', '')),
+                    'voice_id' => env('SKYLAR_ELEVENLABS_VOICE_ID', env('UG_PERSONA_COS_VOICE_ID', 'VUxdWMTconXKENnxAwCg')),
                     'voice_name' => 'Skylar Voice Live',
                     'rive_asset' => 'assets/digital_human/skylar.riv',
                     'environment' => 'executive_operations_center',
@@ -80,7 +80,7 @@ return [
                 'accent' => '#B45309',
                 'accent_soft' => '#FDF3E3',
                 'digital_human' => [
-                    'voice_id' => env('MONIQUE_ELEVENLABS_VOICE_ID', env('UG_PERSONA_CONCIERGE_VOICE_ID', '')),
+                    'voice_id' => env('MONIQUE_ELEVENLABS_VOICE_ID', env('UG_PERSONA_CONCIERGE_VOICE_ID', '03vEurziQfq3V8WZhQvn')),
                     'voice_name' => 'Sassy Aeristia',
                     'rive_asset' => 'assets/digital_human/monique.riv',
                     'environment' => 'houston_loft',
