@@ -251,6 +251,23 @@
                                     <p class="mb-1">{{ $cardRequest->created_at->format('M d, Y H:i') }}</p>
                                 </div>
                                 @endif
+                                @if($cardRequest->issued_at)
+                                <div class="col-6">
+                                    <label class="font-weight-bold small">{{ translate('Issued') }}</label>
+                                    <p class="mb-1">{{ $cardRequest->issued_at->format('M d, Y H:i') }}</p>
+                                </div>
+                                @endif
+                                @if($cardRequest->receipt_submitted_at)
+                                <div class="col-12">
+                                    <label class="font-weight-bold small">{{ translate('Receipt') }}</label>
+                                    <p class="mb-1">
+                                        <a href="{{ route('admin.urban-goodz.order-anywhere.card-receipt', $request->id) }}">
+                                            {{ translate('Download private receipt') }}
+                                        </a>
+                                        — ${{ number_format($cardRequest->receipt_total ?? 0, 2) }}
+                                    </p>
+                                </div>
+                                @endif
                                 @if($cardRequest->failure_reason)
                                 <div class="col-12">
                                     <label class="font-weight-bold small text-danger">{{ translate('Failure Reason') }}</label>
@@ -442,23 +459,6 @@
                                     <div class="text-muted small">
                                         {{ translate('You do not have permission to request driver cards.') }}
                                     </div>
-                                @endif
-                                @if($cardRequest->issued_at)
-                                <div class="col-6">
-                                    <label class="font-weight-bold small">{{ translate('Issued') }}</label>
-                                    <p class="mb-1">{{ $cardRequest->issued_at->format('M d, Y H:i') }}</p>
-                                </div>
-                                @endif
-                                @if($cardRequest->receipt_submitted_at)
-                                <div class="col-12">
-                                    <label class="font-weight-bold small">{{ translate('Receipt') }}</label>
-                                    <p class="mb-1">
-                                        <a href="{{ route('admin.urban-goodz.order-anywhere.card-receipt', $request->id) }}">
-                                            {{ translate('Download private receipt') }}
-                                        </a>
-                                        — ${{ number_format($cardRequest->receipt_total ?? 0, 2) }}
-                                    </p>
-                                </div>
                                 @endif
                     @endif
 
