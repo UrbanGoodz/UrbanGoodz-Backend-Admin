@@ -1504,7 +1504,7 @@ class BusinessSettingsController extends Controller
         $appId = $config['appId'] ?? '';
         $measurementId = $config['measurementId'] ?? '';
 
-        $filePath = base_path('firebase-messaging-sw.js');
+        $filePath = public_path('firebase-messaging-sw.js');
 
         try {
             if (file_exists($filePath) && !is_writable($filePath)) {
