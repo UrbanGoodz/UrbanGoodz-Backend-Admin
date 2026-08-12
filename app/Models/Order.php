@@ -180,6 +180,11 @@ class Order extends Model
         return $this->belongsTo(DeliveryMan::class, 'delivery_man_id');
     }
 
+    public function deliveryMan()
+    {
+        return $this->delivery_man();
+    }
+
     public function customer()
     {
         return $this->belongsTo(User::class, 'user_id');

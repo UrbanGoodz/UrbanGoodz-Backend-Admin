@@ -160,7 +160,15 @@ class UrbanGoodzAiDispatchService
 
     public function hasActiveDispatch(int $driverId, ?int $excludeId = null): bool
     {
-        $query = AiDispatch::forDriver($driverId)->active();
+        $inProgressStatuses = [
+            AiDispatch::STATUS_ACCEPTED,
+            AiDispatch::STATUS_EN_ROUTE_TO_PICKUP,
+            AiDispatch::STATUS_ARRIVED_AT_PICKUP,
+            AiDispatch::STATUS_PICKED_UP,
+            AiDispatch::STATUS_IN_TRANSIT,
+            AiDispatch::STATUS_ARRIVED_AT_DELIVERY,
+        ];
+        $query = AiDispatch::forDriver($driverId)->whereIn('status', $inProgressStatuses);
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
         }

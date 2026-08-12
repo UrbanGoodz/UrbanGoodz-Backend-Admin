@@ -390,31 +390,6 @@ Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsCont
             Route::post('verify-delivery', 'Api\V1\UrbanGoodz\CrossAppAIController@driverVerifyDelivery');
         });
 
-        // Business
-        Route::post('business/manifest/import', 'Api\V1\UrbanGoodz\CrossAppAIController@importManifest');
-        Route::post('business/packages/group', 'Api\V1\UrbanGoodz\CrossAppAIController@groupPackages');
-        Route::post('business/route/create', 'Api\V1\UrbanGoodz\CrossAppAIController@createRoute');
-        Route::post('business/route/optimize', 'Api\V1\UrbanGoodz\CrossAppAIController@optimizeRoute');
-        Route::post('business/driver/match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
-        Route::post('business/route/predict', 'Api\V1\UrbanGoodz\CrossAppAIController@predictRouteCompletion');
-        Route::post('business/route/risk', 'Api\V1\UrbanGoodz\CrossAppAIController@assessRouteRisk');
-        Route::get('business/performance', 'Api\V1\UrbanGoodz\CrossAppAIController@routePerformance');
-        Route::get('business/cost-anomaly', 'Api\V1\UrbanGoodz\CrossAppAIController@costAnomalyAlert');
-        Route::post('business/invoice-support', 'Api\V1\UrbanGoodz\CrossAppAIController@generateInvoiceSupport');
-        Route::post('business/delivery-proof', 'Api\V1\UrbanGoodz\CrossAppAIController@compileDeliveryProof');
-
-        // Dispatcher
-        Route::post('dispatcher/load-ranking', 'Api\V1\UrbanGoodz\CrossAppAIController@rankLoads');
-        Route::post('dispatcher/driver-match', 'Api\V1\UrbanGoodz\CrossAppAIController@matchDriver');
-        Route::post('dispatcher/rate-estimate', 'Api\V1\UrbanGoodz\CrossAppAIController@estimateRate');
-        Route::post('dispatcher/duplicate-check', 'Api\V1\UrbanGoodz\CrossAppAIController@checkDuplicates');
-        Route::get('dispatcher/ops-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@opsSummary');
-        Route::post('dispatcher/parse-load', 'Api\V1\UrbanGoodz\CrossAppAIController@parseLoad');
-        Route::post('dispatcher/parse-email', 'Api\V1\UrbanGoodz\CrossAppAIController@parseEmail');
-        Route::post('dispatcher/parse-batch', 'Api\V1\UrbanGoodz\CrossAppAIController@parseBatch');
-        Route::get('dispatcher/source-status', 'Api\V1\UrbanGoodz\CrossAppAIController@sourceStatus');
-        Route::post('dispatcher/sync-source', 'Api\V1\UrbanGoodz\CrossAppAIController@syncSource');
-
         // Digital Human Platform
         Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
         Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
