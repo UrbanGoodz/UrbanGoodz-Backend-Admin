@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -30,7 +31,9 @@ return new class extends Migration
             $columns = ['front_photo_file_id', 'side_photo_file_id', 'back_photo_file_id'];
             foreach ($columns as $column) {
                 if (Schema::hasColumn('urban_goodz_measurement_requests', $column)) {
-                    $table->dropForeign([$column]);
+                    if (DB::getDriverName() !== 'sqlite') {
+                        $table->dropForeign([$column]);
+                    }
                     $table->dropColumn($column);
                 }
             }

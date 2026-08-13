@@ -11,7 +11,7 @@ return new class extends Migration
     {
         if (Schema::hasTable('urban_goodz_route_packages')) {
             Schema::table('urban_goodz_route_packages', function (Blueprint $table) {
-                if (Schema::hasColumn('urban_goodz_route_packages', 'dedicated_route_id')) {
+                if (Schema::hasColumn('urban_goodz_route_packages', 'dedicated_route_id') && DB::getDriverName() !== 'sqlite') {
                     $table->dropForeign('ug_pkg_route_fk');
                 }
             });
