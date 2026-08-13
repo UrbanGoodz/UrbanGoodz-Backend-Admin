@@ -108,7 +108,7 @@ class UrbanGoodzSourcedBusinessReviewController extends Controller
 
         Toastr::success('Sourced business review saved. No store, vendor, or product was created.');
 
-        return redirect()->route('urban-goodz.sourced-businesses.show', $business->id);
+        return redirect()->route('admin.urban-goodz.sourced-businesses.show', $business->id);
     }
 
     private function isValidUrl(string $url): bool

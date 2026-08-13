@@ -133,8 +133,12 @@ class UrbanGoodzDiscoveryController extends Controller
      */
     public function entities(Request $request)
     {
-        $entities = UrbanGoodzSourcedBusiness::with(['products', 'images'])
-            ->where('admin_review_status', 'approved')
+        $entities = UrbanGoodzSourcedBusiness::with([
+                'products' => fn ($query) => $query->apiVisible(),
+                'products.sourcedImages' => fn ($query) => $query->where('api_visible', true)->where('review_status', 'approved'),
+                'images' => fn ($query) => $query->where('api_visible', true)->where('review_status', 'approved'),
+            ])
+            ->apiVisible()
             ->when($request->input('city'), fn($q, $city) => $q->where('city', $city))
             ->when($request->input('onboarding_status'), fn($q, $status) => $q->where('onboarding_status', $status))
             ->when($request->input('module_id'), fn($q, $mid) => $q->where('module_id', $mid))
@@ -153,7 +157,13 @@ class UrbanGoodzDiscoveryController extends Controller
      */
     public function entity($id)
     {
-        $entity = UrbanGoodzSourcedBusiness::with(['products', 'images'])->where('admin_review_status', 'approved')->findOrFail($id);
+        $entity = UrbanGoodzSourcedBusiness::with([
+                'products' => fn ($query) => $query->apiVisible(),
+                'products.sourcedImages' => fn ($query) => $query->where('api_visible', true)->where('review_status', 'approved'),
+                'images' => fn ($query) => $query->where('api_visible', true)->where('review_status', 'approved'),
+            ])
+            ->apiVisible()
+            ->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -162,83 +172,14 @@ class UrbanGoodzDiscoveryController extends Controller
     }
 
     /**
-     * Admin action on sourced candidate (approve, reject, edit, merge).
+     * Legacy consumer route. Marketplace mutations now require the admin guard.
      */
     public function entityAction(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'action' => 'required|string|in:approve,reject,edit,merge',
-            'name' => 'nullable|string|max:255',
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
-            'is_black_owned' => 'nullable|boolean',
-            'is_woman_owned' => 'nullable|boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation error',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $entity = UrbanGoodzSourcedBusiness::findOrFail($id);
-        $action = $request->input('action');
-
-        if ($action === 'approve') {
-            // Converts from public listing to active/claimed vendor
-            $store = $this->ingestion->publishApprovedListings($entity->id);
-            return response()->json([
-                'success' => true,
-                'message' => 'Business listing approved and published live.',
-                'data' => $store,
-            ]);
-        }
-
-        if ($action === 'reject') {
-            $entity->update([
-                'onboarding_status' => 'rejected',
-                'admin_review_status' => 'rejected',
-            ]);
-            return response()->json([
-                'success' => true,
-                'message' => 'Business listing rejected.',
-                'data' => $entity,
-            ]);
-        }
-
-        if ($action === 'edit') {
-            $entity->update($request->only(['name', 'phone', 'address', 'is_black_owned', 'is_woman_owned']));
-            return response()->json([
-                'success' => true,
-                'message' => 'Business details updated.',
-                'data' => $entity->fresh(),
-            ]);
-        }
-
-        if ($action === 'merge') {
-            // Merge duplicate into existing store
-            $targetStoreId = $request->input('target_store_id');
-            if (!$targetStoreId) {
-                return response()->json(['success' => false, 'message' => 'target_store_id is required for merge.'], 422);
-            }
-
-            $entity->update([
-                'onboarding_status' => 'archived',
-                'admin_review_status' => 'merged',
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Business duplicate merged into target store successfully.',
-            ]);
-        }
-
         return response()->json([
             'success' => false,
-            'message' => 'Invalid action',
-        ], 400);
+            'message' => 'Marketplace records can only be reviewed, approved, merged, or published through the Admin Marketplace Data Center.',
+        ], 403);
     }
 
     /**
