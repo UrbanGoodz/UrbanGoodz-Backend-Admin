@@ -107,13 +107,37 @@ class EventMarketplaceController extends Controller
     public function update(Request $request, $id)
     {
         $event = UrbanGoodzEvent::findOrFail($id);
-        
+
         if ($event->organiser_user_id !== Auth::id() && Auth::user()->role !== 'admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
-        $event->update($request->all());
-        
+
+        // Mass-assigning $request->all() here previously let the organiser
+        // (a non-admin) write ANY fillable column on the event, including
+        // moderation-only fields (approval_state, visibility_state, status,
+        // admin_notes, moderation_notes, featured_at) and even
+        // organiser_user_id itself. Whitelist to the same creator-owned
+        // fields the store() endpoint accepts.
+        $validated = $request->validate([
+            'title' => 'sometimes|string',
+            'description' => 'sometimes|string',
+            'starts_at' => 'sometimes|date',
+            'ends_at' => 'sometimes|date|after:starts_at',
+            'category' => 'nullable|string',
+            'city' => 'nullable|string',
+            'venue_name' => 'nullable|string',
+            'venue_address' => 'nullable|string',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'ticket_price' => 'nullable|numeric',
+            'capacity' => 'nullable|integer',
+            'is_free' => 'nullable|boolean',
+            'ticket_url' => 'nullable|string',
+            'images' => 'nullable|array',
+        ]);
+
+        $event->update($validated);
+
         return response()->json(['message' => 'Event updated', 'data' => $event]);
     }
 

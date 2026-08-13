@@ -240,13 +240,20 @@ class CreatorSpaceController extends Controller
     public function applyCampaign(Request $request, $id)
     {
         $profile = UrbanGoodzCreatorProfile::where('user_id', Auth::id())->firstOrFail();
-        
+
+        // Previously this skipped straight to the insert: applying to a
+        // nonexistent campaign_id tripped the campaign_id foreign key
+        // constraint and surfaced as a raw 500 (with APP_DEBUG on, a full
+        // SQL exception + stack trace in the response body) instead of a
+        // clean 404.
+        \App\Models\UrbanGoodzCreatorCampaign::findOrFail($id);
+
         $assignment = UrbanGoodzCreatorCampaignAssignment::create([
             'creator_profile_id' => $profile->id,
             'campaign_id' => $id,
             'approval_status' => 'pending',
         ]);
-        
+
         return response()->json(['message' => 'Applied to campaign', 'data' => $assignment], 201);
     }
 
