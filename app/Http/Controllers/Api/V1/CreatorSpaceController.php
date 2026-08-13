@@ -8,6 +8,7 @@ use App\Models\UrbanGoodzCreatorProfile;
 use App\Models\UrbanGoodzReel;
 use App\Models\UrbanGoodzCreatorEarning;
 use App\Models\UrbanGoodzCreatorCampaignAssignment;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class CreatorSpaceController extends Controller
@@ -124,23 +125,35 @@ class CreatorSpaceController extends Controller
     public function uploadReel(Request $request)
     {
         $profile = UrbanGoodzCreatorProfile::where('user_id', Auth::id())->firstOrFail();
-        
+
+        // Column names below match the real `reels` table
+        // (Modules\ReelsModule\Entities\Reel) - description/thumbnail/video,
+        // not the caption/thumbnail_url/video_url columns this previously
+        // wrote to a model class that did not exist. Creator Space is
+        // social-first: no store_id/module linkage is required to post.
         $request->validate([
             'video' => 'required|file|mimes:mp4,mov',
             'thumbnail' => 'required|file|image',
-            'caption' => 'nullable|string',
+            'caption' => 'required|string|max:2000',
         ]);
 
         $videoPath = $request->file('video')->store('reels/videos', 'public');
         $thumbnailPath = $request->file('thumbnail')->store('reels/thumbnails', 'public');
 
         $reel = UrbanGoodzReel::create([
+            'store_id' => null,
+            'module_id' => \Modules\ReelsModule\Support\ReelModuleConfig::defaultModuleId(),
+            'module_type' => \Modules\ReelsModule\Support\ReelModuleConfig::defaultModuleType(),
             'creator_profile_id' => $profile->id,
-            'video_url' => $videoPath,
-            'thumbnail_url' => $thumbnailPath,
-            'caption' => $request->caption,
+            'description' => $request->caption,
+            'video' => $videoPath,
+            'thumbnail' => $thumbnailPath,
+            'is_always_visible' => true,
+            'status' => true,
             'publication_status' => 'draft',
             'moderation_status' => 'pending',
+            'created_by_id' => Auth::id(),
+            'created_by_type' => User::class,
         ]);
 
         return response()->json(['message' => 'Reel uploaded', 'data' => $reel], 201);
@@ -150,14 +163,20 @@ class CreatorSpaceController extends Controller
     {
         $profile = UrbanGoodzCreatorProfile::where('user_id', Auth::id())->firstOrFail();
         $reel = $profile->reels()->findOrFail($id);
-        
+
         $validated = $request->validate([
-            'caption' => 'nullable|string',
-            'description' => 'nullable|string',
+            'caption' => 'nullable|string|max:2000',
+            'description' => 'nullable|string|max:2000',
         ]);
-        
-        $reel->update($validated);
-        
+
+        // 'caption' is accepted as an alias of the real `description` column
+        // for backward compatibility with callers built against the
+        // previously-broken (nonexistent) schema.
+        $description = $validated['description'] ?? $validated['caption'] ?? null;
+        if ($description !== null) {
+            $reel->update(['description' => $description]);
+        }
+
         return response()->json(['message' => 'Reel updated', 'data' => $reel]);
     }
 
@@ -165,9 +184,9 @@ class CreatorSpaceController extends Controller
     {
         $profile = UrbanGoodzCreatorProfile::where('user_id', Auth::id())->firstOrFail();
         $reel = $profile->reels()->findOrFail($id);
-        
+
         $reel->delete();
-        
+
         return response()->json(['message' => 'Reel deleted']);
     }
 
@@ -175,19 +194,26 @@ class CreatorSpaceController extends Controller
     {
         $profile = UrbanGoodzCreatorProfile::where('user_id', Auth::id())->firstOrFail();
         $reel = $profile->reels()->findOrFail($id);
-        
+
+        // creator_reel_tags.store_id is required (tagging a reel to a
+        // commerce entity means naming which store owns that entity) - this
+        // is the "optional commerce connection": a reel is never required
+        // to have a tag row, but a tag row always names its store.
         $validated = $request->validate([
+            'store_id' => 'required|integer|exists:stores,id',
             'taggable_type' => 'required|string',
             'taggable_id' => 'required|integer',
+            'label' => 'nullable|string',
         ]);
-        
-        // Assuming CreatorReelTag model exists
+
         $tag = \App\Models\CreatorReelTag::create([
             'reel_id' => $reel->id,
+            'store_id' => $validated['store_id'],
             'taggable_type' => $validated['taggable_type'],
             'taggable_id' => $validated['taggable_id'],
+            'label' => $validated['label'] ?? null,
         ]);
-        
+
         return response()->json(['message' => 'Tag added', 'data' => $tag], 201);
     }
 
