@@ -12,14 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            $table->index('category_id');
-            $table->index('store_id');
-            $table->index('name');
-            $table->index('slug');
-            $table->index('price');
-            $table->index('created_at');
-            $table->index('order_count');
-            $table->index('avg_rating');
+            foreach (['category_id', 'store_id', 'name', 'slug', 'price', 'created_at', 'order_count', 'avg_rating'] as $column) {
+                if (!Schema::hasIndex('items', [$column])) {
+                    $table->index($column);
+                }
+            }
         });
     }
 

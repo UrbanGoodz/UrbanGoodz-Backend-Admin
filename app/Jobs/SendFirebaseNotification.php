@@ -8,9 +8,11 @@ use App\Models\UserNotification;
 use App\Models\UrbanGoodzNotification;
 use App\Models\Vendor;
 use App\Services\FirebaseNotificationTransport;
+use App\Services\UrbanGoodzNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
@@ -77,21 +79,25 @@ class SendFirebaseNotification implements ShouldQueue
 
     /**
      * Dispatch for UrbanGoodzNotification with channel awareness.
+     *
+     * Non-push channels (in_app, email, sms, webhook, ...) are NOT queued here.
+     * Queuing them used to run them through the token check below and mark them
+     * failed whenever the recipient had no FCM token.
      */
     public static function dispatchViaChannel(
         int $notificationId,
         string $recipientType,
         int $recipientId,
         ?string $channel = null
-    ): static {
-        if ($channel === 'push' || $channel === null) {
-            return static::dispatch($notificationId, $recipientType, $recipientId, $channel);
-        }
+    ): ?PendingDispatch {
+        if ($channel !== null && ! UrbanGoodzNotificationService::isPushChannel($channel)) {
+            Log::info('Non-push channel skipped for Firebase delivery.', [
+                'notification_id' => $notificationId,
+                'channel' => $channel,
+            ]);
 
-        Log::info('Non-push channel skipped for Firebase delivery.', [
-            'notification_id' => $notificationId,
-            'channel' => $channel,
-        ]);
+            return null;
+        }
 
         return static::dispatch($notificationId, $recipientType, $recipientId, $channel);
     }
@@ -137,7 +143,7 @@ class SendFirebaseNotification implements ShouldQueue
         return match ($this->recipientType) {
             'customer' => User::whereKey($this->recipientId)->value('cm_firebase_token'),
             'vendor' => Vendor::whereKey($this->recipientId)->value('firebase_token'),
-            'driver' => DeliveryMan::whereKey($this->recipientId)->value('fcm_token'),
+            'driver' => DeliveryMan::whereKey($this->recipientId)->value('firebase_token'),
             default => null,
         };
     }

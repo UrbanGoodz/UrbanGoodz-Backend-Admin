@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzCreatorApplication;
 use App\Models\UrbanGoodzCreatorContent;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class CreatorCommerceController extends Controller
@@ -12,18 +13,9 @@ class CreatorCommerceController extends Controller
     public function customerApplications(Request $request)
     {
         [$email, $phone] = $this->identity($request);
+        $this->requireIdentity($email, $phone);
 
-        $records = UrbanGoodzCreatorApplication::query()
-            ->when($email || $phone, function ($query) use ($email, $phone) {
-                $query->where(function ($q) use ($email, $phone) {
-                    if ($email) {
-                        $q->orWhere('email', $email);
-                    }
-                    if ($phone) {
-                        $q->orWhere('phone', $phone);
-                    }
-                });
-            })
+        $records = $this->applicationsForIdentity($email, $phone)
             ->latest()
             ->get();
 
@@ -72,6 +64,7 @@ class CreatorCommerceController extends Controller
     public function storeApplication(Request $request)
     {
         [$email, $phone] = $this->identity($request);
+        $this->requireIdentity($email, $phone);
 
         $data = $request->validate([
             'creator_name' => ['required_without:name', 'nullable', 'string', 'max:255'],
@@ -94,19 +87,19 @@ class CreatorCommerceController extends Controller
         ]);
 
         $socialLinks = $this->normalizeToArray($data['social_links'] ?? null);
-        if (!empty($data['social_link'])) {
+        if (! empty($data['social_link'])) {
             $socialLinks[] = $data['social_link'];
         }
 
         $contentSamples = $this->normalizeToArray($data['content_samples'] ?? null);
-        if (!empty($data['sell_promote'])) {
+        if (! empty($data['sell_promote'])) {
             $contentSamples[] = $data['sell_promote'];
         }
 
         $application = UrbanGoodzCreatorApplication::create([
             'creator_name' => $data['creator_name'] ?? $data['name'],
-            'email' => $data['email'] ?? $email,
-            'phone' => $data['phone'] ?? $phone,
+            'email' => $email,
+            'phone' => $phone,
             'platform' => $data['platform'] ?? 'customer_app',
             'username' => $data['username'] ?? null,
             'follower_count' => $data['follower_count'] ?? 0,
@@ -130,6 +123,7 @@ class CreatorCommerceController extends Controller
     public function storePromotion(Request $request)
     {
         [$email, $phone] = $this->identity($request);
+        $this->requireIdentity($email, $phone);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -138,19 +132,12 @@ class CreatorCommerceController extends Controller
             'creator_application_id' => ['nullable', 'integer', 'exists:urban_goodz_creator_applications,id'],
         ]);
 
-        $applicationId = $data['creator_application_id'] ?? UrbanGoodzCreatorApplication::query()
-            ->when($email || $phone, function ($query) use ($email, $phone) {
-                $query->where(function ($q) use ($email, $phone) {
-                    if ($email) {
-                        $q->orWhere('email', $email);
-                    }
-                    if ($phone) {
-                        $q->orWhere('phone', $phone);
-                    }
-                });
-            })
-            ->latest('id')
-            ->value('id');
+        $applicationQuery = $this->applicationsForIdentity($email, $phone);
+        $applicationId = isset($data['creator_application_id'])
+            ? (clone $applicationQuery)->whereKey($data['creator_application_id'])->value('id')
+            : (clone $applicationQuery)->latest('id')->value('id');
+
+        abort_unless($applicationId, 403, 'Submit a creator application before proposing content.');
 
         $promotion = UrbanGoodzCreatorContent::create([
             'creator_application_id' => $applicationId,
@@ -174,18 +161,12 @@ class CreatorCommerceController extends Controller
     public function promotions(Request $request)
     {
         [$email, $phone] = $this->identity($request);
+        $this->requireIdentity($email, $phone);
 
         $records = UrbanGoodzCreatorContent::query()
             ->where('content_type', 'promotion')
-            ->when($email || $phone, function ($query) use ($email, $phone) {
-                $query->whereHas('application', function ($q) use ($email, $phone) {
-                    if ($email) {
-                        $q->orWhere('email', $email);
-                    }
-                    if ($phone) {
-                        $q->orWhere('phone', $phone);
-                    }
-                });
+            ->whereHas('application', function ($query) use ($email, $phone) {
+                $this->applyIdentityScope($query, $email, $phone);
             })
             ->latest()
             ->get();
@@ -244,6 +225,28 @@ class CreatorCommerceController extends Controller
             $user?->email,
             $user?->phone,
         ];
+    }
+
+    private function requireIdentity(?string $email, ?string $phone): void
+    {
+        abort_unless($email || $phone, 422, 'The authenticated account needs an email address or phone number.');
+    }
+
+    private function applicationsForIdentity(?string $email, ?string $phone): Builder
+    {
+        return $this->applyIdentityScope(UrbanGoodzCreatorApplication::query(), $email, $phone);
+    }
+
+    private function applyIdentityScope(Builder $query, ?string $email, ?string $phone): Builder
+    {
+        return $query->where(function (Builder $identity) use ($email, $phone) {
+            if ($email) {
+                $identity->orWhere('email', $email);
+            }
+            if ($phone) {
+                $identity->orWhere('phone', $phone);
+            }
+        });
     }
 
     private function normalizeToArray(mixed $value): array

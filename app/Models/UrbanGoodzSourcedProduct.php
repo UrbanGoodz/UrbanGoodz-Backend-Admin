@@ -32,8 +32,13 @@ class UrbanGoodzSourcedProduct extends Model
         'fulfillment_type',
         'requires_quote',
         'requires_admin_review',
+        'admin_review_status',
+        'validation_status',
+        'validation_errors',
         'is_active',
         'is_public',
+        'api_visible',
+        'shopper_visible',
         'import_batch_id',
     ];
 
@@ -48,8 +53,11 @@ class UrbanGoodzSourcedProduct extends Model
         'source_confidence' => 'integer',
         'requires_quote' => 'boolean',
         'requires_admin_review' => 'boolean',
+        'validation_errors' => 'array',
         'is_active' => 'boolean',
         'is_public' => 'boolean',
+        'api_visible' => 'boolean',
+        'shopper_visible' => 'boolean',
         'import_batch_id' => 'integer',
     ];
 
@@ -82,5 +90,23 @@ class UrbanGoodzSourcedProduct extends Model
     public function module()
     {
         return $this->belongsTo(Module::class, 'module_id');
+    }
+
+    public function sourcedImages()
+    {
+        return $this->hasMany(UrbanGoodzSourcedImage::class, 'entity_id')
+            ->where('entity_type', 'product');
+    }
+
+    public function scopeApiVisible($query)
+    {
+        return $query->where('api_visible', true)
+            ->where('admin_review_status', 'approved')
+            ->where('validation_status', 'valid');
+    }
+
+    public function scopeShopperVisible($query)
+    {
+        return $query->apiVisible()->where('shopper_visible', true);
     }
 }

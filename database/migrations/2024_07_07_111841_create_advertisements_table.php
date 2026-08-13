@@ -37,7 +37,9 @@ return new class extends Migration
             $table->enum('status',['pending','running','approved','expired','denied','paused'])->default('pending');
             $table->timestamps();
         });
-        DB::statement('ALTER TABLE advertisements AUTO_INCREMENT = 1000000;');
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE advertisements AUTO_INCREMENT = 1000000;');
+        }
     }
 
     /**

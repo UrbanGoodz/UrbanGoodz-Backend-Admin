@@ -6,17 +6,19 @@ use App\Models\FeatureFlag;
 use App\Models\MobileRelease;
 use App\Models\RemoteConfig;
 use App\Services\MobileReleaseService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MobileReleaseApiTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     public function test_version_api_returns_no_update_when_no_releases_exist(): void
     {
+        MobileRelease::where('app_name', 'shopper')->delete();
+
         $response = $this->getJson('/api/v1/app/version?app=shopper&platform=android&build_number=100');
 
         $response->assertStatus(200)
@@ -27,6 +29,7 @@ class MobileReleaseApiTest extends TestCase
 
     public function test_version_api_detects_optional_update(): void
     {
+        MobileRelease::where('app_name', 'shopper')->delete();
         $service = app(MobileReleaseService::class);
         $service->createRelease([
             'app_name' => 'shopper',
@@ -51,6 +54,7 @@ class MobileReleaseApiTest extends TestCase
 
     public function test_version_api_detects_forced_required_update(): void
     {
+        MobileRelease::where('app_name', 'shopper')->delete();
         $service = app(MobileReleaseService::class);
         $service->createRelease([
             'app_name' => 'shopper',
@@ -89,6 +93,7 @@ class MobileReleaseApiTest extends TestCase
 
     public function test_rollback_reverts_to_previous_active_release(): void
     {
+        MobileRelease::where('app_name', 'driver')->delete();
         $service = app(MobileReleaseService::class);
         $v1 = $service->createRelease([
             'app_name' => 'driver',
@@ -115,6 +120,7 @@ class MobileReleaseApiTest extends TestCase
 
     public function test_remote_config_api_returns_fashion_fit_rules(): void
     {
+        RemoteConfig::where('key', 'fashion_fit')->delete();
         RemoteConfig::create([
             'app_name' => 'all',
             'platform' => 'all',
@@ -138,6 +144,7 @@ class MobileReleaseApiTest extends TestCase
 
     public function test_feature_flags_api_evaluates_toggles(): void
     {
+        FeatureFlag::whereIn('key', ['virtual_try_on', 'experimental_features'])->delete();
         FeatureFlag::create([
             'key' => 'virtual_try_on',
             'name' => 'Virtual Try-On',

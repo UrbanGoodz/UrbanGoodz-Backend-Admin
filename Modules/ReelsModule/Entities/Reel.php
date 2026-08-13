@@ -3,9 +3,11 @@
 namespace Modules\ReelsModule\Entities;
 
 use App\CentralLogics\Helpers;
+use App\Models\CreatorReelTag;
 use App\Models\Storage;
 use App\Models\Store;
 use App\Models\Translation;
+use App\Models\UrbanGoodzCreatorProfile;
 use DateTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,8 +15,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Modules\ReelsModule\Support\ReelModuleConfig;
-use App\Models\CreatorReelTag;
-use App\Models\UrbanGoodzCreatorProfile;
 
 class Reel extends Model
 {
@@ -29,6 +29,7 @@ class Reel extends Model
         'status' => 'boolean',
         'total_views' => 'integer',
         'total_likes' => 'integer',
+        'total_comments' => 'integer',
         'total_store_visits' => 'integer',
         'created_by_id' => 'integer',
         'start_date' => 'datetime',
@@ -63,6 +64,11 @@ class Reel extends Model
         return $this->hasMany(ReelEngagement::class, 'reel_id');
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ReelComment::class, 'reel_id');
+    }
+
     public function creatorProfile()
     {
         return $this->belongsTo(UrbanGoodzCreatorProfile::class, 'creator_profile_id');
@@ -89,7 +95,7 @@ class Reel extends Model
     public function getThumbnailFullUrlAttribute(): ?string
     {
         $value = $this->thumbnail;
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -107,7 +113,7 @@ class Reel extends Model
     public function getVideoFullUrlAttribute(): ?string
     {
         $value = $this->video;
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -124,7 +130,7 @@ class Reel extends Model
 
     public function getReelStatusLabelAttribute(): string
     {
-        if (!$this->status) {
+        if (! $this->status) {
             return 'deactivated';
         }
 
@@ -149,7 +155,7 @@ class Reel extends Model
 
     public function scopeModuleWise($query)
     {
-        if (!ReelModuleConfig::isMultiModule()) {
+        if (! ReelModuleConfig::isMultiModule()) {
             return $query;
         }
 
@@ -182,7 +188,7 @@ class Reel extends Model
         return $this->engagements()
             ->where('type', $type)
             ->when($userId, fn (Builder $query) => $query->where('user_id', $userId))
-            ->when(!$userId && $guestId, fn (Builder $query) => $query->where('guest_id', $guestId))
+            ->when(! $userId && $guestId, fn (Builder $query) => $query->where('guest_id', $guestId))
             ->exists();
     }
 

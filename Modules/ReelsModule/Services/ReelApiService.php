@@ -5,8 +5,8 @@ namespace Modules\ReelsModule\Services;
 use App\CentralLogics\Helpers;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -40,13 +40,14 @@ class ReelApiService
                 'end_date',
                 'total_views',
                 'total_likes',
+                'total_comments',
                 'total_store_visits',
             ])
             ->when($moduleId !== null, fn (Builder $query) => $query->where('module_id', $moduleId))
             ->when($storeId, fn (Builder $query) => $query->where('store_id', $storeId))
-            ->when(!$allZoneService && !empty($zoneIds), function (Builder $query) use ($zoneIds) {
+            ->when(! $allZoneService && ! empty($zoneIds), function (Builder $query) use ($zoneIds) {
                 $query->whereHas('store', function (Builder $storeQuery) use ($zoneIds) {
-                    $storeQuery->when(!empty($zoneIds), function ($q) use ($zoneIds) {
+                    $storeQuery->when(! empty($zoneIds), function ($q) use ($zoneIds) {
                         $q->whereIn('zone_id', $zoneIds);
                     });
 
@@ -136,62 +137,63 @@ class ReelApiService
 
     public function streamVideo(Reel $reel, Request $request): Response|StreamedResponse|RedirectResponse
     {
-        $disk         = $this->resolveVideoDisk($reel);
-        $relativePath = 'reels/' . $reel->video;
+        $disk = $this->resolveVideoDisk($reel);
+        $relativePath = 'reels/'.$reel->video;
 
         // Resolve local path in one step; fall back to redirect for remote disks (S3, etc.)
         $filePath = method_exists(Storage::disk($disk), 'path')
             ? Storage::disk($disk)->path($relativePath)
             : null;
 
-        if (!$filePath || !is_file($filePath)) {
+        if (! $filePath || ! is_file($filePath)) {
             abort_unless(Storage::disk($disk)->exists($relativePath), 404);
+
             return response()->redirectTo($reel->video_full_url);
         }
 
-        $fileSize     = filesize($filePath);
-        $mtime        = filemtime($filePath);
-        $etag         = '"' . md5($mtime . $fileSize) . '"';
-        $lastModified = gmdate('D, d M Y H:i:s', $mtime) . ' GMT';
+        $fileSize = filesize($filePath);
+        $mtime = filemtime($filePath);
+        $etag = '"'.md5($mtime.$fileSize).'"';
+        $lastModified = gmdate('D, d M Y H:i:s', $mtime).' GMT';
 
         // Conditional request — return 304 if client already has current version
         if ($request->header('If-None-Match') === $etag ||
             ($request->header('If-Modified-Since') && strtotime($request->header('If-Modified-Since')) >= $mtime)
         ) {
             return response('', 304, [
-                'ETag'          => $etag,
+                'ETag' => $etag,
                 'Last-Modified' => $lastModified,
             ]);
         }
 
         // Derive MIME type from extension to avoid reading magic bytes on every request
         static $mimeMap = [
-            'mp4'  => 'video/mp4',
+            'mp4' => 'video/mp4',
             'webm' => 'video/webm',
-            'mov'  => 'video/quicktime',
-            'mkv'  => 'video/x-matroska',
-            '3gp'  => 'video/3gpp',
-            'gif'  => 'image/gif',
+            'mov' => 'video/quicktime',
+            'mkv' => 'video/x-matroska',
+            '3gp' => 'video/3gpp',
+            'gif' => 'image/gif',
         ];
-        $ext      = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         $mimeType = $mimeMap[$ext] ?? (mime_content_type($filePath) ?: 'video/mp4');
 
-        $start  = 0;
-        $end    = $fileSize - 1;
+        $start = 0;
+        $end = $fileSize - 1;
         $status = 200;
         $headers = [
-            'Content-Type'  => $mimeType,
+            'Content-Type' => $mimeType,
             'Accept-Ranges' => 'bytes',
             'Cache-Control' => 'public, max-age=86400',
-            'ETag'          => $etag,
+            'ETag' => $etag,
             'Last-Modified' => $lastModified,
         ];
 
         $rangeHeader = $request->header('Range');
         if ($rangeHeader && preg_match('/bytes=(\d*)-(\d*)/i', $rangeHeader, $matches)) {
             $start = $matches[1] !== '' ? (int) $matches[1] : 0;
-            $end   = $matches[2] !== '' ? (int) $matches[2] : $end;
-            $end   = min($end, $fileSize - 1);
+            $end = $matches[2] !== '' ? (int) $matches[2] : $end;
+            $end = min($end, $fileSize - 1);
 
             if ($start > $end || $start >= $fileSize) {
                 return response('', 416, [
@@ -199,7 +201,7 @@ class ReelApiService
                 ]);
             }
 
-            $status                  = 206;
+            $status = 206;
             $headers['Content-Range'] = "bytes {$start}-{$end}/{$fileSize}";
         }
 
@@ -212,7 +214,7 @@ class ReelApiService
             }
 
             $chunkSize = 1024 * 1024;
-            $handle    = fopen($filePath, 'rb');
+            $handle = fopen($filePath, 'rb');
 
             if ($handle === false) {
                 return;
@@ -222,13 +224,13 @@ class ReelApiService
                 fseek($handle, $start);
                 $bytesRemaining = $end - $start + 1;
 
-                while (!feof($handle) && $bytesRemaining > 0) {
+                while (! feof($handle) && $bytesRemaining > 0) {
                     if (connection_aborted()) {
                         break;
                     }
 
                     $readLength = min($chunkSize, $bytesRemaining);
-                    $buffer     = fread($handle, $readLength);
+                    $buffer = fread($handle, $readLength);
 
                     if ($buffer === false) {
                         break;
@@ -252,7 +254,7 @@ class ReelApiService
                 ->where('reel_id', $reel->id)
                 ->where('type', $type)
                 ->when($userId, fn ($query) => $query->where('user_id', $userId))
-                ->when(!$userId, fn ($query) => $query->where('guest_id', $guestId));
+                ->when(! $userId, fn ($query) => $query->where('guest_id', $guestId));
 
             $alreadyTracked = $engagementQuery->lockForUpdate()->exists();
 

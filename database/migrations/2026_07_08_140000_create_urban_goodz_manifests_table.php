@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -54,7 +55,9 @@ return new class extends Migration
         if (Schema::hasTable('urban_goodz_route_packages')) {
             Schema::table('urban_goodz_route_packages', function (Blueprint $table) {
                 if (Schema::hasColumn('urban_goodz_route_packages', 'manifest_id')) {
-                    $table->dropForeign('ug_pkg_manifest_fk');
+                    if (DB::getDriverName() !== 'sqlite') {
+                        $table->dropForeign('ug_pkg_manifest_fk');
+                    }
                     $table->dropColumn('manifest_id');
                 }
             });

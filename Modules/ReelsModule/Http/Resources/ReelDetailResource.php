@@ -28,6 +28,7 @@ class ReelDetailResource extends JsonResource
             ],
             'total_views' => (int) $this->total_views,
             'total_likes' => (int) $this->total_likes,
+            'total_comments' => (int) $this->total_comments,
             'total_store_visits' => (int) $this->total_store_visits,
             'creator' => $this->creatorProfile ? [
                 'id' => $this->creatorProfile->id,

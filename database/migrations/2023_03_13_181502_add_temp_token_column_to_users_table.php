@@ -14,7 +14,9 @@ class AddTempTokenColumnToUsersTable extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('temp_token')->nullable();
+            if (!Schema::hasColumn('users', 'temp_token')) {
+                $table->string('temp_token')->nullable();
+            }
             $table->string('phone')->nullable()->change();
             $table->string('password',100)->nullable()->change();
         });

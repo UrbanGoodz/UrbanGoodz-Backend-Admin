@@ -14,7 +14,9 @@ class AddOtpHitCountColsInPhoneVerificationsTable extends Migration
     public function up()
     {
         Schema::table('phone_verifications', function (Blueprint $table) {
-            $table->tinyInteger('otp_hit_count')->default('0');
+            if (!Schema::hasColumn('phone_verifications', 'otp_hit_count')) {
+                $table->tinyInteger('otp_hit_count')->default('0');
+            }
             $table->boolean('is_blocked')->default('0');
             $table->boolean('is_temp_blocked')->default('0');
         });

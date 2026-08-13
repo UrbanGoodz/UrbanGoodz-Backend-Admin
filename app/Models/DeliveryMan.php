@@ -129,6 +129,11 @@ class DeliveryMan extends Authenticatable
         return $this->hasOne(UserInfo::class,'deliveryman_id', 'id');
     }
 
+    public function certifications()
+    {
+        return $this->hasMany(DriverCertification::class, 'delivery_man_id');
+    }
+
     public function vehicle()
     {
         return $this->belongsTo(DMVehicle::class, 'vehicle_id')->withoutGlobalScope('delivery_only');

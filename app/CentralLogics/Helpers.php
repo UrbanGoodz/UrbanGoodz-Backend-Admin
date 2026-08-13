@@ -46,6 +46,7 @@ use App\Models\User;
 use App\Models\UserNotification;
 use App\Models\VendorEmployee;
 use App\Models\Zone;
+use App\Services\Notifications\FirebaseCredentialResolver;
 use App\Traits\NotificationDataSetUpTrait;
 use App\Traits\Payment;
 use App\Traits\PaymentGatewayTrait;
@@ -58,6 +59,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -1676,24 +1678,65 @@ class Helpers
         return $currency_symbol_position == 'right' ? number_format($value, config('round_up_to_digit')) . ' ' . self::currency_symbol() : self::currency_symbol() . ' ' . number_format($value, config('round_up_to_digit'));
     }
 
+    /**
+     * Push send path. FCM v1 (service account -> OAuth bearer) is the authority.
+     * The legacy server-key API is never called; when a legacy key is still
+     * stored alongside a v1 service account it is ignored, not used as a
+     * fallback. See App\Services\Notifications\FirebaseCredentialResolver.
+     */
     public static function sendNotificationToHttp(array|null $data)
     {
-        $config = self::get_business_settings('push_notification_service_file_content');
-        $key = (array) $config;
-        if (data_get($key, 'project_id')) {
-            $url = 'https://fcm.googleapis.com/v1/projects/' . $key['project_id'] . '/messages:send';
+        $config = self::get_business_settings(FirebaseCredentialResolver::V1_SETTING_KEY);
+        $legacyServerKey = self::get_raw_business_setting(FirebaseCredentialResolver::LEGACY_SETTING_KEY);
+        $decision = FirebaseCredentialResolver::decide(is_array($config) ? $config : null, $legacyServerKey);
+
+        if (! $decision['can_send']) {
+            Log::warning('FCM push suppressed: v1 credentials are not authoritative.', [
+                'mode' => $decision['mode'],
+                'reason' => $decision['reason'],
+                'legacy_server_key_present' => $decision['legacy_server_key_present'],
+            ]);
+
+            return false;
+        }
+
+        try {
+            $key = (array) $config;
             $headers = [
                 'Authorization' => 'Bearer ' . self::getAccessToken($key),
                 'Content-Type' => 'application/json',
             ];
-            try {
-                $response = Http::withHeaders($headers)->post($url, $data);
-                return $response->successful();
-            } catch (\Exception $exception) {
-                return false;
+            $response = Http::withHeaders($headers)->post($decision['endpoint'], $data);
+
+            if (! $response->successful()) {
+                Log::warning('FCM v1 provider rejected a push request.', [
+                    'status' => $response->status(),
+                ]);
             }
+
+            return $response->successful();
+        } catch (\Throwable $exception) {
+            Log::warning('FCM v1 push request failed before completion.', [
+                'exception' => $exception::class,
+            ]);
+
+            return false;
         }
-        return false;
+    }
+
+    /**
+     * Raw (undecoded) business setting value. Used for credentials that are
+     * stored as plain strings rather than JSON.
+     */
+    public static function get_raw_business_setting(string $name): ?string
+    {
+        $row = BusinessSetting::where('key', $name)->first();
+
+        if (! $row || ! is_string($row->value) || trim($row->value) === '') {
+            return null;
+        }
+
+        return $row->value;
     }
 
     public static function getAccessToken($key)

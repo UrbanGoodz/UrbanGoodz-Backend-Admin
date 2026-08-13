@@ -32,7 +32,9 @@ return new class extends Migration
             $table->enum('plan_type',['renew','new_plan','first_purchased','free_trial'])->default('first_purchased');
             $table->timestamps();
         });
-        DB::statement('ALTER TABLE subscription_transactions AUTO_INCREMENT = 1000000;');
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE subscription_transactions AUTO_INCREMENT = 1000000;');
+        }
     }
 
     /**

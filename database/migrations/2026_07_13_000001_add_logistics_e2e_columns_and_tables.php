@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -83,7 +84,9 @@ return new class extends Migration
         Schema::dropIfExists('urban_goodz_load_board_bids');
 
         Schema::table('urban_goodz_driver_earnings', function (Blueprint $table) {
-            $table->dropForeign('ug_earn_load_fk');
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->dropForeign('ug_earn_load_fk');
+            }
             $table->dropIndex('ug_earn_load_idx');
             $table->dropColumn('load_id');
         });

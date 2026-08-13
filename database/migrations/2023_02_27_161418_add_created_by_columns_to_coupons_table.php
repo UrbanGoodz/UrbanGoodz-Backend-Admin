@@ -14,10 +14,18 @@ class AddCreatedByColumnsToCouponsTable extends Migration
     public function up()
     {
         Schema::table('coupons', function (Blueprint $table) {
-            $table->string('created_by',50)->default('admin')->nullable();
-            $table->string('customer_id')->default(json_encode(['all']))->nullable();
-            $table->string('slug',255)->nullable();
-            $table->foreignId('store_id')->nullable();
+            if (!Schema::hasColumn('coupons', 'created_by')) {
+                $table->string('created_by',50)->default('admin')->nullable();
+            }
+            if (!Schema::hasColumn('coupons', 'customer_id')) {
+                $table->string('customer_id')->default(json_encode(['all']))->nullable();
+            }
+            if (!Schema::hasColumn('coupons', 'slug')) {
+                $table->string('slug',255)->nullable();
+            }
+            if (!Schema::hasColumn('coupons', 'store_id')) {
+                $table->foreignId('store_id')->nullable();
+            }
         });
     }
 

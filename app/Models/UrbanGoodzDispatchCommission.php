@@ -37,7 +37,7 @@ class UrbanGoodzDispatchCommission extends Model
         return $this->belongsTo(UrbanGoodzBusinessClientUser::class, 'dispatcher_id');
     }
 
-    public function load()
+    public function loadBoardLoad()
     {
         return $this->belongsTo(UrbanGoodzLoadBoardLoad::class, 'load_id');
     }

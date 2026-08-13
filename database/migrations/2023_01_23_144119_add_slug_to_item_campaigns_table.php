@@ -14,7 +14,9 @@ class AddSlugToItemCampaignsTable extends Migration
     public function up()
     {
         Schema::table('item_campaigns', function (Blueprint $table) {
-            $table->string('slug')->nullable();
+            if (!Schema::hasColumn('item_campaigns', 'slug')) {
+                $table->string('slug')->nullable();
+            }
         });
     }
 

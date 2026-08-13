@@ -500,13 +500,34 @@ class UrbanGoodzCommissionResolverTest extends TestCase
 
     // ---------- legacy bridge: nothing changes until rules exist ----------
 
-    public function test_marketplace_falls_back_to_the_legacy_store_override(): void
+    private function legacyOverrideStore(): Store
     {
         $store = Store::withoutGlobalScopes()->whereNotNull('comission')->first();
 
-        if ($store === null) {
-            $this->markTestSkipped('No store carries a legacy commission override.');
+        if ($store !== null) {
+            return $store;
         }
+
+        $vendorId = \Illuminate\Support\Facades\DB::table('vendors')->insertGetId([
+            'f_name' => 'Legacy', 'l_name' => 'Override Vendor',
+            'phone' => '1'.random_int(1000000000, 1999999999),
+            'email' => 'legacy-override-'.\Illuminate\Support\Str::random(8).'@urbangoodz.test',
+            'password' => bcrypt('not-a-production-password'),
+            'status' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return Store::create([
+            'name' => 'Legacy Commission Override Store',
+            'phone' => '1'.random_int(1000000000, 1999999999),
+            'vendor_id' => $vendorId,
+            'comission' => '19.0000',
+        ]);
+    }
+
+    public function test_marketplace_falls_back_to_the_legacy_store_override(): void
+    {
+        $store = $this->legacyOverrideStore();
 
         $result = $this->resolver->resolve($this->context(
             CommissionContext::TYPE_MARKETPLACE_ORDER, 10000,
@@ -522,7 +543,8 @@ class UrbanGoodzCommissionResolverTest extends TestCase
         $global = BusinessSetting::where('key', 'admin_commission')->value('value');
 
         if ($global === null) {
-            $this->markTestSkipped('No global admin_commission configured.');
+            $global = '13.0000';
+            BusinessSetting::create(['key' => 'admin_commission', 'value' => $global]);
         }
 
         $result = $this->resolver->resolve(
@@ -535,11 +557,7 @@ class UrbanGoodzCommissionResolverTest extends TestCase
 
     public function test_a_configured_rule_takes_precedence_over_the_legacy_store_override(): void
     {
-        $store = Store::withoutGlobalScopes()->whereNotNull('comission')->first();
-
-        if ($store === null) {
-            $this->markTestSkipped('No store carries a legacy commission override.');
-        }
+        $store = $this->legacyOverrideStore();
 
         $this->rule([
             'name' => 'migrated', 'partner_type' => 'store', 'partner_id' => (int) $store->id,

@@ -45,6 +45,24 @@ in-memory SQLite schema per test and does not touch any MySQL database.
 | `full-suite-patched.summary.txt` | Inventory of the 119 pre-existing failing test IDs |
 | `staging-db-blocker.txt` | Reproduction of why the Playwright suite cannot run here |
 | `role-fixture-verification.json` | *(generated on staging)* attestation that the two Admin fixtures are non-primary and differ by exactly `urban_goodz_view` |
+| `sqlite-migration-tables-created.txt` / `sqlite-migration-tables-modified.txt` | Table-level diff captured while backfilling the missing base-schema migrations (see below) |
+| `orders-table-schema-dump.txt` | `SHOW CREATE TABLE orders` captured from a working MySQL install, used as the source of truth when writing `database/migrations/2022_05_10_000001_create_orders_table.php` |
+| `clean-migrate-baseline.log` | `migrate --force` against an empty database, still pre-fix: confirms the same `orders` gap described in `staging-db-blocker.txt` (captured before the `2022_05_10_*` migrations below existed) |
+
+### Missing base-schema migrations (`orders` gap)
+
+`staging-db-blocker.txt` documents that this checkout had 21 migrations that
+`ALTER` the `orders` table but none that `CREATE` it (and 25 other base
+tables in the same situation — `stores`, `items`, `admins`, `delivery_men`,
+etc.). `database/migrations/2022_05_10_000001_*` through
+`2022_05_10_000026_*` add the missing `CREATE TABLE` migrations, timestamped
+before the first `ALTER` migration for each table, each guarded with
+`Schema::hasTable()` so they no-op against a database that already has the
+table. Column definitions were reconstructed from
+`orders-table-schema-dump.txt` and the existing `ALTER` migrations. This has
+not been re-verified end-to-end with a live `php artisan migrate` from this
+pass — `clean-migrate-baseline.log` predates the new files — so treat the
+gap as addressed but not freshly re-proven.
 
 All artifacts are path-sanitized. `scripts/sanitize-test-evidence.php` rewrites
 absolute paths to `[repo]` and scans for Windows/Unix home paths, private keys,

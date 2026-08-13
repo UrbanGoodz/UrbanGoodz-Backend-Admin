@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -40,7 +41,9 @@ return new class extends Migration
     {
         if (Schema::hasTable('ai_copilot_recommendations')) {
             Schema::table('ai_copilot_recommendations', function (Blueprint $table) {
-                $table->dropForeign(['reviewed_by']);
+                if (DB::getDriverName() !== 'sqlite') {
+                    $table->dropForeign(['reviewed_by']);
+                }
             });
             Schema::dropIfExists('ai_copilot_recommendations');
         }

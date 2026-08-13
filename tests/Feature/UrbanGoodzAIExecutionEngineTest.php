@@ -242,6 +242,7 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
 
     public function test_duplicate_action_blocked_by_idempotency(): void
     {
+        \App\Models\OrderAnywhereRequest::query()->delete();
         $query = 'Order pizza from Dominos for delivery to 123 Oak Ave';
         $result1 = $this->executionService->executeIntent($query, $this->customer->id);
         

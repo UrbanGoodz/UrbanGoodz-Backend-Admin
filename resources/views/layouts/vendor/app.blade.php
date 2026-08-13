@@ -55,6 +55,7 @@ $verifiedBadgePopupLabel = isset($moduleType) && $moduleType == 'rental' ? trans
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/upload-single-image.css')}}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-admin.css')}}?v={{ filemtime(public_path('assets/admin/css/ug-admin.css')) }}">
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-portal.css')}}?v={{ filemtime(public_path('assets/admin/css/ug-portal.css')) }}">
+    <link rel="stylesheet" href="{{asset('public/assets/admin/css/ug-vendor.css')}}?v={{ filemtime(public_path('assets/admin/css/ug-vendor.css')) }}">
     @if(addon_published_status('ReelsModule'))
         <link rel="stylesheet" href="{{ asset('Modules/ReelsModule/public/assets/css/reels.css') }}">
     @endif

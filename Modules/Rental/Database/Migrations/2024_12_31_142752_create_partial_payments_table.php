@@ -17,7 +17,7 @@ class CreatePartialPaymentsTable extends Migration
             $table->id();
             $table->foreignId('trip_id')->nullable();
             $table->string('transaction_ref')->nullable();
-            $table->double('amount',23, 8)->default(0);
+            $table->decimal('amount', 23, 8)->default(0);
             $table->enum('payment_status',['paid','unpaid'])->default('unpaid');
             $table->string('payment_method',100)->nullable();
             $table->timestamps();

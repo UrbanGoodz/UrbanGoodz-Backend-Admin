@@ -212,6 +212,61 @@ class UrbanGoodzDriverBusinessCourierController extends Controller
         ]);
     }
 
+    public function markArrivedPickup(Request $request, $jobId)
+    {
+        $driver = $this->authDriver($request);
+
+        $job = UrbanGoodzBusinessClientJob::with(['client', 'pickupLocation', 'dropoffLocation'])
+            ->assignedToDriver($driver->id)
+            ->whereKey($jobId)
+            ->whereIn('status', ['driver_en_route', 'arrived_pickup'])
+            ->firstOrFail();
+
+        $job->status = 'arrived_pickup';
+        $job->save();
+
+        return response()->json([
+            'message' => 'Arrival at pickup recorded',
+            'job' => $this->jobDetailResponse($job),
+        ]);
+    }
+
+    public function failDelivery(Request $request, $jobId)
+    {
+        $driver = $this->authDriver($request);
+
+        $job = UrbanGoodzBusinessClientJob::with(['client', 'pickupLocation', 'dropoffLocation'])
+            ->assignedToDriver($driver->id)
+            ->whereKey($jobId)
+            ->whereIn('status', ['driver_en_route', 'arrived_pickup', 'picked_up', 'in_transit', 'delayed'])
+            ->firstOrFail();
+
+        $validator = Validator::make($request->all(), [
+            'reason' => ['required', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $job->status = 'failed_delivery';
+        $job->exception_reason = $request->reason;
+        $job->exception_reported_at = now();
+        if ($request->notes) {
+            $job->driver_notes = $request->notes;
+        }
+        $job->save();
+
+        app(UrbanGoodzDriverDispatchNotificationService::class)
+            ->notifyPackageException($job, $request->reason ?? null);
+
+        return response()->json([
+            'message' => 'Failed delivery reported',
+            'job' => $this->jobDetailResponse($job),
+        ]);
+    }
+
     public function markPickup(Request $request, $jobId)
     {
         $driver = $this->authDriver($request);
@@ -219,7 +274,7 @@ class UrbanGoodzDriverBusinessCourierController extends Controller
         $job = UrbanGoodzBusinessClientJob::with(['client', 'pickupLocation', 'dropoffLocation'])
             ->assignedToDriver($driver->id)
             ->whereKey($jobId)
-            ->whereIn('status', ['driver_en_route', 'picked_up'])
+            ->whereIn('status', ['driver_en_route', 'arrived_pickup', 'picked_up'])
             ->firstOrFail();
 
         $job->status = 'picked_up';

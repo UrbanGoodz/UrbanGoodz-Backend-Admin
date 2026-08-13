@@ -34,7 +34,11 @@ class ServiceBookingWorkflow
             $updates = ['status' => $to];
             if ($to === 'accepted') { $updates['accepted_at'] = now(); }
             if ($to === 'completed') { $updates['completed_at'] = now(); }
-            if ($to === 'canceled' && isset($metadata['reason'])) { $updates['cancellation_reason'] = $metadata['reason']; }
+            if ($to === 'canceled') {
+                $updates['cancellation_reason'] = $metadata['reason'] ?? null;
+                $updates['canceled_by'] = $actorType;
+                $updates['canceled_at'] = now();
+            }
             if ($to === 'reschedule_requested' && isset($metadata['requested_start_at'])) { $updates['requested_start_at'] = $metadata['requested_start_at']; }
             $locked->update($updates);
             UrbanGoodzServiceBookingEvent::create(['service_request_id'=>$locked->id,'actor_type'=>$actorType,'actor_id'=>$actorId,'from_status'=>$from,'to_status'=>$to,'metadata'=>$metadata]);

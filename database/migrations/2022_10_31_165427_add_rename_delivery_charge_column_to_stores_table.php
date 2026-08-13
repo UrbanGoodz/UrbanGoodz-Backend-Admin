@@ -14,8 +14,12 @@ class AddRenameDeliveryChargeColumnToStoresTable extends Migration
     public function up()
     {
         Schema::table('stores', function (Blueprint $table) {
-            $table->renameColumn('delivery_charge', 'minimum_shipping_charge');
-            $table->double('per_km_shipping_charge',16, 3, true)->default('0');
+            if (Schema::hasColumn('stores', 'delivery_charge') && !Schema::hasColumn('stores', 'minimum_shipping_charge')) {
+                $table->renameColumn('delivery_charge', 'minimum_shipping_charge');
+            }
+            if (!Schema::hasColumn('stores', 'per_km_shipping_charge')) {
+                $table->double('per_km_shipping_charge', 16, 3, true)->default('0');
+            }
         });
     }
 

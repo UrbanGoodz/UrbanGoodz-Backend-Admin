@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('item_campaigns', function (Blueprint $table) {
-            $table->integer('maximum_cart_quantity')->nullable();
+            if (!Schema::hasColumn('item_campaigns', 'maximum_cart_quantity')) {
+                $table->integer('maximum_cart_quantity')->nullable();
+            }
         });
     }
 

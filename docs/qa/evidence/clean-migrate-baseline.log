@@ -1,0 +1,47 @@
+
+   INFO  Preparing database.  
+
+  Creating migration table ............................................................................. 340.82ms DONE
+
+   INFO  Running migrations.  
+
+  0000_00_00_000000_create_websockets_statistics_entries_table ......................................... 209.15ms DONE
+  2014_10_12_000000_create_users_table ................................................................. 455.83ms DONE
+  2014_10_12_000001_create_modules_table ............................................................... 225.67ms DONE
+  2016_06_01_000001_create_oauth_auth_codes_table ...................................................... 228.74ms DONE
+  2016_06_01_000002_create_oauth_access_tokens_table ......................................................... 2s DONE
+  2016_06_01_000003_create_oauth_refresh_tokens_table .................................................. 441.68ms DONE
+  2016_06_01_000004_create_oauth_clients_table ......................................................... 194.03ms DONE
+  2016_06_01_000005_create_oauth_personal_access_clients_table .......................................... 84.64ms DONE
+  2022_03_31_103418_create_wallet_transactions_table .................................................... 95.03ms DONE
+  2022_03_31_103827_create_loyalty_point_transactions_table ............................................. 81.06ms DONE
+  2022_04_09_161150_add_wallet_point_columns_to_users_table ............................................. 11.51ms DONE
+  2022_04_10_030533_create_newsletters_table ........................................................... 207.79ms DONE
+  2022_04_12_015827_create_social_media_table .......................................................... 197.83ms DONE
+  2022_04_12_215009_create_jobs_table .................................................................. 196.54ms DONE
+  2022_04_21_145207_add_column_to_modules_table .......................................................... 0.17ms DONE
+  2022_05_09_235959_create_zones_table_if_missing ....................................................... 83.90ms DONE
+  2022_05_10_000000_create_customer_addresses_table .......................................................... 1s DONE
+  2022_05_14_122133_add_dm_tips_column_to_orders_table ................................................... 2.35ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'urban_goodz_clean_migrate_check.orders' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: urban_goodz_clean_migrate_check, SQL: alter table `orders` add `dm_tips` double not null default '0')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      PDOException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'urban_goodz_clean_migrate_check.orders' doesn't exist")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      PDOStatement::execute()
+

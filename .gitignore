@@ -81,8 +81,19 @@ storage/app/test-evidence/
 /query
 /scratch_*.php
 /storage/debugbar/
+storage/debugbar/
 
 # E2E harness local deps/output (harness source itself stays tracked)
 /e2e/real-production/node_modules/
 /e2e/real-production/package-lock.json
 /e2e/real-production/artifacts/
+
+# Local PHPUnit run transcripts / DB server logs (raw debug output, not
+# curated evidence -- see docs/qa/evidence/ for the sanitized artifacts
+# that are meant to be committed)
+/test-results/*.log
+/test-results/*.txt
+/mysql*.log
+
+# Raw unsanitized schema export (never commit)
+database/baseline/raw_schema.sql

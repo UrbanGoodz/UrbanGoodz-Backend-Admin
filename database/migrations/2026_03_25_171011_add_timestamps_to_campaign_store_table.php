@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('campaign_store', function (Blueprint $table) {
-            $table->timestamps();
+            if (!Schema::hasColumn('campaign_store', 'created_at')) {
+                $table->timestamps();
+            }
         });
     }
 

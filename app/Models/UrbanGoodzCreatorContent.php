@@ -10,7 +10,8 @@ class UrbanGoodzCreatorContent extends Model
 
     protected $fillable = [
         'creator_profile_id', 'creator_application_id', 'campaign_id',
-        'title', 'description', 'content_type', 'media_urls',
+        'title', 'description', 'content_type', 'media_urls', 'tags',
+        'product_ids',
         'linked_vendor_type', 'linked_vendor_id', 'linked_vendor_name',
         'cta_label', 'cta_url', 'likes_count', 'shares_count',
         'saves_count', 'clicks_count', 'is_published', 'is_shoppable',
@@ -19,6 +20,8 @@ class UrbanGoodzCreatorContent extends Model
 
     protected $casts = [
         'media_urls' => 'array',
+        'tags' => 'array',
+        'product_ids' => 'array',
         'likes_count' => 'integer',
         'shares_count' => 'integer',
         'saves_count' => 'integer',

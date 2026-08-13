@@ -16,6 +16,8 @@ class Order extends Model
 {
     use HasFactory , ReportFilter, DemoMaskable;
 
+    protected $guarded = [];
+
     protected $casts = [
         'order_amount' => 'float',
         'coupon_discount_amount' => 'float',
@@ -176,6 +178,11 @@ class Order extends Model
     public function delivery_man()
     {
         return $this->belongsTo(DeliveryMan::class, 'delivery_man_id');
+    }
+
+    public function deliveryMan()
+    {
+        return $this->delivery_man();
     }
 
     public function customer()

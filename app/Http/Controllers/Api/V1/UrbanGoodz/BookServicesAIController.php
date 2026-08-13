@@ -17,6 +17,153 @@ class BookServicesAIController extends Controller
 
     // ─── PROVIDER SEARCH ────────────────────────────────────────────────
 
+    /**
+     * GET /customer/service-bookings/ai/providers
+     * List active providers, optionally filtered by service name, location,
+     * category, or budget. Date/time trigger availability ranking.
+     */
+    public function getProviders(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'service_name' => ['nullable', 'string'],
+            'location' => ['nullable', 'string'],
+            'date' => ['nullable', 'date'],
+            'time' => ['nullable', 'string'],
+            'budget_min' => ['nullable', 'numeric', 'min:0'],
+            'budget_max' => ['nullable', 'numeric', 'min:0'],
+            'category' => ['nullable', 'string'],
+        ]);
+
+        $query = UrbanGoodzServiceProvider::where('is_active', true);
+
+        if (!empty($data['service_name'])) {
+            $query->where(function ($q) use ($data) {
+                $q->where('service_category', 'LIKE', "%{$data['service_name']}%")
+                  ->orWhere('business_name', 'LIKE', "%{$data['service_name']}%")
+                  ->orWhere('description', 'LIKE', "%{$data['service_name']}%");
+            });
+        }
+
+        if ($data['location'] ?? false) {
+            $query->where(function ($q) use ($data) {
+                $q->whereJsonContains('service_areas', $data['location'])
+                  ->orWhere('service_areas', 'LIKE', "%{$data['location']}%");
+            });
+        }
+
+        if ($data['category'] ?? false) {
+            $query->where('service_category', $data['category']);
+        }
+
+        $providers = $query->limit(20)
+            ->get()
+            ->map(fn($p) => $this->providerSummary($p))
+            ->filter()
+            ->values()
+            ->toArray();
+
+        if (($data['budget_min'] ?? null) || ($data['budget_max'] ?? null)) {
+            $providers = array_values(array_filter($providers, function ($p) use ($data) {
+                $rate = $p['hourly_rate'] ?? $p['min_budget'] ?? 0;
+                if ($data['budget_min'] && $rate < $data['budget_min']) return false;
+                if ($data['budget_max'] && $rate > $data['budget_max']) return false;
+                return true;
+            }));
+        }
+
+        if ($data['date'] ?? false) {
+            $providers = $this->rankProvidersByAvailability($providers, $data['date'], $data['time'] ?? null);
+        }
+
+        return response()->json([
+            'success' => true,
+            'providers' => $providers,
+            'total_found' => count($providers),
+        ]);
+    }
+
+    /**
+     * POST /customer/service-bookings/ai/match
+     * Rank active providers against a requested service and return the best match.
+     */
+    public function matchProviders(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'service_name' => ['required', 'string'],
+            'location' => ['nullable', 'string'],
+            'date' => ['nullable', 'date'],
+            'time' => ['nullable', 'string'],
+            'budget_min' => ['nullable', 'numeric', 'min:0'],
+            'budget_max' => ['nullable', 'numeric', 'min:0'],
+            'category' => ['nullable', 'string'],
+            'preferred_dates' => ['nullable', 'array'],
+            'preferred_dates.*' => ['date'],
+        ]);
+
+        $query = UrbanGoodzServiceProvider::where('is_active', true)
+            ->where(function ($q) use ($data) {
+                $q->where('service_category', 'LIKE', "%{$data['service_name']}%")
+                  ->orWhere('business_name', 'LIKE', "%{$data['service_name']}%")
+                  ->orWhere('description', 'LIKE', "%{$data['service_name']}%");
+            });
+
+        if ($data['location'] ?? false) {
+            $query->where(function ($q) use ($data) {
+                $q->whereJsonContains('service_areas', $data['location'])
+                  ->orWhere('service_areas', 'LIKE', "%{$data['location']}%");
+            });
+        }
+
+        if ($data['category'] ?? false) {
+            $query->where('service_category', $data['category']);
+        }
+
+        $providers = $query->limit(20)
+            ->get()
+            ->map(fn($p) => $this->providerSummary($p))
+            ->filter()
+            ->values()
+            ->toArray();
+
+        if (($data['budget_min'] ?? null) || ($data['budget_max'] ?? null)) {
+            $providers = array_values(array_filter($providers, function ($p) use ($data) {
+                $rate = $p['hourly_rate'] ?? $p['min_budget'] ?? 0;
+                if ($data['budget_min'] && $rate < $data['budget_min']) return false;
+                if ($data['budget_max'] && $rate > $data['budget_max']) return false;
+                return true;
+            }));
+        }
+
+        $preferredDates = $data['preferred_dates'] ?? [];
+        $dates = $preferredDates ?: array_filter([$data['date'] ?? null]);
+        foreach ($dates as $date) {
+            $providers = $this->rankProvidersByAvailability($providers, $date, $data['time'] ?? null);
+        }
+
+        $best = $providers[0] ?? null;
+
+        return response()->json([
+            'success' => true,
+            'best_match' => $best,
+            'matches' => $providers,
+            'total_found' => count($providers),
+        ]);
+    }
+
+    private function providerSummary(UrbanGoodzServiceProvider $p): array
+    {
+        return [
+            'id' => $p->id,
+            'name' => $p->business_name,
+            'category' => $p->service_category,
+            'rating' => $p->rating,
+            'is_verified' => $p->is_verified,
+            'service_areas' => $p->service_areas,
+            'hourly_rate' => $p->hourly_rate ?? null,
+            'min_budget' => $p->min_budget ?? null,
+        ];
+    }
+
     public function searchProviders(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -50,16 +197,9 @@ class BookServicesAIController extends Controller
 
         $providers = $query->limit(20)
             ->get()
-            ->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->business_name,
-                'category' => $p->service_category,
-                'rating' => $p->rating,
-                'is_verified' => $p->is_verified,
-                'service_areas' => $p->service_areas,
-                'hourly_rate' => $p->hourly_rate ?? null,
-                'min_budget' => $p->min_budget ?? null,
-            ])
+            ->map(fn($p) => $this->providerSummary($p))
+            ->filter()
+            ->values()
             ->toArray();
 
         // Budget filter
@@ -86,12 +226,59 @@ class BookServicesAIController extends Controller
 
     private function rankProvidersByAvailability(array $providers, string $date, ?string $time): array
     {
-        // In production: query ProviderAvailability model
-        // For now, return as-is with placeholder
-        foreach ($providers as &$p) {
-            $p['availability_score'] = rand(60, 100) / 100;
-            $p['available_at'] = $time ?? 'Flexible';
+        if (empty($providers)) {
+            return $providers;
         }
+
+        $providerIds = array_column($providers, 'id');
+        $dayOfWeek = (int) date('w', strtotime($date));
+        $requestedTime = $time !== null && $time !== '' ? date('H:i', strtotime($time)) : null;
+
+        $slots = \App\Models\UrbanGoodzProviderAvailability::where('is_active', true)
+            ->where('day_of_week', $dayOfWeek)
+            ->whereIn('provider_id', $providerIds)
+            ->get()
+            ->groupBy('provider_id');
+
+        $hasAnySchedule = \App\Models\UrbanGoodzProviderAvailability::where('is_active', true)
+            ->whereIn('provider_id', $providerIds)
+            ->select('provider_id')
+            ->distinct()
+            ->pluck('provider_id')
+            ->flip();
+
+        foreach ($providers as &$p) {
+            $daySlots = $slots->get($p['id'], collect());
+            $availableAt = null;
+            $score = 0.2;
+
+            if ($daySlots->isNotEmpty()) {
+                $score = 0.5;
+                $availableAt = $daySlots->min('starts_at');
+
+                if ($requestedTime !== null) {
+                    $covering = $daySlots->first(function ($slot) use ($requestedTime) {
+                        return $requestedTime >= substr($slot->starts_at, 0, 5)
+                            && $requestedTime <= substr($slot->ends_at, 0, 5);
+                    });
+                    if ($covering) {
+                        $score = 1.0;
+                        $availableAt = substr($covering->starts_at, 0, 5);
+                    }
+                }
+            } elseif (!isset($hasAnySchedule[$p['id']])) {
+                $score = 0.2;
+                $availableAt = null;
+            } else {
+                $score = 0.0;
+                $availableAt = null;
+            }
+
+            $p['availability_score'] = $score;
+            $p['available_at'] = $availableAt ?? ($time ?: 'Flexible');
+        }
+        unset($p);
+
         usort($providers, fn($a, $b) => $b['availability_score'] <=> $a['availability_score']);
         return $providers;
     }
@@ -113,43 +300,63 @@ class BookServicesAIController extends Controller
             'provider_ids.*' => ['integer'],
         ]);
 
-        $requestNumber = 'BS-' . strtoupper(uniqid());
-        $requestId = \DB::table('urban_goodz_book_anywhere_requests')->insertGetId([
-            'request_number' => $requestNumber,
-            'customer_id' => $data['customer_id'],
-            'service_name' => $data['service_name'],
+        $requestedStartAt = null;
+        if (!empty($data['preferred_date'])) {
+            $time = !empty($data['preferred_time']) ? date('H:i:s', strtotime($data['preferred_time'])) : '09:00:00';
+            $requestedStartAt = $data['preferred_date'].' '.$time;
+        }
+
+        $serviceRequest = UrbanGoodzServiceRequest::create([
+            'user_id' => $data['customer_id'],
+            'service_type' => $data['service_name'],
             'description' => $data['description'] ?? null,
-            'preferred_date' => $data['preferred_date'] ?? null,
-            'preferred_time' => $data['preferred_time'] ?? null,
-            'location' => $data['location'],
-            'budget_amount' => $data['budget_amount'] ?? null,
-            'category' => $data['category'] ?? null,
             'status' => 'pending',
-            'metadata' => $data['provider_ids'] ? ['provider_ids' => $data['provider_ids']] : [],
-            'created_at' => now(),
-            'updated_at' => now(),
+            'location' => $data['location'],
+            'requested_start_at' => $requestedStartAt,
+            'provider_id' => $data['provider_ids'][0] ?? null,
+            'quoted_amount_minor' => $data['budget_amount'] !== null ? (int) round($data['budget_amount'] * 100) : null,
+            'currency' => 'USD',
+            'provider_notes' => $data['category'] ?? null,
         ]);
 
         // If specific providers selected, notify them
         if (!empty($data['provider_ids'])) {
-            $this->notifyProviders($data['provider_ids'], $requestId, $data);
+            $this->notifyProviders($data['provider_ids'], $serviceRequest->id, $data);
         }
 
         return response()->json([
             'success' => true,
-            'request_id' => $requestId,
-            'request_number' => $requestNumber,
+            'request_id' => $serviceRequest->id,
+            'request_number' => $serviceRequest->id,
             'message' => 'Quote request sent to providers.',
         ]);
     }
 
     private function notifyProviders(array $providerIds, int $requestId, array $data): void
     {
+        $serviceRequest = UrbanGoodzServiceRequest::find($requestId);
+
         foreach ($providerIds as $pid) {
-            \App\Models\UrbanGoodzServiceProvider::where('id', $pid)->update([
-                'last_quote_request_at' => now(),
-            ]);
-            // In production: push notification, email, SMS
+            $provider = \App\Models\UrbanGoodzServiceProvider::find($pid);
+            if (!$provider) {
+                continue;
+            }
+
+            if ($serviceRequest) {
+                \App\Models\UrbanGoodzServiceBookingEvent::create([
+                    'service_request_id' => $serviceRequest->id,
+                    'actor_type' => 'customer',
+                    'actor_id' => $serviceRequest->user_id,
+                    'from_status' => null,
+                    'to_status' => $serviceRequest->status,
+                    'metadata' => [
+                        'type' => 'provider_notified',
+                        'provider_id' => $pid,
+                        'provider_name' => $provider->business_name,
+                        'service_request_id' => $serviceRequest->id,
+                    ],
+                ]);
+            }
         }
     }
 
@@ -160,32 +367,32 @@ class BookServicesAIController extends Controller
         $data = $request->validate([
             'provider_id' => ['required', 'integer'],
             'date' => ['required', 'date'],
+            'time' => ['nullable', 'string'],
             'duration_hours' => ['nullable', 'numeric', 'min:0.5', 'max:12'],
         ]);
 
         $provider = UrbanGoodzServiceProvider::findOrFail($data['provider_id']);
+        $dayOfWeek = (int) date('w', strtotime($data['date']));
+        $requestedTime = $data['time'] !== null && $data['time'] !== '' ? date('H:i', strtotime($data['time'])) : null;
 
-        // Check provider availability model
-        $available = UrbanGoodzProviderAvailability::where('provider_id', $data['provider_id'])
-            ->where('date', $data['date'])
-            ->where(function ($q) use ($data) {
-                $q->where('is_available', true)
-                  ->where(function ($q2) use ($data) {
-                      if (!empty($data['start_time'])) {
-                          $q2->where('start_time', '<=', $data['start_time']);
-                      }
-                  })
-                  ->where(function ($q2) use ($data) {
-                      if (!empty($data['end_time'])) {
-                          $q2->where('end_time', '>=', $data['end_time']);
-                      }
-                  });
-            })
-            ->exists();
+        $daySlots = UrbanGoodzProviderAvailability::where('provider_id', $data['provider_id'])
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->get();
+
+        $available = false;
+        if ($requestedTime !== null) {
+            $available = $daySlots->contains(function ($slot) use ($requestedTime) {
+                return $requestedTime >= substr($slot->starts_at, 0, 5)
+                    && $requestedTime <= substr($slot->ends_at, 0, 5);
+            });
+        } else {
+            $available = $daySlots->isNotEmpty();
+        }
 
         // Check existing bookings
         $booked = UrbanGoodzServiceRequest::where('provider_id', $data['provider_id'])
-            ->whereDate('preferred_date', $data['date'])
+            ->whereDate('scheduled_at', $data['date'])
             ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
             ->exists();
 
@@ -196,18 +403,34 @@ class BookServicesAIController extends Controller
             'date' => $data['date'],
             'is_available' => $available && !$booked,
             'booked' => $booked,
-            'available_slots' => $this->getAvailableSlots($provider, $data['date']),
+            'available_slots' => $this->getAvailableSlots($provider, $data['date'], $daySlots),
         ]);
     }
 
-    private function getAvailableSlots(UrbanGoodzServiceProvider $provider, string $date): array
+    private function getAvailableSlots(UrbanGoodzServiceProvider $provider, string $date, $daySlots = null): array
     {
-        // Return available time slots for the day
-        return [
-            ['start' => '09:00', 'end' => '12:00'],
-            ['start' => '13:00', 'end' => '17:00'],
-            ['start' => '18:00', 'end' => '21:00'],
-        ];
+        if ($daySlots !== null && $daySlots->isNotEmpty()) {
+            return $daySlots->map(fn($slot) => [
+                'start' => substr($slot->starts_at, 0, 5),
+                'end' => substr($slot->ends_at, 0, 5),
+            ])->values()->toArray();
+        }
+
+        // Fallback: derive slots for the requested day from the provider's weekly schedule
+        $dayOfWeek = (int) date('w', strtotime($date));
+        $slots = UrbanGoodzProviderAvailability::where('provider_id', $provider->id)
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->get();
+
+        if ($slots->isNotEmpty()) {
+            return $slots->map(fn($slot) => [
+                'start' => substr($slot->starts_at, 0, 5),
+                'end' => substr($slot->ends_at, 0, 5),
+            ])->values()->toArray();
+        }
+
+        return [];
     }
 
     // ─── BUDGET FILTER ────────────────────────────────────────────────
@@ -329,32 +552,43 @@ class BookServicesAIController extends Controller
 
         $cancelled = UrbanGoodzServiceRequest::findOrFail($data['cancelled_request_id']);
 
-        $replacements = $this->vendorAI->search_service_providers(
-            $cancelled->service_name,
-            $cancelled->location,
-            null,
-            $cancelled->budget_amount
-        );
+        $query = UrbanGoodzServiceProvider::where('is_active', true)
+            ->where(function ($q) use ($cancelled) {
+                $q->where('service_category', 'LIKE', "%{$cancelled->service_type}%")
+                  ->orWhere('description', 'LIKE', "%{$cancelled->service_type}%");
+            });
 
-        $replacement = null;
-        if (!empty($replacements['matched_providers'])) {
-            $replacement = $replacements['matched_providers'][0];
+        if ($cancelled->location) {
+            $query->where(function ($q) use ($cancelled) {
+                $q->whereJsonContains('service_areas', $cancelled->location)
+                  ->orWhere('service_areas', 'LIKE', "%{$cancelled->location}%");
+            });
+        }
+
+        $replacements = $query->limit(10)
+            ->get()
+            ->map(fn($p) => $this->providerSummary($p))
+            ->filter()
+            ->values()
+            ->toArray();
+
+        if ($cancelled->requested_start_at) {
+            $replacements = $this->rankProvidersByAvailability(
+                $replacements,
+                $cancelled->requested_start_at->toDateString(),
+                $cancelled->requested_start_at->format('H:i')
+            );
         }
 
         return response()->json([
             'success' => true,
             'cancelled_request' => [
                 'id' => $cancelled->id,
-                'service_name' => $cancelled->service_name,
-                'date' => $cancelled->preferred_date,
+                'service_type' => $cancelled->service_type,
+                'scheduled_at' => $cancelled->scheduled_at?->toDateTimeString(),
             ],
-            'replacement' => $replacement ? [
-                'provider_id' => $replacement['id'],
-                'provider_name' => $replacement['name'],
-                'rating' => $replacement['rating'],
-                'estimated_cost' => $replacement['hourly_rate'] ?? null,
-            ] : null,
-            'alternatives' => array_slice($replacements['matched_providers'] ?? [], 1, 3),
+            'replacement' => $replacements[0] ?? null,
+            'alternatives' => array_slice($replacements, 1, 3),
         ]);
     }
 
@@ -362,26 +596,26 @@ class BookServicesAIController extends Controller
 
     public function getReminders(Request $request): JsonResponse
     {
-        $customerId = $request->input('customer_id') ?? auth('api')->id();
+        $userId = (int) ($request->input('user_id') ?? auth('api')->id());
 
-        $upcoming = UrbanGoodzServiceRequest::where('customer_id', $customerId)
+        $upcoming = UrbanGoodzServiceRequest::where('user_id', $userId)
             ->whereIn('status', ['confirmed', 'pending'])
-            ->whereDate('preferred_date', '>=', now())
-            ->whereDate('preferred_date', '<=', now()->addDays(7))
-            ->with('provider')
-            ->orderBy('preferred_date')
-            ->orderBy('preferred_time')
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', now())
+            ->where('scheduled_at', '<=', now()->addDays(7))
+            ->with('assignedProvider')
+            ->orderBy('scheduled_at')
             ->get()
             ->map(fn($r) => [
                 'request_id' => $r->id,
-                'service_name' => $r->service_name,
-                'provider' => $r->provider->business_name ?? 'Unknown',
-                'date' => $r->preferred_date,
-                'time' => $r->preferred_time,
+                'service_type' => $r->service_type,
+                'provider' => $r->assignedProvider->business_name ?? 'Unknown',
+                'scheduled_at' => $r->scheduled_at?->toDateTimeString(),
                 'location' => $r->location,
                 'status' => $r->status,
-                'days_until' => now()->diffInDays($r->preferred_date, false),
+                'days_until' => $r->scheduled_at ? now()->diffInDays($r->scheduled_at, false) : null,
             ])
+            ->values()
             ->toArray();
 
         return response()->json([
@@ -404,18 +638,44 @@ class BookServicesAIController extends Controller
 
         $serviceRequest = UrbanGoodzServiceRequest::findOrFail($data['request_id']);
 
+        if ($serviceRequest->status === 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Service already marked complete.',
+            ], 409);
+        }
+
         $serviceRequest->update([
             'status' => 'completed',
             'completed_at' => now(),
-            'customer_rating' => $data['customer_rating'] ?? null,
-            'completion_notes' => $data['notes'] ?? null,
-            'completion_photo' => $data['photo'] ?? null,
-            'customer_signature' => $data['signature'] ?? null,
+            'provider_notes' => $data['notes'] ?? $serviceRequest->provider_notes,
         ]);
 
-        // Trigger payout
+        if (!empty($data['customer_rating']) && $serviceRequest->provider_id && $serviceRequest->user_id) {
+            \App\Models\UrbanGoodzServiceReview::updateOrCreate(
+                ['service_request_id' => $serviceRequest->id],
+                [
+                    'provider_id' => $serviceRequest->provider_id,
+                    'user_id' => $serviceRequest->user_id,
+                    'rating' => $data['customer_rating'],
+                    'comment' => $data['notes'] ?? null,
+                ]
+            );
+        }
+
+        // Trigger payout (uses real provider id, not vendor profile id)
         if ($serviceRequest->provider_id) {
-            $this->vendorAI->analyzeVendorPerformance($serviceRequest->provider_id);
+            \App\Models\UrbanGoodzServiceProviderEarning::updateOrCreate(
+                ['service_request_id' => $serviceRequest->id],
+                [
+                    'provider_id' => $serviceRequest->provider_id,
+                    'gross_amount_minor' => $serviceRequest->quoted_amount_minor ?? 0,
+                    'platform_fee_minor' => 0,
+                    'provider_amount_minor' => $serviceRequest->quoted_amount_minor ?? 0,
+                    'currency' => $serviceRequest->currency ?? 'USD',
+                    'status' => 'pending',
+                ]
+            );
         }
 
         return response()->json([
@@ -423,5 +683,63 @@ class BookServicesAIController extends Controller
             'message' => 'Service marked complete.',
             'request_id' => $serviceRequest->id,
         ]);
+    }
+
+    // ─── VENDOR AI ─────────────────────────────────────────────────────
+
+    public function estimatePrepTime(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array'],
+            'items.*.name' => ['required', 'string'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'store_type' => ['nullable', 'string'],
+        ]);
+
+        $result = $this->vendorAI->estimatePrepTime($data['items'], $data['store_type'] ?? 'restaurant');
+
+        return response()->json($result);
+    }
+
+    public function generateAlerts(Request $request): JsonResponse
+    {
+        $vendor = $this->resolveVendor($request);
+        $result = $this->vendorAI->generateVendorAlerts($vendor->id);
+
+        return response()->json($result);
+    }
+
+    public function analyzePerformance(Request $request): JsonResponse
+    {
+        $vendor = $this->resolveVendor($request);
+        $result = $this->vendorAI->analyzeVendorPerformance($vendor->id);
+
+        return response()->json($result);
+    }
+
+    public function suggestPromotions(Request $request): JsonResponse
+    {
+        $vendor = $this->resolveVendor($request);
+        $result = $this->vendorAI->suggestVendorPromotions($vendor->id);
+
+        return response()->json($result);
+    }
+
+    public function generateDailyBrief(Request $request): JsonResponse
+    {
+        $vendor = $this->resolveVendor($request);
+        $result = $this->vendorAI->generateVendorDailyBrief($vendor->id);
+
+        return response()->json($result);
+    }
+
+    private function resolveVendor(Request $request): \App\Models\Vendor
+    {
+        $vendor = $request['vendor'] ?? $request->user('vendor');
+
+        abort_unless($vendor, 401, 'Unauthorized.');
+        abort_unless($vendor instanceof \App\Models\Vendor, 403, 'Vendor profile not found.');
+
+        return $vendor;
     }
 }

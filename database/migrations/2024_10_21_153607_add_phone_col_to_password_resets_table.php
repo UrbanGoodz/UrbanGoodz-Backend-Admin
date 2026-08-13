@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('password_resets', function (Blueprint $table) {
-            $table->string('phone',50)->nullable();
+            if (!Schema::hasColumn('password_resets', 'phone')) {
+                $table->string('phone',50)->nullable();
+            }
             $table->string('email')->nullable()->change();
         });
     }

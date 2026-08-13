@@ -62,7 +62,7 @@ class DigitalHumanPlatformTest extends TestCase
         );
 
         $this->assertTrue($payload['success']);
-        $this->assertEquals('Ebony', $payload['data']['persona']['display_name']);
+        $this->assertEquals('Monique', $payload['data']['persona']['display_name']);
         $this->assertEquals('houston_loft', $payload['data']['digital_human']['environment_key']);
         $this->assertNotEmpty($payload['data']['playback']['viseme_timeline']);
     }

@@ -7,8 +7,6 @@ use App\Models\Store;
 use App\Models\Setting;
 use App\Models\DataSetting;
 
-ini_set('max_execution_time', 180);
-
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\EmailTemplate;
@@ -36,6 +34,8 @@ class UpdateController extends Controller
 
     public function update_software(Request $request)
     {
+        ini_set('max_execution_time', 180);
+
         if (env('SOFTWARE_VERSION') == '1.0') {
             $filesystem = new Filesystem;
             $filesystem->cleanDirectory('database/migrations');
