@@ -143,7 +143,7 @@ class SendFirebaseNotification implements ShouldQueue
         return match ($this->recipientType) {
             'customer' => User::whereKey($this->recipientId)->value('cm_firebase_token'),
             'vendor' => Vendor::whereKey($this->recipientId)->value('firebase_token'),
-            'driver' => DeliveryMan::whereKey($this->recipientId)->value('fcm_token'),
+            'driver' => DeliveryMan::whereKey($this->recipientId)->value('firebase_token'),
             default => null,
         };
     }

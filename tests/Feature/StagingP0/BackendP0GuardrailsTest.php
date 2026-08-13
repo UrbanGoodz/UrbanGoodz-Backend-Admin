@@ -7,18 +7,21 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\Feature\StagingP0\Concerns\CreatesP0Fixtures;
 use Tests\TestCase;
 
 /**
- * Backend P0 guardrails against the isolated staging database:
- * authentication, authorization, marketplace exposure, money integrity and
- * document privacy.
+ * Backend P0 guardrails: authentication, authorization, marketplace
+ * exposure, money integrity and document privacy.
  *
- * DatabaseTransactions keeps the reconciled schema and fixtures intact.
+ * DatabaseTransactions plus CreatesP0Fixtures keeps the fixed-id fixtures
+ * (9001-9003) available every run, in any allowlisted test database - not
+ * only against one hand-curated external staging database.
  */
 class BackendP0GuardrailsTest extends TestCase
 {
     use DatabaseTransactions;
+    use CreatesP0Fixtures;
 
     private const ZONE = 9001;
 
@@ -26,6 +29,7 @@ class BackendP0GuardrailsTest extends TestCase
     {
         parent::setUp();
         $this->withoutMiddleware([ActivationCheckMiddleware::class, ThrottleRequests::class]);
+        $this->ensureP0Fixtures();
     }
 
     private function zoneHeaders(): array

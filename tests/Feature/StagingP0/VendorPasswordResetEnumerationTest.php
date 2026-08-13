@@ -7,18 +7,21 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\Feature\StagingP0\Concerns\CreatesP0Fixtures;
 use Tests\TestCase;
 
 /**
  * P0: vendor account recovery must not disclose which email addresses own a
  * vendor account.
  *
- * Uses DatabaseTransactions (not RefreshDatabase) so the reconciled staging
- * schema and its deterministic fixtures are never rebuilt or dropped.
+ * Uses DatabaseTransactions (not RefreshDatabase) plus CreatesP0Fixtures so
+ * the deterministic fixture rows are (re)created every run rather than
+ * depending on one hand-curated external database.
  */
 class VendorPasswordResetEnumerationTest extends TestCase
 {
     use DatabaseTransactions;
+    use CreatesP0Fixtures;
 
     private const KNOWN_EMAIL   = 'staging.vendor.approved@fixture.invalid';
     private const UNKNOWN_EMAIL = 'staging.definitely.not.a.vendor@fixture.invalid';
@@ -35,6 +38,7 @@ class VendorPasswordResetEnumerationTest extends TestCase
         // enumeration property under test; the throttle is asserted
         // separately in test_rate_limiting_is_still_declared_on_the_routes().
         $this->withoutMiddleware([ActivationCheckMiddleware::class, ThrottleRequests::class]);
+        $this->ensureP0Fixtures();
 
         $this->assertDatabaseHas('vendors', ['email' => self::KNOWN_EMAIL]);
         $this->assertDatabaseMissing('vendors', ['email' => self::UNKNOWN_EMAIL]);

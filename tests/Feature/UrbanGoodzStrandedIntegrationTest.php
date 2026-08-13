@@ -53,6 +53,21 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
 
     // ------------------------------------------------------------------ setup
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Other test classes in the same run use RefreshDatabase, which
+        // re-migrates without reseeding. That wipes the stranded service
+        // catalogue this whole file depends on, regardless of run order.
+        // The seeder is an idempotent updateOrInsert, so re-running it here
+        // is cheap and makes this file self-sufficient no matter what ran
+        // before it.
+        if (UrbanGoodzStrandedService::count() === 0) {
+            $this->seed(\Database\Seeders\UrbanGoodzStrandedServiceSeeder::class);
+        }
+    }
+
     private function user(string $tag): User
     {
         return User::create([
@@ -1033,11 +1048,22 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $vendor->forceFill(['login_remember_token' => $token])->save();
 
         if ($zoneId !== null) {
+            // Same wiped-mid-suite risk as the stranded service catalogue:
+            // guarantee a module exists rather than trusting whatever
+            // another test class left behind.
+            $moduleId = DB::table('modules')->value('id');
+            if ($moduleId === null) {
+                $moduleId = \App\Models\Module::firstOrCreate(
+                    ['module_name' => 'Restaurants'],
+                    ['module_type' => 'food', 'status' => 1]
+                )->id;
+            }
+
             Store::create([
                 'name' => 'Stranded Integration Store',
                 'phone' => '1234567893',
                 'vendor_id' => $vendor->id,
-                'module_id' => DB::table('modules')->value('id'),
+                'module_id' => $moduleId,
                 'zone_id' => $zoneId,
                 'latitude' => (string) self::LAT,
                 'longitude' => (string) self::LNG,

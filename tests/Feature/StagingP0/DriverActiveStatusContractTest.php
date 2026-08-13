@@ -7,6 +7,7 @@ use App\Models\DeliveryMan;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use Tests\Feature\StagingP0\Concerns\CreatesP0Fixtures;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,7 @@ use Tests\TestCase;
 class DriverActiveStatusContractTest extends TestCase
 {
     use DatabaseTransactions;
+    use CreatesP0Fixtures;
 
     private const URI = '/api/v1/delivery-man/update-active-status';
     private const DRIVER_ONLINE = 9001;
@@ -27,6 +29,7 @@ class DriverActiveStatusContractTest extends TestCase
     {
         parent::setUp();
         $this->withoutMiddleware([ActivationCheckMiddleware::class, ThrottleRequests::class]);
+        $this->ensureP0Fixtures();
 
         // Give the fixture driver a usable API credential for this test only;
         // DatabaseTransactions rolls it back afterwards.

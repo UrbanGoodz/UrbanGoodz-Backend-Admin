@@ -54,14 +54,6 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
      */
     public function test_public_informational_pages_render_the_configured_landing_view(string $uri, string $expectedView): void
     {
-        // BLOCKER: the local `urbangoodz_test` database schema is drifted from the
-        // current migrations (see docs/qa/E2E_REBUILD_TEST_INVENTORY.md §6 and
-        // test-support/reports/phpunit-full.txt) — rendering these views queries a
-        // table missing a `type` column that current migrations define. This is an
-        // environment/schema-sync issue, not a route or test defect; re-enable once
-        // `urbangoodz_test` is migrated to match HEAD.
-        $this->markTestSkipped('Blocked on urbangoodz_test schema drift (missing `type` column) — see docs/qa/E2E_REBUILD_TEST_INVENTORY.md §6.');
-
         config()->set('landing_page_conf', ['value' => '1']);
 
         $this->get($uri)->assertOk()->assertViewIs($expectedView);
@@ -340,12 +332,6 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
         );
 
         $this->actingAs($businessUser, 'business');
-
-        // BLOCKER: BusinessPortalController@dashboard queries a table missing the
-        // `business_client_id` column in the local `urbangoodz_test` schema (same
-        // schema-drift class as the informational-pages skip above). Re-enable once
-        // urbangoodz_test is migrated to match HEAD.
-        $this->markTestSkipped('Blocked on urbangoodz_test schema drift (missing `business_client_id` column) — see docs/qa/E2E_REBUILD_TEST_INVENTORY.md §6.');
 
         $this->get(route('business.dashboard'))->assertOk();
     }

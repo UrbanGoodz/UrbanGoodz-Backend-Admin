@@ -67,12 +67,29 @@ class UrbanGoodzOrderCommissionParityTest extends TestCase
         return $order;
     }
 
+    private function vendorId(string $tag): int
+    {
+        return \Illuminate\Support\Facades\DB::table('vendors')->insertGetId([
+            'f_name' => 'Parity', 'l_name' => $tag,
+            'phone' => '1'.random_int(1000000000, 1999999999),
+            'email' => 'parity-'.strtolower($tag).'-'.\Illuminate\Support\Str::random(8).'@urbangoodz.test',
+            'password' => bcrypt('not-a-production-password'),
+            'status' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
     public function test_store_with_an_override_resolves_to_the_same_rate_as_before(): void
     {
         $store = Store::withoutGlobalScopes()->whereNotNull('comission')->first();
 
         if ($store === null) {
-            $this->markTestSkipped('No store carries a commission override.');
+            $store = Store::create([
+                'name' => 'Parity Override Store',
+                'phone' => '1'.random_int(1000000000, 1999999999),
+                'vendor_id' => $this->vendorId('Override'),
+                'comission' => '21.0000',
+            ]);
         }
 
         $order = $this->orderForStore($store);
@@ -89,7 +106,19 @@ class UrbanGoodzOrderCommissionParityTest extends TestCase
         $store = Store::withoutGlobalScopes()->whereNull('comission')->first();
 
         if ($store === null) {
-            $this->markTestSkipped('No store inherits the global rate.');
+            $store = Store::create([
+                'name' => 'Parity No-Override Store',
+                'phone' => '1'.random_int(1000000000, 1999999999),
+                'vendor_id' => $this->vendorId('NoOverride'),
+            ]);
+        }
+
+        // The test is "inherits the global rate", not "no configuration
+        // exists" (that's UrbanGoodzCommissionResolverTest::
+        // test_missing_configuration_fails_safe) - a global rate must
+        // actually be present for either path to have something to inherit.
+        if (BusinessSetting::where('key', 'admin_commission')->doesntExist()) {
+            BusinessSetting::create(['key' => 'admin_commission', 'value' => '13.0000']);
         }
 
         $order = $this->orderForStore($store);

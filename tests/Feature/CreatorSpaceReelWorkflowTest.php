@@ -499,7 +499,11 @@ class CreatorSpaceReelWorkflowTest extends TestCase
             'publication_status' => 'draft', 'moderation_status' => 'pending',
         ]));
 
-        $response = $this->getJson("/api/v1/urban-goodz/creators/{$profile->handle}/reels");
+        // A shopper browsing the creator's public reels, not the creator
+        // themselves - this endpoint sits behind auth:api like the rest of
+        // Creator Discovery.
+        $viewer = User::factory()->create();
+        $response = $this->actingAs($viewer, 'api')->getJson("/api/v1/urban-goodz/creators/{$profile->handle}/reels");
 
         $response->assertStatus(200);
         $this->assertCount(1, $response->json('data'));

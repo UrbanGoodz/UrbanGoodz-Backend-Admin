@@ -8,6 +8,7 @@ use App\Services\UrbanGoodz\DriverCompensationContext;
 use App\Services\UrbanGoodz\UrbanGoodzDriverCompensationResolver;
 use App\Services\UrbanGoodz\UrbanGoodzDriverPricingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,20 @@ class UrbanGoodzDriverCompensationResolverTest extends TestCase
         parent::setUp();
         $this->resolver = new UrbanGoodzDriverCompensationResolver();
         UrbanGoodzDriverPricingPolicy::query()->delete();
+
+        // urban_goodz_driver_pricing_policies.zone_id has a real FK to
+        // zones. Other test classes in the same run use RefreshDatabase,
+        // which re-migrates without reseeding zones, so this can't assume
+        // zone id 2 survived from wherever it was expected to come from.
+        if (!DB::table('zones')->where('id', 2)->exists()) {
+            DB::table('zones')->updateOrInsert(['id' => 2], [
+                'name' => 'Test Zone 2',
+                'coordinates' => null,
+                'status' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function policy(array $attributes): UrbanGoodzDriverPricingPolicy

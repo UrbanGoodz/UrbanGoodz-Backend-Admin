@@ -227,54 +227,72 @@ class UrbanGoodzMergedEndpointsBackendSweepTest extends TestCase
         );
     }
 
-    // ---- Known, previously-documented blocker: confirmed at the HTTP layer ----
+    // ---- Formerly a known blocker, now real coverage ----
     // The migration comment in
     // database/migrations/2026_07_30_200000_expand_events_creators_sourcing.php
-    // (and this repo's Lane 1 handoff notes) already flag that
-    // App\Models\UrbanGoodzReel does not exist anywhere in the codebase,
-    // despite being referenced by CreatorSpaceController, ReelSocialController,
-    // and UrbanGoodzCreatorProfile::reels(). This is a product-decision gap
-    // (should it point at the real Modules\ReelsModule `reels` table, or does
-    // a standalone urban_goodz_reels table/model need to be built?), not
-    // something safe to invent unilaterally during certification. These
-    // tests turn that schema-level inference into a concrete, reproducible
-    // HTTP-level failure so the gap is impossible to miss and any future fix
-    // will visibly break (and force an update of) this test.
-    public function test_upload_reel_endpoint_fatals_KNOWN_BLOCKER_missing_urban_goodz_reel_model(): void
+    // (and this repo's Lane 1 handoff notes) used to flag that
+    // App\Models\UrbanGoodzReel did not exist, despite being referenced by
+    // CreatorSpaceController, ReelSocialController, and
+    // UrbanGoodzCreatorProfile::reels(). That gap is closed: UrbanGoodzReel
+    // now backs the real Modules\ReelsModule `reels` table (see f5b0250 and
+    // the schema-baseline commit that fixed its comments() LSP violation).
+    // These were characterization tests asserting the old 500s; they now
+    // assert the real, working behavior instead.
+    public function test_upload_reel_endpoint_creates_a_reel(): void
     {
         Storage::fake('public');
         [$user] = $this->actingCreator();
 
-        // Must clear request validation (video/thumbnail required|file) to
-        // actually reach the UrbanGoodzReel::create() line where it fatals.
         $response = $this->actingAs($user, 'api')->post('/api/v1/urban-goodz/creator-space/reels', [
             'video' => UploadedFile::fake()->create('clip.mp4', 500, 'video/mp4'),
             'thumbnail' => UploadedFile::fake()->image('thumb.jpg'),
             'caption' => 'test',
         ]);
 
-        // Documents current (broken) behavior: App\Models\UrbanGoodzReel does
-        // not exist, so UrbanGoodzReel::create() fatals.
-        $this->assertSame(500, $response->status(), 'If this starts passing, the UrbanGoodzReel model now exists - update/remove this characterization test.');
+        $response->assertStatus(201)
+            ->assertJsonPath('message', 'Reel uploaded')
+            ->assertJsonPath('data.description', 'test');
+        $this->assertSame(1, DB::table('reels')->count());
     }
 
-    public function test_list_my_reels_endpoint_fatals_KNOWN_BLOCKER_missing_urban_goodz_reel_model(): void
+    public function test_list_my_reels_endpoint_returns_the_creators_reels(): void
     {
-        [$user] = $this->actingCreator();
+        [$user, $profile] = $this->actingCreator();
+        DB::table('reels')->insert([
+            'store_id' => null,
+            'module_id' => \Modules\ReelsModule\Support\ReelModuleConfig::defaultModuleId(),
+            'module_type' => \Modules\ReelsModule\Support\ReelModuleConfig::defaultModuleType(),
+            'creator_profile_id' => $profile->id,
+            'description' => 'existing reel',
+            'video' => 'reels/videos/existing.mp4',
+            'thumbnail' => 'reels/thumbnails/existing.jpg',
+            'is_always_visible' => true,
+            'status' => true,
+            'publication_status' => 'draft',
+            'moderation_status' => 'pending',
+            'created_by_id' => $user->id,
+            'created_by_type' => User::class,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $response = $this->actingAs($user, 'api')->getJson('/api/v1/urban-goodz/creator-space/reels');
 
-        $this->assertSame(500, $response->status(), 'If this starts passing, the UrbanGoodzReel model now exists - update/remove this characterization test.');
+        $response->assertStatus(200);
+        $this->assertSame(1, $response->json('total'));
+        $this->assertSame('existing reel', $response->json('data.0.description'));
     }
 
-    public function test_reel_comment_endpoints_fatal_KNOWN_BLOCKER_missing_urban_goodz_reel_model(): void
+    public function test_reel_comment_endpoint_404s_for_a_nonexistent_reel(): void
     {
         [$user] = $this->actingCreator();
 
+        // Reel id=1 does not exist in this test's isolated transaction: the
+        // endpoint correctly answers 404 rather than fatally erroring.
         $response = $this->actingAs($user, 'api')->postJson('/api/v1/urban-goodz/reels/1/comments', [
             'content' => 'nice reel',
         ]);
 
-        $this->assertSame(500, $response->status(), 'If this starts passing, the UrbanGoodzReel model now exists - update/remove this characterization test.');
+        $response->assertStatus(404);
     }
 }
