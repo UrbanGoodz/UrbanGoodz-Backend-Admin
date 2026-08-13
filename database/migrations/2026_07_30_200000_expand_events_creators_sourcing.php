@@ -108,9 +108,18 @@ return new class extends Migration
                 $table->text('content');
                 $table->string('status')->default('active');
                 $table->timestamps();
-                
+
                 $table->index(['reel_id', 'status']);
-                $table->foreign('reel_id')->references('id')->on('urban_goodz_reels')->onDelete('cascade');
+                // NOTE: 'urban_goodz_reels' has no table/model anywhere in the
+                // codebase (no UrbanGoodzReel model, no create-table migration).
+                // App\Models\UrbanGoodzReelComment::reel() and
+                // App\Http\Controllers\Api\V1\ReelSocialController both reference
+                // a UrbanGoodzReel model class that also does not exist -- this is
+                // an unfinished feature, not a migration-ordering issue. The FK is
+                // deliberately skipped so the rest of the schema can migrate
+                // cleanly; see Lane 1 certification notes for the product
+                // decision needed (point this at the real `reels` table, or
+                // finish the standalone UrbanGoodzReel table/model).
                 $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
                 $table->foreign('parent_id')->references('id')->on('urban_goodz_reel_comments')->onDelete('cascade');
             });
