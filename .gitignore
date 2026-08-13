@@ -86,3 +86,10 @@ storage/app/test-evidence/
 /e2e/real-production/node_modules/
 /e2e/real-production/package-lock.json
 /e2e/real-production/artifacts/
+
+# Local PHPUnit run transcripts / DB server logs (raw debug output, not
+# curated evidence -- see docs/qa/evidence/ for the sanitized artifacts
+# that are meant to be committed)
+/test-results/*.log
+/test-results/*.txt
+/mysql*.log
