@@ -48,8 +48,8 @@ class UrbanGoodzDriverAIController extends Controller
 
         // Check for expiring documents
         $expiringSoon = $driver->certifications()
-            ->where('expires_at', '<=', now()->addDays(30))
-            ->where('expires_at', '>=', now())
+            ->where('expiry_date', '<=', now()->addDays(30))
+            ->where('expiry_date', '>=', now())
             ->count();
         if ($expiringSoon) {
             $summary .= " ⚠️ {$expiringSoon} certification(s) expiring within 30 days.";
@@ -169,7 +169,7 @@ class UrbanGoodzDriverAIController extends Controller
         $driver = $this->getDriver($request);
         $period = $request->input('period', 'week'); // week, month, year
 
-        $earnings = \App\Models\UrbanGoodzDriverEarning::where('dm_id', $driver->id)
+        $earnings = \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)
             ->when($period === 'week', fn($q) => $q->where('created_at', '>=', now()->subWeek()))
             ->when($period === 'month', fn($q) => $q->where('created_at', '>=', now()->subMonth()))
             ->when($period === 'year', fn($q) => $q->where('created_at', '>=', now()->subYear()))
@@ -198,6 +198,47 @@ class UrbanGoodzDriverAIController extends Controller
             'platform_avg_per_order' => round($platformAvg, 2),
             'vs_platform' => $avgPerOrder > $platformAvg ? 'above' : 'below',
             'percentile' => $this->calculatePercentile($driver->id, $period),
+        ]);
+    }
+
+    // ─── DRIVER WARNINGS ───────────────────────────────────────────────
+
+    public function getWarnings(Request $request): JsonResponse
+    {
+        $driver = $this->getDriver($request);
+
+        return response()->json([
+            'success' => true,
+            'warnings' => $this->getDriverWarnings($driver),
+        ]);
+    }
+
+    // ─── EARNINGS PER HOUR ─────────────────────────────────────────────
+
+    public function earningsPerHour(Request $request): JsonResponse
+    {
+        $driver = $this->getDriver($request);
+        $period = $request->input('period', 'week'); // week, month, year
+
+        $earnings = \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)
+            ->when($period === 'week', fn($q) => $q->where('created_at', '>=', now()->subWeek()))
+            ->when($period === 'month', fn($q) => $q->where('created_at', '>=', now()->subMonth()))
+            ->when($period === 'year', fn($q) => $q->where('created_at', '>=', now()->subYear()))
+            ->get();
+
+        $totalEarnings = $earnings->sum('amount');
+        $totalOrders = $earnings->count();
+        $activeHours = $this->calculateActiveHours($driver, $period);
+        $perHour = $activeHours > 0 ? $totalEarnings / $activeHours : 0;
+
+        return response()->json([
+            'success' => true,
+            'period' => $period,
+            'total_earnings' => $totalEarnings,
+            'active_hours' => round($activeHours, 1),
+            'earnings_per_hour' => round($perHour, 2),
+            'total_orders' => $totalOrders,
+            'avg_per_order' => $totalOrders > 0 ? round($totalEarnings / $totalOrders, 2) : 0,
         ]);
     }
 
@@ -413,8 +454,8 @@ class UrbanGoodzDriverAIController extends Controller
 
         // Expiring docs
         $expiring = $driver->certifications()
-            ->where('expires_at', '<=', now()->addDays(30))
-            ->where('expires_at', '>=', now())
+            ->where('expiry_date', '<=', now()->addDays(30))
+            ->where('expiry_date', '>=', now())
             ->count();
         if ($expiring) {
             $warnings[] = "{$expiring} certification(s) expiring within 30 days";
@@ -439,7 +480,7 @@ class UrbanGoodzDriverAIController extends Controller
     private function calculateActiveHoursToday(DeliveryMan $driver): float
     {
         $today = now()->startOfDay();
-        $earnings = \App\Models\UrbanGoodzDriverEarning::where('dm_id', $driver->id)
+        $earnings = \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)
             ->where('created_at', '>=', $today)
             ->get();
 
@@ -458,7 +499,7 @@ class UrbanGoodzDriverAIController extends Controller
             default => now()->subYear(),
         };
 
-        $earnings = \App\Models\UrbanGoodzDriverEarning::where('dm_id', $driver->id)
+        $earnings = \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)
             ->where('created_at', '>=', $start)
             ->get();
 
@@ -477,13 +518,13 @@ class UrbanGoodzDriverAIController extends Controller
             default => now()->subYear(),
         };
 
-        $driverAvg = \App\Models\UrbanGoodzDriverEarning::where('dm_id', $driverId)
+        $driverAvg = \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driverId)
             ->where('created_at', '>=', $start)
             ->avg('amount') ?? 0;
 
         $allAvgs = \App\Models\UrbanGoodzDriverEarning::where('created_at', '>=', $start)
-            ->groupBy('dm_id')
-            ->selectRaw('dm_id, AVG(amount) as avg_earning')
+            ->groupBy('delivery_man_id')
+            ->selectRaw('delivery_man_id, AVG(amount) as avg_earning')
             ->pluck('avg_earning')
             ->toArray();
 
