@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             UrbanGoodzIngestionSeeder::class,
             UrbanGoodzTestVendorSeeder::class,
             UrbanGoodzAiWorkforceSeeder::class,
+            UrbanGoodzStrandedServiceSeeder::class,
         ]);
     }
 }

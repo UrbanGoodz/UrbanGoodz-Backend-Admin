@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\ReelsModule\Entities\Reel;
 
 /**
@@ -43,7 +44,7 @@ class UrbanGoodzReel extends Reel
      * ReelSocialController's read (comments()) and write (postComment())
      * paths hit the same table instead of silently diverging.
      */
-    public function comments()
+    public function comments(): HasMany
     {
         return $this->hasMany(UrbanGoodzReelComment::class, 'reel_id');
     }

@@ -166,7 +166,7 @@ class UrbanGoodzNotificationService
         return match ($recipientType) {
             'customer' => DB::table('users')->where('id', $recipientId)->value('cm_firebase_token'),
             'vendor' => DB::table('vendors')->where('id', $recipientId)->value('firebase_token'),
-            'driver' => DB::table('delivery_men')->where('id', $recipientId)->value('fcm_token'),
+            'driver' => DB::table('delivery_men')->where('id', $recipientId)->value('firebase_token'),
             default => null,
         };
     }
