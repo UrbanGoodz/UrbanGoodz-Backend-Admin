@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\ReelsModule\Http\Controllers\Api\V1\CreatorCommerceController as ReelsCreatorCommerceController;
 
 Route::group(['prefix' => 'urban-goodz', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
@@ -66,21 +67,30 @@ Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'th
 
 Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('featured-reels', 'Api\V1\CreatorCommerceController@featuredReels');
+    Route::get('reels', 'Api\V1\CreatorCommerceController@featuredReels');
     Route::get('customer/applications', 'Api\V1\CreatorCommerceController@customerApplications');
     Route::post('applications', 'Api\V1\CreatorCommerceController@storeApplication');
     Route::get('promotions', 'Api\V1\CreatorCommerceController@promotions');
     Route::post('promotions', 'Api\V1\CreatorCommerceController@storePromotion');
 });
 
-    // Creator Space AI
-    Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-        Route::post('reel-script', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelScript');
-        Route::post('product-tags', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateProductTags');
-        Route::post('caption', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateCaption');
-        Route::post('performance', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@analyzePerformance');
-        Route::get('brand-matches', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@matchBrand');
-        Route::post('reel-analytics', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelAnalytics');
-    });
+Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('action', [ReelsCreatorCommerceController::class, 'legacyAction']);
+    Route::post('conversion', [ReelsCreatorCommerceController::class, 'legacyConversion']);
+    Route::get('opportunities', [ReelsCreatorCommerceController::class, 'opportunities']);
+    Route::post('opportunities/{campaign}/accept', [ReelsCreatorCommerceController::class, 'acceptOpportunity']);
+    Route::get('analytics', [ReelsCreatorCommerceController::class, 'analytics']);
+});
+
+// Creator Space AI
+Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('reel-script', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelScript');
+    Route::post('product-tags', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateProductTags');
+    Route::post('caption', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateCaption');
+    Route::post('performance', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@analyzePerformance');
+    Route::get('brand-matches', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@matchBrand');
+    Route::post('reel-analytics', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelAnalytics');
+});
 
 Route::group(['prefix' => 'urban-goodz/fashion', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@stylistRequests');
@@ -280,7 +290,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::get('vehicles', 'Api\UrbanGoodzDriverActiveJobsController@vehicles');
     Route::get('certifications', 'Api\UrbanGoodzDriverActiveJobsController@certifications');
     Route::post('certifications/{certId}/upload', 'Api\UrbanGoodzDriverActiveJobsController@uploadCertDocument');
-Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
+    Route::post('certifications/{certId}/renew', 'Api\UrbanGoodzDriverActiveJobsController@renewCertification');
 
     // Driver AI dispatches (AiDispatch lifecycle)
     Route::get('ai-dispatches', 'Api\UrbanGoodzDriverDispatchController@index');
