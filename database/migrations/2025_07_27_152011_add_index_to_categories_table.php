@@ -12,8 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('categories', function (Blueprint $table) {
-            $table->index('parent_id');
-            $table->index('name');
+            foreach (['parent_id', 'name'] as $column) {
+                if (Schema::hasColumn('categories', $column) && !Schema::hasIndex('categories', [$column])) {
+                    $table->index($column);
+                }
+            }
         });
     }
 

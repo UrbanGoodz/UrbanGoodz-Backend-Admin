@@ -9,9 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('urban_goodz_creator_profiles', function (Blueprint $table) {
-            $table->foreignId('vendor_id')->nullable()->after('id')->constrained('vendors')->nullOnDelete();
-            $table->string('status', 24)->default('pending')->after('is_featured')->index();
-            $table->unique('vendor_id', 'ug_creator_profiles_vendor_unique');
+            if (!Schema::hasColumn('urban_goodz_creator_profiles', 'vendor_id')) {
+                $table->foreignId('vendor_id')->nullable()->after('id')->constrained('vendors')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('urban_goodz_creator_profiles', 'status')) {
+                $table->string('status', 24)->default('pending')->after('is_featured')->index();
+            }
+            if (!Schema::hasIndex('urban_goodz_creator_profiles', 'ug_creator_profiles_vendor_unique')) {
+                $table->unique('vendor_id', 'ug_creator_profiles_vendor_unique');
+            }
         });
 
         Schema::table('reels', function (Blueprint $table) {
