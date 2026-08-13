@@ -42,13 +42,64 @@ class ServiceBookingContractTest extends TestCase
             'timeout' => 5,
         ]);
         Http::fake(['api.stripe.com/*' => Http::response([
-            'id' => 'pi_stripe_live_1', 'status' => 'requires_capture',
+            'id' => 'pi_stripe_live_1', 'status' => 'succeeded',
         ], 200)]);
         $booking = new UrbanGoodzServiceRequest(['deposit_amount_minor' => 5000, 'quoted_amount_minor' => 20000, 'currency' => 'USD']);
         $booking->id = 99;
         $result = (new StripeServiceBookingPaymentGateway())->charge($booking, 'pm_live_fixture', 'booking-99');
-        $this->assertSame(['id' => 'pi_stripe_live_1', 'status' => 'requires_capture'], $result);
+        $this->assertSame(['id' => 'pi_stripe_live_1', 'status' => 'succeeded'], $result);
         Http::assertSent(fn($request) => $request['metadata[environment]'] === 'live');
+    }
+
+    public function test_stripe_gateway_does_not_claim_an_uncaptured_payment_succeeded(): void
+    {
+        config()->set('service_bookings.payment', [
+            'sandbox' => true,
+            'provider' => 'stripe',
+            'stripe_endpoint' => 'https://api.stripe.com/v1/payment_intents',
+            'stripe_secret_sandbox' => 'sk_test_fixture',
+            'stripe_secret_live' => null,
+            'timeout' => 5,
+        ]);
+        Http::fake(['api.stripe.com/*' => Http::response([
+            'id' => 'pi_requires_capture', 'status' => 'requires_capture',
+        ], 200)]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Stripe payment was not completed');
+        (new StripeServiceBookingPaymentGateway())->charge(
+            new UrbanGoodzServiceRequest(['deposit_amount_minor' => 100, 'currency' => 'USD']),
+            'pm_fixture',
+            'uncaptured-1'
+        );
+    }
+
+    public function test_stripe_refund_uses_configured_endpoint_and_idempotency_key(): void
+    {
+        config()->set('service_bookings.payment', [
+            'sandbox' => true,
+            'stripe_refund_endpoint' => 'https://api.stripe.com/v1/refunds',
+            'stripe_secret_sandbox' => 'sk_test_fixture',
+            'stripe_secret_live' => null,
+            'timeout' => 5,
+        ]);
+        Http::fake(['api.stripe.com/*' => Http::response([
+            'id' => 're_fixture_1', 'status' => 'succeeded',
+        ], 200)]);
+
+        $result = (new StripeServiceBookingPaymentGateway())->refund(
+            'pi_fixture_1',
+            1250,
+            'USD',
+            'refund-fixture-1'
+        );
+
+        $this->assertSame(['id' => 're_fixture_1', 'status' => 'succeeded'], $result);
+        Http::assertSent(fn ($request) =>
+            $request['payment_intent'] === 'pi_fixture_1'
+            && $request['amount'] === 1250
+            && $request->hasHeader('Idempotency-Key', 'refund-fixture-1')
+        );
     }
 
     public function test_stripe_gateway_fails_closed_on_missing_key(): void
@@ -106,6 +157,15 @@ class ServiceBookingContractTest extends TestCase
         Http::fake(['sandbox.example.test/*'=>Http::response(['error'=>'declined'],402)]);
         $this->expectException(RuntimeException::class);
         (new HttpSandboxServiceBookingPaymentGateway())->charge(new UrbanGoodzServiceRequest(['deposit_amount_minor'=>100,'currency'=>'USD']),'tok_fixture','reject-1');
+    }
+
+    public function test_sandbox_gateway_does_not_treat_authorization_as_payment(): void
+    {
+        config()->set('service_bookings.payment', ['sandbox'=>true,'provider'=>'http','endpoint'=>'https://sandbox.example.test/charges','secret'=>'server-only','timeout'=>5]);
+        Http::fake(['sandbox.example.test/*'=>Http::response(['id'=>'auth_only','status'=>'authorized'],200)]);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('invalid response');
+        (new HttpSandboxServiceBookingPaymentGateway())->charge(new UrbanGoodzServiceRequest(['deposit_amount_minor'=>100,'currency'=>'USD']),'tok_fixture','auth-only-1');
     }
 
     public function test_ownership_status_money_and_notifications_are_server_enforced(): void
