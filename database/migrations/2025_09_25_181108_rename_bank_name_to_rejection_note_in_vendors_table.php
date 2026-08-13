@@ -14,12 +14,16 @@ return new class extends Migration
                 $table->text('rejection_note')->nullable();
             });
         } else {
-            Schema::table('vendors', function (Blueprint $table) {
-                 $table->renameColumn('bank_name', 'rejection_note');
-            });
-            Schema::table('vendors', function (Blueprint $table) {
-                $table->text('rejection_note')->nullable()->change();
-            });
+            if (Schema::hasColumn('vendors', 'bank_name') && !Schema::hasColumn('vendors', 'rejection_note')) {
+                Schema::table('vendors', function (Blueprint $table) {
+                     $table->renameColumn('bank_name', 'rejection_note');
+                });
+            }
+            if (Schema::hasColumn('vendors', 'rejection_note')) {
+                Schema::table('vendors', function (Blueprint $table) {
+                    $table->text('rejection_note')->nullable()->change();
+                });
+            }
         }
     }
 
