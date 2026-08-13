@@ -11925,4 +11925,8 @@ Smartly or Earn. ',
   'Push Notifications' => 'Push Notifications',
   'Configure' => 'Configure',
   'Marketplace Stores (Selected Module)' => 'Marketplace Stores (Selected Module)',
+  'The selected email is invalid.' => 'The selected email is invalid.',
+  'invalid_otp' => 'Invalid otp',
+  'If an account matches that email, a password reset code has been sent.' => 'If an account matches that email, a password reset code has been sent.',
+  'The active field must be true or false.' => 'The active field must be true or false.',
 );

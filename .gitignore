@@ -81,6 +81,7 @@ storage/app/test-evidence/
 /query
 /scratch_*.php
 /storage/debugbar/
+storage/debugbar/
 
 # E2E harness local deps/output (harness source itself stays tracked)
 /e2e/real-production/node_modules/
@@ -93,3 +94,6 @@ storage/app/test-evidence/
 /test-results/*.log
 /test-results/*.txt
 /mysql*.log
+
+# Raw unsanitized schema export (never commit)
+database/baseline/raw_schema.sql
