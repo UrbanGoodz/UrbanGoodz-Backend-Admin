@@ -4,7 +4,7 @@ use App\Models\BusinessSetting;
 
 
 if (!function_exists('getWebConfig')) {
-    function getWebConfig($name):string|object|array
+    function getWebConfig($name):string|object|array|null
     {
         $config = null;
         $check = ['currency_model', 'currency_symbol_position', 'system_default_currency', 'language', 'company_name', 'decimal_point_settings', 'product_brand', 'digital_product', 'company_email'];

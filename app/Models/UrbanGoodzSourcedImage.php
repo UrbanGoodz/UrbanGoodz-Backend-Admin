@@ -9,8 +9,10 @@ class UrbanGoodzSourcedImage extends Model
     protected $table = 'urban_goodz_sourced_images';
 
     protected $fillable = [
+        'import_batch_id',
         'entity_type',
         'entity_id',
+        'image_role',
         'image_url',
         'local_path',
         'source_url',
@@ -19,10 +21,15 @@ class UrbanGoodzSourcedImage extends Model
         'caption',
         'rights_status',
         'review_status',
+        'api_visible',
+        'shopper_visible',
     ];
 
     protected $casts = [
         'entity_id' => 'integer',
+        'import_batch_id' => 'integer',
+        'api_visible' => 'boolean',
+        'shopper_visible' => 'boolean',
     ];
 
     public function entity()

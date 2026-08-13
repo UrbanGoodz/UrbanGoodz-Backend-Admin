@@ -117,7 +117,7 @@ class UrbanGoodzWithdrawalSecurityTest extends TestCase
         $this->assertDatabaseHas('withdraw_requests', [
             'vendor_id' => $this->vendor->id,
             'amount' => 60.00,
-            'approved' => 0,
+            'status' => 'pending',
         ]);
         $this->assertEquals(60.00, StoreWallet::where('vendor_id', $this->vendor->id)->value('pending_withdraw'));
 
@@ -157,7 +157,7 @@ class UrbanGoodzWithdrawalSecurityTest extends TestCase
             'amount' => 25.00,
             'withdrawal_method_id' => $this->method->id,
             'withdrawal_method_fields' => json_encode([]),
-            'approved' => 0,
+            'status' => 'pending',
         ]);
 
         $this->delete("/vendor-panel/wallet/close/{$otherRequest->id}")

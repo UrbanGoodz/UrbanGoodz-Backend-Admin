@@ -12,11 +12,13 @@ class UrbanGoodzCreatorEarning extends Model
         'creator_profile_id', 'creator_application_id', 'campaign_id',
         'content_id', 'type', 'amount', 'currency', 'status',
         'source_type', 'source_id', 'notes', 'paid_at',
+        'ledger_entry_id', 'settlement_snapshot',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_at' => 'datetime',
+        'settlement_snapshot' => 'array',
     ];
 
     public function profile()
@@ -37,5 +39,22 @@ class UrbanGoodzCreatorEarning extends Model
     public function content()
     {
         return $this->belongsTo(UrbanGoodzCreatorContent::class, 'content_id');
+    }
+
+    public function ledgerEntry()
+    {
+        return $this->belongsTo(\App\Models\LedgerEntry::class, 'ledger_entry_id');
+    }
+
+    public function recordToLedger()
+    {
+        // Placeholder for ledger recording logic
+        return true;
+    }
+
+    public function createSettlementSnapshot(array $data)
+    {
+        $this->update(['settlement_snapshot' => $data]);
+        return true;
     }
 }

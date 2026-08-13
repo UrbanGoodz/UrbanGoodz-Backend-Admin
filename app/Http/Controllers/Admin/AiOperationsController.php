@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\AiActionLog;
 use App\Models\AiAgent;
@@ -490,6 +491,13 @@ class AiOperationsController extends Controller
 
     public function chiefOfStaff(Request $request, AiChiefOfStaffService $chiefOfStaffService)
     {
+        // Fails closed and matches the sidebar guard, so navigation visibility
+        // and page access cannot disagree. role_id == 1 (owner) is authoritative
+        // inside module_permission_check and always passes.
+        if (! Helpers::module_permission_check('urban_goodz_control_center')) {
+            abort(403, translate('messages.access_denied'));
+        }
+
         $brief = $chiefOfStaffService->generateExecutiveDailyBrief();
         $summary = $chiefOfStaffService->getCommandCenterSummary();
         $diagnostics = $chiefOfStaffService->runDiagnosticScan();

@@ -32,7 +32,8 @@ class StoreLogic
             ->whereHas('module',function($query){
                 return  $query->active();
             })
-            ->Active();
+            ->Active()
+            ->where('admin_approval_status', 'approved');
         if(config('module.current_module_data')) {
             $query = $query->whereHas('zone.modules', function($query){
                 return  $query->where('modules.id', config('module.current_module_data')['id']);
@@ -210,6 +211,7 @@ class StoreLogic
                 }
             })
             ->Active()
+            ->where('admin_approval_status', 'approved')
             ->type($type);
 
 
@@ -289,7 +291,8 @@ class StoreLogic
             })
             ->type($type)
             ->withCount('reviews')
-            ->withCount('orders')->Active();
+            ->withCount('orders')->Active()
+            ->where('admin_approval_status', 'approved');
 
             if($popular_store_default_status == '1') {
                 $query = $query->orderBy('open', 'desc')
@@ -378,6 +381,7 @@ class StoreLogic
                 });
             })
             ->Active()
+            ->where('admin_approval_status', 'approved')
             ->type($type)
             ->when($filter && in_array('free_delivery',$filter),function ($qurey){
                 return $qurey->where('free_delivery',1);
@@ -470,6 +474,7 @@ class StoreLogic
                 }
             })
             ->Active()
+            ->where('admin_approval_status', 'approved')
             ->type($type)
             ->whereRaw("LENGTH(rating) > 0")
             ->paginate($limit??50, ['*'], 'page', $offset??1);
@@ -484,7 +489,7 @@ class StoreLogic
 
     public static function get_store_details($store_id,$longitude=0,$latitude=0)
     {
-        return Store::withOpen($longitude??0,$latitude??0)->Active()->with(['discount'=>function($q){
+        return Store::withOpen($longitude??0,$latitude??0)->Active()->where('admin_approval_status', 'approved')->with(['discount'=>function($q){
             return $q->validate();
         }, 'campaigns', 'schedules','activeCoupons','store_sub'])
             ->withCount(['items','campaigns','reviews_comments'])
@@ -569,6 +574,7 @@ class StoreLogic
                 });
             })
             ->active()
+            ->where('admin_approval_status', 'approved')
             ->when($rating_count, function($query) use ($rating_count){
                 return $query->selectSub(function ($query) use ($rating_count){
                     return  $query->selectRaw('AVG(reviews.rating)')
@@ -808,7 +814,8 @@ class StoreLogic
                 $q->inRandomOrder();
             })
             ->withCount('reviews')
-            ->withCount('orders')->Active();
+            ->withCount('orders')->Active()
+            ->where('admin_approval_status', 'approved');
 
         if($recommended_store_default_status == '1') {
 
@@ -900,7 +907,7 @@ class StoreLogic
                     $query->whereIn('zone_id', json_decode($zone_id, true));
                 }
             })
-            ->type($type)->Active()->Halal($halal);
+            ->type($type)->Active()->where('admin_approval_status', 'approved')->Halal($halal);
             if($name){
                 $key = explode(' ', $name);
                 $query->where(function ($q) use ($key) {

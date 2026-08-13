@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            $table->boolean('announcement')->default(0);
-            $table->string('announcement_message')->nullable();
+            if (!Schema::hasColumn('stores', 'announcement')) {
+                $table->boolean('announcement')->default(0);
+            }
+            if (!Schema::hasColumn('stores', 'announcement_message')) {
+                $table->string('announcement_message')->nullable();
+            }
         });
     }
 

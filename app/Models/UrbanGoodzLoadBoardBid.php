@@ -23,7 +23,7 @@ class UrbanGoodzLoadBoardBid extends Model
         'responded_at' => 'datetime',
     ];
 
-    public function load()
+    public function loadBoardLoad()
     {
         return $this->belongsTo(UrbanGoodzLoadBoardLoad::class, 'load_id');
     }

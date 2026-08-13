@@ -10,6 +10,7 @@ class UrbanGoodzSourcedBusiness extends Model
     protected $table = 'urban_goodz_sourced_businesses';
 
     protected $fillable = [
+        'import_batch_id',
         'name',
         'slug',
         'legal_name',
@@ -49,9 +50,19 @@ class UrbanGoodzSourcedBusiness extends Model
         'last_verified_at',
         'admin_review_status',
         'created_by_source',
+        'record_classification',
+        'duplicate_of_business_id',
+        'validation_status',
+        'validation_errors',
+        'source_verified',
+        'api_visible',
+        'shopper_visible',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     protected $casts = [
+        'import_batch_id' => 'integer',
         'category_ids' => 'array',
         'tags' => 'array',
         'social_links' => 'array',
@@ -68,6 +79,13 @@ class UrbanGoodzSourcedBusiness extends Model
         'last_verified_at' => 'datetime',
         'zone_id' => 'integer',
         'module_id' => 'integer',
+        'duplicate_of_business_id' => 'integer',
+        'validation_errors' => 'array',
+        'source_verified' => 'boolean',
+        'api_visible' => 'boolean',
+        'shopper_visible' => 'boolean',
+        'reviewed_by' => 'integer',
+        'reviewed_at' => 'datetime',
     ];
 
     public static function boot()
@@ -88,7 +106,8 @@ class UrbanGoodzSourcedBusiness extends Model
 
     public function images()
     {
-        return $this->morphMany(UrbanGoodzSourcedImage::class, 'entity');
+        return $this->hasMany(UrbanGoodzSourcedImage::class, 'entity_id')
+            ->where('entity_type', 'business');
     }
 
     public function demandSignals()
@@ -104,5 +123,28 @@ class UrbanGoodzSourcedBusiness extends Model
     public function zone()
     {
         return $this->belongsTo(Zone::class, 'zone_id');
+    }
+
+    public function importBatch()
+    {
+        return $this->belongsTo(UrbanGoodzImportBatch::class, 'import_batch_id');
+    }
+
+    public function duplicateOf()
+    {
+        return $this->belongsTo(self::class, 'duplicate_of_business_id');
+    }
+
+    public function scopeApiVisible($query)
+    {
+        return $query->where('api_visible', true)
+            ->where('admin_review_status', 'approved')
+            ->where('validation_status', 'valid')
+            ->where('record_classification', 'production');
+    }
+
+    public function scopeShopperVisible($query)
+    {
+        return $query->apiVisible()->where('shopper_visible', true);
     }
 }

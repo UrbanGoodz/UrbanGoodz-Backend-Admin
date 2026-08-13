@@ -294,31 +294,47 @@ class CreatorSpaceAIController extends Controller
             'cta_url' => ['nullable', 'url'],
         ]);
 
+        $profile = UrbanGoodzCreatorProfile::find($data['creator_id']);
+
+        if (!$profile) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Creator profile not found.',
+            ], 404);
+        }
+
+        if ($data['is_shoppable'] && !empty($data['product_ids'])) {
+            $validCount = UrbanGoodzCreatorProduct::whereIn('id', $data['product_ids'])
+                ->where('is_active', true)
+                ->count();
+
+            if ($validCount !== count(array_unique($data['product_ids']))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'One or more product_ids are invalid or inactive for shoppable content.',
+                ], 422);
+            }
+        }
+
         $content = UrbanGoodzCreatorContent::create([
-            'creator_id' => $data['creator_id'],
+            'creator_profile_id' => $profile->id,
+            'creator_application_id' => $profile->creator_application_id,
             'campaign_id' => $data['campaign_id'],
             'title' => $data['title'],
             'description' => $data['description'],
             'content_type' => $data['content_type'],
-            'video_url' => $data['video_url'] ?? null,
-            'thumbnail_url' => $data['thumbnail_url'] ?? null,
+            'media_urls' => array_values(array_filter([
+                $data['video_url'] ?? null,
+                $data['thumbnail_url'] ?? null,
+            ])),
             'tags' => $data['tags'] ?? [],
             'is_shoppable' => $data['is_shoppable'] ?? false,
             'product_ids' => $data['product_ids'] ?? [],
             'cta_label' => $data['cta_label'] ?? 'Shop Now',
             'cta_url' => $data['cta_url'] ?? null,
             'status' => 'draft',
-            'moderation_status' => 'pending',
             'published_at' => null,
         ]);
-
-        // If shoppable, create earning record placeholder
-        if ($data['is_shoppable'] && !empty($data['product_ids'])) {
-            foreach ($data['product_ids'] as $pid) {
-                UrbanGoodzCreatorProduct::find($pid);
-                // Earning will be created on actual purchase via attribution
-            }
-        }
 
         return response()->json([
             'success' => true,
@@ -333,22 +349,22 @@ class CreatorSpaceAIController extends Controller
     {
         $creatorId = $request->input('creator_id') ?? auth('api')->id();
 
-        $earnings = UrbanGoodzCreatorEarning::where('creator_id', $creatorId)
+        $earnings = UrbanGoodzCreatorEarning::where('creator_profile_id', $creatorId)
             ->with('content', 'campaign')
             ->orderByDesc('created_at')
             ->paginate(20);
 
         $summary = [
-            'total_earned' => UrbanGoodzCreatorEarning::where('creator_id', $creatorId)
+            'total_earned' => UrbanGoodzCreatorEarning::where('creator_profile_id', $creatorId)
                 ->where('status', 'paid')
                 ->sum('amount'),
-            'pending' => UrbanGoodzCreatorEarning::where('creator_id', $creatorId)
+            'pending' => UrbanGoodzCreatorEarning::where('creator_profile_id', $creatorId)
                 ->where('status', 'pending')
                 ->sum('amount'),
-            'this_month' => UrbanGoodzCreatorEarning::where('creator_id', $creatorId)
+            'this_month' => UrbanGoodzCreatorEarning::where('creator_profile_id', $creatorId)
                 ->where('created_at', '>=', now()->startOfMonth())
                 ->sum('amount'),
-            'by_type' => UrbanGoodzCreatorEarning::where('creator_id', $creatorId)
+            'by_type' => UrbanGoodzCreatorEarning::where('creator_profile_id', $creatorId)
                 ->where('status', 'paid')
                 ->groupBy('type')
                 ->selectRaw('type, SUM(amount) as total')

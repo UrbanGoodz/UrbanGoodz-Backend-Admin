@@ -204,7 +204,7 @@ class AiDispatch extends Model
 
     public function isPendingOffer(): bool
     {
-        return in_array($this->status, [self::STATUS_SENT, self::STATUS_PENDING_DRIVER], true);
+        return in_array($this->status, [self::STATUS_SENT, self::STATUS_PENDING_DRIVER, self::STATUS_VIEWED], true);
     }
 
     public function isExpiredOffer(): bool

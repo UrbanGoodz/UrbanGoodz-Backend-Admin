@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('subscription_id');
             $table->foreignId('package_id')->nullable();
             $table->enum('transaction_type',['pending_bill','refund'])->default('pending_bill');
-            $table->double('amount', 24, 3);
+            $table->decimal('amount', 24, 3);
             $table->boolean('is_success')->default(0);
             $table->string('reference', 191)->nullable();
             $table->timestamps();

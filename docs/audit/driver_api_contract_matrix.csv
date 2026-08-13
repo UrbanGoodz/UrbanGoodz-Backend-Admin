@@ -1,0 +1,90 @@
+feature,method,uri,middleware,controller,action,validation,tables,status
+auth-login,POST,/api/v1/auth/delivery-man/login,"api localization throttle:10,1 actch:deliveryman_app throttle:5,1",DeliveryManLoginController,login,"inline Validator::make",,PRESENT
+auth-register,POST,/api/v1/auth/delivery-man/store,"api localization throttle:10,1 actch:deliveryman_app throttle:5,1",DeliveryManLoginController,store,"inline Validator::make","UserLevel (model)|Admin (model)",PRESENT
+auth-password-reset,POST,/api/v1/auth/delivery-man/forgot-password,"api localization throttle:10,1 actch:deliveryman_app throttle:5,1",DMPasswordResetController,reset_password_request,"inline Validator::make","password_resets|user_notifications|BusinessSetting (model)",PRESENT
+auth-password-reset,POST,/api/v1/auth/delivery-man/verify-token,"api localization throttle:10,1 actch:deliveryman_app throttle:5,1",DMPasswordResetController,verify_token,"inline Validator::make","password_resets|BusinessSetting (model)",PRESENT
+auth-password-reset,PUT,/api/v1/auth/delivery-man/reset-password,"api localization throttle:10,1 actch:deliveryman_app throttle:5,1",DMPasswordResetController,reset_password_submit,"inline Validator::make",delivery_men|password_resets,PRESENT
+profile,GET,/api/v1/delivery-man/profile,"api localization actch:deliveryman_app dm.api",DeliverymanController,get_profile,NONE,"DeliveryMan (model)|DataSetting (model)|BusinessSetting (model)",PRESENT
+profile,PUT,/api/v1/delivery-man/update-profile,"api localization actch:deliveryman_app dm.api",DeliverymanController,update_profile,"inline Validator::make","DeliveryMan (model)",PRESENT
+profile,DELETE,/api/v1/delivery-man/remove-account,"api localization actch:deliveryman_app dm.api",DeliverymanController,remove_account,NONE,"DeliveryMan (model)|Order (model)",PRESENT
+online-offline,POST,/api/v1/delivery-man/update-active-status,"api localization actch:deliveryman_app dm.api",DeliverymanController,activeStatus,NONE,"DeliveryMan (model)",PRESENT
+location,GET,/api/v1/delivery-man/last-location,"api localization actch:deliveryman_app",DeliverymanController,get_last_location,"inline Validator::make",,PRESENT
+location,POST,/api/v1/delivery-man/record-location-data,"api localization actch:deliveryman_app dm.api",DeliverymanController,record_location_data,NONE,"DeliveryMan (model)",PRESENT
+fcm-token,PUT,/api/v1/delivery-man/update-fcm-token,"api localization actch:deliveryman_app dm.api",DeliverymanController,update_fcm_token,"inline Validator::make","DeliveryMan (model)",PRESENT
+order-queue,GET,/api/v1/delivery-man/current-orders,"api localization actch:deliveryman_app dm.api",DeliverymanController,get_current_orders,"inline Validator::make","DeliveryMan (model)|Order (model)",PRESENT
+order-queue,GET,/api/v1/delivery-man/latest-orders,"api localization actch:deliveryman_app dm.api",DeliverymanController,get_latest_orders,NONE,"DeliveryMan (model)|Order (model)",PRESENT
+order-queue,GET,/api/v1/delivery-man/all-orders,"api localization actch:deliveryman_app dm.api",DeliverymanController,get_all_orders,"inline Validator::make","DeliveryMan (model)|Order (model)",PRESENT
+order-lifecycle,PUT,/api/v1/delivery-man/accept-order,"api localization actch:deliveryman_app dm.api",DeliverymanController,accept_order,"inline Validator::make","DeliveryMan (model)|Order (model)",PRESENT
+order-lifecycle,PUT,/api/v1/delivery-man/update-order-status,"api localization actch:deliveryman_app dm.api",DeliverymanController,update_order_status,"inline Validator::make","DeliveryMan (model)|Order (model)|OrderPayment (model)",PRESENT
+earnings,GET,/api/v1/delivery-man/income-statement,"api localization actch:deliveryman_app dm.api",DeliverymanController,income_statement,"inline Validator::make","DeliveryMan (model)|OrderTransaction (model)",PRESENT
+earnings,GET,/api/v1/delivery-man/earning-report,"api localization actch:deliveryman_app dm.api",DeliverymanController,earningReport,"inline Validator::make",,PRESENT
+earnings,GET,/api/v1/urban-goodz/driver/earnings,"api dm.api",UrbanGoodzDriverApiController,earnings,NONE,"UrbanGoodzDriverEarning (model)|UrbanGoodzPaymentSplit (model)",PRESENT
+payouts,GET,/api/v1/delivery-man/get-withdraw-method-list,"api localization actch:deliveryman_app dm.api",DeliverymanController,withdraw_method_list,NONE,"WithdrawalMethod (model)",PRESENT
+payouts,GET,/api/v1/delivery-man/get-disbursement-report,"api localization actch:deliveryman_app dm.api",DeliverymanController,disbursement_report,"inline Validator::make","DeliveryMan (model)|DisbursementDetails (model)|BusinessSetting (model)",PRESENT
+payouts,GET,/api/v1/delivery-man/get-withdraw-list,"api localization actch:deliveryman_app dm.api",DeliverymanController,withdraw_list,NONE,"DeliveryMan (model)|WithdrawRequest (model)",PRESENT
+payouts,GET,/api/v1/urban-goodz/driver/payout-history,"api dm.api",UrbanGoodzDriverApiController,payoutHistory,NONE,"UrbanGoodzDriverPayoutRequest (model)",PRESENT
+loyalty,GET,/api/v1/delivery-man/convert-loyalty-points,"api localization actch:deliveryman_app dm.api",DeliverymanController,convertLoyaltyPoints,"inline Validator::make","DeliveryMan (model)",PRESENT
+loyalty,GET,/api/v1/delivery-man/loyalty-point-list,"api localization actch:deliveryman_app dm.api",DeliverymanController,loyaltyPointlist,"inline Validator::make","DeliveryMan (model)|DeliverymanLoyaltyPointHistory (model)",PRESENT
+reviews,GET,/vendor-panel/delivery-man/reviews/list,"web vendor actch:admin_panel module:deliveryman_list subscription:deliveryman_list",DeliveryManController,reviews_list,NONE,"DMReview (model)",PRESENT
+reviews,GET,/api/v1/delivery-man/reviews/{delivery_man_id},"api localization actch:deliveryman_app auth:api",DeliveryManReviewController,get_reviews,NONE,"DMReview (model)",PRESENT
+reviews,GET,/api/v1/delivery-man/reviews/rating/{delivery_man_id},"api localization actch:deliveryman_app auth:api",DeliveryManReviewController,get_rating,NONE,"DMReview (model)",PRESENT
+reviews,POST,/api/v1/delivery-man/reviews/submit,"api localization actch:deliveryman_app auth:api",DeliveryManReviewController,submit_review,"inline Validator::make","DeliveryMan (model)|DMReview (model)",PRESENT
+reviews,GET,/admin/users/delivery-man/reviews,"web admin current-module actch:admin_panel module:deliveryman",DeliveryManController,getReviewListView,NONE,,PRESENT
+reviews,POST,/admin/users/delivery-man/reviews/search,"web admin current-module actch:admin_panel module:deliveryman",DeliveryManController,getReviewSearchList,NONE,,PRESENT
+reviews,GET,/admin/users/delivery-man/reviews/status/{id}/{status},"web admin current-module actch:admin_panel module:deliveryman",DeliveryManController,updateReviewStatus,NONE,,PRESENT
+reviews,GET,/admin/users/delivery-man/reviews/export,"web admin current-module actch:admin_panel module:deliveryman",DeliveryManController,getAllReviewExportList,NONE,,PRESENT
+notifications,GET,/api/v1/delivery-man/notifications,"api localization actch:deliveryman_app dm.api",DeliverymanController,get_notifications,NONE,"DeliveryMan (model)|UserNotification (model)",PRESENT
+notifications,GET,/api/v1/urban-goodz/driver/dispatch-notifications,"api dm.api",UrbanGoodzDriverDispatchNotificationController,index,NONE,,PRESENT
+notifications,GET,/api/v1/urban-goodz/driver/dispatch-notifications/unread-count,"api dm.api",UrbanGoodzDriverDispatchNotificationController,unreadCount,NONE,,PRESENT
+notifications,POST,/api/v1/urban-goodz/driver/dispatch-notifications/read-all,"api dm.api",UrbanGoodzDriverDispatchNotificationController,readAll,NONE,,PRESENT
+notifications,POST,/api/v1/urban-goodz/driver/dispatch-notifications/{notificationId}/read,"api dm.api",UrbanGoodzDriverDispatchNotificationController,markRead,NONE,,PRESENT
+notifications,POST,/api/v1/urban-goodz/driver/dispatch-notifications/{notificationId}/dismiss,"api dm.api",UrbanGoodzDriverDispatchNotificationController,dismiss,NONE,,PRESENT
+business-jobs,GET,/api/v1/urban-goodz/driver/business-jobs,"api dm.api",UrbanGoodzDriverBusinessCourierController,assignedJobs,NONE,"UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,GET,/api/v1/urban-goodz/driver/business-jobs/{jobId},"api dm.api",UrbanGoodzDriverBusinessCourierController,jobDetail,NONE,"UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/accept,"api dm.api",UrbanGoodzDriverBusinessCourierController,acceptJob,NONE,"UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/start,"api dm.api",UrbanGoodzDriverBusinessCourierController,startJob,NONE,"UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/pickup,"api dm.api",UrbanGoodzDriverBusinessCourierController,markPickup,NONE,"UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/delivery,"api dm.api",UrbanGoodzDriverBusinessCourierController,markDelivery,NONE,"UrbanGoodzBusinessClientJob (model)|UrbanGoodzDriverEarning (model)|UrbanGoodzPaymentLedger (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/proof-pickup,"api dm.api",UrbanGoodzDriverBusinessCourierController,submitPickupProof,"inline Validator::make","UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/proof-delivery,"api dm.api",UrbanGoodzDriverBusinessCourierController,submitDeliveryProof,"inline Validator::make","UrbanGoodzBusinessClientJob (model)",PRESENT
+business-jobs,POST,/api/v1/urban-goodz/driver/business-jobs/{jobId}/exception,"api dm.api",UrbanGoodzDriverBusinessCourierController,reportException,"inline Validator::make","UrbanGoodzBusinessClientJob (model)",PRESENT
+active-jobs,GET,/api/v1/urban-goodz/driver/active-jobs,"api dm.api",UrbanGoodzDriverActiveJobsController,index,NONE,"OrderAnywhereRequest (model)|UrbanGoodzBusinessClientJob (model)|UrbanGoodzDedicatedRoute (model)|UrbanGoodzLoadBoardLoad (model)",PRESENT
+active-jobs,GET,/api/v1/urban-goodz/driver/active-jobs/{jobId},"api dm.api",UrbanGoodzDriverActiveJobsController,detail,NONE,"OrderAnywhereRequest (model)|UrbanGoodzBusinessClientJob (model)|UrbanGoodzDedicatedRoute (model)|UrbanGoodzLoadBoardLoad (model)",PRESENT
+active-jobs,POST,/api/v1/urban-goodz/driver/active-jobs/{jobId}/start,"api dm.api",UrbanGoodzDriverActiveJobsController,startJob,NONE,,PRESENT
+active-jobs,POST,/api/v1/urban-goodz/driver/active-jobs/{jobId}/complete,"api dm.api",UrbanGoodzDriverActiveJobsController,completeJob,NONE,"UrbanGoodzDriverEarning (model)",PRESENT
+active-jobs,POST,/api/v1/urban-goodz/driver/active-jobs/{jobId}/cancel,"api dm.api",UrbanGoodzDriverActiveJobsController,cancelJob,NONE,,PRESENT
+active-jobs,POST,/api/v1/urban-goodz/driver/active-jobs/{jobId}/status,"api dm.api",UrbanGoodzDriverActiveJobsController,updateStatus,"inline Validator::make",,PRESENT
+job-discovery,GET,/api/v1/urban-goodz/driver/job-discovery,"api dm.api",UrbanGoodzDriverJobDiscoveryController,index,NONE,,PRESENT
+job-discovery,GET,/api/v1/urban-goodz/driver/job-discovery/summary,"api dm.api",UrbanGoodzDriverJobDiscoveryController,summary,NONE,"OrderAnywhereRequest (model)",PRESENT
+job-discovery,GET,/api/v1/urban-goodz/driver/job-discovery/{type}/{id},"api dm.api",UrbanGoodzDriverJobDiscoveryController,detail,"inline Validator::make","UrbanGoodzBusinessClientJob (model)|UrbanGoodzRoutePackage (model)|UrbanGoodzDedicatedRoute (model)",PRESENT
+job-discovery,GET,/api/v1/urban-goodz/driver/opportunities,"api dm.api",UrbanGoodzDriverActiveJobsController,opportunities,NONE,"UrbanGoodzEarnMoneyOpportunity (model)",PRESENT
+job-discovery,POST,/api/v1/urban-goodz/driver/opportunities/{opportunityId}/claim,"api dm.api",UrbanGoodzDriverActiveJobsController,claimOpportunity,NONE,"UrbanGoodzEarnMoneyOpportunity (model)|UrbanGoodzEarnMoneyApplication (model)",PRESENT
+load-board,GET,/api/v1/urban-goodz/driver/load-board,"api dm.api",UrbanGoodzDriverActiveJobsController,loadBoardAvailable,NONE,"UrbanGoodzLoadBoardLoad (model)",PRESENT
+load-board,GET,/api/v1/urban-goodz/driver/load-board/{loadId},"api dm.api",UrbanGoodzDriverApiController,loadBoardDetail,NONE,"UrbanGoodzLoadBoardLoad (model)|UrbanGoodzLoadBoardBid (model)",PRESENT
+load-board,POST,/api/v1/urban-goodz/driver/load-board/{loadId}/bid,"api dm.api",UrbanGoodzDriverActiveJobsController,loadBoardBid,"inline Validator::make","UrbanGoodzLoadBoardLoad (model)",PRESENT
+load-board,POST,/api/v1/urban-goodz/driver/load-board/{loadId}/accept,"api dm.api",UrbanGoodzDriverActiveJobsController,acceptJob,NONE,"UrbanGoodzLoadBoardLoad (model)",PRESENT
+routes-planning,GET,/api/v1/urban-goodz/driver/routes,"api dm.api",UrbanGoodzDriverApiController,assignedRoutes,NONE,"UrbanGoodzDedicatedRoute (model)",PRESENT
+routes-planning,GET,/api/v1/urban-goodz/driver/routes/{routeId},"api dm.api",UrbanGoodzDriverApiController,routeDetail,NONE,"UrbanGoodzDedicatedRoute (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/sequence,"api dm.api",UrbanGoodzDriverApiController,resequenceRoute,"inline Validator::make","UrbanGoodzDedicatedRoute (model)|UrbanGoodzRouteExecutionVersion (model)|UrbanGoodzRouteOptimizationStop (model)|UrbanGoodzRoutePackage (model)|UrbanGoodzBatchPackage (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/started,"api dm.api",UrbanGoodzDriverApiController,routeStarted,NONE,"UrbanGoodzDedicatedRoute (model)|UrbanGoodzRouteAssignment (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/completed,"api dm.api",UrbanGoodzDriverApiController,routeCompleted,NONE,"UrbanGoodzDedicatedRoute (model)|UrbanGoodzRoutePackage (model)|UrbanGoodzRouteAssignment (model)|UrbanGoodzDriverEarning (model)|UrbanGoodzRouteBatch (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/scan-pickup,"api dm.api",UrbanGoodzDriverApiController,scanPickup,"inline Validator::make","UrbanGoodzRoutePackage (model)|UrbanGoodzPackageScan (model)|UrbanGoodzMedicalCustodyLog (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/scan-dropoff,"api dm.api",UrbanGoodzDriverApiController,scanDropoff,"inline Validator::make","UrbanGoodzRoutePackage (model)|UrbanGoodzPackageScan (model)|UrbanGoodzMedicalCustodyLog (model)|UrbanGoodzDedicatedRoute (model)|UrbanGoodzDriverEarning (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/scan-exception,"api dm.api",UrbanGoodzDriverApiController,scanException,"inline Validator::make","UrbanGoodzRoutePackage (model)|UrbanGoodzPackageScan (model)|UrbanGoodzDedicatedRoute (model)|UrbanGoodzDriverEarning (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/age-verify,"api dm.api",UrbanGoodzDriverApiController,submitAgeVerification,"inline Validator::make","UrbanGoodzRoutePackage (model)|UrbanGoodzAgeVerification (model)",PRESENT
+routes-planning,POST,/api/v1/urban-goodz/driver/routes/{routeId}/age-refuse,"api dm.api",UrbanGoodzDriverApiController,submitAgeRefusal,"inline Validator::make","UrbanGoodzRoutePackage (model)|UrbanGoodzAgeVerification (model)",PRESENT
+routes-planning,GET,/api/v1/urban-goodz/driver/routes/{routeId}/age-status,"api dm.api",UrbanGoodzDriverApiController,checkAgeStatus,"inline Validator::make","UrbanGoodzRoutePackage (model)",PRESENT
+certifications,GET,/api/v1/urban-goodz/driver/certifications,"api dm.api",UrbanGoodzDriverActiveJobsController,certifications,NONE,"DriverCertification (model)",PRESENT
+certifications,POST,/api/v1/urban-goodz/driver/certifications/{certId}/upload,"api dm.api",UrbanGoodzDriverActiveJobsController,uploadCertDocument,"inline Validator::make","DriverCertification (model)",PRESENT
+certifications,POST,/api/v1/urban-goodz/driver/certifications/{certId}/renew,"api dm.api",UrbanGoodzDriverActiveJobsController,renewCertification,NONE,"DriverCertification (model)",PRESENT
+capability-profile,GET,/api/v1/urban-goodz/driver/capability-profile,"api dm.api",UrbanGoodzDriverCapabilityController,profile,NONE,,PRESENT
+capability-profile,GET,/api/v1/urban-goodz/driver/capability-summary,"api dm.api",UrbanGoodzDriverCapabilityController,summary,NONE,,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/vehicle,"api dm.api",UrbanGoodzDriverCapabilityController,updateVehicle,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/trailer,"api dm.api",UrbanGoodzDriverCapabilityController,updateTrailer,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/commercial,"api dm.api",UrbanGoodzDriverCapabilityController,updateCommercial,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/cargo,"api dm.api",UrbanGoodzDriverCapabilityController,updateCargo,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/zones,"api dm.api",UrbanGoodzDriverCapabilityController,updateZones,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/work-types,"api dm.api",UrbanGoodzDriverCapabilityController,updateWorkTypes,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/tags,"api dm.api",UrbanGoodzDriverCapabilityController,updateTags,"inline Validator::make",,PRESENT
+capability-profile,POST,/api/v1/urban-goodz/driver/capability-profile/availability,"api dm.api",UrbanGoodzDriverCapabilityController,updateAvailability,"inline Validator::make",,PRESENT
+vehicles,GET,/api/v1/urban-goodz/driver/vehicles,"api dm.api",UrbanGoodzDriverActiveJobsController,vehicles,NONE,"DeliveryManVehicle (model)",PRESENT

@@ -34,7 +34,7 @@
 <!-- ========== MAIN CONTENT ========== -->
 <main id="content" role="main" class="main">
     <div class="ug-command-login ug-command-login--{{ $roleGroup }}">
-        <aside class="ug-command-visual" aria-label="Urban Goodz {{ $isVendor ? 'Vendor' : 'Admin' }} Command Center">
+        <aside class="ug-command-visual" aria-label="Urban Goodz {{ $isVendor ? 'Vendor' : 'Admin' }} Command Center" data-command-center-reference="{{ asset('public/assets/admin/img/admin-command-center-reference.png') }}">
             <div class="ug-command-visual-bg" aria-hidden="true"></div>
             <span class="ug-command-orb ug-command-orb--a" aria-hidden="true"></span>
             <span class="ug-command-orb ug-command-orb--b" aria-hidden="true"></span>

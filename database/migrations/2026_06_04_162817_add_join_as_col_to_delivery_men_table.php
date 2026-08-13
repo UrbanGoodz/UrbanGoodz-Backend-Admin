@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('delivery_men', function (Blueprint $table) {
-            $table->boolean('is_delivery')->default(1);
-            $table->boolean('is_ride')->default(0);
+            if (!Schema::hasColumn('delivery_men', 'is_delivery')) {
+                $table->boolean('is_delivery')->default(1);
+            }
+            if (!Schema::hasColumn('delivery_men', 'is_ride')) {
+                $table->boolean('is_ride')->default(0);
+            }
             $table->boolean('earning')->nullable()->change();
         });
     }

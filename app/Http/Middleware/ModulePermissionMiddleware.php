@@ -27,7 +27,11 @@ class ModulePermissionMiddleware
             }
         }
 
+        // A real 403, not a redirect: an authenticated principal without the
+        // required module permission is a forbidden request, and a
+        // back()-redirect silently swallowed that distinction from callers
+        // (API clients, permission tests) that need to actually see it.
         Toastr::error(translate('messages.access_denied'));
-        return back();
+        abort(403, translate('messages.access_denied'));
     }
 }

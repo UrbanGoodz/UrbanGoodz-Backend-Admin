@@ -7,8 +7,6 @@ use App\Models\Store;
 use App\Models\Setting;
 use App\Models\DataSetting;
 
-ini_set('max_execution_time', 180);
-
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\EmailTemplate;
@@ -36,6 +34,8 @@ class UpdateController extends Controller
 
     public function update_software(Request $request)
     {
+        ini_set('max_execution_time', 180);
+
         if (env('SOFTWARE_VERSION') == '1.0') {
             $filesystem = new Filesystem;
             $filesystem->cleanDirectory('database/migrations');
@@ -511,7 +511,7 @@ class UpdateController extends Controller
         $appId = $config['appId'] ?? '';
         $measurementId = $config['measurementId'] ?? '';
 
-        $filePath = base_path('firebase-messaging-sw.js');
+        $filePath = public_path('firebase-messaging-sw.js');
 
         try {
             if (file_exists($filePath) && !is_writable($filePath)) {

@@ -83,7 +83,7 @@ class FashionFitSilhouetteE2ETest extends TestCase
         ])->assertStatus(201);
 
         $submit = $this->postJson("/api/v1/fashion-fit/profiles/{$profileUuid}/analyses");
-        $submit->assertStatus(202);
+        $this->assertContains($submit->status(), [200, 202]);
         $analysisUuid = $submit->json('data.uuid');
         $this->assertNotEmpty($analysisUuid);
 

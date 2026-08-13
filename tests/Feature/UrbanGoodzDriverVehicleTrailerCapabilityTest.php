@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\UrbanGoodzDriverCapabilityController;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class UrbanGoodzDriverVehicleTrailerCapabilityTest extends TestCase

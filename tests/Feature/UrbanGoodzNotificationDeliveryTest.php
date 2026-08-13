@@ -66,7 +66,7 @@ class UrbanGoodzNotificationDeliveryTest extends TestCase
                 'application_status' => 'approved',
             ]
         );
-        DB::table('delivery_men')->where('id', $this->driver->id)->update(['fcm_token' => 'session9-driver-fcm-token']);
+        DB::table('delivery_men')->where('id', $this->driver->id)->update(['firebase_token' => 'session9-driver-fcm-token']);
     }
 
     public function test_customer_vendor_and_driver_notifications_persist_and_queue(): void

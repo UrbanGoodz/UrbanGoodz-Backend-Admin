@@ -24,8 +24,11 @@ class UrbanGoodzDriverActiveJobsController extends Controller
 
     private function normalizeActiveJob($job, string $source): array
     {
-        $pickup = is_object($job->pickupLocation) ? $job->pickupLocation : null;
-        $dropoff = is_object($job->dropoffLocation) ? $job->dropoffLocation : null;
+        // pickupLocation/dropoffLocation are relations on some job sources
+        // (e.g. business courier). Order Anywhere / dedicated route / load
+        // board carry flat coordinates instead, so guard the relation access.
+        $pickup = method_exists($job, 'pickupLocation') ? $job->pickupLocation : null;
+        $dropoff = method_exists($job, 'dropoffLocation') ? $job->dropoffLocation : null;
 
         return [
             'id' => $job->id,
@@ -63,7 +66,6 @@ class UrbanGoodzDriverActiveJobsController extends Controller
         // Order Anywhere jobs assigned to this driver
         $orderAnywhere = OrderAnywhereRequest::where('assigned_delivery_man_id', $driver->id)
             ->whereIn('status', ['approved', 'shopping', 'picked_up', 'out_for_delivery'])
-            ->with(['pickupLocation', 'dropoffLocation'])
             ->get()
             ->map(fn($j) => $this->normalizeActiveJob($j, 'order_anywhere'));
         $jobs = $jobs->concat($orderAnywhere);
@@ -76,14 +78,14 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             ->map(fn($j) => $this->normalizeActiveJob($j, 'business_courier'));
         $jobs = $jobs->concat($businessJobs);
 
-        // Dedicated routes assigned to this driver
+        // Dedicated routes assigned to this driver (flat coords, no location relations)
         $routes = UrbanGoodzDedicatedRoute::where('assigned_driver_id', $driver->id)
             ->whereIn('status', ['active', 'in_progress'])
             ->get()
             ->map(fn($r) => $this->normalizeActiveJob($r, 'dedicated_route'));
         $jobs = $jobs->concat($routes);
 
-        // Load board loads accepted by this driver
+        // Load board loads accepted by this driver (flat coords, no location relations)
         $loads = UrbanGoodzLoadBoardLoad::where('assigned_driver_id', $driver->id)
             ->whereIn('status', ['accepted', 'in_transit'])
             ->get()
@@ -111,7 +113,6 @@ class UrbanGoodzDriverActiveJobsController extends Controller
         // Try each source type
         $job = OrderAnywhereRequest::where('id', $jobId)
             ->where('assigned_delivery_man_id', $driver->id)
-            ->with(['pickupLocation', 'dropoffLocation'])
             ->first();
 
         if ($job) {
@@ -269,8 +270,13 @@ class UrbanGoodzDriverActiveJobsController extends Controller
     {
         $driver = $this->authDriver($request);
 
+        // Extended 2026-08-09 to cover the full driver delivery-lifecycle MVP
+        // (assigned/accepted/arrived_pickup/in_transit/failed_delivery added).
+        // Legacy values (en_route, in_progress) are kept accepted so any
+        // existing caller isn't broken by this change.
         $validator = Validator::make($request->all(), [
-            'driver_task_status' => 'required|string|in:en_route,picked_up,in_progress,delivered',
+            'driver_task_status' => 'required|string|in:assigned,accepted,en_route,arrived_pickup,picked_up,in_progress,in_transit,delivered,failed_delivery',
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($validator->fails()) {
@@ -282,7 +288,14 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Job not found');
         }
 
-        $job->update(['driver_task_status' => $request->driver_task_status]);
+        $updateFields = ['driver_task_status' => $request->driver_task_status];
+        if ($request->driver_task_status === 'failed_delivery'
+            && $request->filled('reason')
+            && $job->isFillable('driver_notes')) {
+            $updateFields['driver_notes'] = $request->reason;
+        }
+
+        $job->update($updateFields);
 
         return response()->json(['job' => $this->normalizeActiveJob($job->fresh(), $this->guessSource($job))]);
     }

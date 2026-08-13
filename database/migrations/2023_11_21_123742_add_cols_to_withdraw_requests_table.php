@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('withdraw_requests', function (Blueprint $table) {
-            $table->foreignId('delivery_man_id')->nullable();
+            if (!Schema::hasColumn('withdraw_requests', 'delivery_man_id')) {
+                $table->foreignId('delivery_man_id')->nullable();
+            }
             $table->foreignId('withdrawal_method_id')->nullable();
             $table->json('withdrawal_method_fields')->nullable();
             $table->foreignId('vendor_id')->nullable()->change();

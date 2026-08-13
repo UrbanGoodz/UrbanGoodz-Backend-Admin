@@ -14,7 +14,9 @@ return new class extends Migration
     {
         Schema::table('notification_settings', function (Blueprint $table) {
             $table->string('module_type',20)->default('all');
-            DB::statement("ALTER TABLE `notification_settings` MODIFY `type` ENUM('admin', 'customer', 'store', 'deliveryman', 'provider') DEFAULT 'admin'");
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement("ALTER TABLE `notification_settings` MODIFY `type` ENUM('admin', 'customer', 'store', 'deliveryman', 'provider') DEFAULT 'admin'");
+            }
         });
     }
 
@@ -25,7 +27,9 @@ return new class extends Migration
     {
         Schema::table('notification_settings', function (Blueprint $table) {
             $table->dropColumn('module_type');
-            DB::statement("ALTER TABLE `notification_settings` MODIFY `type` ENUM('admin', 'customer', 'store', 'deliveryman') DEFAULT 'admin'");
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement("ALTER TABLE `notification_settings` MODIFY `type` ENUM('admin', 'customer', 'store', 'deliveryman') DEFAULT 'admin'");
+            }
 
         });
     }

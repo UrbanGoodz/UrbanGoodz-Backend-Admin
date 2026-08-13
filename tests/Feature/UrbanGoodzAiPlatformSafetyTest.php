@@ -109,7 +109,8 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         ]);
 
         $provider = Mockery::mock(UrbanGoodzAIService::class);
-        $provider->shouldReceive('isConfigured')->once()->andReturnFalse();
+        $provider->shouldReceive('isConfigured')->andReturnFalse();
+        $provider->shouldReceive('persona')->andReturn((new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CONCIERGE));
 
         $conversation = (new UrbanGoodzAIConciergeService($provider))
             ->processQuery('Track my delivery', 1);
@@ -131,6 +132,7 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
 
     public function test_provider_failure_is_not_reported_as_success(): void
     {
+        Config::set('urban_goodz_ai.provider', 'openai');
         Config::set('openai.api_key', 'test-key-that-is-not-a-real-secret');
         Config::set('openai.base_url', 'https://api.openai.test/v1');
         Http::fake([
