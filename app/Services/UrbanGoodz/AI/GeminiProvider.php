@@ -7,6 +7,14 @@ use Illuminate\Support\Facades\Log;
 
 class GeminiProvider extends AbstractAIProvider
 {
+    /**
+     * gemini-2.5-flash is closed to new API keys ("no longer available to new
+     * users") and 404s on generateContent. 3.6-flash is verified live against
+     * the production key; gemini-flash-latest is the fallback alias if a
+     * specific version is ever retired again.
+     */
+    public const DEFAULT_MODEL = 'gemini-3.6-flash';
+
     public function name(): string
     {
         return 'gemini';
@@ -14,7 +22,9 @@ class GeminiProvider extends AbstractAIProvider
 
     public function model(): string
     {
-        return (string) config('urban_goodz_ai.providers.gemini.model', 'gemini-3.6-flash');
+        $model = trim((string) config('urban_goodz_ai.providers.gemini.model', self::DEFAULT_MODEL));
+
+        return $model !== '' ? $model : self::DEFAULT_MODEL;
     }
 
     public function isConfigured(): bool

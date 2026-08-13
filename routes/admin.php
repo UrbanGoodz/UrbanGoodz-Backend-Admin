@@ -1578,3 +1578,34 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         });
     });
 });
+
+// Admin Sourcing and Event Admin routes
+Route::group(['namespace' => 'Admin\UrbanGoodz', 'as' => 'admin.urban-goodz.', 'prefix' => 'admin/urban-goodz', 'middleware' => ['admin']], function () {
+    Route::group(['prefix' => 'sourcing', 'as' => 'sourcing.'], function () {
+        Route::get('dashboard', 'UrbanGoodzSourcingController@dashboard')->name('dashboard');
+        Route::get('leads', 'UrbanGoodzSourcingController@leads')->name('leads');
+        Route::post('leads', 'UrbanGoodzSourcingController@storeLead')->name('leads.store');
+        Route::get('outreach-queue', 'UrbanGoodzSourcingController@outreachQueue')->name('outreach-queue');
+        Route::get('validation-queue', 'UrbanGoodzSourcingController@validationQueue')->name('validation-queue');
+        Route::get('duplicate-queue', 'UrbanGoodzSourcingController@duplicateQueue')->name('duplicate-queue');
+        Route::get('moderation-queue', 'UrbanGoodzSourcingController@moderationQueue')->name('moderation-queue');
+        Route::get('approval-queue', 'UrbanGoodzSourcingController@approvalQueue')->name('approval-queue');
+        Route::put('records/{id}/state', 'UrbanGoodzSourcingController@updateRecordState')->name('records.state');
+        Route::post('records/{type}/{id}/feature', 'UrbanGoodzSourcingController@featureRecord')->name('records.feature');
+        Route::get('audit-history', 'UrbanGoodzSourcingController@auditHistory')->name('audit-history');
+        Route::get('csv-import', 'UrbanGoodzSourcingController@csvImport')->name('csv-import');
+        Route::post('csv-import', 'UrbanGoodzSourcingController@processCsvImport')->name('csv-import.process');
+    });
+
+    Route::group(['prefix' => 'events', 'as' => 'events.'], function () {
+        Route::get('/', 'UrbanGoodzEventAdminController@index')->name('index');
+        Route::get('create', 'UrbanGoodzEventAdminController@create')->name('create');
+        Route::post('/', 'UrbanGoodzEventAdminController@store')->name('store');
+        Route::get('{id}', 'UrbanGoodzEventAdminController@show')->name('show');
+        Route::put('{id}', 'UrbanGoodzEventAdminController@update')->name('update');
+        Route::put('{id}/status', 'UrbanGoodzEventAdminController@updateStatus')->name('status');
+        Route::post('{id}/feature', 'UrbanGoodzEventAdminController@toggleFeatured')->name('feature');
+        Route::get('expired/list', 'UrbanGoodzEventAdminController@expiredEvents')->name('expired');
+        Route::get('duplicates/list', 'UrbanGoodzEventAdminController@duplicates')->name('duplicates');
+    });
+});

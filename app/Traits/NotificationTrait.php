@@ -3,7 +3,9 @@
 namespace App\Traits;
 
 use App\Models\BusinessSetting;
+use App\Services\Notifications\FirebaseCredentialResolver;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 trait NotificationTrait
 {
@@ -176,24 +178,51 @@ trait NotificationTrait
         return self::sendNotificationToHttp($postData);
     }
 
+    /**
+     * FCM v1 is the authority. The legacy server-key API is never called and a
+     * stored legacy key is never used as a fallback.
+     */
     public static function sendNotificationToHttp(array|null $data)
     {
-        $config = self::get_business_settings('push_notification_service_file_content');
-        $key = (array)$config;
-        if($key['project_id']){
-            $url = 'https://fcm.googleapis.com/v1/projects/'.$key['project_id'].'/messages:send';
+        $config = self::get_business_settings(FirebaseCredentialResolver::V1_SETTING_KEY);
+        $legacyRow = BusinessSetting::where('key', FirebaseCredentialResolver::LEGACY_SETTING_KEY)->first();
+        $decision = FirebaseCredentialResolver::decide(
+            is_array($config) ? $config : null,
+            is_string($legacyRow?->value) ? $legacyRow->value : null
+        );
+
+        if (! $decision['can_send']) {
+            Log::warning('FCM push suppressed: v1 credentials are not authoritative.', [
+                'mode' => $decision['mode'],
+                'reason' => $decision['reason'],
+                'legacy_server_key_present' => $decision['legacy_server_key_present'],
+            ]);
+
+            return false;
+        }
+
+        try {
+            $key = (array)$config;
             $headers = [
                 'Authorization' => 'Bearer ' . self::getAccessToken($key),
                 'Content-Type' => 'application/json',
             ];
-            try {
-                $response = Http::withHeaders($headers)->post($url, $data);
-                return $response->successful();
-            }catch (\Exception $exception){
-                return false;
+            $response = Http::withHeaders($headers)->post($decision['endpoint'], $data);
+
+            if (! $response->successful()) {
+                Log::warning('FCM v1 provider rejected a push request.', [
+                    'status' => $response->status(),
+                ]);
             }
+
+            return $response->successful();
+        }catch (\Throwable $exception){
+            Log::warning('FCM v1 push request failed before completion.', [
+                'exception' => $exception::class,
+            ]);
+
+            return false;
         }
-        return false;
     }
 
     public static function getAccessToken($key)
