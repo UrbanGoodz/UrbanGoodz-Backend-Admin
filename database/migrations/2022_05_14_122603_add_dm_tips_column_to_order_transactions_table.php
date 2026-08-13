@@ -14,7 +14,9 @@ class AddDmTipsColumnToOrderTransactionsTable extends Migration
     public function up()
     {
         Schema::table('order_transactions', function (Blueprint $table) {
-            $table->double('dm_tips', 24, 2)->default(0);
+            if (!Schema::hasColumn('order_transactions', 'dm_tips')) {
+                $table->double('dm_tips', 24, 2)->default(0);
+            }
         });
     }
 

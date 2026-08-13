@@ -13,9 +13,15 @@ return new class extends Migration
     {
         Schema::table('delivery_men', function (Blueprint $table) {
             $table->text('identity_image')->change();
-            $table->double('loyalty_point',23, 8)->default(0)->nullable();
-            $table->string('ref_code')->nullable();
-            $table->foreignId('ref_by')->nullable();
+            if (!Schema::hasColumn('delivery_men', 'loyalty_point')) {
+                $table->double('loyalty_point',23, 8)->default(0)->nullable();
+            }
+            if (!Schema::hasColumn('delivery_men', 'ref_code')) {
+                $table->string('ref_code')->nullable();
+            }
+            if (!Schema::hasColumn('delivery_men', 'ref_by')) {
+                $table->foreignId('ref_by')->nullable();
+            }
 
         });
     }

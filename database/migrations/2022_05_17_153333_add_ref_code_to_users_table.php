@@ -14,7 +14,9 @@ class AddRefCodeToUsersTable extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('ref_code', 10)->nullable()->unique();
+            if (!Schema::hasColumn('users', 'ref_code')) {
+                $table->string('ref_code', 10)->nullable()->unique();
+            }
         });
     }
 

@@ -9,10 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('delivery_men', function (Blueprint $table) {
-            $table->string('private_endpoint_address')->nullable();
-            $table->decimal('private_endpoint_lat', 10, 7)->nullable();
-            $table->decimal('private_endpoint_lng', 10, 7)->nullable();
-            $table->string('private_endpoint_status')->default('pending');
+            if (!Schema::hasColumn('delivery_men', 'private_endpoint_address')) {
+                $table->string('private_endpoint_address')->nullable();
+            }
+            if (!Schema::hasColumn('delivery_men', 'private_endpoint_lat')) {
+                $table->decimal('private_endpoint_lat', 10, 7)->nullable();
+            }
+            if (!Schema::hasColumn('delivery_men', 'private_endpoint_lng')) {
+                $table->decimal('private_endpoint_lng', 10, 7)->nullable();
+            }
+            if (!Schema::hasColumn('delivery_men', 'private_endpoint_status')) {
+                $table->string('private_endpoint_status')->default('pending');
+            }
         });
     }
 

@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('reviews', function (Blueprint $table) {
-            $table->dateTime('replied_at')->nullable();
+            if (!Schema::hasColumn('reviews', 'replied_at')) {
+                $table->dateTime('replied_at')->nullable();
+            }
         });
     }
 
