@@ -4,15 +4,18 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Services\UrbanGoodz\AI\DigitalHuman\DigitalHumanStateService;
+use App\Services\UrbanGoodz\AI\DigitalHuman\ElevenLabsVoiceService;
 use App\Services\UrbanGoodz\AI\DigitalHuman\VoiceVisemeOrchestrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class DigitalHumanController extends Controller
 {
     public function __construct(
         private readonly DigitalHumanStateService $digitalHumanStateService,
-        private readonly VoiceVisemeOrchestrator $voiceVisemeOrchestrator
+        private readonly VoiceVisemeOrchestrator $voiceVisemeOrchestrator,
+        private readonly ElevenLabsVoiceService $elevenLabsVoiceService
     ) {}
 
     /**
@@ -62,5 +65,33 @@ class DigitalHumanController extends Controller
             'success' => true,
             'data' => $timeline,
         ]);
+    }
+
+    /**
+     * Synthesize speech audio server-side via ElevenLabs. The API key never
+     * reaches the client; this endpoint returns raw audio bytes only.
+     */
+    public function speak(Request $request): JsonResponse|Response
+    {
+        $validated = $request->validate([
+            'persona' => 'required|string|in:concierge,chief_of_staff',
+            'text' => 'required|string|max:2000',
+        ]);
+
+        $result = $this->elevenLabsVoiceService->synthesize(
+            personaKey: $validated['persona'],
+            text: $validated['text']
+        );
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'error_code' => $result['error_code'],
+                'message' => $result['message'],
+            ], $result['error_code'] === 'not_configured' ? 503 : 502);
+        }
+
+        return response($result['audio'], 200)
+            ->header('Content-Type', $result['mime']);
     }
 }

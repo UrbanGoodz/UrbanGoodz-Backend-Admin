@@ -409,6 +409,12 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
         // Digital Human Platform
         Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
         Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
+
+        // Real, paid external TTS calls -- authenticated and separately
+        // throttled so an open text field can't run up the ElevenLabs bill.
+        Route::group(['middleware' => ['auth:api', 'throttle:20,1']], function () {
+            Route::post('digital-human/speak', 'Api\V1\UrbanGoodz\DigitalHumanController@speak');
+        });
     });
 
 // Urban Goodz Stranded -- "Never Stay Stranded Again."
