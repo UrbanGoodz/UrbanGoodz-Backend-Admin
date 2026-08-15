@@ -79,8 +79,59 @@
 .__nav-link.active {
   color: var(--ug-orange) !important;
 }
+/* The base theme paints the label text via an explicit color on the inner
+   <span>, not just the anchor -- a child's own color declaration wins over
+   an inherited (even !important) parent color, so .__nav-link above alone
+   never reached "Users", "Transactions & Reports", "Settings", etc. */
+.__nav-link span {
+  color: var(--ug-black) !important;
+}
+.__nav-link:hover span,
+.__nav-link.active span {
+  color: var(--ug-orange) !important;
+}
 .__nav-module {
   background: var(--ug-white) !important;
+}
+/* "Modules" switcher tiles (Grocery/Food/Pharmacy/etc.) in the top nav
+   dropdown -- item labels render in the base theme's teal by the same
+   child-span mechanism as above. */
+.__nav-module-items .__nav-module-item,
+.__nav-module-items .__nav-module-item * {
+  color: var(--ug-black) !important;
+}
+.__nav-module-items .__nav-module-item:hover,
+.__nav-module-items .__nav-module-item:hover * {
+  color: var(--ug-orange) !important;
+}
+.next-tour {
+  color: var(--ug-orange) !important;
+}
+
+/* ---- Dashboard Widgets ----
+   Stat tiles, "Top Restaurants", "Top Selling" and similar cards are plain
+   <a> elements with no color override anywhere, so they inherit the base
+   theme's default link/heading teal (#00868f / #006161) throughout the
+   dashboard. Scoped to .content so this never touches unrelated chrome. */
+.content a.order--card,
+.content .order--card .card-subtitle,
+.content .ug-kpi,
+.content .__top-resturant a,
+.content .__top-resturant a .info,
+.content .grid--card,
+.content .grid--card * {
+  color: var(--ug-black) !important;
+}
+.content a.order--card:hover,
+.content .ug-kpi:hover,
+.content .__top-resturant a:hover,
+.content .__top-resturant a:hover .info {
+  color: var(--ug-orange) !important;
+}
+/* "Top Restaurants" card name banner -- base theme hardcodes rgba(0,97,97,.8). */
+.content .__top-resturant a .info.h5,
+.content .__top-resturant H5.info {
+  background: rgba(22,22,22,.55) !important;
 }
 
 /* ---- Primary Button / Badge Colors ---- */
