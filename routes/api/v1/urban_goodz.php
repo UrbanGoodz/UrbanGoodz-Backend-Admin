@@ -3,11 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use Modules\ReelsModule\Http\Controllers\Api\V1\CreatorCommerceController as ReelsCreatorCommerceController;
 
-Route::group(['prefix' => 'urban-goodz', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz', 'middleware' => ['auth:api', 'throttle:60,1,ug-app-config']], function () {
     Route::get('app-config', 'Api\V1\UrbanGoodz\UrbanGoodzAppConfigController@index');
 });
-Route::get('urban-goodz/driver/vehicle-options', 'Api\UrbanGoodzDriverCapabilityController@vehicleOptionsEndpoint')->middleware('throttle:60,1');
-Route::group(['prefix' => 'urban-goodz/discovery', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::get('urban-goodz/driver/vehicle-options', 'Api\UrbanGoodzDriverCapabilityController@vehicleOptionsEndpoint')->middleware('throttle:60,1,ug-driver-vehicle-options');
+Route::group(['prefix' => 'urban-goodz/discovery', 'middleware' => ['auth:api', 'throttle:60,1,ug-discovery']], function () {
     Route::post('search-capture', 'Api\V1\UrbanGoodzDiscoveryController@searchCapture');
     Route::get('entities', 'Api\V1\UrbanGoodzDiscoveryController@entities');
     Route::get('entities/{id}', 'Api\V1\UrbanGoodzDiscoveryController@entity');
@@ -16,19 +16,19 @@ Route::group(['prefix' => 'urban-goodz/discovery', 'middleware' => ['auth:api', 
     Route::post('opportunities/{id}/accept', 'Api\V1\UrbanGoodzDiscoveryController@acceptOpportunity');
 });
 
-Route::group(['prefix' => 'urban-goodz/marketplace-data', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/marketplace-data', 'middleware' => ['auth:api', 'throttle:60,1,ug-marketplace-data']], function () {
     Route::get('businesses', 'Api\V1\UrbanGoodzMarketplaceDataController@businesses');
     Route::get('businesses/{id}', 'Api\V1\UrbanGoodzMarketplaceDataController@business');
     Route::get('shopper/catalogs', 'Api\V1\UrbanGoodzMarketplaceDataController@shopperCatalogs');
 });
 
-Route::group(['prefix' => 'urban-goodz/earn-money', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/earn-money', 'middleware' => ['auth:api', 'throttle:60,1,ug-earn-money']], function () {
     Route::get('opportunities', 'Api\V1\UrbanGoodzOpportunityController@earnMoneyOpportunities');
     Route::get('opportunities/{record}', 'Api\V1\UrbanGoodzOpportunityController@earnMoneyOpportunity');
     Route::post('opportunities/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptEarnMoneyOpportunity');
 });
 
-Route::group(['prefix' => 'urban-goodz/logistics', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/logistics', 'middleware' => ['auth:api', 'throttle:60,1,ug-logistics']], function () {
     Route::get('jobs', 'Api\V1\UrbanGoodzOpportunityController@logisticsJobs');
     Route::get('jobs/{record}', 'Api\V1\UrbanGoodzOpportunityController@logisticsJob');
     Route::post('jobs/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptLogisticsJob');
@@ -42,7 +42,7 @@ Route::group(['prefix' => 'urban-goodz/load-board', 'middleware' => 'auth:api'],
     Route::post('loads/{record}/status', 'Api\V1\UrbanGoodzOpportunityController@updateLoadBoardLoadStatus');
 });
 
-Route::group(['prefix' => 'urban-goodz/medical-courier', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/medical-courier', 'middleware' => ['auth:api', 'throttle:60,1,ug-medical-courier']], function () {
     Route::get('jobs', 'Api\V1\UrbanGoodzOpportunityController@medicalCourierJobs');
     Route::get('jobs/{record}', 'Api\V1\UrbanGoodzOpportunityController@medicalCourierJob');
     Route::post('jobs/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptMedicalCourierJob');
@@ -50,13 +50,13 @@ Route::group(['prefix' => 'urban-goodz/medical-courier', 'middleware' => ['auth:
     Route::post('jobs/{record}/custody', 'Api\V1\UrbanGoodzOpportunityController@updateMedicalCourierCustody');
 });
 
-Route::group(['prefix' => 'urban-goodz/book-anything', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/book-anything', 'middleware' => ['auth:api', 'throttle:60,1,ug-book-anything']], function () {
     Route::get('records', 'Api\V1\UrbanGoodzOpportunityController@bookAnythingRecords');
     Route::get('records/{record}', 'Api\V1\UrbanGoodzOpportunityController@bookAnythingRecord');
     Route::post('request', 'Api\V1\UrbanGoodzOpportunityController@submitBookAnythingRequest');
 });
 
-Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'throttle:60,1,ug-events']], function () {
     Route::get('/', 'Api\V1\UrbanGoodzOpportunityController@events');
     Route::get('{record}', 'Api\V1\UrbanGoodzOpportunityController@event');
     Route::post('{record}/interest', 'Api\V1\UrbanGoodzOpportunityController@eventInterest');
@@ -65,7 +65,7 @@ Route::group(['prefix' => 'urban-goodz/events', 'middleware' => ['auth:api', 'th
     Route::post('{record}/logistics-support', 'Api\V1\UrbanGoodzOpportunityController@eventLogisticsSupport');
 });
 
-Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth:api', 'throttle:60,1,ug-creator-commerce']], function () {
     Route::get('featured-reels', 'Api\V1\CreatorCommerceController@featuredReels');
     Route::get('reels', 'Api\V1\CreatorCommerceController@featuredReels');
     Route::get('customer/applications', 'Api\V1\CreatorCommerceController@customerApplications');
@@ -74,7 +74,7 @@ Route::group(['prefix' => 'urban-goodz/creator-commerce', 'middleware' => ['auth
     Route::post('promotions', 'Api\V1\CreatorCommerceController@storePromotion');
 });
 
-Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1,ug-reels-legacy']], function () {
     Route::post('action', [ReelsCreatorCommerceController::class, 'legacyAction']);
     Route::post('conversion', [ReelsCreatorCommerceController::class, 'legacyConversion']);
     Route::get('opportunities', [ReelsCreatorCommerceController::class, 'opportunities']);
@@ -83,7 +83,7 @@ Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'thr
 });
 
 // Creator Space AI
-Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-creator-ai']], function () {
     Route::post('reel-script', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelScript');
     Route::post('product-tags', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateProductTags');
     Route::post('caption', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateCaption');
@@ -92,7 +92,7 @@ Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api',
     Route::post('reel-analytics', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelAnalytics');
 });
 
-Route::group(['prefix' => 'urban-goodz/fashion', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/fashion', 'middleware' => ['auth:api', 'throttle:60,1,ug-fashion-stylist']], function () {
     Route::get('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@stylistRequests');
     Route::post('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@submitStylistRequest');
     Route::post('stylist-requests/{id}/status', 'Api\V1\UrbanGoodzFashionMeasurementController@updateStylistRequestStatus');
@@ -104,9 +104,9 @@ Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@han
     ->where('provider', 'adyen|stripe|staged_test');
 
 Route::post('order-anywhere/cards/stripe/webhook', 'Api\V1\StripeIssuingWebhookController@handle')
-    ->middleware('throttle:120,1');
+    ->middleware('throttle:120,1,ug-stripe-issuing-webhook');
 
-Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1,ug-order-anywhere-customer']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
     Route::post('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');
@@ -117,7 +117,7 @@ Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'thrott
     Route::get('orders/{orderId}/dispatch/status', 'Api\V1\UrbanGoodz\OrderAiDispatchController@dispatchStatus');
 });
 
-Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin', 'throttle:60,1,ug-order-anywhere-admin']], function () {
     Route::get('requests', 'Api\V1\OrderAnywhereController@adminRequests');
     Route::post('requests/{record}/status', 'Api\V1\OrderAnywhereController@updateStatus');
     Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereController@addNotes');
@@ -131,14 +131,14 @@ Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin',
     Route::get('dispatches/{dispatchId}', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@getDispatchDetail');
 });
 
-Route::group(['prefix' => 'order-anywhere/vendor', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'order-anywhere/vendor', 'middleware' => ['vendor.api', 'throttle:60,1,ug-order-anywhere-vendor']], function () {
     Route::post('requests/{record}/update', 'Api\V1\OrderAnywhereController@vendorUpdate');
     Route::get('orders', 'Api\V1\UrbanGoodz\OrderAiDispatchVendorController@orders');
     Route::get('orders/{orderId}', 'Api\V1\UrbanGoodz\OrderAiDispatchVendorController@orderDetail');
     Route::get('dispatches', 'Api\V1\UrbanGoodz\OrderAiDispatchVendorController@dispatches');
 });
 
-Route::group(['prefix' => 'order-anywhere/driver', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'order-anywhere/driver', 'middleware' => ['dm.api', 'throttle:60,1,ug-order-anywhere-driver']], function () {
     Route::get('available', 'Api\V1\OrderAnywhereController@driverAvailable');
     Route::post('{record}/accept', 'Api\V1\OrderAnywhereController@driverAccept');
     Route::post('{record}/status', 'Api\V1\OrderAnywhereController@driverStatus');
@@ -149,20 +149,20 @@ Route::group(['prefix' => 'urban-goodz/fashion-fit'], function () {
     Route::post('photos/upload', 'Api\V1\UrbanGoodz\FashionFitFileController@uploadPhoto')->middleware('auth:api');
 });
 
-Route::group(['prefix' => 'urban-goodz/files', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/files', 'middleware' => ['auth:api', 'throttle:60,1,ug-files-upload']], function () {
     Route::post('upload/{category}', 'Api\V1\UrbanGoodz\UrbanGoodzFileUploadController@upload');
 });
 
-Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1,ug-ai-concierge']], function () {
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::post('chat', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
     Route::get('video-avatar/status', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@videoAvatarStatus');
-    Route::post('video-avatar/start', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@startVideoAvatar')->middleware('throttle:10,1');
+    Route::post('video-avatar/start', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@startVideoAvatar')->middleware('throttle:10,1,ug-ai-concierge-video-avatar-start');
     Route::post('video-avatar/{conversationId}/end', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@endVideoAvatar');
 });
 
-Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-notifications-ai']], function () {
     Route::post('generate', 'Api\V1\UrbanGoodz\NotificationAIController@generateNotification');
     Route::post('batch', 'Api\V1\UrbanGoodz\NotificationAIController@generateBatch');
     Route::get('history', 'Api\V1\UrbanGoodz\NotificationAIController@history');
@@ -270,7 +270,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::post('order-anywhere/{requestId}/purchase-card/receipt', 'Api\V1\UrbanGoodzDriverPurchaseCardController@uploadReceipt');
     Route::post('order-anywhere/{requestId}/purchase-card/failure', 'Api\V1\UrbanGoodzDriverPurchaseCardController@reportFailure');
     Route::post('order-anywhere/{requestId}/purchase-card/secure-reveal', 'Api\V1\UrbanGoodzDriverPurchaseCardController@secureReveal')
-        ->middleware('throttle:10,1');
+        ->middleware('throttle:10,1,ug-driver-purchase-card-secure-reveal');
 
     // Driver active jobs (unified across all sources)
     Route::get('active-jobs', 'Api\UrbanGoodzDriverActiveJobsController@index');
@@ -319,7 +319,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Dispatcher AI
-    Route::group(['prefix' => 'urban-goodz/dispatcher/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/dispatcher/ai', 'middleware' => ['auth:admin', 'throttle:60,1,ug-dispatcher-ai']], function () {
         Route::post('load-ranking', 'Api\V1\Dispatcher\DispatcherAIController@rankLoads');
         Route::post('driver-match', 'Api\V1\Dispatcher\DispatcherAIController@matchDriver');
         Route::post('rate-estimate', 'Api\V1\Dispatcher\DispatcherAIController@estimateRate');
@@ -333,7 +333,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Rental AI
-    Route::group(['prefix' => 'urban-goodz/rentals/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/rentals/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-rentals-ai']], function () {
         Route::post('search', 'Api\V1\UrbanGoodz\RentalAIController@searchAssets');
         Route::post('match', 'Api\V1\UrbanGoodz\RentalAIController@matchAssets');
         Route::post('availability', 'Api\V1\UrbanGoodz\RentalAIController@checkAvailability');
@@ -345,7 +345,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Support AI
-    Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-support-ai']], function () {
         Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
         Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@attemptAutoResolution');
         Route::post('escalate', 'Api\V1\UrbanGoodz\SupportAIController@escalateToHuman');
@@ -354,7 +354,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Fraud Detection AI
-    Route::group(['prefix' => 'urban-goodz/fraud/ai', 'middleware' => ['auth:admin', 'throttle:60,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/fraud/ai', 'middleware' => ['auth:admin', 'throttle:60,1,ug-fraud-ai']], function () {
         Route::post('scan-transaction', 'Api\V1\UrbanGoodz\FraudDetectionController@scanTransaction');
         Route::post('scan-account', 'Api\V1\UrbanGoodz\FraudDetectionController@scanAccount');
         Route::get('flags', 'Api\V1\UrbanGoodz\FraudDetectionController@getFlags');
@@ -364,7 +364,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // ETA Prediction AI
-    Route::group(['prefix' => 'urban-goodz/eta/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/eta/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-eta-ai']], function () {
         Route::post('predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictETA');
         Route::post('batch-predict', 'Api\V1\UrbanGoodz\ETAPredictionController@batchPredict');
         Route::get('driver/{driver_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getDriverETA');
@@ -372,7 +372,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Dynamic Pricing AI
-    Route::group(['prefix' => 'urban-goodz/pricing/ai', 'middleware' => ['vendor.api', 'actch:vendor_app', 'throttle:60,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/pricing/ai', 'middleware' => ['vendor.api', 'actch:vendor_app', 'throttle:60,1,ug-pricing-ai']], function () {
         Route::post('recommend', 'Api\V1\UrbanGoodz\DynamicPricingController@recommendPrices');
         Route::post('simulate', 'Api\V1\UrbanGoodz\DynamicPricingController@simulatePriceChange');
         Route::get('history', 'Api\V1\UrbanGoodz\DynamicPricingController@getPriceHistory');
@@ -382,7 +382,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     // Cross-App AI. Each role is protected by its own authentication guard.
     // Business and dispatcher contracts remain on routes/business.php until a
     // dedicated token guard exists; never expose them through customer Passport.
-    Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['throttle:120,1']], function () {
+    Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['throttle:120,1,ug-cross-app-ai']], function () {
         Route::group(['prefix' => 'customer', 'middleware' => ['auth:api']], function () {
             Route::post('query', 'Api\V1\UrbanGoodz\CrossAppAIController@customerQuery');
             Route::get('history', 'Api\V1\UrbanGoodz\CrossAppAIController@customerHistory');
@@ -415,7 +415,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
 
         // Real, paid external TTS calls -- authenticated and separately
         // throttled so an open text field can't run up the ElevenLabs bill.
-        Route::group(['middleware' => ['auth:api', 'throttle:20,1']], function () {
+        Route::group(['middleware' => ['auth:api', 'throttle:20,1,ug-cross-app-ai-digital-human-speak']], function () {
             Route::post('digital-human/speak', 'Api\V1\UrbanGoodz\DigitalHumanController@speak');
         });
     });
@@ -425,20 +425,20 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
 //
 // The catalogue is intentionally public: the Services card must be able to
 // show available help before asking someone stranded on a shoulder to log in.
-Route::get('urban-goodz/stranded/services', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@services')->middleware('throttle:60,1');
+Route::get('urban-goodz/stranded/services', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@services')->middleware('throttle:60,1,ug-stranded-services-public');
 
 // Website lead capture. The marketing site is a static build with no server
 // runtime, so signups post here directly. Public by design (pre-signup),
 // throttled, and honeypot-guarded in the controller.
 Route::post('urban-goodz/waitlist', 'Api\V1\UrbanGoodz\UrbanGoodzWaitlistController@store')
-    ->middleware('throttle:20,1');
+    ->middleware('throttle:20,1,ug-waitlist');
 
 // Safety terms and the identity-privacy explanation are readable before sign
 // up: people are entitled to know what is asked of them, and what happens to
 // their licence, before they hand it over.
-Route::get('urban-goodz/stranded/safety/documents', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@documents')->middleware('throttle:60,1');
+Route::get('urban-goodz/stranded/safety/documents', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@documents')->middleware('throttle:60,1,ug-stranded-safety-documents');
 
-Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1,ug-stranded-authenticated']], function () {
     // Identity verification and consent. Both the person asking for help and
     // the person providing it must clear this before taking part.
     Route::get('safety/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedSafetyController@status');
@@ -487,14 +487,14 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
 
 // Vendor cash-out. Balance is read from store_wallets using the platform's
 // own formula, so a vendor sees the same number here as everywhere else.
-Route::group(['prefix' => 'urban-goodz/vendor', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/vendor', 'middleware' => ['vendor.api', 'throttle:60,1,ug-vendor-payout']], function () {
     Route::get('payout-options', 'Api\V1\UrbanGoodz\UrbanGoodzVendorPayoutController@options');
     Route::post('payout-request', 'Api\V1\UrbanGoodz\UrbanGoodzVendorPayoutController@request_');
 });
 
 // Stranded: pay the help request fee (which triggers the broadcast), and
 // live-track the responder who is on the way.
-Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1,ug-stranded-payment-tracking']], function () {
     Route::post('requests/{record}/pay-fee', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@payFee');
     Route::get('requests/{record}/track', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedTrackingController@track');
 });
@@ -502,21 +502,21 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
 // Community: groups are real delivery zones plus Nationwide/Worldwide, not a
 // stored table. Reading is public so people can browse before joining;
 // posting requires an account.
-Route::group(['prefix' => 'urban-goodz/community', 'middleware' => ['throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/community', 'middleware' => ['throttle:60,1,ug-community-public']], function () {
     Route::get('groups', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@groups');
     Route::get('posts', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@posts');
     Route::get('posts/{post}', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@showPost');
     Route::get('marketplace', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@marketplaceItems');
 });
 
-Route::group(['prefix' => 'urban-goodz/community', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/community', 'middleware' => ['auth:api', 'throttle:60,1,ug-community-authenticated']], function () {
     Route::post('posts', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@storePost');
     Route::post('posts/{post}/comments', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@storeComment');
     Route::post('marketplace', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@storeMarketplaceItem');
 });
 
 // Creator Space (authenticated creator self-service)
-Route::group(['prefix' => 'urban-goodz/creator-space', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/creator-space', 'middleware' => ['auth:api', 'throttle:60,1,ug-creator-space']], function () {
     Route::post('register', 'Api\V1\CreatorSpaceController@register');
     Route::get('profile', 'Api\V1\CreatorSpaceController@profile');
     Route::put('profile', 'Api\V1\CreatorSpaceController@updateProfile');
@@ -541,7 +541,7 @@ Route::group(['prefix' => 'urban-goodz/creator-space', 'middleware' => ['auth:ap
 });
 
 // Creator Discovery (shopper-facing)
-Route::group(['prefix' => 'urban-goodz/creators', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/creators', 'middleware' => ['auth:api', 'throttle:60,1,ug-creator-discovery']], function () {
     Route::get('/', 'Api\V1\CreatorDiscoveryController@index');
     Route::get('{handle}', 'Api\V1\CreatorDiscoveryController@show');
     Route::get('{handle}/reels', 'Api\V1\CreatorDiscoveryController@creatorReels');
@@ -553,7 +553,7 @@ Route::group(['prefix' => 'urban-goodz/creators', 'middleware' => ['auth:api', '
 });
 
 // Reel Social (engagement)
-Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'throttle:60,1,ug-reels-social']], function () {
     Route::get('{id}/comments', 'Api\V1\ReelSocialController@comments');
     Route::post('{id}/comments', 'Api\V1\ReelSocialController@postComment');
     Route::post('{id}/comments/{commentId}/reply', 'Api\V1\ReelSocialController@postReply');
@@ -566,7 +566,7 @@ Route::group(['prefix' => 'urban-goodz/reels', 'middleware' => ['auth:api', 'thr
 });
 
 // Events Marketplace (expanded - replaces old events group)
-Route::group(['prefix' => 'urban-goodz/events-marketplace', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/events-marketplace', 'middleware' => ['auth:api', 'throttle:60,1,ug-events-marketplace']], function () {
     Route::get('/', 'Api\V1\EventMarketplaceController@index');
     Route::get('categories', 'Api\V1\EventMarketplaceController@categories');
     Route::get('saved', 'Api\V1\EventMarketplaceController@savedEvents');

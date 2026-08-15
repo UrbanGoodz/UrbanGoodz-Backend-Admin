@@ -47,7 +47,7 @@ Route::prefix('vendor/fashion-fit')->middleware(['vendor.api', 'actch:vendor_app
     Route::put('profile', 'Api\V1\Vendor\FashionFitWorkflowController@updateProfile');
     Route::get('requests', 'Api\V1\Vendor\FashionFitWorkflowController@index');
     Route::get('requests/{uuid}', 'Api\V1\Vendor\FashionFitWorkflowController@show');
-    Route::get('requests/{requestUuid}/photos/{photoUuid}', 'Api\V1\Vendor\FashionFitWorkflowController@downloadPhoto')->middleware('throttle:30,1');
+    Route::get('requests/{requestUuid}/photos/{photoUuid}', 'Api\V1\Vendor\FashionFitWorkflowController@downloadPhoto')->middleware('throttle:30,1,ff-vendor-photo-download');
     Route::post('requests/{uuid}/clarification', 'Api\V1\Vendor\FashionFitWorkflowController@requestClarification');
     Route::post('requests/{uuid}/estimates', 'Api\V1\Vendor\FashionFitWorkflowController@estimate');
     Route::post('requests/{uuid}/status', 'Api\V1\Vendor\FashionFitWorkflowController@updateStatus');
