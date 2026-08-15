@@ -11,6 +11,7 @@ class UrbanGoodzAIConversation extends Model
 
     protected $fillable = [
         'customer_id',
+        'session_id',
         'query_text',
         'detected_intent_id',
         'confidence_score',

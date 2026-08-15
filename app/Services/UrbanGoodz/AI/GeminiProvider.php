@@ -34,7 +34,7 @@ class GeminiProvider extends AbstractAIProvider
             && filter_var($this->baseUrl(), FILTER_VALIDATE_URL) !== false;
     }
 
-    public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
+    public function chatResult(string $systemPrompt, string $userMessage, array $context = [], array $history = []): array
     {
         if (! $this->isConfigured()) {
             return $this->failure(
@@ -51,6 +51,19 @@ class GeminiProvider extends AbstractAIProvider
             )."\n\nRequest:\n".$userMessage;
         }
 
+        $contents = [];
+        foreach ($history as $turn) {
+            $content = trim((string) ($turn['content'] ?? ''));
+            if ($content === '') {
+                continue;
+            }
+            $contents[] = [
+                'role' => ($turn['role'] ?? '') === 'assistant' ? 'model' : 'user',
+                'parts' => [['text' => $content]],
+            ];
+        }
+        $contents[] = ['role' => 'user', 'parts' => [['text' => $userContent]]];
+
         try {
             $response = Http::acceptJson()
                 ->asJson()
@@ -65,10 +78,7 @@ class GeminiProvider extends AbstractAIProvider
                     'systemInstruction' => [
                         'parts' => [['text' => $systemPrompt]],
                     ],
-                    'contents' => [[
-                        'role' => 'user',
-                        'parts' => [['text' => $userContent]],
-                    ]],
+                    'contents' => $contents,
                     'generationConfig' => [
                         'temperature' => (float) config('urban_goodz_ai.temperature', 0.4),
                         'maxOutputTokens' => (int) config('urban_goodz_ai.max_tokens', 1500),

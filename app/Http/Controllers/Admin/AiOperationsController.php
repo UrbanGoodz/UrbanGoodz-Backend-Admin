@@ -510,6 +510,50 @@ class AiOperationsController extends Controller
         );
     }
 
+    /**
+     * Skylar's real conversational chat -- distinct from testEndpoint() above,
+     * which runs the Monique concierge pipeline for generic admin debugging.
+     * This always speaks as chief_of_staff, grounded in live Command Center
+     * data, with real per-session memory.
+     */
+    public function chiefOfStaffChat(Request $request, \App\Services\UrbanGoodz\UrbanGoodzAIChiefOfStaffChatService $chat)
+    {
+        if (! Helpers::module_permission_check('urban_goodz_control_center')) {
+            abort(403, translate('messages.access_denied'));
+        }
+
+        $validated = $request->validate([
+            'query' => 'required|string|max:2000',
+            'session_id' => 'nullable|string|max:64',
+        ]);
+
+        $admin = auth('admin')->user();
+        $adminName = $admin?->f_name ? "{$admin->f_name} {$admin->l_name}" : null;
+
+        try {
+            $conversation = $chat->processQuery(
+                queryText: $validated['query'],
+                adminId: $admin?->id,
+                adminName: $adminName,
+                sessionId: $validated['session_id'] ?? null,
+            );
+
+            return response()->json([
+                'success' => $conversation->status !== 'failed',
+                'data' => [
+                    'response' => $conversation->response_text,
+                    'flagged_as_urgent' => $conversation->metadata['flagged_as_urgent'] ?? false,
+                    'status' => $conversation->status,
+                ],
+            ], $conversation->status === 'failed' ? 503 : 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'data' => ['response' => 'Skylar could not process that request. No action was taken.'],
+            ], 503);
+        }
+    }
+
     private function maskUrl(string $url): string
     {
         if (empty($url)) {

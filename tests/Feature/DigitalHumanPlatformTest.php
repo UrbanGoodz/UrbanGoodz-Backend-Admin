@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class DigitalHumanPlatformTest extends TestCase
 {
-    public function test_emotion_engine_evaluates_ebony_food_event(): void
+    public function test_emotion_engine_evaluates_monique_food_event(): void
     {
         $engine = new EmotionEngine();
         $state = $engine->evaluate(

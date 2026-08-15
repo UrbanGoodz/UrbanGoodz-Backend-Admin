@@ -29,13 +29,13 @@ class EmotionEngine
             return $this->evaluateSkylarState($domain, $eventType, $intent);
         }
 
-        return $this->evaluateEbonyState($domain, $eventType, $intent);
+        return $this->evaluateMoniqueState($domain, $eventType, $intent);
     }
 
     /**
-     * Ebony (Customer Concierge) emotion mapping.
+     * Monique (Customer Concierge) emotion mapping.
      */
-    private function evaluateEbonyState(string $domain, ?string $eventType, ?string $intent): array
+    private function evaluateMoniqueState(string $domain, ?string $eventType, ?string $intent): array
     {
         if ($domain === 'food' || $intent === 'find_food') {
             return [

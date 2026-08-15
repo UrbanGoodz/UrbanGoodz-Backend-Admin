@@ -21,7 +21,7 @@ class DisabledAIProvider extends AbstractAIProvider
         return false;
     }
 
-    public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
+    public function chatResult(string $systemPrompt, string $userMessage, array $context = [], array $history = []): array
     {
         return $this->failure(
             'AI assistance is currently unavailable. No action was taken.',

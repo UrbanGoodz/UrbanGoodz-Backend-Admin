@@ -70,4 +70,20 @@ return [
             'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         ],
     ],
+
+    /*
+    | Tavus CVI -- the real-time video avatar (a live face that actually
+    | talks/lip-syncs), separate from the text/voice concierge above. Optional:
+    | UrbanGoodzTavusService::isConfigured() gates every call, so the customer
+    | app's video-avatar entry point degrades to "not available right now"
+    | rather than failing, until these are set.
+    */
+    'tavus' => [
+        'api_key' => env('TAVUS_API_KEY'),
+        'base_url' => env('TAVUS_BASE_URL', 'https://tavusapi.com/v2'),
+        // A "face" (avatar likeness) and a "PAL" (persona/behavior config),
+        // both created once in the Tavus dashboard from Monique's photo.
+        'face_id' => env('TAVUS_MONIQUE_FACE_ID'),
+        'pal_id' => env('TAVUS_MONIQUE_PAL_ID'),
+    ],
 ];

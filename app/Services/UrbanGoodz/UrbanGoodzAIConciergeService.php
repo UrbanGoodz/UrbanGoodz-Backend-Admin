@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\UrbanGoodzBusinessClientJob;
 use App\Models\UrbanGoodzMedicalCourierJob;
+use App\Models\Item;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Schema;
 
@@ -22,12 +23,18 @@ class UrbanGoodzAIConciergeService
 {
     private UrbanGoodzAIService $ai;
 
+    /** Prior turns sent to the model for real conversational memory. */
+    private const HISTORY_TURNS = 6;
+
+    /** Rows kept per customer; older ones are pruned to cap prompt/DB growth. */
+    private const MAX_STORED_PER_CUSTOMER = 30;
+
     public function __construct(UrbanGoodzAIService $ai)
     {
         $this->ai = $ai;
     }
 
-    public function processQuery(string $queryText, ?int $customerId = null, string $source = 'customer_api'): UrbanGoodzAIConversation
+    public function processQuery(string $queryText, ?int $customerId = null, string $source = 'customer_api', ?string $sessionId = null): UrbanGoodzAIConversation
     {
         if (!$customerId && $source !== 'admin_test') {
             throw new AuthenticationException('Customer authentication is required.');
@@ -35,17 +42,72 @@ class UrbanGoodzAIConciergeService
 
         $context = $this->buildCustomerContext($customerId);
         $systemPrompt = $this->buildSystemPrompt($context);
+        $history = $this->recentHistory($customerId, $sessionId);
 
         if ($this->ai->isConfigured()) {
-            $result = $this->processWithAI($queryText, $customerId, $systemPrompt, $context, $source);
+            $result = $this->processWithAI($queryText, $customerId, $systemPrompt, $context, $source, $sessionId, $history);
         } else {
-            $result = $this->processWithKeywords($queryText, $customerId, $source);
+            $result = $this->processWithKeywords($queryText, $customerId, $source, $sessionId);
         }
+
+        $this->pruneOldConversations($customerId);
 
         return $result;
     }
 
-    private function processWithAI(string $queryText, ?int $customerId, string $systemPrompt, array $context, string $source): UrbanGoodzAIConversation
+    /**
+     * Last few turns for this customer's session, oldest first, formatted for
+     * the provider. Bounded so a long-running conversation cannot silently
+     * balloon the token bill.
+     *
+     * @return list<array{role: string, content: string}>
+     */
+    private function recentHistory(?int $customerId, ?string $sessionId): array
+    {
+        if (!$customerId || !$sessionId) {
+            return [];
+        }
+
+        $rows = UrbanGoodzAIConversation::where('customer_id', $customerId)
+            ->where('session_id', $sessionId)
+            ->whereNotNull('response_text')
+            ->latest()
+            ->limit(self::HISTORY_TURNS)
+            ->get(['query_text', 'response_text'])
+            ->reverse();
+
+        $history = [];
+        foreach ($rows as $row) {
+            $history[] = ['role' => 'user', 'content' => $row->query_text];
+            $history[] = ['role' => 'assistant', 'content' => $row->response_text];
+        }
+
+        return $history;
+    }
+
+    /**
+     * Keeps only the most recent rows per customer -- old conversation turns
+     * are deleted rather than kept forever, so the history window built above
+     * (and the table itself) stays cheap regardless of how long an account
+     * has been active.
+     */
+    private function pruneOldConversations(?int $customerId): void
+    {
+        if (!$customerId) {
+            return;
+        }
+
+        $keepIds = UrbanGoodzAIConversation::where('customer_id', $customerId)
+            ->latest()
+            ->limit(self::MAX_STORED_PER_CUSTOMER)
+            ->pluck('id');
+
+        UrbanGoodzAIConversation::where('customer_id', $customerId)
+            ->whereNotIn('id', $keepIds)
+            ->delete();
+    }
+
+    private function processWithAI(string $queryText, ?int $customerId, string $systemPrompt, array $context, string $source, ?string $sessionId, array $history): UrbanGoodzAIConversation
     {
         $possibleIntents = UrbanGoodzAIIntent::where('is_active', true)
             ->get()
@@ -59,12 +121,20 @@ class UrbanGoodzAIConciergeService
         $intent = UrbanGoodzAIIntent::where('slug', $intentSlug)->first();
         $entities = $classification['entities'] ?? [];
 
-        // The customer context is already grounded into the persona system
-        // prompt; only the classification delta is added here.
-        $providerResult = $this->ai->chatResult($systemPrompt, $queryText, [
+        $groundingDelta = [
             'detected_intent' => $intentSlug,
             'entities' => $entities,
-        ]);
+        ];
+
+        $marketplaceResults = $this->searchMarketplaceIfRelevant($intentSlug, $queryText, $entities);
+        if ($marketplaceResults !== null) {
+            $groundingDelta['marketplace_results'] = $marketplaceResults;
+        }
+
+        // The customer context is already grounded into the persona system
+        // prompt; only the classification delta (and any live search results)
+        // is added here, plus the bounded prior-turn history for real memory.
+        $providerResult = $this->ai->chatResult($systemPrompt, $queryText, $groundingDelta, $history);
         $responseText = $providerResult['response'];
 
         $needsEscalation = !$providerResult['success']
@@ -75,6 +145,7 @@ class UrbanGoodzAIConciergeService
 
         return UrbanGoodzAIConversation::create([
             'customer_id' => $customerId,
+            'session_id' => $sessionId,
             'query_text' => $queryText,
             'detected_intent_id' => $intent?->id,
             'confidence_score' => round($confidence * 100, 2),
@@ -85,11 +156,64 @@ class UrbanGoodzAIConciergeService
                 'response_source' => 'ai_provider',
                 'provider_success' => $providerResult['success'],
                 'provider_error_code' => $providerResult['error_code'],
+                'marketplace_result_count' => $marketplaceResults !== null ? count($marketplaceResults) : null,
             ],
         ]);
     }
 
-    private function processWithKeywords(string $queryText, ?int $customerId, string $source): UrbanGoodzAIConversation
+    /**
+     * Real, live inventory lookup -- not invented product names or prices.
+     * Runs only when the classified intent or extracted entities indicate the
+     * customer is actually looking for something to buy. Returns null (not an
+     * empty array) when no search was warranted, so the prompt only claims
+     * "these are the real results" when a real search actually ran.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private function searchMarketplaceIfRelevant(string $intentSlug, string $queryText, array $entities): ?array
+    {
+        $searchTerm = $entities['search_query'] ?? $entities['items'] ?? null;
+        $shouldSearch = in_array($intentSlug, ['marketplace-search', 'marketplace_search', 'order_anywhere', 'order-anywhere'], true)
+            || $searchTerm !== null;
+
+        if (!$shouldSearch) {
+            return null;
+        }
+
+        $term = trim((string) ($searchTerm ?? $queryText));
+        if ($term === '') {
+            return null;
+        }
+
+        $keywords = array_filter(preg_split('/\s+/', $term) ?: []);
+        if ($keywords === []) {
+            return null;
+        }
+
+        try {
+            $items = Item::active()
+                ->where(function ($q) use ($keywords) {
+                    foreach ($keywords as $keyword) {
+                        $q->orWhere('name', 'like', "%{$keyword}%");
+                    }
+                })
+                ->when(isset($entities['budget_max']), fn ($q) => $q->where('price', '<=', (float) $entities['budget_max']))
+                ->with('store:id,name')
+                ->limit(5)
+                ->get(['id', 'name', 'price', 'store_id']);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        return $items->map(fn (Item $item) => [
+            'id' => $item->id,
+            'name' => $item->name,
+            'price' => (float) $item->price,
+            'store' => $item->store?->name,
+        ])->toArray();
+    }
+
+    private function processWithKeywords(string $queryText, ?int $customerId, string $source, ?string $sessionId = null): UrbanGoodzAIConversation
     {
         $queryLower = strtolower(trim($queryText));
         $intents = UrbanGoodzAIIntent::where('is_active', true)->orderBy('sort_order')->get();
@@ -111,11 +235,16 @@ class UrbanGoodzAIConciergeService
             }
         }
 
-        $responseText = $this->getContextualResponse($queryLower, $customerId);
-        $grounded = $customerId && $this->isGroundedCustomerQuery($queryLower);
+        // A recognized emergency always gets its calm, specific hand-off line
+        // rather than the generic order/payment fallback below.
+        $responseText = $bestIntent?->slug === 'stranded' && $bestIntent->response_template
+            ? $bestIntent->response_template
+            : $this->getContextualResponse($queryLower, $customerId);
+        $grounded = $customerId && ($bestIntent?->slug === 'stranded' || $this->isGroundedCustomerQuery($queryLower));
 
         return UrbanGoodzAIConversation::create([
             'customer_id' => $customerId,
+            'session_id' => $sessionId,
             'query_text' => $queryText,
             'detected_intent_id' => $bestIntent?->id,
             'confidence_score' => $bestScore > 0 ? $bestScore : null,
@@ -162,7 +291,20 @@ Urban Goodz capabilities you can point them to:
 - Load Board: browse and accept delivery loads
 
 Use their name when you have it. Give specific details — order numbers, dates,
-amounts — whenever the context supplies them.";
+amounts — whenever the context supplies them.
+
+If the customer describes being stranded, broken down, stuck, or unsafe on the
+road, drop the personality immediately. Respond with calm, focused concern,
+ask if they are somewhere safe, and tell them you're connecting them to Urban
+Goodz Stranded so a nearby Goodz Samaritan or professional can reach them. Do
+not joke, and do not delay the hand-off with small talk.
+
+If `marketplace_results` is present in the application data below, those are
+the only real, currently-available items you may recommend — use their actual
+names, prices, and store names verbatim. Never invent a product, price, or
+store that is not in that list. If `marketplace_results` is absent or empty,
+say plainly that you couldn't find a matching item right now rather than
+guessing at one.";
 
         $grounding = [
             'customer_id' => $context['customer_id'],

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\UrbanGoodz\AiChiefOfStaffService;
 use App\Services\UrbanGoodz\AllowedActionRegistry;
+use App\Services\UrbanGoodz\UrbanGoodzAIChiefOfStaffChatService;
 use App\Services\UrbanGoodz\UrbanGoodzAIConciergeService;
 use App\Services\UrbanGoodz\UrbanGoodzAIService;
 use Illuminate\Auth\AuthenticationException;
@@ -121,6 +122,123 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         $this->assertSame('deterministic_database', $conversation->metadata['response_source']);
     }
 
+    public function test_concierge_threads_prior_turns_into_the_next_ai_call_as_real_history(): void
+    {
+        DB::table('users')->insert([
+            'id' => 1, 'f_name' => 'First', 'l_name' => 'Customer', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('urban_goodz_ai_conversations')->insert([
+            [
+                'customer_id' => 1,
+                'session_id' => 'sess-1',
+                'query_text' => "I'm looking for a birthday gift.",
+                'response_text' => "Absolutely. Who's it for?",
+                'status' => 'resolved',
+                'source' => 'customer_api',
+                'created_at' => now()->subMinute(),
+                'updated_at' => now()->subMinute(),
+            ],
+        ]);
+        // A different session for the same customer must never leak in.
+        DB::table('urban_goodz_ai_conversations')->insert([
+            [
+                'customer_id' => 1,
+                'session_id' => 'sess-other',
+                'query_text' => 'unrelated question',
+                'response_text' => 'unrelated answer',
+                'status' => 'resolved',
+                'source' => 'customer_api',
+                'created_at' => now()->subMinute(),
+                'updated_at' => now()->subMinute(),
+            ],
+        ]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CONCIERGE);
+        $provider = Mockery::mock(UrbanGoodzAIService::class);
+        $provider->shouldReceive('isConfigured')->andReturnTrue();
+        $provider->shouldReceive('persona')->andReturn($persona);
+        $provider->shouldReceive('classifyIntent')->andReturn(['intent' => 'unknown', 'confidence' => 0.9, 'entities' => []]);
+
+        $capturedHistory = null;
+        $provider->shouldReceive('chatResult')
+            ->once()
+            ->withArgs(function ($system, $user, $context, $history) use (&$capturedHistory) {
+                $capturedHistory = $history;
+                return true;
+            })
+            ->andReturn(['success' => true, 'response' => 'My wife loves jewelry.', 'error_code' => null]);
+
+        (new UrbanGoodzAIConciergeService($provider))
+            ->processQuery('My wife.', 1, 'customer_api', 'sess-1');
+
+        $this->assertSame([
+            ['role' => 'user', 'content' => "I'm looking for a birthday gift."],
+            ['role' => 'assistant', 'content' => "Absolutely. Who's it for?"],
+        ], $capturedHistory);
+    }
+
+    public function test_stranded_query_is_recognized_and_handed_off_without_the_ai_provider(): void
+    {
+        DB::table('users')->insert([
+            'id' => 1, 'f_name' => 'First', 'l_name' => 'Customer', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('urban_goodz_ai_intents')->insert([
+            'slug' => 'stranded',
+            'name' => 'Stranded / Roadside Help',
+            'keywords' => json_encode(['stranded', 'broke down', 'flat tire']),
+            'response_template' => "Okay, let's get you some help. Are you somewhere safe? I'm connecting you to Urban Goodz Stranded.",
+            'is_active' => true,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CONCIERGE);
+        $provider = Mockery::mock(UrbanGoodzAIService::class);
+        $provider->shouldReceive('isConfigured')->andReturnFalse();
+        $provider->shouldReceive('persona')->andReturn($persona);
+
+        $conversation = (new UrbanGoodzAIConciergeService($provider))
+            ->processQuery('my car broke down on the highway', 1, 'customer_api', 'sess-2');
+
+        $this->assertSame('resolved', $conversation->status);
+        $this->assertStringContainsString('Urban Goodz Stranded', $conversation->response_text);
+        $this->assertSame('stranded', $conversation->detectedIntent->slug);
+    }
+
+    public function test_marketplace_intent_asks_for_real_grounding_never_an_absent_key(): void
+    {
+        DB::table('users')->insert([
+            'id' => 1, 'f_name' => 'First', 'l_name' => 'Customer', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CONCIERGE);
+        $provider = Mockery::mock(UrbanGoodzAIService::class);
+        $provider->shouldReceive('isConfigured')->andReturnTrue();
+        $provider->shouldReceive('persona')->andReturn($persona);
+        $provider->shouldReceive('classifyIntent')->andReturn([
+            'intent' => 'marketplace-search', 'confidence' => 0.9, 'entities' => ['search_query' => 'organic vegetables'],
+        ]);
+
+        $capturedContext = null;
+        $provider->shouldReceive('chatResult')
+            ->once()
+            ->withArgs(function ($system, $user, $context, $history) use (&$capturedContext) {
+                $capturedContext = $context;
+                return true;
+            })
+            ->andReturn(['success' => true, 'response' => 'Here is what I found.', 'error_code' => null]);
+
+        (new UrbanGoodzAIConciergeService($provider))
+            ->processQuery('organic vegetables', 1, 'customer_api', 'sess-3');
+
+        // The key must be present (even if empty, because the fixture has no
+        // real inventory) -- its absence is what would let the model invent
+        // a product instead of admitting it found nothing.
+        $this->assertArrayHasKey('marketplace_results', $capturedContext);
+        $this->assertIsArray($capturedContext['marketplace_results']);
+    }
+
     public function test_concierge_rejects_unauthenticated_service_calls(): void
     {
         $provider = Mockery::mock(UrbanGoodzAIService::class);
@@ -144,6 +262,119 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         $this->assertFalse($result['success']);
         $this->assertSame('provider_error', $result['error_code']);
         $this->assertStringContainsString('No action was taken', $result['response']);
+    }
+
+    public function test_provider_sends_history_turns_as_real_messages_not_just_the_latest_query(): void
+    {
+        Config::set('urban_goodz_ai.provider', 'openai');
+        Config::set('openai.api_key', 'test-key-that-is-not-a-real-secret');
+        Config::set('openai.base_url', 'https://api.openai.test/v1');
+        Http::fake([
+            'api.openai.test/*' => Http::response(['choices' => [['message' => ['content' => 'Sure, here you go.']]]], 200),
+        ]);
+
+        (new UrbanGoodzAIService())->chatResult('System prompt', 'And the second one?', [], [
+            ['role' => 'user', 'content' => 'Give me a recommendation.'],
+            ['role' => 'assistant', 'content' => 'Here is my first pick.'],
+        ]);
+
+        Http::assertSent(function ($request) {
+            $messages = $request->data()['messages'];
+            $roles = array_column($messages, 'role');
+            $contents = array_column($messages, 'content');
+
+            return $roles === ['system', 'user', 'assistant', 'user']
+                && $contents[1] === 'Give me a recommendation.'
+                && $contents[2] === 'Here is my first pick.'
+                && $contents[3] === 'And the second one?';
+        });
+    }
+
+    public function test_skylar_chat_falls_back_to_real_command_center_counts_without_ai(): void
+    {
+        DB::table('admins')->insert(['id' => 1]);
+        DB::table('business_needs')->insert([
+            ['status' => 'open', 'severity' => 'high', 'created_at' => now(), 'updated_at' => now()],
+            ['status' => 'open', 'severity' => 'low', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('ai_tasks')->insert(['status' => 'running', 'created_at' => now(), 'updated_at' => now()]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CHIEF_OF_STAFF);
+        $chat = new UrbanGoodzAIChiefOfStaffChatService(
+            Mockery::mock(UrbanGoodzAIService::class, ['isConfigured' => false, 'persona' => $persona]),
+            app(AiChiefOfStaffService::class),
+        );
+
+        $conversation = $chat->processQuery('how are we doing', 1, 'D\'Andre Good', 'sky-sess-1');
+
+        $this->assertSame('resolved', $conversation->status);
+        // Real count from the two rows inserted above -- not a guessed/canned number.
+        $this->assertStringContainsString('2 open business need(s)', $conversation->response_text);
+        $this->assertSame(UrbanGoodzAIChiefOfStaffChatService::SOURCE, $conversation->source);
+    }
+
+    public function test_skylar_chat_memory_is_scoped_by_source_and_does_not_leak_from_monique(): void
+    {
+        DB::table('admins')->insert(['id' => 7]);
+        DB::table('users')->insert([
+            'id' => 7, 'f_name' => 'Collides', 'l_name' => 'WithAdminId', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // Same numeric id (7), different actor entirely -- a Monique conversation
+        // that must never surface as Skylar's memory.
+        DB::table('urban_goodz_ai_conversations')->insert([
+            'customer_id' => 7,
+            'session_id' => 'shared-id-7',
+            'query_text' => 'find me sneakers',
+            'response_text' => 'Here are some sneakers.',
+            'status' => 'resolved',
+            'source' => 'customer_api',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CHIEF_OF_STAFF);
+        $provider = Mockery::mock(UrbanGoodzAIService::class);
+        $provider->shouldReceive('isConfigured')->andReturnTrue();
+        $provider->shouldReceive('persona')->andReturn($persona);
+
+        $capturedHistory = null;
+        $provider->shouldReceive('chatResult')
+            ->once()
+            ->withArgs(function ($system, $user, $context, $history) use (&$capturedHistory) {
+                $capturedHistory = $history;
+                return true;
+            })
+            ->andReturn(['success' => true, 'response' => 'Nothing urgent right now.', 'error_code' => null]);
+
+        $chat = new UrbanGoodzAIChiefOfStaffChatService($provider, app(AiChiefOfStaffService::class));
+        $chat->processQuery('anything urgent?', 7, 'Real Admin', 'shared-id-7');
+
+        $this->assertSame([], $capturedHistory);
+    }
+
+    public function test_skylar_chat_flags_urgent_language_for_the_prompt(): void
+    {
+        DB::table('admins')->insert(['id' => 3]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CHIEF_OF_STAFF);
+        $provider = Mockery::mock(UrbanGoodzAIService::class);
+        $provider->shouldReceive('isConfigured')->andReturnTrue();
+        $provider->shouldReceive('persona')->andReturn($persona);
+
+        $capturedContext = null;
+        $provider->shouldReceive('chatResult')
+            ->once()
+            ->withArgs(function ($system, $user, $context) use (&$capturedContext) {
+                $capturedContext = $context;
+                return true;
+            })
+            ->andReturn(['success' => true, 'response' => 'On it.', 'error_code' => null]);
+
+        $chat = new UrbanGoodzAIChiefOfStaffChatService($provider, app(AiChiefOfStaffService::class));
+        $conversation = $chat->processQuery('we have an emergency, the site is down', 3, null, 'sky-sess-2');
+
+        $this->assertTrue($capturedContext['flagged_as_urgent']);
+        $this->assertTrue($conversation->metadata['flagged_as_urgent']);
     }
 
     public function test_explicit_customer_role_prevents_cross_table_id_role_collision(): void
@@ -253,6 +484,7 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         Schema::create('urban_goodz_ai_conversations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('customer_id')->nullable();
+            $table->string('session_id', 64)->nullable();
             $table->text('query_text');
             $table->unsignedBigInteger('detected_intent_id')->nullable();
             $table->decimal('confidence_score', 5, 2)->nullable();

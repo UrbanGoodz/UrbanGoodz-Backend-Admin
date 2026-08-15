@@ -98,13 +98,13 @@ class UrbanGoodzPersonaTest extends TestCase
 
     public function test_the_two_personas_are_distinguishable(): void
     {
-        $ebony = $this->registry->get(PersonaRegistry::CONCIERGE)->systemPrompt();
+        $monique = $this->registry->get(PersonaRegistry::CONCIERGE)->systemPrompt();
         $skylar = $this->registry->get(PersonaRegistry::CHIEF_OF_STAFF)->systemPrompt();
 
-        $this->assertNotSame($ebony, $skylar);
+        $this->assertNotSame($monique, $skylar);
 
         // Register intensity is the difference that matters most.
-        $this->assertStringContainsString('hip-hop personality', $ebony);
+        $this->assertStringContainsString('hip-hop personality', $monique);
         $this->assertStringNotContainsString('hip-hop personality', $skylar);
         $this->assertStringContainsString('carry this as an executive', $skylar);
     }
