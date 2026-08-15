@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Services\UrbanGoodz\UrbanGoodzAIConciergeService;
+use App\Services\UrbanGoodz\UrbanGoodzTavusService;
 use Illuminate\Http\Request;
 
 class UrbanGoodzAIConciergeController extends Controller
@@ -12,6 +13,7 @@ class UrbanGoodzAIConciergeController extends Controller
     {
         $data = $request->validate([
             'query' => ['required', 'string', 'max:2000'],
+            'session_id' => ['nullable', 'string', 'max:64'],
         ]);
 
         $customerId = $request->user()?->id;
@@ -20,6 +22,7 @@ class UrbanGoodzAIConciergeController extends Controller
             queryText: $data['query'],
             customerId: $customerId,
             source: 'customer_api',
+            sessionId: $data['session_id'] ?? null,
         );
 
         $intent = $conversation->detectedIntent;
@@ -28,6 +31,7 @@ class UrbanGoodzAIConciergeController extends Controller
 
         if ($intent) {
             $routeMap = [
+                'stranded' => ['label' => 'Get Help Now', 'route' => 'stranded'],
                 'order_anywhere' => ['label' => 'Open Order Anywhere', 'route' => 'order-anywhere'],
                 'fashion_fit' => ['label' => 'Open Fashion Fit', 'route' => 'fashion-measurements'],
                 'logistics_freight' => ['label' => 'View Load Board', 'route' => 'load-board'],
@@ -61,6 +65,43 @@ class UrbanGoodzAIConciergeController extends Controller
                 'created_at' => $conversation->created_at?->toIso8601String(),
             ],
         ], $successful ? 200 : 503);
+    }
+
+    /**
+     * Lets the client know, cheaply, whether it's worth showing the "Video
+     * call Monique" entry point at all -- never claims the feature is live
+     * when it isn't configured.
+     */
+    public function videoAvatarStatus(UrbanGoodzTavusService $tavus)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => ['available' => $tavus->isConfigured()],
+        ]);
+    }
+
+    public function startVideoAvatar(Request $request, UrbanGoodzTavusService $tavus)
+    {
+        $user = $request->user();
+        $name = $user?->f_name ? "{$user->f_name} {$user->l_name}" : "Customer {$user?->id}";
+
+        $result = $tavus->startConversation("Monique with {$name}");
+
+        return response()->json([
+            'success' => $result['success'],
+            'data' => [
+                'conversation_id' => $result['conversation_id'],
+                'conversation_url' => $result['conversation_url'],
+            ],
+            'error_code' => $result['error_code'],
+        ], $result['success'] ? 200 : 503);
+    }
+
+    public function endVideoAvatar(string $conversationId, UrbanGoodzTavusService $tavus)
+    {
+        $ended = $tavus->endConversation($conversationId);
+
+        return response()->json(['success' => $ended]);
     }
 
     public function history(Request $request)

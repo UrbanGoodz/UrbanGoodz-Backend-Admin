@@ -32,7 +32,7 @@ class OpenAICompatibleProvider extends AbstractAIProvider
             && filter_var($this->baseUrl(), FILTER_VALIDATE_URL) !== false;
     }
 
-    public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
+    public function chatResult(string $systemPrompt, string $userMessage, array $context = [], array $history = []): array
     {
         if (! $this->isConfigured()) {
             return $this->failure(
@@ -50,6 +50,13 @@ class OpenAICompatibleProvider extends AbstractAIProvider
                     JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
                 ),
             ];
+        }
+        foreach ($history as $turn) {
+            $role = ($turn['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $content = trim((string) ($turn['content'] ?? ''));
+            if ($content !== '') {
+                $messages[] = ['role' => $role, 'content' => $content];
+            }
         }
         $messages[] = ['role' => 'user', 'content' => $userMessage];
 

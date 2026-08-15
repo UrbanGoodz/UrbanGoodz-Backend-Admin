@@ -51,3 +51,7 @@ Route::group([
 Route::get('urban-goodz/ai-chief-of-staff', [AiOperationsController::class, 'chiefOfStaff'])
     ->middleware('module:urban_goodz_ai_copilot_use')
     ->name('admin.urban-goodz.ai-chief-of-staff');
+
+Route::post('urban-goodz/ai-chief-of-staff/chat', [AiOperationsController::class, 'chiefOfStaffChat'])
+    ->middleware(['module:urban_goodz_ai_copilot_use', 'throttle:60,1'])
+    ->name('admin.urban-goodz.ai-chief-of-staff.chat');

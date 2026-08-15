@@ -48,9 +48,12 @@ class UrbanGoodzAIService
         return $this->chatResult($systemPrompt, $userMessage, $context)['response'];
     }
 
-    public function chatResult(string $systemPrompt, string $userMessage, array $context = []): array
+    /**
+     * @param  list<array{role: string, content: string}>  $history
+     */
+    public function chatResult(string $systemPrompt, string $userMessage, array $context = [], array $history = []): array
     {
-        return $this->provider->chatResult($systemPrompt, $userMessage, $context);
+        return $this->provider->chatResult($systemPrompt, $userMessage, $context, $history);
     }
 
     public function persona(string $key): Persona
@@ -127,6 +130,7 @@ Do not add any explanation. Return only valid JSON.";
         }
 
         $rules = [
+            'stranded' => ['stranded', 'broke down', 'broken down', 'flat tire', 'dead battery', 'jump start', "won't start", 'roadside', 'need a tow', 'car trouble', 'stuck on the'],
             'fashion-fit' => ['tailor', 'custom suit', 'alteration', 'measurement', 'fashion fit'],
             'load-board' => ['cargo van load', 'loads from', 'freight load', 'load board', 'haul'],
             'order-anywhere' => ['order a ', 'order pizza', 'order food', 'delivery to'],

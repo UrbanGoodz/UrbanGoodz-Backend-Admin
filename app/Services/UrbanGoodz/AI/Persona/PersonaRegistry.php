@@ -146,7 +146,7 @@ class PersonaRegistry
 
         return new Persona(
             key: self::CONCIERGE,
-            displayName: (string) ($presentation['display_name'] ?? 'Ebony'),
+            displayName: (string) ($presentation['display_name'] ?? 'Monique'),
             roleTitle: (string) ($presentation['role_title'] ?? 'Local Lifestyle Concierge'),
             audience: 'customers across the app, marketplace, restaurants, retail, fashion, services, and creator commerce',
             identity: <<<'IDENTITY'
