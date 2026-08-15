@@ -206,6 +206,48 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         $this->assertSame('stranded', $conversation->detectedIntent->slug);
     }
 
+    /**
+     * The "Get Help Now" hand-off button must not depend on the model's own
+     * free-form classification getting this right -- a real, reproducible
+     * gap found on-device: the AI answered with the correct calm/concerned
+     * tone but classified the intent as something else, so no hand-off
+     * button rendered. This proves the deterministic keyword override wins
+     * regardless of what the AI classifier returns.
+     */
+    public function test_stranded_keyword_overrides_a_wrong_ai_classification(): void
+    {
+        DB::table('users')->insert([
+            'id' => 1, 'f_name' => 'First', 'l_name' => 'Customer', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('urban_goodz_ai_intents')->insert([
+            'slug' => 'stranded',
+            'name' => 'Stranded / Roadside Help',
+            'keywords' => json_encode(['stranded']),
+            'response_template' => 'fallback template, not used on the AI path',
+            'is_active' => true,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $persona = (new \App\Services\UrbanGoodz\AI\Persona\PersonaRegistry())->get(\App\Services\UrbanGoodz\AI\Persona\PersonaRegistry::CONCIERGE);
+        $provider = Mockery::mock(UrbanGoodzAIService::class);
+        $provider->shouldReceive('isConfigured')->andReturnTrue();
+        $provider->shouldReceive('persona')->andReturn($persona);
+        // The AI misclassifies -- this is the real failure mode observed live.
+        $provider->shouldReceive('classifyIntent')->andReturn(['intent' => 'account_support', 'confidence' => 0.7, 'entities' => []]);
+        $provider->shouldReceive('chatResult')->andReturn([
+            'success' => true,
+            'response' => 'Are you safe? Let me connect you.',
+            'error_code' => null,
+        ]);
+
+        $conversation = (new UrbanGoodzAIConciergeService($provider))
+            ->processQuery("I'm stranded on the highway", 1, 'customer_api', 'sess-override');
+
+        $this->assertSame('stranded', $conversation->detectedIntent->slug);
+    }
+
     public function test_marketplace_intent_asks_for_real_grounding_never_an_absent_key(): void
     {
         DB::table('users')->insert([

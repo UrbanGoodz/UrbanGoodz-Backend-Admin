@@ -118,6 +118,15 @@ class UrbanGoodzAIConciergeService
         $intentSlug = $classification['intent'] ?? 'unknown';
         $confidence = $classification['confidence'] ?? 0;
 
+        // Safety-critical override: the AI's own free-form classification can
+        // miss or mis-rank this one, and the "Get Help Now" hand-off button
+        // must not depend on the model getting it right every time. A plain
+        // keyword match always wins here, regardless of what the AI returned.
+        if ($this->looksStranded($queryText)) {
+            $intentSlug = 'stranded';
+            $confidence = max($confidence, 0.9);
+        }
+
         $intent = UrbanGoodzAIIntent::where('slug', $intentSlug)->first();
         $entities = $classification['entities'] ?? [];
 
@@ -451,6 +460,22 @@ guessing at one.";
         )->implode("\n");
 
         return "Your latest payment records:\n{$lines}";
+    }
+
+    private function looksStranded(string $queryText): bool
+    {
+        $normalized = strtolower($queryText);
+        foreach ([
+            'stranded', 'broke down', 'broken down', "i'm stuck", 'im stuck', 'stuck on the',
+            'flat tire', 'dead battery', 'jump start', "won't start", 'wont start', 'roadside',
+            'need a tow', 'car trouble', 'stuck on the highway', 'stuck on the side of the road',
+        ] as $term) {
+            if (str_contains($normalized, $term)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isGroundedCustomerQuery(string $queryLower): bool
