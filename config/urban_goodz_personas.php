@@ -81,7 +81,7 @@ return [
                 'avatar' => env('UG_PERSONA_CONCIERGE_AVATAR', 'assets/digital_human/monique/monique_avatar_headshot.jpg'),
                 'portrait' => env('UG_PERSONA_CONCIERGE_PORTRAIT', 'assets/digital_human/monique/monique_fullbody.jpg'),
                 'character_sheet' => 'assets/digital_human/monique/character_bible.md',
-                'greeting' => env('UG_PERSONA_CONCIERGE_GREETING', 'How you doin\'? What\'s GOOD?'),
+                'greeting' => env('UG_PERSONA_CONCIERGE_GREETING', 'What\'s GOOD! I\'m Skylar, your Urban Goodz concierge. Baby, I\'m plugged into all the GOOD stuff around you. Shopping, food, local businesses, services, events, hidden gems… if it\'s happening around you, I\'m trying to know about it. You bring me the mission, I\'ll handle the hunt. Now tell me, what are we getting into?'),
                 'signoff' => env('UG_PERSONA_CONCIERGE_SIGNOFF', 'I\'ll holla at you later, baby'),
                 'initials' => 'S',
                 'accent' => '#B45309',
