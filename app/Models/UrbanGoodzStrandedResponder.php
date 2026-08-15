@@ -18,6 +18,8 @@ class UrbanGoodzStrandedResponder extends Model
     protected $fillable = [
         'user_id', 'responder_type', 'is_online',
         'last_latitude', 'last_longitude', 'last_seen_at', 'max_travel_miles',
+        'vehicle_make', 'vehicle_model', 'vehicle_color', 'vehicle_plate',
+        'capabilities', 'safety_ack_at',
         'rating', 'trust_score', 'completed_jobs', 'declined_jobs', 'missed_jobs',
         'active_request_id',
     ];
@@ -28,6 +30,8 @@ class UrbanGoodzStrandedResponder extends Model
         'last_longitude' => 'float',
         'last_seen_at' => 'datetime',
         'max_travel_miles' => 'integer',
+        'capabilities' => 'array',
+        'safety_ack_at' => 'datetime',
         'rating' => 'float',
         'trust_score' => 'integer',
         'completed_jobs' => 'integer',

@@ -12,7 +12,7 @@ class UrbanGoodzStrandedRequest extends Model
     protected $table = 'urban_goodz_stranded_requests';
 
     protected $fillable = [
-        'uuid', 'request_number', 'user_id', 'zone_id', 'service_id', 'service_slug', 'status',
+        'uuid', 'request_number', 'help_code', 'user_id', 'zone_id', 'service_id', 'service_slug', 'status',
         'latitude', 'longitude', 'address', 'location_notes',
         'destination_latitude', 'destination_longitude', 'destination_address',
         'vehicle_type', 'vehicle_make', 'vehicle_model', 'vehicle_year', 'vehicle_color', 'vehicle_plate',

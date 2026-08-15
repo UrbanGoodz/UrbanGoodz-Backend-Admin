@@ -445,9 +445,14 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     // Responder side. Presence is the heartbeat that makes "nearby" mean
     // anything; accepting shortlists, it does not win the job.
     Route::post('responder/presence', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@presence');
+    Route::post('responder/profile', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@updateProfile');
+    Route::post('responder/safety-acknowledge', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@acknowledgeSafety');
     Route::get('responder/offers', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@offers');
     Route::post('responder/offers/{offer}/accept', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@accept');
     Route::post('responder/offers/{offer}/decline', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@decline');
+    // The one rescue this responder is currently assigned to, with full
+    // identifying detail -- withheld entirely until they are selected.
+    Route::get('responder/assignment', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@activeAssignment');
 
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
     // Sends the request to nearby responders. Once a payment provider exists
@@ -469,6 +474,12 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     Route::post('requests/{record}/messages', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedMessageController@store');
 
     Route::post('requests/{record}/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@cancel');
+
+    // Safety reporting is available at any point in the request, not only
+    // after completion -- either side can flag a concern mid-assist.
+    Route::post('requests/{record}/report', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@report');
+    // Each side rates the other once, after the assist ends.
+    Route::post('requests/{record}/rate', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@rate');
 });
 
 // Vendor cash-out. Balance is read from store_wallets using the platform's
@@ -483,6 +494,22 @@ Route::group(['prefix' => 'urban-goodz/vendor', 'middleware' => ['vendor.api', '
 Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests/{record}/pay-fee', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@payFee');
     Route::get('requests/{record}/track', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedTrackingController@track');
+});
+
+// Community: groups are real delivery zones plus Nationwide/Worldwide, not a
+// stored table. Reading is public so people can browse before joining;
+// posting requires an account.
+Route::group(['prefix' => 'urban-goodz/community', 'middleware' => ['throttle:60,1']], function () {
+    Route::get('groups', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@groups');
+    Route::get('posts', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@posts');
+    Route::get('posts/{post}', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@showPost');
+    Route::get('marketplace', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@marketplaceItems');
+});
+
+Route::group(['prefix' => 'urban-goodz/community', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::post('posts', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@storePost');
+    Route::post('posts/{post}/comments', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@storeComment');
+    Route::post('marketplace', 'Api\V1\UrbanGoodz\UrbanGoodzCommunityController@storeMarketplaceItem');
 });
 
 // Creator Space (authenticated creator self-service)

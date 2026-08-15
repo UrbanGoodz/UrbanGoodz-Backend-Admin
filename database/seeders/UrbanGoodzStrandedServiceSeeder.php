@@ -31,6 +31,8 @@ class UrbanGoodzStrandedServiceSeeder extends Seeder
             ['flat-tire',             'Flat Tire',                     5900,  8900, true,  null,                30],
             ['fuel-delivery',         'Fuel Delivery',                 2900,  null, true,  'Plus fuel cost',    25],
             ['locked-out',            'Locked Out',                    5900,  9900, true,  'If qualified',      25],
+            ['stuck-vehicle',         'Stuck Vehicle',                 0,     null, true,  'Quoted on scene',   30],
+            ['need-ride-home',        'Need Help Getting Home',        0,     null, true,  'Quoted on scene',   30],
             ['wont-start',            "Vehicle Won't Start",           0,     null, false, 'Quoted on scene',   40],
             ['tow-truck',             'Tow Truck',                     0,     null, false, 'Market pricing',    60],
             ['winch-recovery',        'Winch / Recovery',              9500,  null, false, 'From $95',          45],

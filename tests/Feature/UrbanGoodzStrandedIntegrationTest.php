@@ -617,7 +617,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
     public function test_the_lifecycle_runs_from_en_route_through_to_confirmation(): void
     {
         $customer = $this->verified('lifecycle');
-        $request = $this->request($customer);
+        $request = $this->request($customer, self::SAMARITAN_SERVICE, ['help_code' => '9911']);
         $this->responder('samaritan', 2.0);
 
         $offer = $this->acceptedOffer($request);
@@ -627,8 +627,9 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             ->assertStatus(200);
 
         foreach (['en_route' => 'en_route', 'arrived' => 'on_scene', 'completed' => 'completed'] as $event => $expected) {
+            $payload = $event === 'arrived' ? ['event' => $event, 'help_code' => $request->fresh()->help_code] : ['event' => $event];
             $this->actingAs($customer, 'api')
-                ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/status", ['event' => $event])
+                ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/status", $payload)
                 ->assertStatus(200)
                 ->assertJsonPath('data.status', $expected);
         }

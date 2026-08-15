@@ -218,6 +218,127 @@ class UrbanGoodzStrandedResponderController extends Controller
         ]);
     }
 
+    /**
+     * The one rescue this responder is currently assigned to, with the full
+     * detail they need to actually find and help the person: exact location,
+     * name, photo, vehicle, and the problem. Withheld entirely until this
+     * responder is the one selected -- see UrbanGoodzStrandedController::
+     * offers(), where the pre-selection view stays limited to distance.
+     */
+    public function activeAssignment(Request $request): JsonResponse
+    {
+        $userId = (int) $request->user()->id;
+
+        $responder = UrbanGoodzStrandedResponder::where('user_id', $userId)
+            ->whereNotNull('active_request_id')
+            ->first();
+
+        if (!$responder) {
+            return response()->json(['status' => 'success', 'has_assignment' => false]);
+        }
+
+        $stranded = UrbanGoodzStrandedRequest::find($responder->active_request_id);
+
+        if (!$stranded || (int) $stranded->assigned_responder_id !== $userId || $stranded->isTerminal()) {
+            return response()->json(['status' => 'success', 'has_assignment' => false]);
+        }
+
+        $customer = \App\Models\User::find($stranded->user_id);
+        $customerVerification = \App\Models\UrbanGoodzStrandedVerification::where('user_id', $stranded->user_id)
+            ->where('role', \App\Models\UrbanGoodzStrandedVerification::ROLE_CUSTOMER)
+            ->first();
+
+        return response()->json([
+            'status' => 'success',
+            'has_assignment' => true,
+            'request_uuid' => $stranded->uuid,
+            'request_number' => $stranded->request_number,
+            'stage' => $stranded->status,
+            'customer' => [
+                'name' => $customer?->f_name ?: 'Community Member',
+                'photo_url' => $customer?->image_full_url,
+                'verified' => $customerVerification?->isUsable() ?? false,
+            ],
+            'location' => [
+                // Exact, on purpose -- this only reaches the responder once
+                // they are the one selected for this request.
+                'latitude' => (float) $stranded->latitude,
+                'longitude' => (float) $stranded->longitude,
+                'address' => $stranded->address,
+                'notes' => $stranded->location_notes,
+            ],
+            'vehicle' => trim(implode(' ', array_filter([
+                $stranded->vehicle_year, $stranded->vehicle_color, $stranded->vehicle_make, $stranded->vehicle_model,
+            ]))) ?: null,
+            'vehicle_plate' => $stranded->vehicle_plate,
+            'problem' => $stranded->notes,
+            'is_emergency' => (bool) $stranded->is_emergency,
+            'safety_status' => $stranded->safety_status,
+        ]);
+    }
+
+    /**
+     * Let a Samaritan describe their vehicle and what they're comfortable
+     * helping with. Both surface to the customer only after this responder
+     * has actually been selected -- see UrbanGoodzStrandedTrackingController.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'vehicle_make' => 'nullable|string|max:60',
+            'vehicle_model' => 'nullable|string|max:60',
+            'vehicle_color' => 'nullable|string|max:40',
+            'vehicle_plate' => 'nullable|string|max:20',
+            'capabilities' => 'nullable|array',
+            'capabilities.*' => 'in:battery,tire,fuel,lockout,vehicle,towing,general',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $userId = (int) $request->user()->id;
+
+        $responder = UrbanGoodzStrandedResponder::firstOrNew([
+            'user_id' => $userId,
+            'responder_type' => 'samaritan',
+        ]);
+
+        foreach (['vehicle_make', 'vehicle_model', 'vehicle_color', 'vehicle_plate'] as $field) {
+            if ($request->has($field)) {
+                $responder->{$field} = $request->input($field);
+            }
+        }
+        if ($request->has('capabilities')) {
+            $responder->capabilities = $request->input('capabilities');
+        }
+        $responder->save();
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /** Records that this user has read and accepted the Goodz Samaritan pledge. */
+    public function acknowledgeSafety(Request $request): JsonResponse
+    {
+        $userId = (int) $request->user()->id;
+
+        $responder = UrbanGoodzStrandedResponder::firstOrNew([
+            'user_id' => $userId,
+            'responder_type' => 'samaritan',
+        ]);
+        $responder->safety_ack_at = now();
+        $responder->save();
+
+        \App\Services\UrbanGoodzStrandedSafety::recordConsent(
+            $userId,
+            \App\Models\UrbanGoodzStrandedVerification::ROLE_SAMARITAN,
+            \App\Services\UrbanGoodzStrandedSafety::DOC_SAMARITAN_PLEDGE,
+            $request
+        );
+
+        return response()->json(['status' => 'success']);
+    }
+
     public function decline(Request $request, int $offer): JsonResponse
     {
         $userId = (int) $request->user()->id;
