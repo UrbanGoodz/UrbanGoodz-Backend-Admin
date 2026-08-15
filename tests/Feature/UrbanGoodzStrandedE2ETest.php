@@ -38,7 +38,39 @@ class UrbanGoodzStrandedE2ETest extends TestCase
                 'help_request_fee_enabled',
                 'currency',
                 'services',
+                'payment_provider',
+                'stripe_publishable_key',
+                'stripe_mode',
             ]);
+    }
+
+    public function test_catalogue_exposes_sandbox_publishable_key_not_the_secret_key(): void
+    {
+        config()->set('urban_goodz_payments.mode', 'sandbox');
+        config()->set('urban_goodz_payments.stripe.enabled', true);
+        config()->set('urban_goodz_payments.stripe.publishable_key', 'pk_test_fixture_not_real');
+        config()->set('urban_goodz_payments.stripe.secret_key', 'sk_test_fixture_not_real');
+
+        $response = $this->getJson('/api/v1/urban-goodz/stranded/services');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'payment_provider' => 'stripe',
+                'stripe_publishable_key' => 'pk_test_fixture_not_real',
+                'stripe_mode' => 'sandbox',
+            ]);
+        $response->assertJsonMissing(['stripe_secret_key' => 'sk_test_fixture_not_real']);
+        $this->assertStringNotContainsString('sk_test_fixture_not_real', $response->getContent());
+    }
+
+    public function test_catalogue_omits_publishable_key_when_stripe_disabled(): void
+    {
+        config()->set('urban_goodz_payments.stripe.enabled', false);
+
+        $response = $this->getJson('/api/v1/urban-goodz/stranded/services');
+
+        $response->assertStatus(200)
+            ->assertJson(['payment_provider' => null]);
     }
 
     public function test_admin_stranded_live_feed_endpoint(): void
