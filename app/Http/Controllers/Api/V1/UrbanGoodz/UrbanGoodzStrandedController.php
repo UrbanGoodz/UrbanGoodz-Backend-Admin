@@ -49,6 +49,17 @@ class UrbanGoodzStrandedController extends Controller
                 'typical_duration_minutes' => $s->typical_duration_minutes,
             ]);
 
+        // The publishable key is safe for a client by Stripe's own design --
+        // unlike the secret key it authorises nothing on its own, it only lets
+        // the SDK tokenise a card into a payment_method id this app never
+        // sees the number of. Which key (sandbox or live) mirrors the same
+        // mode switch StripePaymentGateway itself already uses.
+        $isLive = config('urban_goodz_payments.mode') === 'live_controlled';
+        $stripeConfig = config('urban_goodz_payments.stripe', []);
+        $publishableKey = $isLive
+            ? ($stripeConfig['live_publishable_key'] ?? '')
+            : ($stripeConfig['publishable_key'] ?? '');
+
         return response()->json([
             'status' => 'success',
             // Resolved from admin settings, never hard-coded. A fee of 0 means
@@ -60,6 +71,9 @@ class UrbanGoodzStrandedController extends Controller
             'currency' => 'USD',
             'total_size' => $services->count(),
             'services' => $services,
+            'payment_provider' => ($stripeConfig['enabled'] ?? false) ? 'stripe' : null,
+            'stripe_publishable_key' => $publishableKey !== '' ? $publishableKey : null,
+            'stripe_mode' => $isLive ? 'live' : 'sandbox',
         ]);
     }
 
