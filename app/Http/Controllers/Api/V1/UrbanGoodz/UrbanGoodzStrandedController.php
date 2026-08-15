@@ -26,9 +26,16 @@ class UrbanGoodzStrandedController extends Controller
     }
 
     /**
-     * Catalogue for the "I'm Stranded" flow. Unauthenticated on purpose: the
-     * Services card must show what help exists before we ask somebody on a
-     * shoulder to log in.
+     * Help types for the "Find a Goodz Samaritan" flow. Unauthenticated on
+     * purpose: the list must show what kinds of help exist before we ask
+     * somebody on a shoulder to log in.
+     *
+     * Deliberately does NOT include a price. Stranded is a community help
+     * network, not a priced roadside-services marketplace -- Urban Goodz does
+     * not sell "Jump Start - $25". Any amount involved is either the
+     * customer's own community reward offer (set per-request, not here) or a
+     * responder's own asking price on an offer they choose to make. Neither
+     * belongs on the catalogue of problem types.
      */
     public function services(Request $request): JsonResponse
     {
@@ -40,11 +47,6 @@ class UrbanGoodzStrandedController extends Controller
                 'name' => $s->name,
                 'description' => $s->description,
                 'icon' => $s->icon,
-                'price_min_minor' => $s->base_price_min_minor,
-                'price_max_minor' => $s->base_price_max_minor,
-                'currency' => $s->currency,
-                'pricing_note' => $s->pricing_note,
-                'is_quote_only' => $s->is_quote_only,
                 'samaritan_eligible' => $s->samaritan_eligible,
                 'typical_duration_minutes' => $s->typical_duration_minutes,
             ]);
@@ -155,6 +157,10 @@ class UrbanGoodzStrandedController extends Controller
         $stranded = UrbanGoodzStrandedRequest::create([
             'uuid' => (string) Str::uuid(),
             'request_number' => 'ST-' . now()->format('Ymd') . '-' . strtoupper(Str::random(4)),
+            // Never sent to the responder. The customer reads it aloud (or has
+            // it read back to them) to confirm the person who showed up is
+            // actually who accepted the request -- see updateStatus().
+            'help_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
             'user_id' => $request->user()?->id,
             'zone_id' => $this->resolveZoneId($request),
             'service_id' => $service->id,
@@ -471,6 +477,7 @@ class UrbanGoodzStrandedController extends Controller
             'event' => 'required|in:en_route,nearby,delayed,arrived,started,completed,confirmed',
             'minutes_away' => 'nullable|integer|min:0|max:600',
             'reason' => 'nullable|string|max:500',
+            'help_code' => 'required_if:event,arrived|nullable|string|max:8',
         ]);
 
         if ($validator->fails()) {
@@ -490,6 +497,18 @@ class UrbanGoodzStrandedController extends Controller
             ], 409);
         }
 
+        // The code is never sent to the responder -- only the customer sees
+        // it. Typing it back here is the customer's own confirmation that the
+        // person who showed up is who they spoke to, not a check on anything
+        // the responder claims to know.
+        if ($event === 'arrived' && $request->input('help_code') !== $stranded->help_code) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'help_code_mismatch',
+                'message' => "That code doesn't match. Make sure you're confirming with the right person before continuing.",
+            ], 422);
+        }
+
         match ($event) {
             'en_route' => $this->applyStatus($stranded, 'en_route', ['en_route_at' => now()]),
             'nearby' => null,
@@ -505,6 +524,21 @@ class UrbanGoodzStrandedController extends Controller
 
         if ($event === 'confirmed') {
             app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($stranded->fresh());
+        }
+
+        // `completed` and `confirmed` are alternative terminal events, not
+        // sequential steps -- isTerminal() blocks a second status call once
+        // either has landed, so exactly one of them fires per request. The
+        // trust count and freeing the responder must not depend on which one
+        // the client happened to send.
+        if (in_array($event, ['completed', 'confirmed'], true)) {
+            UrbanGoodzStrandedResponder::where('user_id', $offer->responder_id)
+                ->where('responder_type', $offer->responder_type)
+                ->update(['active_request_id' => null]);
+
+            UrbanGoodzStrandedResponder::where('user_id', $offer->responder_id)
+                ->where('responder_type', $offer->responder_type)
+                ->increment('completed_jobs');
         }
 
         $fresh = $stranded->fresh();
@@ -562,10 +596,141 @@ class UrbanGoodzStrandedController extends Controller
                 : $stranded->escrow_status,
         ]);
 
+        if ($assignedOffer) {
+            UrbanGoodzStrandedResponder::where('user_id', $assignedOffer->responder_id)
+                ->where('responder_type', $assignedOffer->responder_type)
+                ->update(['active_request_id' => null]);
+        }
+
         $fresh = $stranded->fresh();
         $this->notifier->cancelledByCustomer($fresh, $assignedOffer);
 
         return response()->json(['status' => 'success', 'data' => $this->present($fresh)]);
+    }
+
+    /**
+     * A safety concern from either side of the assist. Filing one is always
+     * recorded; whether to also cancel the request is a separate, explicit
+     * choice the caller makes on top of this.
+     */
+    public function report(Request $request, string $record): JsonResponse
+    {
+        [$stranded, $role, $error] = $this->resolveEitherSide($request, $record);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reason_code' => 'required|in:not_safe,not_who_claimed,location_incorrect,suspicious_behavior,harassment,threatening_behavior,fraud,other',
+            'details' => 'nullable|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $report = \App\Models\UrbanGoodzStrandedSafetyReport::create([
+            'request_id' => $stranded->getKey(),
+            'reporter_user_id' => $request->user()->id,
+            'reporter_role' => $role,
+            'reason_code' => $request->input('reason_code'),
+            'details' => $request->input('details'),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Thank you. This has been recorded and flagged for review.',
+            'report_id' => $report->id,
+        ], 201);
+    }
+
+    /**
+     * Either side rates the other once, after the assist. Comes off the same
+     * request the messaging thread uses, so it is only available to the
+     * customer or the assigned responder -- nobody else was there.
+     */
+    public function rate(Request $request, string $record): JsonResponse
+    {
+        [$stranded, $role, $error] = $this->resolveEitherSide($request, $record);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'stars' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $rateeUserId = $role === \App\Models\UrbanGoodzStrandedMessage::ROLE_CUSTOMER
+            ? $stranded->assigned_responder_id
+            : $stranded->user_id;
+
+        if (!$rateeUserId) {
+            return response()->json(['status' => 'error', 'message' => 'There is nobody to rate on this request.'], 409);
+        }
+
+        if (\App\Models\UrbanGoodzStrandedRating::where('request_id', $stranded->getKey())->where('rater_role', $role)->exists()) {
+            return response()->json(['status' => 'error', 'message' => 'You have already rated this assist.'], 409);
+        }
+
+        $rating = \App\Models\UrbanGoodzStrandedRating::create([
+            'request_id' => $stranded->getKey(),
+            'rater_user_id' => $request->user()->id,
+            'rater_role' => $role,
+            'ratee_user_id' => $rateeUserId,
+            'stars' => $request->input('stars'),
+            'comment' => $request->input('comment'),
+        ]);
+
+        // Only a Samaritan/responder's public rating is an aggregate today --
+        // there is no equivalent customer-facing score to update yet.
+        if ($role === \App\Models\UrbanGoodzStrandedMessage::ROLE_CUSTOMER && $stranded->assigned_responder_type) {
+            $responder = UrbanGoodzStrandedResponder::where('user_id', $rateeUserId)
+                ->where('responder_type', $stranded->assigned_responder_type)
+                ->first();
+
+            if ($responder) {
+                $agg = \App\Models\UrbanGoodzStrandedRating::where('ratee_user_id', $rateeUserId)
+                    ->avg('stars');
+                $responder->update(['rating' => round((float) $agg, 2)]);
+            }
+        }
+
+        return response()->json(['status' => 'success', 'rating_id' => $rating->id], 201);
+    }
+
+    /**
+     * Resolves the request and which side of it the caller is on. Mirrors
+     * UrbanGoodzStrandedMessageController::resolve() -- reports and ratings
+     * are only meaningful from someone who was actually part of the assist.
+     */
+    private function resolveEitherSide(Request $request, string $record): array
+    {
+        $userId = (int) ($request->user()?->id ?? 0);
+
+        $stranded = UrbanGoodzStrandedRequest::query()
+            ->where(fn ($q) => $q->where('uuid', $record)->orWhere('request_number', $record))
+            ->first();
+
+        $notFound = response()->json(['status' => 'error', 'message' => 'Request not found.'], 404);
+
+        if (!$stranded || $userId <= 0) {
+            return [null, null, $notFound];
+        }
+
+        if ((int) $stranded->user_id === $userId) {
+            return [$stranded, \App\Models\UrbanGoodzStrandedMessage::ROLE_CUSTOMER, null];
+        }
+
+        if ((int) $stranded->assigned_responder_id === $userId) {
+            return [$stranded, \App\Models\UrbanGoodzStrandedMessage::ROLE_RESPONDER, null];
+        }
+
+        return [null, null, $notFound];
     }
 
     private function findForUser(Request $request, string $record): ?UrbanGoodzStrandedRequest
@@ -587,6 +752,9 @@ class UrbanGoodzStrandedController extends Controller
         return [
             'uuid' => $r->uuid,
             'request_number' => $r->request_number,
+            // Owner-only: present() is never called for anyone but the
+            // request's own customer, so it is safe to include here.
+            'help_code' => $r->help_code,
             'status' => $r->status,
             'service_slug' => $r->service_slug,
             'latitude' => $r->latitude,

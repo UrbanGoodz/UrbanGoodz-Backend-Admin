@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;
+use App\Models\UrbanGoodzStrandedVerification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -62,6 +63,11 @@ class UrbanGoodzStrandedTrackingController extends Controller
             ->where('responder_type', $stranded->assigned_responder_type ?: 'samaritan')
             ->first();
 
+        $verification = UrbanGoodzStrandedVerification::where('user_id', $stranded->assigned_responder_id)
+            ->where('role', UrbanGoodzStrandedVerification::ROLE_SAMARITAN)
+            ->first();
+        $user = $stranded->assigned_responder_id ? \App\Models\User::find($stranded->assigned_responder_id) : null;
+
         $lat = $responder?->last_latitude;
         $lng = $responder?->last_longitude;
 
@@ -82,14 +88,23 @@ class UrbanGoodzStrandedTrackingController extends Controller
             'trackable' => true,
             'stage' => $stranded->status,
             'responder' => [
-                // First name only. The customer needs to recognise who is
-                // arriving, not to be handed an identity record.
+                // First name only, matching the driver's licence on file --
+                // enough to recognise who is arriving, not a full identity
+                // record. Vehicle and rating exist to help identify the
+                // right car and person; nothing here is contact information.
                 'name' => $this->firstName($stranded->assigned_responder_id),
+                'photo_url' => $user?->image_full_url,
                 'type' => $stranded->assigned_responder_type,
                 'rating' => $offer?->responder_rating,
                 'trust_score' => $offer?->responder_trust_score,
                 'completed_jobs' => $offer?->responder_completed_jobs,
-                'verified' => true,
+                'verified' => $verification?->isUsable() ?? false,
+                'vehicle' => $responder && ($responder->vehicle_make || $responder->vehicle_model) ? [
+                    'make' => $responder->vehicle_make,
+                    'model' => $responder->vehicle_model,
+                    'color' => $responder->vehicle_color,
+                    'plate' => $responder->vehicle_plate,
+                ] : null,
             ],
             'position' => $stale ? null : [
                 'latitude' => (float) $lat,
