@@ -135,7 +135,7 @@
                         <div class="ug-command-trigger" onclick="document.getElementById('ug-command-palette-modal').classList.remove('d-none'); document.getElementById('ug-command-search-input').focus();">
                             <span class="d-flex align-items-center gap-2">
                                 <i class="tio-search text-primary"></i>
-                                <span>{{ translate('Search or Ask Skylar...') }}</span>
+                                <span>{{ translate('Search or Ask Monique...') }}</span>
                             </span>
                             <span class="ug-shortcut-badge">Ctrl+K</span>
                         </div>

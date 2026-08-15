@@ -7,8 +7,15 @@
 |
 | One platform, specialized digital human personalities.
 |
-| Monique: Official AI Concierge (Customer-facing, Website, Stranded, Marketplace)
-| Skylar: Executive AI Assistant & Chief of Staff (Vendor App, Business Portal, Admin)
+| Skylar: Official AI Concierge (Customer-facing, Website, Stranded, Marketplace)
+| Monique: Executive AI Assistant & Chief of Staff (Vendor App, Business Portal, Admin)
+|
+| Display names only were swapped from the original build -- the underlying
+| persona keys (concierge / chief_of_staff), personalities, voice audio, and
+| character art all still map to the exact same role as before. "concierge"
+| is still the sassy customer-facing persona (now displayed as "Skylar");
+| "chief_of_staff" is still the executive business persona (now displayed
+| as "Monique"). Never assume the persona key matches the display name.
 |
 */
 
@@ -39,19 +46,19 @@ return [
     'personas' => [
         'chief_of_staff' => [
             'presentation' => [
-                'display_name' => env('UG_PERSONA_COS_NAME', 'Skylar'),
+                'display_name' => env('UG_PERSONA_COS_NAME', 'Monique'),
                 'role_title' => 'Executive AI Assistant & Strategic Operations Partner',
                 'tagline' => 'We have goals. We have a plan. Let\'s execute.',
                 'avatar' => env('UG_PERSONA_COS_AVATAR', 'assets/digital_human/skylar/skylar_avatar_headshot.jpg'),
                 'portrait' => env('UG_PERSONA_COS_PORTRAIT', 'assets/digital_human/skylar/skylar_fullbody.jpg'),
                 'character_sheet' => 'assets/digital_human/skylar/character_bible.md',
                 'greeting' => env('UG_PERSONA_COS_GREETING', 'Good to see you. Let\'s get focused.'),
-                'initials' => 'S',
+                'initials' => 'M',
                 'accent' => '#1D4ED8',
                 'accent_soft' => '#E8EDF4',
                 'digital_human' => [
                     'voice_id' => env('SKYLAR_ELEVENLABS_VOICE_ID', env('UG_PERSONA_COS_VOICE_ID', 'VUxdWMTconXKENnxAwCg')),
-                    'voice_name' => 'Skylar Voice Live',
+                    'voice_name' => 'Monique Voice Live',
                     'rive_asset' => 'assets/digital_human/skylar.riv',
                     'environment' => 'executive_operations_center',
                     'default_mood' => 'executive',
@@ -68,7 +75,7 @@ return [
 
         'concierge' => [
             'presentation' => [
-                'display_name' => env('UG_PERSONA_CONCIERGE_NAME', 'Monique'),
+                'display_name' => env('UG_PERSONA_CONCIERGE_NAME', 'Skylar'),
                 'role_title' => 'Urban Goodz AI Concierge — The Face of Urban Goodz',
                 'tagline' => 'Your Connection to Local Everything',
                 'avatar' => env('UG_PERSONA_CONCIERGE_AVATAR', 'assets/digital_human/monique/monique_avatar_headshot.jpg'),
@@ -76,7 +83,7 @@ return [
                 'character_sheet' => 'assets/digital_human/monique/character_bible.md',
                 'greeting' => env('UG_PERSONA_CONCIERGE_GREETING', 'How you doin\'? What\'s GOOD?'),
                 'signoff' => env('UG_PERSONA_CONCIERGE_SIGNOFF', 'I\'ll holla at you later, baby'),
-                'initials' => 'M',
+                'initials' => 'S',
                 'accent' => '#B45309',
                 'accent_soft' => '#FDF3E3',
                 'digital_human' => [

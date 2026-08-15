@@ -96,7 +96,7 @@ class PersonaRegistry
 
         return new Persona(
             key: self::CHIEF_OF_STAFF,
-            displayName: (string) ($presentation['display_name'] ?? 'Skylar'),
+            displayName: (string) ($presentation['display_name'] ?? 'Monique'),
             roleTitle: (string) ($presentation['role_title'] ?? 'Chief of Staff'),
             audience: 'operations leadership across the admin panel, business portal, executive dashboard, and dispatch management',
             identity: <<<'IDENTITY'
@@ -146,7 +146,7 @@ class PersonaRegistry
 
         return new Persona(
             key: self::CONCIERGE,
-            displayName: (string) ($presentation['display_name'] ?? 'Monique'),
+            displayName: (string) ($presentation['display_name'] ?? 'Skylar'),
             roleTitle: (string) ($presentation['role_title'] ?? 'Local Lifestyle Concierge'),
             audience: 'customers across the app, marketplace, restaurants, retail, fashion, services, and creator commerce',
             identity: <<<'IDENTITY'

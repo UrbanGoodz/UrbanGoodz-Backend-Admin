@@ -511,10 +511,11 @@ class AiOperationsController extends Controller
     }
 
     /**
-     * Skylar's real conversational chat -- distinct from testEndpoint() above,
-     * which runs the Monique concierge pipeline for generic admin debugging.
-     * This always speaks as chief_of_staff, grounded in live Command Center
-     * data, with real per-session memory.
+     * Monique's real conversational chat (chief_of_staff persona, display
+     * name swapped from "Skylar") -- distinct from testEndpoint() above,
+     * which runs the concierge pipeline (now displayed as "Skylar") for
+     * generic admin debugging. This always speaks as chief_of_staff,
+     * grounded in live Command Center data, with real per-session memory.
      */
     public function chiefOfStaffChat(Request $request, \App\Services\UrbanGoodz\UrbanGoodzAIChiefOfStaffChatService $chat)
     {
@@ -549,7 +550,7 @@ class AiOperationsController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'data' => ['response' => 'Skylar could not process that request. No action was taken.'],
+                'data' => ['response' => 'Monique could not process that request. No action was taken.'],
             ], 503);
         }
     }

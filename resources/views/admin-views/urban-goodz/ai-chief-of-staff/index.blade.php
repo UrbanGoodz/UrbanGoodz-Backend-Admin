@@ -40,14 +40,15 @@
         </div>
     </div>
 
-    {{-- Skylar's executive presence. The digital-human host is the single
-         header for this page; a second persona panel would duplicate it. --}}
+    {{-- Monique's executive presence (chief_of_staff persona, display name
+         swapped from "Skylar"). The digital-human host is the single header
+         for this page; a second persona panel would duplicate it. --}}
     <div class="mb-4">
         @include('admin-views.urban-goodz.ai-chief-of-staff.digital_human_widget')
 
         @if(($narration['reason'] ?? null) === 'provider_not_configured' && \Illuminate\Support\Facades\Route::has('admin.business-settings.openAI'))
             <div class="alert alert-soft-warning mt-2 mb-0">
-                {{ translate('No AI provider is configured, so Skylar cannot brief you.') }}
+                {{ translate('No AI provider is configured, so Monique cannot brief you.') }}
                 <a href="{{ route('admin.business-settings.openAI') }}">{{ translate('Configure the AI provider') }}</a>
             </div>
         @endif

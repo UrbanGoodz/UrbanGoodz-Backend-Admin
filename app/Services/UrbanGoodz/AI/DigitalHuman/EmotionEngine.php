@@ -33,7 +33,8 @@ class EmotionEngine
     }
 
     /**
-     * Monique (Customer Concierge) emotion mapping.
+     * Skylar (Customer Concierge, display name swapped from "Monique")
+     * emotion mapping.
      */
     private function evaluateMoniqueState(string $domain, ?string $eventType, ?string $intent): array
     {
@@ -97,7 +98,8 @@ class EmotionEngine
     }
 
     /**
-     * Skylar (Chief of Staff) emotion mapping.
+     * Monique (Chief of Staff, display name swapped from "Skylar")
+     * emotion mapping.
      */
     private function evaluateSkylarState(string $domain, ?string $eventType, ?string $intent): array
     {

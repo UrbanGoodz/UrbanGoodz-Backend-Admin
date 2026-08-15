@@ -4,9 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Without this row, Monique has no way to recognize a customer describing a
- * roadside emergency -- she falls back to a generic answer instead of handing
- * off into the real Stranded / Goodz Samaritan workflow.
+ * Without this row, Skylar (the customer concierge) has no way to recognize
+ * a customer describing a roadside emergency -- she falls back to a generic
+ * answer instead of handing off into the real Stranded / Goodz Samaritan
+ * workflow.
  */
 return new class extends Migration
 {

@@ -133,7 +133,7 @@
                 <div class="col-lg-5">
                     <div class="ug-feed h-100">
                         <div class="ug-feed-header">
-                            <h5 class="ug-feed-title"><i class="tio-bulb-outlined text-warning"></i> {{ translate('Skylar Suggestions') }}</h5>
+                            <h5 class="ug-feed-title"><i class="tio-bulb-outlined text-warning"></i> {{ translate('Monique Suggestions') }}</h5>
                         </div>
                         <div class="ug-feed-body" id="ug-vendor-suggestions-body">
                             @forelse($suggestions ?? [] as $s)

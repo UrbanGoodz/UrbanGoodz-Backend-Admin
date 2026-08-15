@@ -82,7 +82,8 @@ return [
         'api_key' => env('TAVUS_API_KEY'),
         'base_url' => env('TAVUS_BASE_URL', 'https://tavusapi.com/v2'),
         // A "face" (avatar likeness) and a "PAL" (persona/behavior config),
-        // both created once in the Tavus dashboard from Monique's photo.
+        // both created once in the Tavus dashboard from the concierge's photo
+        // (displayed as "Skylar"; env keys below keep their original names).
         'face_id' => env('TAVUS_MONIQUE_FACE_ID'),
         'pal_id' => env('TAVUS_MONIQUE_PAL_ID'),
     ],

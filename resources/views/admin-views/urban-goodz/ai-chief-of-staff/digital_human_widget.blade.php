@@ -1,4 +1,6 @@
-{{-- Urban Goodz Digital Human Executive Host Component for Skylar --}}
+{{-- Urban Goodz Digital Human Executive Host Component for Monique (chief_of_staff
+     persona -- display name swapped from "Skylar"; internal JS ids/function names
+     below still say "skylar" for wiring continuity, that's cosmetic only). --}}
 <div class="ug-digital-human-card" data-persona="chief_of_staff" style="background: linear-gradient(135deg, #1F3A5F 0%, #0F1E33 100%); border-radius: 16px; padding: 0; color: #fff; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(31,58,95,0.3);">
     <div class="ug-ambient-overlay" style="position: absolute; top: -50px; right: -50px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(140,158,255,0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; pointer-events: none;"></div>
 
@@ -8,7 +10,7 @@
             <div class="ug-avatar-host-container" style="position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 16px; border: 2px solid rgba(140,158,255,0.5); overflow: hidden; background: rgba(255,255,255,0.05);">
                 <img id="skylar-avatar-img"
                      src="{{ asset('assets/image/personas/skylar_face_neutral.png') }}"
-                     alt="{{ $persona['display_name'] ?? 'Skylar' }}"
+                     alt="{{ $persona['display_name'] ?? 'Monique' }}"
                      style="width: 100%; height: 100%; object-fit: cover; transition: opacity 180ms ease;">
                 <span class="badge badge-success ug-viseme-badge" style="position: absolute; bottom: 6px; right: 6px; font-size: 10px; border: 2px solid #0F1E33;">
                     <i class="tio-voice"></i> Live
@@ -22,7 +24,7 @@
                     <span class="badge badge-soft-light text-uppercase tracking-wider" style="font-size: 11px; letter-spacing: 1px; color: #8C9EFF; background: rgba(140,158,255,0.15);">
                         {{ $persona['role_title'] ?? 'Chief of Staff' }}
                     </span>
-                    <h3 class="text-white mb-1 font-weight-bold mt-1">{{ $persona['display_name'] ?? 'Skylar' }}</h3>
+                    <h3 class="text-white mb-1 font-weight-bold mt-1">{{ $persona['display_name'] ?? 'Monique' }}</h3>
                 </div>
             </div>
 
@@ -48,15 +50,15 @@
         </div>
     </div>
 
-    <!-- Real conversation with Skylar -->
+    <!-- Real conversation with Monique -->
     <div style="background: rgba(0,0,0,0.25); border-top: 1px solid rgba(255,255,255,0.08); padding: 16px 24px;">
         <div id="skylar-chat-log" style="max-height: 220px; overflow-y: auto; margin-bottom: 10px; display: none;"></div>
 
         <div class="d-flex align-items-center" style="gap: 8px;">
-            <input id="skylar-chat-input" type="text" placeholder="Ask Skylar about today's business..."
+            <input id="skylar-chat-input" type="text" placeholder="Ask Monique about today's business..."
                    style="flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff; padding: 10px 14px; font-size: 14px;"
                    onkeydown="if(event.key==='Enter'){askSkylar();}">
-            <button type="button" id="skylar-mic-btn" class="btn btn-sm" style="background: rgba(255,255,255,0.1); color: #fff; border-radius: 10px;" onclick="toggleSkylarListening()" title="Talk to Skylar">
+            <button type="button" id="skylar-mic-btn" class="btn btn-sm" style="background: rgba(255,255,255,0.1); color: #fff; border-radius: 10px;" onclick="toggleSkylarListening()" title="Talk to Monique">
                 <i class="tio-microphone"></i>
             </button>
             <button type="button" class="btn btn-sm btn-light font-weight-semibold" onclick="askSkylar()">
@@ -91,7 +93,7 @@
         bubble.style.fontSize = '13.5px';
         bubble.style.lineHeight = '1.4';
         bubble.style.color = role === 'user' ? '#8C9EFF' : '#fff';
-        bubble.innerHTML = '<strong>' + (role === 'user' ? 'You' : 'Skylar') + ':</strong> ' + text.replace(/</g, '&lt;');
+        bubble.innerHTML = '<strong>' + (role === 'user' ? 'You' : 'Monique') + ':</strong> ' + text.replace(/</g, '&lt;');
         chatLog.appendChild(bubble);
         chatLog.scrollTop = chatLog.scrollHeight;
     }
@@ -102,7 +104,7 @@
         input.value = '';
         appendMessage('user', query);
         setExpression('thinking');
-        statusEl.innerText = 'Skylar is thinking...';
+        statusEl.innerText = 'Monique is thinking...';
 
         fetch('{{ route("admin.urban-goodz.ai-chief-of-staff.chat") }}', {
             method: 'POST',
@@ -115,7 +117,7 @@
         })
             .then(function (res) { return res.json(); })
             .then(function (data) {
-                const text = (data.data && data.data.response) || 'Skylar could not process that request.';
+                const text = (data.data && data.data.response) || 'Monique could not process that request.';
                 appendMessage('assistant', text);
                 setExpression(data.data && data.data.flagged_as_urgent ? 'concerned' : 'speaking');
                 statusEl.innerText = '';

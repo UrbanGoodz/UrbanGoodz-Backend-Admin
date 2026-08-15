@@ -4,23 +4,23 @@
         <!-- Search Header Input -->
         <div class="ug-command-palette-input-wrap">
             <i class="tio-search text-primary" style="font-size: 20px;"></i>
-            <input type="text" id="ug-command-search-input" class="ug-command-palette-input" placeholder="{{ translate('Search orders, drivers, stores, dispatches, or ask Skylar...') }}" autocomplete="off" autofocus>
+            <input type="text" id="ug-command-search-input" class="ug-command-palette-input" placeholder="{{ translate('Search orders, drivers, stores, dispatches, or ask Monique...') }}" autocomplete="off" autofocus>
             <span class="ug-shortcut-badge">ESC</span>
         </div>
 
         <!-- Quick Suggestions & Navigation Results -->
         <div class="ug-command-palette-results" id="ug-command-results-list">
-            <!-- Skylar AI Copilot Actions -->
+            <!-- Monique AI Copilot Actions (chief_of_staff persona, display name swapped from "Skylar") -->
             <div class="px-2 py-1 text-muted text-uppercase font-weight-bold" style="font-size: 11px; letter-spacing: 0.8px;">
-                <i class="tio-flash mr-1 text-warning"></i> {{ translate('Skylar AI Quick Actions') }}
+                <i class="tio-flash mr-1 text-warning"></i> {{ translate('Monique AI Quick Actions') }}
             </div>
-            
+
             <a href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}" class="ug-command-item active">
                 <div class="d-flex align-items-center">
                     <i class="tio-user-big"></i>
                     <div>
                         <div class="font-weight-bold">{{ translate('Executive Operations Briefing') }}</div>
-                        <small class="text-muted">{{ translate('Ask Skylar for daily revenue, dispatch risk alerts & pending tasks') }}</small>
+                        <small class="text-muted">{{ translate('Ask Monique for daily revenue, dispatch risk alerts & pending tasks') }}</small>
                     </div>
                 </div>
                 <span class="badge badge-soft-warning">P0 Priority</span>

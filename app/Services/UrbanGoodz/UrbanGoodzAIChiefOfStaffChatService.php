@@ -8,14 +8,16 @@ use App\Services\UrbanGoodz\AI\Persona\PersonaRegistry;
 use Illuminate\Auth\AuthenticationException;
 
 /**
- * Skylar's real conversational chat -- the business-portal counterpart to
+ * Monique's real conversational chat (chief_of_staff persona, display name
+ * swapped from "Skylar") -- the business-portal counterpart to
  * UrbanGoodzAIConciergeService. Every message is grounded in the same live
  * counts the Command Center dashboard already shows (AiChiefOfStaffService),
  * remembers prior turns within a session, and recognizes when an owner is
  * describing a genuine operational emergency.
  *
  * Conversations are stored in the same urban_goodz_ai_conversations table as
- * Monique's, but always with source = self::SOURCE and the admin's id in
+ * the customer concierge's (now displayed as "Skylar"), but always with
+ * source = self::SOURCE and the admin's id in
  * customer_id -- every history/prune query below filters on both together so
  * an admin id can never collide with a customer id of the same number.
  */
@@ -165,7 +167,7 @@ class UrbanGoodzAIChiefOfStaffChatService
     }
 
     /**
-     * Skylar carries identity, voice, and the platform rule block from the
+     * Skylar (chief_of_staff persona) carries identity, voice, and the platform rule block from the
      * persona system; only the task and the live grounding facts are built
      * here, mirroring UrbanGoodzAIConciergeService::buildSystemPrompt().
      */

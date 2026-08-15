@@ -42,7 +42,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-3">
                     <div style="width: 54px; height: 54px; border-radius: 50%; border: 2px solid #8C9EFF; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        <img src="{{ asset('assets/image/personas/skylar_avatar.png') }}" alt="Skylar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='{{ asset('public/assets/admin/img/160x160/img1.jpg') }}'">
+                        <img src="{{ asset('assets/image/personas/skylar_avatar.png') }}" alt="Monique" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='{{ asset('public/assets/admin/img/160x160/img1.jpg') }}'">
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-2">
@@ -55,7 +55,7 @@
 
                 <div class="d-flex align-items-center gap-2">
                     <a href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}" class="btn btn-sm btn-light font-weight-semibold">
-                        <i class="tio-user-big mr-1"></i> {{ translate('Ask Skylar') }}
+                        <i class="tio-user-big mr-1"></i> {{ translate('Ask Monique') }}
                     </a>
                     <div class="ug-command-trigger bg-white text-dark border-0" onclick="document.getElementById('ug-command-palette-modal').classList.remove('d-none'); document.getElementById('ug-command-search-input').focus();">
                         <i class="tio-search text-primary mr-1"></i>
@@ -150,8 +150,8 @@
                 <div class="col-lg-5">
                     <div class="ug-feed h-100">
                         <div class="ug-feed-header">
-                            <h5 class="ug-feed-title"><i class="tio-bulb-outlined text-warning"></i> {{ translate('Skylar Insights') }}</h5>
-                            <a class="ug-feed-status text-primary font-weight-bold" href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}">{{ translate('Ask Skylar') }}</a>
+                            <h5 class="ug-feed-title"><i class="tio-bulb-outlined text-warning"></i> {{ translate('Monique Insights') }}</h5>
+                            <a class="ug-feed-status text-primary font-weight-bold" href="{{ route('admin.urban-goodz.ai-chief-of-staff') }}">{{ translate('Ask Monique') }}</a>
                         </div>
                         <div class="ug-feed-body" id="ug-insight-body">
                             @forelse($insights as $i)
