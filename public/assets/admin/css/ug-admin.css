@@ -28,6 +28,27 @@
   background: var(--ug-white) !important;
   border-bottom: 1px solid rgba(0,0,0,.06) !important;
 }
+/* Base theme sets this to a hardcoded #005555 teal (style.css:9478) with no
+   !important, so it silently wins over .navbar-vertical-content above --
+   the sidebar search bar was the one strip of leftover 6amMart teal left
+   on an otherwise fully rebranded sidebar. */
+.sidebar--search-form {
+  background: var(--ug-white) !important;
+}
+/* Sidebar's own profile/account row (bottom-sticky). Base theme hardcodes
+   #83c4c9 (style.css:8311). */
+.__sidebar-hs-unfold .js-hs-unfold-invoker {
+  background: var(--ug-canvas) !important;
+  box-shadow: none !important;
+}
+.__sidebar-hs-unfold .js-hs-unfold-invoker span {
+  color: var(--ug-black) !important;
+}
+/* "Modules" dropdown panel header banner. Base theme hardcodes
+   rgba(0,97,97,.8) (style.css:7621). */
+.__nav-module-header .inner {
+  background: var(--ug-orange) !important;
+}
 .navbar-vertical .nav-link {
   color: var(--ug-black) !important;
 }
