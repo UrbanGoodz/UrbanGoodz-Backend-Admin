@@ -69,7 +69,7 @@ class UrbanGoodzAIConciergeController extends Controller
 
     /**
      * Lets the client know, cheaply, whether it's worth showing the "Video
-     * call Monique" entry point at all -- never claims the feature is live
+     * call Skylar" entry point at all -- never claims the feature is live
      * when it isn't configured.
      */
     public function videoAvatarStatus(UrbanGoodzTavusService $tavus)
@@ -85,7 +85,7 @@ class UrbanGoodzAIConciergeController extends Controller
         $user = $request->user();
         $name = $user?->f_name ? "{$user->f_name} {$user->l_name}" : "Customer {$user?->id}";
 
-        $result = $tavus->startConversation("Monique with {$name}");
+        $result = $tavus->startConversation("Skylar with {$name}");
 
         return response()->json([
             'success' => $result['success'],
