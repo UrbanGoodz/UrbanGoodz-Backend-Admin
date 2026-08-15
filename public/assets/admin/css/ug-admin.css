@@ -112,25 +112,26 @@
    Stat tiles, "Top Restaurants", "Top Selling" and similar cards are plain
    <a> elements with no color override anywhere, so they inherit the base
    theme's default link/heading teal (#00868f / #006161) throughout the
-   dashboard. Scoped to .content so this never touches unrelated chrome. */
-.content a.order--card,
-.content .order--card .card-subtitle,
-.content .ug-kpi,
-.content .__top-resturant a,
-.content .__top-resturant a .info,
-.content .grid--card,
-.content .grid--card * {
+   dashboard. Not every instance lives under .content -- some dashboard
+   sub-panels use #content (id) instead -- so this is unscoped. */
+a.order--card,
+.order--card .card-subtitle,
+.ug-kpi,
+.__top-resturant a,
+.__top-resturant a .info,
+.grid--card,
+.grid--card * {
   color: var(--ug-black) !important;
 }
-.content a.order--card:hover,
-.content .ug-kpi:hover,
-.content .__top-resturant a:hover,
-.content .__top-resturant a:hover .info {
+a.order--card:hover,
+.ug-kpi:hover,
+.__top-resturant a:hover,
+.__top-resturant a:hover .info {
   color: var(--ug-orange) !important;
 }
 /* "Top Restaurants" card name banner -- base theme hardcodes rgba(0,97,97,.8). */
-.content .__top-resturant a .info.h5,
-.content .__top-resturant H5.info {
+.__top-resturant a .info.h5,
+.__top-resturant H5.info {
   background: rgba(22,22,22,.55) !important;
 }
 
