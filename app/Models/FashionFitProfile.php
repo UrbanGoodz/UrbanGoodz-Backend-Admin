@@ -22,4 +22,5 @@ class FashionFitProfile extends Model
     public function photos() { return $this->hasMany(FashionFitPhoto::class, 'profile_id'); }
     public function analyses() { return $this->hasMany(FashionFitAnalysis::class, 'profile_id'); }
     public function consents() { return $this->hasMany(FashionFitConsent::class, 'profile_id'); }
+    public function latestAnalysis() { return $this->hasOne(FashionFitAnalysis::class, 'profile_id')->latest(); }
 }

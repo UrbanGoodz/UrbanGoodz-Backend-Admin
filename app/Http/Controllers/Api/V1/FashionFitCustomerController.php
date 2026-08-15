@@ -9,6 +9,7 @@ use App\Models\FashionFitAnalysis;
 use App\Models\FashionFitConsent;
 use App\Models\FashionFitEstimate;
 use App\Models\FashionFitMeasurement;
+use App\Models\FashionFitMeasurementVersion;
 use App\Models\FashionFitPhoto;
 use App\Models\FashionFitProfile;
 use App\Models\FashionFitProviderProfile;
@@ -17,6 +18,7 @@ use App\Models\UrbanGoodzPaymentTransaction;
 use App\Models\UserNotification;
 use App\Models\Vendor;
 use App\Services\FashionFit\FashionFitAnalysisService;
+use App\Services\FashionFit\PhotoQualityAnalyzer;
 use App\Services\UrbanGoodz\UrbanGoodzFileStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -148,7 +150,7 @@ class FashionFitCustomerController extends Controller
         return response()->json(['data' => $consent]);
     }
 
-    public function uploadPhoto(Request $request, string $uuid, UrbanGoodzFileStorageService $storage, FashionFitAnalysisService $service)
+    public function uploadPhoto(Request $request, string $uuid, UrbanGoodzFileStorageService $storage, FashionFitAnalysisService $service, PhotoQualityAnalyzer $analyzer)
     {
         $profile = $this->ownedProfile($request, $uuid);
         abort_unless($this->activeConsent($profile)?->ai_processing_allowed, 403, 'Fashion Fit AI consent is required.');
@@ -160,6 +162,8 @@ class FashionFitCustomerController extends Controller
         $dimensions = @getimagesize($request->file('photo')->getRealPath());
         abort_unless($dimensions, 422, 'Image dimensions could not be validated.');
         $quality = ['width' => $dimensions[0], 'height' => $dimensions[1]];
+        $qualityAnalysis = $analyzer->analyze($request->file('photo')->get());
+        $quality = array_merge($quality, $qualityAnalysis);
         // Compare orientation-independently. Phone cameras commonly write the
         // file in sensor (landscape) orientation with an EXIF rotation flag, so
         // a portrait capture arrives as 1920x1080 and a naive width/height
@@ -228,8 +232,17 @@ class FashionFitCustomerController extends Controller
         if ($missing !== []) {
             return response()->json(['error' => 'required_views_missing', 'missing_views' => $missing], 422);
         }
+        $signature = $service->sourceSignature($profile);
+        $existing = $service->findTerminalForSignature($profile, $signature['hash']);
+        if ($existing) {
+            if ($profile->status !== 'approved') {
+                $profile->update(['status' => $existing->status === 'completed' ? 'customer_review' : 'needs_retake']);
+            }
+            return response()->json(['data' => $existing->fresh(['measurements'])], 200);
+        }
         $analysis = FashionFitAnalysis::create([
-            'uuid' => Str::uuid(), 'profile_id' => $profile->id, 'customer_id' => $profile->customer_id, 'status' => 'uploaded',
+            'uuid' => Str::uuid(), 'profile_id' => $profile->id, 'customer_id' => $profile->customer_id,
+            'status' => 'uploaded', 'source_hash' => $signature['hash'], 'source_files' => $signature['files'],
         ]);
         $profile->update(['status' => 'analysis_pending']);
         $service->audit('customer', $profile->customer_id, 'analysis_submitted', FashionFitAnalysis::class, $analysis->id);
@@ -256,10 +269,24 @@ class FashionFitCustomerController extends Controller
         abort_unless(in_array($profile->status, ['customer_review', 'approved'], true), 409, 'Profile is not available for correction.');
         $measurement = FashionFitMeasurement::where('profile_id', $profile->id)->findOrFail($measurementId);
         $data = $request->validate(['value' => ['required', 'numeric', 'gt:0'], 'unit' => ['required', Rule::in(['in', 'cm'])]]);
+        $analysisId = $measurement->analysis_id;
         $measurement->update([
             'original_value' => $measurement->original_value ?? $measurement->value,
             'value' => $data['value'], 'unit' => $data['unit'], 'source' => 'manual_correction',
-            'requires_confirmation' => false, 'corrected_at' => now(), 'approved_at' => null,
+            'requires_confirmation' => false, 'status' => 'measured', 'corrected_at' => now(), 'approved_at' => null,
+        ]);
+        FashionFitMeasurementVersion::create([
+            'measurement_id' => $measurement->id,
+            'analysis_id' => $analysisId,
+            'value' => $data['value'],
+            'unit' => $data['unit'],
+            'source' => 'manual_correction',
+            'provenance' => $measurement->provenance ?? 'unknown',
+            'confidence' => $measurement->confidence,
+            'actor_type' => 'customer',
+            'actor_id' => $profile->customer_id,
+            'corrected' => true,
+            'approved' => false,
         ]);
         $profile->update(['status' => 'customer_review', 'approved_at' => null]);
         $service->audit('customer', $profile->customer_id, 'measurement_corrected', FashionFitMeasurement::class, $measurement->id, ['name' => $measurement->name]);
@@ -271,10 +298,27 @@ class FashionFitCustomerController extends Controller
         $profile = $this->ownedProfile($request, $uuid);
         abort_unless($profile->status === 'customer_review' && $profile->measurements()->exists(), 409, 'Completed AI measurements are required.');
         abort_if($profile->measurements()->where('requires_confirmation', true)->exists(), 422, 'Measurements requiring confirmation must be corrected or confirmed.');
+        abort_if($profile->measurements()->where('status', 'needs_better_photo')->exists(), 422, 'Measurements that need a better photo must be retaken or corrected.');
+        abort_if($profile->latestAnalysis?->unavailable_measurements, 422, 'Measurements that could not be calculated must be retaken or corrected.');
         $profile->measurements()->update(['approved_at' => now()]);
+        foreach ($profile->measurements()->with('versions')->get() as $measurement) {
+            $measurement->versions->sortByDesc('id')->first()?->update(['approved' => true]);
+        }
         $profile->update(['status' => 'approved', 'approved_at' => now()]);
         $service->audit('customer', $profile->customer_id, 'profile_approved', FashionFitProfile::class, $profile->id);
         return response()->json(['data' => $profile->fresh('measurements')]);
+    }
+
+    public function history(Request $request, string $uuid)
+    {
+        $profile = $this->ownedProfile($request, $uuid);
+        $versions = FashionFitMeasurementVersion::whereIn('measurement_id', $profile->measurements()->pluck('id'))
+            ->with('measurement:id,name,profile_id')
+            ->latest('id')
+            ->limit(200)
+            ->get();
+
+        return response()->json(['data' => $versions]);
     }
 
     public function requests(Request $request)

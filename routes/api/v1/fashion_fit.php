@@ -14,18 +14,19 @@ Route::prefix('fashion-fit')->middleware(['auth:api', 'throttle:api'])->group(fu
     Route::put('profiles/{uuid}', 'Api\V1\FashionFitCustomerController@update');
     Route::delete('profiles/{uuid}', 'Api\V1\FashionFitCustomerController@destroy');
     Route::post('profiles/{uuid}/consent', 'Api\V1\FashionFitCustomerController@updateConsent');
-    Route::post('profiles/{uuid}/photos', 'Api\V1\FashionFitCustomerController@uploadPhoto')->middleware('throttle:10,1');
-    Route::get('profiles/{profileUuid}/photos/{photoUuid}', 'Api\V1\FashionFitCustomerController@downloadPhoto')->middleware('throttle:30,1');
+    Route::post('profiles/{uuid}/photos', 'Api\V1\FashionFitCustomerController@uploadPhoto')->middleware('throttle:10,1,ff-photo-upload');
+    Route::get('profiles/{profileUuid}/photos/{photoUuid}', 'Api\V1\FashionFitCustomerController@downloadPhoto')->middleware('throttle:30,1,ff-photo-download');
     Route::delete('profiles/{profileUuid}/photos/{photoUuid}', 'Api\V1\FashionFitCustomerController@deletePhoto');
-    Route::post('profiles/{uuid}/analyses', 'Api\V1\FashionFitCustomerController@submitAnalysis')->middleware('throttle:3,1');
+    Route::post('profiles/{uuid}/analyses', 'Api\V1\FashionFitCustomerController@submitAnalysis')->middleware('throttle:3,1,ff-analysis-submit');
     Route::get('profiles/{profileUuid}/analyses/{analysisUuid}', 'Api\V1\FashionFitCustomerController@analysis');
+    Route::get('profiles/{uuid}/history', 'Api\V1\FashionFitCustomerController@history');
     Route::put('profiles/{profileUuid}/measurements/{measurementId}', 'Api\V1\FashionFitCustomerController@correctMeasurement');
     Route::post('profiles/{uuid}/approve', 'Api\V1\FashionFitCustomerController@approve');
     Route::get('requests', 'Api\V1\FashionFitCustomerController@requests');
     Route::post('requests', 'Api\V1\FashionFitCustomerController@createRequest');
     Route::get('requests/{uuid}', 'Api\V1\FashionFitCustomerController@requestDetails');
     Route::post('requests/{requestUuid}/estimates/{estimateId}/decision', 'Api\V1\FashionFitCustomerController@decideEstimate');
-    Route::post('requests/{uuid}/staged-payment', 'Api\V1\FashionFitCustomerController@stagedPayment')->middleware('throttle:3,1');
+    Route::post('requests/{uuid}/staged-payment', 'Api\V1\FashionFitCustomerController@stagedPayment')->middleware('throttle:3,1,ff-staged-payment');
     Route::post('requests/{uuid}/revoke', 'Api\V1\FashionFitCustomerController@revoke');
 
     // Fashion Fit AI
