@@ -140,7 +140,21 @@ class CrossAppAIController extends Controller
     }
 
     /**
-     * Customer Order Anywhere - submit natural language request
+     * Customer Order Anywhere - parse a natural-language request into
+     * structured fields via Skylar (OrderAnywhereNLPService) for the client
+     * to prefill the request form with. Deliberately never creates the
+     * OrderAnywhereRequest record itself: submission stays a single path
+     * through Api\V1\OrderAnywhereController@store, which the customer
+     * reaches after reviewing (and, if needed, correcting) the AI-filled
+     * form - so the record that ends up dispatched to admin is always what
+     * the customer actually confirmed, not a live, unreviewed AI guess.
+     *
+     * This previously auto-created the record here too, but with field
+     * names (store_name, delivery_address) that don't exist in
+     * OrderAnywhereRequest::$fillable and a status ('requested') outside
+     * STATUSES/VALID_TRANSITIONS - every field but customer_id/request_number
+     * was silently dropped by mass-assignment protection, and any record
+     * that path did create would already be stuck with no valid transitions.
      */
     public function orderAnywhere(Request $request): JsonResponse
     {
@@ -155,34 +169,13 @@ class CrossAppAIController extends Controller
             'customer_id' => $customerId,
         ]));
 
-        if (!empty($parsed['missing'])) {
-            return response()->json([
-                'success' => true,
-                'store_found' => false,
-                'parsed' => $parsed['parsed'],
-                'missing' => $parsed['missing'],
-                'follow_up_prompts' => $parsed['follow_up_prompts'],
-                'suggestions' => $parsed['suggestions'] ?? [],
-            ]);
-        }
-
-        // Create order request
-        $requestModel = \App\Models\OrderAnywhereRequest::create([
-            'customer_id' => $customerId,
-            'request_number' => 'OAW-' . strtoupper(uniqid()),
-            'store_name' => $parsed['parsed']['store_vendor_name'] ?? null,
-            'item_details' => $parsed['parsed']['item_details'] ?? null,
-            'delivery_address' => $parsed['parsed']['delivery_address'] ?? null,
-            'budget_estimate' => $parsed['parsed']['budget_estimate'] ?? null,
-            'status' => 'requested',
-        ]);
-
         return response()->json([
             'success' => true,
-            'request_id' => $requestModel->id,
-            'request_number' => $requestModel->request_number,
-            'status' => $requestModel->status,
-        ], 201);
+            'parsed' => $parsed['parsed'],
+            'missing' => $parsed['missing'],
+            'follow_up_prompts' => $parsed['follow_up_prompts'],
+            'confidence' => $parsed['confidence'] ?? 0.0,
+        ]);
     }
 
     /**
