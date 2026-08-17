@@ -43,10 +43,9 @@
             @endif
 
             <div class="d-flex align-items-center mt-3 gap-2">
-                <button type="button" id="skylar-speak-btn" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech()">
+                <button type="button" id="skylar-speak-btn" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech(this)">
                     <i class="tio-volume-up mr-1"></i> Hear Executive Brief
                 </button>
-                <small id="skylar-speak-status" class="text-white-50"></small>
             </div>
         </div>
     </div>
@@ -179,70 +178,45 @@
     };
 })();
 
-var __skylarBriefAudio = null;
-
-function triggerSkylarSpeech() {
-    const btn = document.getElementById('skylar-speak-btn');
-    const statusEl = document.getElementById('skylar-speak-status');
+function triggerSkylarSpeech(btn) {
+    const statusEl = document.getElementById('skylar-chat-status');
     const text = (document.getElementById('skylar-narrative-text').innerText || '').trim();
+    if (!text) return;
 
-    console.log('[Monique TTS] brief generated:', text.length > 0, '(' + text.length + ' chars)');
-
-    if (!text) {
-        statusEl.innerText = 'No brief text to speak yet.';
-        return;
-    }
-
-    // Reuse an already-fetched clip instead of re-billing ElevenLabs on every click.
-    if (__skylarBriefAudio) {
-        console.log('[Monique TTS] audio already loaded, replaying');
-        __skylarBriefAudio.currentTime = 0;
-        __skylarBriefAudio.play().catch(function (err) {
-            console.error('[Monique TTS] audio replay failed:', err);
-        });
-        return;
-    }
-
-    btn.disabled = true;
-    statusEl.innerText = 'Generating voice...';
-    console.log('[Monique TTS] TTS requested');
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.innerText = 'Generating audio...';
 
     fetch('{{ route("admin.urban-goodz.ai-chief-of-staff.speak") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'audio/mpeg, application/json',
+            'Accept': 'audio/mpeg, application/json'
         },
-        body: JSON.stringify({ text: text }),
+        body: JSON.stringify({ text: text })
     })
-        .then(function (res) {
-            if (!res.ok) {
-                return res.json().catch(function () { return {}; }).then(function (body) {
-                    throw new Error(body.message || ('Voice request failed (' + res.status + ')'));
-                });
-            }
-            console.log('[Monique TTS] TTS completed');
-            return res.blob();
-        })
-        .then(function (blob) {
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            __skylarBriefAudio = audio;
-            console.log('[Monique TTS] audio loaded');
-
-            audio.addEventListener('play', function () { console.log('[Monique TTS] audio started'); });
-            audio.addEventListener('ended', function () { console.log('[Monique TTS] audio completed'); });
-            audio.addEventListener('error', function (e) { console.error('[Monique TTS] audio playback error:', e); });
-
-            btn.disabled = false;
-            statusEl.innerText = '';
-            return audio.play();
-        })
-        .catch(function (err) {
-            console.error('[Monique TTS] audio failed:', err);
-            btn.disabled = false;
-            statusEl.innerText = err.message || "Couldn't generate voice right now.";
-        });
+    .then(res => {
+        const contentType = res.headers.get('Content-Type') || '';
+        if (!res.ok || contentType.indexOf('audio') === -1) {
+            return res.json().then(data => {
+                throw new Error((data && data.message) || 'Voice could not be generated right now.');
+            });
+        }
+        return res.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+        if (statusEl) statusEl.innerText = '';
+        return audio.play();
+    })
+    .catch(err => {
+        console.error('Digital Human speak error:', err);
+        if (statusEl) statusEl.innerText = err.message || "Couldn't play the brief right now.";
+    })
+    .finally(() => {
+        if (btn) btn.disabled = false;
+    });
 }
 </script>
