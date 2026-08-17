@@ -555,6 +555,37 @@ class AiOperationsController extends Controller
         }
     }
 
+    /**
+     * Synthesize Monique's audible brief/reply via the same server-side
+     * ElevenLabs gateway the mobile digital-human clients use
+     * (ElevenLabsVoiceService) -- admin sessions authenticate via the
+     * `admin` guard, not `auth:api`, so this mirrors
+     * Api\V1\UrbanGoodz\DigitalHumanController@speak under the admin guard
+     * instead of trying to reuse that route directly.
+     */
+    public function chiefOfStaffSpeak(Request $request, \App\Services\UrbanGoodz\AI\DigitalHuman\ElevenLabsVoiceService $voice)
+    {
+        if (! Helpers::module_permission_check('urban_goodz_control_center')) {
+            abort(403, translate('messages.access_denied'));
+        }
+
+        $validated = $request->validate([
+            'text' => 'required|string|max:2000',
+        ]);
+
+        $result = $voice->synthesize(personaKey: 'chief_of_staff', text: $validated['text']);
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'error_code' => $result['error_code'],
+                'message' => $result['message'],
+            ], $result['error_code'] === 'not_configured' ? 503 : 502);
+        }
+
+        return response($result['audio'], 200)->header('Content-Type', $result['mime']);
+    }
+
     private function maskUrl(string $url): string
     {
         if (empty($url)) {

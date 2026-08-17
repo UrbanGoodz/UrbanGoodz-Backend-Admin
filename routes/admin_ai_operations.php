@@ -55,3 +55,9 @@ Route::get('urban-goodz/ai-chief-of-staff', [AiOperationsController::class, 'chi
 Route::post('urban-goodz/ai-chief-of-staff/chat', [AiOperationsController::class, 'chiefOfStaffChat'])
     ->middleware(['module:urban_goodz_ai_copilot_use', 'throttle:60,1,admin-ai-chief-of-staff-chat'])
     ->name('admin.urban-goodz.ai-chief-of-staff.chat');
+
+// Separately (and more tightly) throttled from chat, since this hits the
+// paid ElevenLabs API per call.
+Route::post('urban-goodz/ai-chief-of-staff/speak', [AiOperationsController::class, 'chiefOfStaffSpeak'])
+    ->middleware(['module:urban_goodz_ai_copilot_use', 'throttle:20,1,admin-ai-chief-of-staff-speak'])
+    ->name('admin.urban-goodz.ai-chief-of-staff.speak');

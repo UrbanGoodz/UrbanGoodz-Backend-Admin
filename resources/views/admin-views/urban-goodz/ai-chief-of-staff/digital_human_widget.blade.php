@@ -43,9 +43,10 @@
             @endif
 
             <div class="d-flex align-items-center mt-3 gap-2">
-                <button type="button" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech()">
+                <button type="button" id="skylar-speak-btn" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech()">
                     <i class="tio-volume-up mr-1"></i> Hear Executive Brief
                 </button>
+                <small id="skylar-speak-status" class="text-white-50"></small>
             </div>
         </div>
     </div>
@@ -178,26 +179,70 @@
     };
 })();
 
+var __skylarBriefAudio = null;
+
 function triggerSkylarSpeech() {
-    fetch('{{ url("api/v1/urban-goodz/cross-app/ai/digital-human/state") }}', {
+    const btn = document.getElementById('skylar-speak-btn');
+    const statusEl = document.getElementById('skylar-speak-status');
+    const text = (document.getElementById('skylar-narrative-text').innerText || '').trim();
+
+    console.log('[Monique TTS] brief generated:', text.length > 0, '(' + text.length + ' chars)');
+
+    if (!text) {
+        statusEl.innerText = 'No brief text to speak yet.';
+        return;
+    }
+
+    // Reuse an already-fetched clip instead of re-billing ElevenLabs on every click.
+    if (__skylarBriefAudio) {
+        console.log('[Monique TTS] audio already loaded, replaying');
+        __skylarBriefAudio.currentTime = 0;
+        __skylarBriefAudio.play().catch(function (err) {
+            console.error('[Monique TTS] audio replay failed:', err);
+        });
+        return;
+    }
+
+    btn.disabled = true;
+    statusEl.innerText = 'Generating voice...';
+    console.log('[Monique TTS] TTS requested');
+
+    fetch('{{ route("admin.urban-goodz.ai-chief-of-staff.speak") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'audio/mpeg, application/json',
         },
-        body: JSON.stringify({
-            persona: 'chief_of_staff',
-            text: document.getElementById('skylar-narrative-text').innerText,
-            domain: 'finance',
-            event_type: 'executive_brief'
+        body: JSON.stringify({ text: text }),
+    })
+        .then(function (res) {
+            if (!res.ok) {
+                return res.json().catch(function () { return {}; }).then(function (body) {
+                    throw new Error(body.message || ('Voice request failed (' + res.status + ')'));
+                });
+            }
+            console.log('[Monique TTS] TTS completed');
+            return res.blob();
         })
-    })
-    .then(res => res.json())
-    .then(data => {
-        console.log('Digital Human State Payload loaded:', data.data);
-    })
-    .catch(err => {
-        console.error('Digital Human API Error:', err);
-    });
+        .then(function (blob) {
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            __skylarBriefAudio = audio;
+            console.log('[Monique TTS] audio loaded');
+
+            audio.addEventListener('play', function () { console.log('[Monique TTS] audio started'); });
+            audio.addEventListener('ended', function () { console.log('[Monique TTS] audio completed'); });
+            audio.addEventListener('error', function (e) { console.error('[Monique TTS] audio playback error:', e); });
+
+            btn.disabled = false;
+            statusEl.innerText = '';
+            return audio.play();
+        })
+        .catch(function (err) {
+            console.error('[Monique TTS] audio failed:', err);
+            btn.disabled = false;
+            statusEl.innerText = err.message || "Couldn't generate voice right now.";
+        });
 }
 </script>
