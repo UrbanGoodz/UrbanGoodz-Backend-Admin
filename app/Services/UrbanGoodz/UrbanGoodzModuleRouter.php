@@ -77,6 +77,18 @@ class UrbanGoodzModuleRouter
             'detail'  => 'get_load_board_load',
             'create'  => 'post_load_to_board',
             'bid'     => 'bid_on_load',
+            // Operational verbs. These resolve to registry actions that are
+            // confirmation-gated and delegate to UrbanGoodzLoadBoardService.
+            'accept'      => 'accept_load',
+            'assign'      => 'accept_load',
+            'reassign'    => 'reassign_load',
+            'dispatch'    => 'update_load_status',
+            'status_set'  => 'update_load_status',
+            'cancel'      => 'cancel_load',
+            'review'      => 'review_load',
+            'accept_bid'  => 'accept_load_bid',
+            'reject_bid'  => 'reject_load_bid',
+            'stats'       => 'get_load_board_stats',
             'default' => 'search_load_board',
         ],
         'delivery' => [
@@ -138,7 +150,13 @@ class UrbanGoodzModuleRouter
             'actions' => [
                 [
                     'action' => $actionName,
-                    'params' => $params,
+                    // The executor receives only params, so the resolved
+                    // action travels with them. Deliberately a separate key
+                    // rather than 'action_type': determineActionType() reads
+                    // 'action_type' first, so setting that would change how
+                    // every existing module resolves its action, which is a
+                    // regression risk this does not need to take.
+                    'params' => array_merge($params, ['_routed_action' => $actionName]),
                     'api_endpoint' => $this->resolveEndpoint($actionName),
                     'method' => $this->resolveMethod($actionName),
                 ],
@@ -372,6 +390,15 @@ class UrbanGoodzModuleRouter
             'load_id'          => $entities['load_id'] ?? null,
             'load_number'      => $entities['load_number'] ?? null,
             'bid_amount'       => $entities['bid_amount'] ?? null,
+            // Operational parameters. UrbanGoodzLoadBoardService needs the
+            // target driver for accept/reassign, the bid for bid decisions,
+            // and the status/decision for transitions and reviews.
+            'driver_id'        => $entities['driver_id'] ?? $entities['delivery_man_id'] ?? null,
+            'bid_id'           => $entities['bid_id'] ?? null,
+            'status'           => $entities['status'] ?? null,
+            'decision'         => $entities['decision'] ?? null,
+            'reason'           => $entities['reason'] ?? null,
+            'notes'            => $entities['notes'] ?? null,
         ]);
     }
 

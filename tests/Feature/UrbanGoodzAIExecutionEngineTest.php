@@ -347,4 +347,169 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         // Should not execute dangerous action, should fallback or clarify
         $this->assertNotEquals('delete_all_users', $result['intent'] ?? '');
     }
+
+    // ═══════════════════════════════════════════
+    // LOAD BOARD OPERATIONAL ACTIONS
+    // ═══════════════════════════════════════════
+
+    private function makeLoad(array $overrides = []): UrbanGoodzLoadBoardLoad
+    {
+        return UrbanGoodzLoadBoardLoad::create(array_merge([
+            'load_number' => 'UG-TEST-' . uniqid(),
+            'status' => 'available',
+            'origin_city' => 'Houston',
+            'origin_state' => 'TX',
+            'destination_city' => 'Dallas',
+            'destination_state' => 'TX',
+            'payout_amount' => 850.00,
+            'provider' => 'manual',
+        ], $overrides));
+    }
+
+    public function test_operational_load_actions_are_registered(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        foreach ([
+            'accept_load', 'reassign_load', 'update_load_status',
+            'cancel_load', 'review_load', 'accept_load_bid', 'reject_load_bid',
+        ] as $action) {
+            $result = $registry->validateUserCanExecute('load-board', $action, $this->admin->id, 'admin');
+            $this->assertNotEquals(
+                "Action '{$action}' is not registered in the allowed action registry",
+                $result['reason'] ?? null,
+                "{$action} must be registered so the Digital Human can reach it"
+            );
+        }
+    }
+
+    public function test_operational_load_actions_require_confirmation(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        foreach (['accept_load', 'reassign_load', 'cancel_load'] as $action) {
+            $result = $registry->validateUserCanExecute('load-board', $action, $this->admin->id, 'admin');
+            $this->assertTrue(
+                $result['requires_confirmation'] ?? false,
+                "{$action} commits the business to work and must be confirmation-gated"
+            );
+        }
+    }
+
+    public function test_customer_cannot_execute_operational_load_actions(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        $result = $registry->validateUserCanExecute('load-board', 'cancel_load', $this->customer->id, 'customer');
+
+        $this->assertFalse($result['allowed'] ?? true);
+    }
+
+    /**
+     * Regression: roleRecordExists() had no 'dispatcher' arm, so it fell through
+     * to `default => false` and every dispatcher-gated action was rejected with
+     * "Authenticated dispatcher record was not found".
+     */
+    public function test_dispatcher_role_resolves_against_admin_identity(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        $result = $registry->validateUserCanExecute('load-board', 'accept_load', $this->admin->id, 'dispatcher');
+
+        $this->assertNotEquals(
+            'Authenticated dispatcher record was not found',
+            $result['reason'] ?? null,
+            'A dispatcher backed by an Admin record must resolve'
+        );
+    }
+
+    public function test_accept_load_changes_state_and_reports_verified(): void
+    {
+        $load = $this->makeLoad();
+
+        $result = $this->executionService->executeLoadBoardOperation([
+            '_routed_action' => 'accept_load',
+            'load_id' => $load->id,
+            'driver_id' => $this->driver->id,
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['message'] ?? 'accept_load failed');
+        $this->assertTrue($result['verified'] ?? false);
+
+        // The claim must match the database, not just the response.
+        $load->refresh();
+        $this->assertEquals($this->driver->id, $load->assigned_driver_id);
+        $this->assertNotEquals('available', $load->status);
+    }
+
+    public function test_missing_driver_reports_failure_not_success(): void
+    {
+        $load = $this->makeLoad();
+
+        $result = $this->executionService->executeLoadBoardOperation([
+            '_routed_action' => 'accept_load',
+            'load_id' => $load->id,
+            'customer_id' => $this->admin->id,
+            // driver_id deliberately omitted
+        ]);
+
+        $this->assertFalse($result['success'] ?? true, 'A missing driver must not report success');
+        $load->refresh();
+        $this->assertEquals('available', $load->status, 'No state may change on a failed action');
+    }
+
+    public function test_unknown_load_reports_failure(): void
+    {
+        $result = $this->executionService->executeLoadBoardOperation([
+            '_routed_action' => 'accept_load',
+            'load_id' => 999999999,
+            'driver_id' => $this->driver->id,
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertStringContainsString('not found', strtolower($result['message'] ?? ''));
+    }
+
+    public function test_illegal_status_transition_is_refused(): void
+    {
+        $load = $this->makeLoad(['status' => 'available']);
+
+        $result = $this->executionService->executeLoadBoardOperation([
+            '_routed_action' => 'update_load_status',
+            'load_id' => $load->id,
+            'status' => 'not_a_real_status',
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $load->refresh();
+        $this->assertEquals('available', $load->status);
+    }
+
+    public function test_router_maps_operational_verbs_to_registered_actions(): void
+    {
+        $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        foreach (['accept', 'reassign', 'cancel', 'review'] as $verb) {
+            $routed = $router->route('load-board', ['action_type' => $verb, 'load_id' => 1], [], $this->admin->id);
+            $action = $routed['actions'][0]['action'] ?? null;
+
+            $this->assertNotNull($action, "verb '{$verb}' must route to an action");
+            $this->assertEquals(
+                $action,
+                $routed['actions'][0]['params']['_routed_action'] ?? null,
+                'the resolved action must travel with the params so the executor can dispatch on it'
+            );
+
+            $validation = $registry->validateUserCanExecute('load-board', $action, $this->admin->id, 'admin');
+            $this->assertNotEquals(
+                "Action '{$action}' is not registered in the allowed action registry",
+                $validation['reason'] ?? null,
+                "verb '{$verb}' routed to unregistered action '{$action}'"
+            );
+        }
+    }
 }

@@ -844,8 +844,165 @@ class UrbanGoodzAIExecutionService
 
     // ─── LOAD BOARD ───────────────────────────────────────────────────
 
+    /// Operational load-board actions (accept / reassign / status / cancel /
+    /// review / bid decisions / stats).
+    ///
+    /// Every branch delegates to UrbanGoodzLoadBoardService, which owns the
+    /// business rules and the status state machine. Nothing here duplicates
+    /// that logic. After a mutation the load is re-read from the database and
+    /// the change is checked before reporting success, so a service call that
+    /// silently no-ops is reported as a failure rather than as "Done".
+    private const LOAD_OPERATIONAL_ACTIONS = [
+        'accept_load',
+        'reassign_load',
+        'update_load_status',
+        'cancel_load',
+        'review_load',
+        'accept_load_bid',
+        'reject_load_bid',
+        'get_load_board_stats',
+    ];
+
+    public function executeLoadBoardOperation(array $params): array
+    {
+        $action = $params['_routed_action'] ?? null;
+        $service = app(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
+        $actorId = $params['customer_id'] ?? null;
+        $loadId = (int) ($params['load_id'] ?? 0);
+
+        try {
+            if ($action === 'get_load_board_stats') {
+                return $this->buildResult(true, array_merge(
+                    ['message' => 'Load board statistics retrieved.'],
+                    ['stats' => $service->getStats()]
+                ));
+            }
+
+            if ($action === 'accept_load_bid' || $action === 'reject_load_bid') {
+                $bidId = (int) ($params['bid_id'] ?? 0);
+                if ($bidId <= 0 || !$actorId) {
+                    return $this->failedAction($action, 'A bid id and an authenticated actor are required.');
+                }
+                if ($action === 'accept_load_bid') {
+                    $load = $service->acceptBid($bidId, $actorId);
+                    return $load
+                        ? $this->buildResult(true, [
+                            'message' => "Bid {$bidId} accepted. Load {$load->load_number} is now {$load->status}.",
+                            'action' => $action,
+                            'load_id' => $load->id,
+                            'new_state' => $load->status,
+                        ])
+                        : $this->failedAction($action, "Bid {$bidId} could not be accepted.");
+                }
+                return $service->rejectBid($bidId, $actorId)
+                    ? $this->buildResult(true, ['message' => "Bid {$bidId} rejected.", 'action' => $action])
+                    : $this->failedAction($action, "Bid {$bidId} could not be rejected.");
+            }
+
+            if ($loadId <= 0) {
+                return $this->failedAction((string) $action, 'A load id is required for this action.');
+            }
+
+            $before = UrbanGoodzLoadBoardLoad::find($loadId);
+            if (!$before) {
+                return $this->failedAction((string) $action, "Load {$loadId} was not found.");
+            }
+            $previousStatus = $before->status;
+            $previousDriver = $before->assigned_driver_id ?? null;
+
+            $result = match ($action) {
+                'accept_load' => (function () use ($service, $loadId, $params, $actorId) {
+                    $driverId = (int) ($params['driver_id'] ?? 0);
+                    return $driverId > 0 ? $service->acceptLoad($loadId, $driverId, $actorId) : null;
+                })(),
+                'reassign_load' => (function () use ($service, $loadId, $params, $actorId) {
+                    $driverId = (int) ($params['driver_id'] ?? 0);
+                    return $driverId > 0
+                        ? $service->reassignLoad($loadId, $driverId, $actorId, $params['reason'] ?? null)
+                        : null;
+                })(),
+                'update_load_status' => (function () use ($service, $loadId, $params, $actorId, $previousStatus) {
+                    $status = $params['status'] ?? null;
+                    if (!$status || !$service->canTransition($previousStatus, $status)) {
+                        return null;
+                    }
+                    return $service->updateStatus($loadId, $status, $actorId, 'admin', $params['notes'] ?? null);
+                })(),
+                'cancel_load' => $service->updateStatus($loadId, 'cancelled', $actorId, 'admin', $params['reason'] ?? null),
+                'review_load' => (function () use ($service, $loadId, $params, $actorId) {
+                    $decision = $params['decision'] ?? null;
+                    return $decision
+                        ? $service->reviewLoad($loadId, $decision, $actorId, $params['notes'] ?? null)
+                        : null;
+                })(),
+                default => null,
+            };
+
+            if ($result === null) {
+                return $this->failedAction(
+                    (string) $action,
+                    "The load board service did not apply '{$action}' to load {$loadId}. "
+                    . 'Required details may be missing, or the status transition is not permitted.'
+                );
+            }
+
+            // Verification (§20): re-read rather than trusting the return value.
+            $after = UrbanGoodzLoadBoardLoad::find($loadId);
+            if (!$after) {
+                return $this->failedAction((string) $action, "Load {$loadId} could not be re-read to verify the change.");
+            }
+
+            $changed = $after->status !== $previousStatus
+                || ($after->assigned_driver_id ?? null) !== $previousDriver;
+
+            if (!$changed) {
+                return $this->failedAction(
+                    (string) $action,
+                    "No change was recorded on load {$loadId}; it is still '{$after->status}'. Not reporting this as completed."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Load {$after->load_number}: {$previousStatus} -> {$after->status}.",
+                'action' => $action,
+                'load_id' => $after->id,
+                'load_number' => $after->load_number,
+                'previous_state' => $previousStatus,
+                'new_state' => $after->status,
+                'previous_driver_id' => $previousDriver,
+                'new_driver_id' => $after->assigned_driver_id ?? null,
+                'verified' => true,
+            ], [], ['show_load_details' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: load board operation failed', [
+                'action' => $action,
+                'load_id' => $loadId,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction((string) $action, 'The load board service returned an error, so nothing was confirmed.');
+        }
+    }
+
+    /// A failed action result. Kept separate so no operational branch can
+    /// accidentally return success:true with an error message attached.
+    private function failedAction(string $action, string $message): array
+    {
+        return $this->buildResult(false, [
+            'message' => $message,
+            'action' => $action,
+            'verified' => false,
+        ]);
+    }
+
     public function executeLoadBoard(array $params): array
     {
+        // Operational verbs are handled by the delegating executor above;
+        // everything below remains the discovery/search path.
+        if (in_array($params['_routed_action'] ?? '', self::LOAD_OPERATIONAL_ACTIONS, true)) {
+            return $this->executeLoadBoardOperation($params);
+        }
+
         try {
             $nlpService = app(LoadBoardNLPService::class);
             $actionType = $this->determineActionType($params);
