@@ -33,6 +33,11 @@ class UrbanGoodzModuleRouter
         'referral'             => 'earnMoney',
         'events'               => 'events',
         'event'                => 'events',
+        // Internal operations. Admin/dispatcher only - the registry enforces
+        // that, not this map.
+        'operations'           => 'operations',
+        'ops'                  => 'operations',
+        'queue'                => 'operations',
     ];
 
     private const ACTION_TEMPLATES = [
@@ -90,6 +95,11 @@ class UrbanGoodzModuleRouter
             'reject_bid'  => 'reject_load_bid',
             'stats'       => 'get_load_board_stats',
             'default' => 'search_load_board',
+        ],
+        'operations' => [
+            'retry'   => 'retry_queue_job',
+            'requeue' => 'retry_queue_job',
+            'default' => 'retry_queue_job',
         ],
         'delivery' => [
             'track'   => 'track_delivery',
@@ -280,6 +290,10 @@ class UrbanGoodzModuleRouter
             'marketplaceSearch'  => $this->buildMarketplaceParams($actionType, $entities, $base),
             'medicalCourier'     => $this->buildMedicalCourierParams($actionType, $entities, $base),
             'loadBoard'          => $this->buildLoadBoardParams($actionType, $entities, $base),
+            'operations'         => array_merge($base, [
+                'job_uuid' => $entities['job_uuid'] ?? $entities['job_id'] ?? null,
+                'all'      => $entities['all'] ?? false,
+            ]),
             'delivery'           => $this->buildDeliveryParams($actionType, $entities, $base),
             'creatorCommerce'    => $this->buildCreatorCommerceParams($actionType, $entities, $base),
             'community'          => $this->buildCommunityParams($actionType, $entities, $base),

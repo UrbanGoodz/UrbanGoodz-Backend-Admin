@@ -246,6 +246,7 @@ class UrbanGoodzAIExecutionService
             'marketplaceSearch'  => $this->executeMarketplaceSearch($params),
             'medicalCourier'     => $this->executeMedicalCourier($params),
             'loadBoard'          => $this->executeLoadBoard($params),
+            'operations'         => $this->executeQueueRetry($params),
             'delivery'           => $this->executeDelivery($params),
             'creatorCommerce'    => $this->executeCreatorCommerce($params),
             'community'          => $this->executeCommunity($params),
@@ -1133,6 +1134,56 @@ class UrbanGoodzAIExecutionService
     }
 
     // ─── DELIVERY ─────────────────────────────────────────────────────
+
+    /// Retries a failed queue job.
+    ///
+    /// Uses Laravel's own `queue:retry`, which is the authoritative mechanism -
+    /// it re-pushes the payload onto the original queue and removes the
+    /// failed_jobs row. Deleting the row directly would clear the alert
+    /// without the work ever being retried, which is exactly the kind of
+    /// false completion this layer exists to prevent.
+    public function executeQueueRetry(array $params): array
+    {
+        $uuid = $params['job_uuid'] ?? null;
+
+        if (!$uuid) {
+            return $this->failedAction('retry_queue_job', 'A failed job id is required.');
+        }
+
+        try {
+            $existed = DB::table('failed_jobs')->where('uuid', $uuid)->exists();
+            if (!$existed) {
+                return $this->failedAction('retry_queue_job', "Failed job {$uuid} was not found; it may already have been retried.");
+            }
+
+            \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => [$uuid]]);
+
+            // Verification (§20): queue:retry removes the row on success.
+            $stillFailed = DB::table('failed_jobs')->where('uuid', $uuid)->exists();
+            if ($stillFailed) {
+                return $this->failedAction(
+                    'retry_queue_job',
+                    "Job {$uuid} is still in the failed queue, so it has not been retried."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Failed job {$uuid} was re-queued.",
+                'action' => 'retry_queue_job',
+                'job_uuid' => $uuid,
+                'previous_state' => 'failed',
+                'new_state' => 'queued',
+                'verified' => true,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: queue retry failed', [
+                'job_uuid' => $uuid,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('retry_queue_job', 'The queue service returned an error, so nothing was confirmed.');
+        }
+    }
 
     /// Assigns a courier to an order.
     ///

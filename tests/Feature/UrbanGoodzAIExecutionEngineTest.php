@@ -536,6 +536,57 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         $this->assertStringContainsString('not found', strtolower($result['message'] ?? ''));
     }
 
+    // ═══════════════════════════════════════════
+    // QUEUE OPERATIONS
+    // ═══════════════════════════════════════════
+
+    public function test_retry_queue_job_is_admin_only_and_confirmation_gated(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        $adminResult = $registry->validateUserCanExecute('operations', 'retry_queue_job', $this->admin->id, 'admin');
+        $this->assertNotEquals(
+            "Action 'retry_queue_job' is not registered in the allowed action registry",
+            $adminResult['reason'] ?? null
+        );
+        $this->assertTrue($adminResult['requires_confirmation'] ?? false);
+
+        $driverResult = $registry->validateUserCanExecute('operations', 'retry_queue_job', $this->driver->id, 'driver');
+        $this->assertFalse($driverResult['allowed'] ?? true, 'Only admins may retry queue jobs');
+    }
+
+    public function test_retry_unknown_job_reports_failure(): void
+    {
+        $result = $this->executionService->executeQueueRetry([
+            '_routed_action' => 'retry_queue_job',
+            'job_uuid' => 'does-not-exist-' . uniqid(),
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertFalse($result['verified'] ?? true);
+    }
+
+    public function test_retry_without_job_id_reports_failure(): void
+    {
+        $result = $this->executionService->executeQueueRetry([
+            '_routed_action' => 'retry_queue_job',
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+    }
+
+    public function test_operations_intent_routes_to_retry_action(): void
+    {
+        $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);
+        $routed = $router->route('operations', ['action_type' => 'retry', 'job_uuid' => 'abc'], [], $this->admin->id);
+
+        $this->assertEquals('operations', $routed['module'] ?? null);
+        $this->assertEquals('retry_queue_job', $routed['actions'][0]['action'] ?? null);
+        $this->assertEquals('abc', $routed['actions'][0]['params']['job_uuid'] ?? null);
+    }
+
     public function test_router_maps_operational_verbs_to_registered_actions(): void
     {
         $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);

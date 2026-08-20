@@ -24,8 +24,8 @@ class PersonaRegistry
     {
         if (! isset($this->resolved[$key])) {
             $this->resolved[$key] = match (strtolower($key)) {
-                self::CHIEF_OF_STAFF, 'skylar' => $this->chiefOfStaff(),
-                self::CONCIERGE, 'monique' => $this->concierge(),
+                self::CHIEF_OF_STAFF, 'monique' => $this->chiefOfStaff(),
+                self::CONCIERGE, 'skylar' => $this->concierge(),
                 default => throw new InvalidArgumentException("Unknown Urban Goodz persona [{$key}]."),
             };
         }

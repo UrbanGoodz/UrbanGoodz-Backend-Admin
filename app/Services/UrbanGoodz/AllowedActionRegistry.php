@@ -291,6 +291,18 @@ class AllowedActionRegistry
             'timeout_seconds' => 30,
         ],
 
+        // ── Queue operations ─────────────────────────────────────────
+        // Retrying a failed job re-runs whatever side effects that job has,
+        // so it is admin-only and confirmation-gated.
+        'retry_queue_job' => [
+            'roles' => ['admin'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 60,
+        ],
+
         'track_delivery' => [
             'roles' => ['customer', 'driver', 'admin', 'vendor', 'business_client'],
             'requires_confirmation' => false,
@@ -624,6 +636,7 @@ class AllowedActionRegistry
             'reject_load_bid' => ['load-board'],
             'get_load_board_stats' => ['load-board'],
             'assign_order' => ['delivery'],
+            'retry_queue_job' => ['operations'],
             'track_delivery' => ['delivery'],
             'get_delivery_status' => ['delivery'],
             'create_delivery_request' => ['delivery'],
