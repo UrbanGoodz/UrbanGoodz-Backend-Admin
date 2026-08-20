@@ -95,6 +95,12 @@ class UrbanGoodzModuleRouter
             'track'   => 'track_delivery',
             'status'  => 'get_delivery_status',
             'create'  => 'create_delivery_request',
+            // Operational: assigning a courier to an order. Delegates to
+            // OrderController::add_delivery_man, which owns the availability
+            // and max-order rules, the status transition, the driver
+            // counters and the customer notification.
+            'assign'    => 'assign_order',
+            'reassign'  => 'assign_order',
             'default' => 'get_delivery_status',
         ],
         'creatorCommerce' => [
@@ -412,6 +418,8 @@ class UrbanGoodzModuleRouter
             'item_description' => $entities['item_description'] ?? $entities['description'] ?? null,
             'preferred_time'   => $entities['preferred_time'] ?? $entities['time'] ?? null,
             'special_notes'    => $entities['special_notes'] ?? $entities['notes'] ?? null,
+            // Operational: the courier to assign.
+            'driver_id'        => $entities['driver_id'] ?? $entities['delivery_man_id'] ?? null,
         ]);
     }
 

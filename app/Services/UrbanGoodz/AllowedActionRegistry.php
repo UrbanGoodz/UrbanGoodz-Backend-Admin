@@ -275,6 +275,22 @@ class AllowedActionRegistry
             'timeout_seconds' => 15,
         ],
 
+        // ── Order operations ─────────────────────────────────────────
+        // Assigning a courier commits a driver to work and notifies the
+        // customer, so it is confirmation-gated. Execution delegates to
+        // OrderController::add_delivery_man rather than setting
+        // delivery_man_id directly, so the availability check, the
+        // max-orders cap, the status transition, the driver counters and
+        // the push notification all still happen.
+        'assign_order' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+
         'track_delivery' => [
             'roles' => ['customer', 'driver', 'admin', 'vendor', 'business_client'],
             'requires_confirmation' => false,
@@ -607,6 +623,7 @@ class AllowedActionRegistry
             'accept_load_bid' => ['load-board'],
             'reject_load_bid' => ['load-board'],
             'get_load_board_stats' => ['load-board'],
+            'assign_order' => ['delivery'],
             'track_delivery' => ['delivery'],
             'get_delivery_status' => ['delivery'],
             'create_delivery_request' => ['delivery'],

@@ -1134,8 +1134,81 @@ class UrbanGoodzAIExecutionService
 
     // ─── DELIVERY ─────────────────────────────────────────────────────
 
+    /// Assigns a courier to an order.
+    ///
+    /// Delegates to OrderController::add_delivery_man rather than writing
+    /// delivery_man_id directly. That method owns the rules that matter -
+    /// the driver must be available and active, the max-orders cap is
+    /// enforced, pending/confirmed transitions to accepted, the driver's
+    /// current_orders and assigned_order_count are incremented, and the
+    /// customer is notified. Setting the column here would skip all of it.
+    public function executeOrderAssignment(array $params): array
+    {
+        $orderId = (int) ($params['order_id'] ?? 0);
+        $driverId = (int) ($params['driver_id'] ?? 0);
+
+        if ($orderId <= 0 || $driverId <= 0) {
+            return $this->failedAction('assign_order', 'Both an order id and a courier id are required.');
+        }
+
+        try {
+            $before = Order::withoutGlobalScopes()->find($orderId);
+            if (!$before) {
+                return $this->failedAction('assign_order', "Order {$orderId} was not found.");
+            }
+            $previousDriver = $before->delivery_man_id;
+            $previousStatus = $before->order_status;
+
+            /** @var \Illuminate\Http\JsonResponse $response */
+            $response = app(\App\Http\Controllers\Admin\OrderController::class)
+                ->add_delivery_man($orderId, $driverId);
+
+            $status = method_exists($response, 'getStatusCode') ? $response->getStatusCode() : 500;
+
+            if ($status !== 200) {
+                $payload = method_exists($response, 'getData') ? $response->getData(true) : [];
+                return $this->failedAction(
+                    'assign_order',
+                    $payload['message'] ?? "The assignment was rejected for order {$orderId}."
+                );
+            }
+
+            // Verification (§20): confirm against the database.
+            $after = Order::withoutGlobalScopes()->find($orderId);
+            if (!$after || (int) $after->delivery_man_id !== $driverId) {
+                return $this->failedAction(
+                    'assign_order',
+                    "Order {$orderId} does not show courier {$driverId} assigned after the call, so this is not being reported as completed."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Order {$orderId} assigned to courier {$driverId}.",
+                'action' => 'assign_order',
+                'order_id' => $orderId,
+                'previous_driver_id' => $previousDriver,
+                'new_driver_id' => (int) $after->delivery_man_id,
+                'previous_state' => $previousStatus,
+                'new_state' => $after->order_status,
+                'verified' => true,
+            ], [], ['show_order_details' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: order assignment failed', [
+                'order_id' => $orderId,
+                'driver_id' => $driverId,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('assign_order', 'The assignment service returned an error, so nothing was confirmed.');
+        }
+    }
+
     public function executeDelivery(array $params): array
     {
+        if (($params['_routed_action'] ?? null) === 'assign_order') {
+            return $this->executeOrderAssignment($params);
+        }
+
         try {
             $orderId = $params['order_id'] ?? $params['request_id'] ?? null;
             $orderNumber = $params['order_number'] ?? null;

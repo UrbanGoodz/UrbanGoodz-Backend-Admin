@@ -488,6 +488,54 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         $this->assertEquals('available', $load->status);
     }
 
+    // ═══════════════════════════════════════════
+    // ORDER OPERATIONS
+    // ═══════════════════════════════════════════
+
+    public function test_assign_order_is_registered_and_confirmation_gated(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+        $result = $registry->validateUserCanExecute('delivery', 'assign_order', $this->admin->id, 'admin');
+
+        $this->assertNotEquals(
+            "Action 'assign_order' is not registered in the allowed action registry",
+            $result['reason'] ?? null
+        );
+        $this->assertTrue($result['requires_confirmation'] ?? false);
+    }
+
+    public function test_customer_cannot_assign_orders(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+        $result = $registry->validateUserCanExecute('delivery', 'assign_order', $this->customer->id, 'customer');
+
+        $this->assertFalse($result['allowed'] ?? true);
+    }
+
+    public function test_assign_order_without_ids_reports_failure(): void
+    {
+        $result = $this->executionService->executeOrderAssignment([
+            '_routed_action' => 'assign_order',
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertFalse($result['verified'] ?? true);
+    }
+
+    public function test_assign_order_with_unknown_order_reports_failure(): void
+    {
+        $result = $this->executionService->executeOrderAssignment([
+            '_routed_action' => 'assign_order',
+            'order_id' => 999999999,
+            'driver_id' => $this->driver->id,
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertStringContainsString('not found', strtolower($result['message'] ?? ''));
+    }
+
     public function test_router_maps_operational_verbs_to_registered_actions(): void
     {
         $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);
