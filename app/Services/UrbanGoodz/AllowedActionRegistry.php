@@ -282,6 +282,14 @@ class AllowedActionRegistry
         // delivery_man_id directly, so the availability check, the
         // max-orders cap, the status transition, the driver counters and
         // the push notification all still happen.
+        'cancel_order' => [
+            'roles' => ['customer', 'admin'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
         'assign_order' => [
             'roles' => ['admin', 'dispatcher'],
             'requires_confirmation' => true,
@@ -650,6 +658,7 @@ class AllowedActionRegistry
             'reject_load_bid' => ['load-board'],
             'get_load_board_stats' => ['load-board'],
             'assign_order' => ['delivery'],
+            'cancel_order' => ['delivery'],
             'retry_queue_job' => ['operations'],
             'get_out_of_stock_by_store' => ['operations'],
             'track_delivery' => ['delivery'],

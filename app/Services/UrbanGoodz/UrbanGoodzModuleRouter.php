@@ -112,6 +112,7 @@ class UrbanGoodzModuleRouter
             // and max-order rules, the status transition, the driver
             // counters and the customer notification.
             'assign'    => 'assign_order',
+            'cancel'    => 'cancel_order',
             'reassign'  => 'assign_order',
             'default' => 'get_delivery_status',
         ],

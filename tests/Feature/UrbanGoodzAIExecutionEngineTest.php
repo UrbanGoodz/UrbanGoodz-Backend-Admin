@@ -675,6 +675,56 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         );
     }
 
+    // ═══════════════════════════════════════════
+    // SKYLAR — customer-scoped actions
+    // ═══════════════════════════════════════════
+
+    public function test_customer_can_cancel_their_own_order_and_it_is_confirmation_gated(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+        $result = $registry->validateUserCanExecute('delivery', 'cancel_order', $this->customer->id, 'customer');
+
+        $this->assertTrue($result['allowed'] ?? false, 'A customer must be able to cancel their own order');
+        $this->assertTrue(
+            $result['requires_confirmation'] ?? false,
+            'Cancellation is destructive and must be confirmed first'
+        );
+    }
+
+    public function test_driver_cannot_cancel_customer_orders(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+        $result = $registry->validateUserCanExecute('delivery', 'cancel_order', $this->driver->id, 'driver');
+
+        $this->assertFalse($result['allowed'] ?? true);
+    }
+
+    public function test_cancel_requires_a_reason_rather_than_inventing_one(): void
+    {
+        $result = $this->executionService->executeOrderCancellation([
+            '_routed_action' => 'cancel_order',
+            'order_id' => 123,
+            'customer_id' => $this->customer->id,
+            // no reason supplied
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertStringContainsString('reason', strtolower($result['message'] ?? ''));
+    }
+
+    public function test_cancel_rejects_an_order_not_owned_by_the_customer(): void
+    {
+        $result = $this->executionService->executeOrderCancellation([
+            '_routed_action' => 'cancel_order',
+            'order_id' => 999999999,
+            'customer_id' => $this->customer->id,
+            'reason' => 'changed my mind',
+        ]);
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertStringContainsString('not found', strtolower($result['message'] ?? ''));
+    }
+
     public function test_router_maps_operational_verbs_to_registered_actions(): void
     {
         $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);

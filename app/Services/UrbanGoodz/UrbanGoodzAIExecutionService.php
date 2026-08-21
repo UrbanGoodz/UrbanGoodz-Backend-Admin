@@ -1135,6 +1135,78 @@ class UrbanGoodzAIExecutionService
 
     // ─── DELIVERY ─────────────────────────────────────────────────────
 
+    /// Cancels a customer's own order — Skylar's customer-scoped action.
+    ///
+    /// Delegates to Api\V1\OrderController::cancel_order, which owns the rules
+    /// that make a cancellation legitimate: the order must belong to this
+    /// customer, only certain statuses are cancellable, parcel orders go
+    /// through OrderLogic::cancelParcelOrder, and stock is restored. Ownership
+    /// is therefore enforced by the backend against the authenticated user,
+    /// not by anything the AI decides.
+    public function executeOrderCancellation(array $params): array
+    {
+        $orderId = (int) ($params['order_id'] ?? 0);
+        $customerId = $params['customer_id'] ?? null;
+        $reason = $params['reason'] ?? $params['note'] ?? null;
+
+        if ($orderId <= 0 || !$customerId) {
+            return $this->failedAction('cancel_order', 'An order id and an authenticated customer are required.');
+        }
+        if (!$reason) {
+            // The controller rejects a cancellation with neither note nor
+            // reason, so ask rather than invent one.
+            return $this->failedAction('cancel_order', 'A cancellation reason is required before I can cancel this order.');
+        }
+
+        try {
+            $before = Order::withoutGlobalScopes()->where('id', $orderId)->where('user_id', $customerId)->first();
+            if (!$before) {
+                return $this->failedAction('cancel_order', "Order {$orderId} was not found on this account.");
+            }
+            $previousStatus = $before->order_status;
+
+            $request = new \Illuminate\Http\Request();
+            $request->merge(['order_id' => $orderId, 'reason' => $reason]);
+            $user = User::find($customerId);
+            $request->user = $user;
+            $request->setUserResolver(fn () => $user);
+
+            $response = app(\App\Http\Controllers\Api\V1\OrderController::class)->cancel_order($request);
+            $status = method_exists($response, 'getStatusCode') ? $response->getStatusCode() : 500;
+
+            if ($status !== 200) {
+                $payload = method_exists($response, 'getData') ? $response->getData(true) : [];
+                $msg = $payload['errors'][0]['message'] ?? "Order {$orderId} could not be cancelled.";
+                return $this->failedAction('cancel_order', $msg);
+            }
+
+            // Verification (§20).
+            $after = Order::withoutGlobalScopes()->find($orderId);
+            if (!$after || $after->order_status === $previousStatus) {
+                return $this->failedAction(
+                    'cancel_order',
+                    "Order {$orderId} is still '{$previousStatus}', so I am not reporting it as cancelled."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Order {$orderId} was cancelled.",
+                'action' => 'cancel_order',
+                'order_id' => $orderId,
+                'previous_state' => $previousStatus,
+                'new_state' => $after->order_status,
+                'verified' => true,
+            ], [], ['show_order_details' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: order cancellation failed', [
+                'order_id' => $orderId,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('cancel_order', 'The order service returned an error, so nothing was confirmed.');
+        }
+    }
+
     /// Operations module dispatcher.
     public function executeOperations(array $params): array
     {
@@ -1324,9 +1396,15 @@ class UrbanGoodzAIExecutionService
 
     public function executeDelivery(array $params): array
     {
-        if (($params['_routed_action'] ?? null) === 'assign_order') {
-            return $this->executeOrderAssignment($params);
-        }
+        return match ($params['_routed_action'] ?? null) {
+            'assign_order' => $this->executeOrderAssignment($params),
+            'cancel_order' => $this->executeOrderCancellation($params),
+            default => $this->executeDeliveryLookup($params),
+        };
+    }
+
+    private function executeDeliveryLookup(array $params): array
+    {
 
         try {
             $orderId = $params['order_id'] ?? $params['request_id'] ?? null;
