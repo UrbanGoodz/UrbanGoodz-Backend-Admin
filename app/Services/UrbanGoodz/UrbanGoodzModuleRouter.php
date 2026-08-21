@@ -98,6 +98,8 @@ class UrbanGoodzModuleRouter
         ],
         'operations' => [
             'retry'   => 'retry_queue_job',
+            'out_of_stock' => 'get_out_of_stock_by_store',
+            'inventory'    => 'get_out_of_stock_by_store',
             'requeue' => 'retry_queue_job',
             'default' => 'retry_queue_job',
         ],

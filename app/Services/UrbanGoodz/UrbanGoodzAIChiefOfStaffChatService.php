@@ -6,6 +6,7 @@ use App\Models\UrbanGoodzAIConversation;
 use App\Models\UrbanGoodzAIIntent;
 use App\Services\UrbanGoodz\AI\Persona\PersonaRegistry;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Monique's real conversational chat (chief_of_staff persona, display name
@@ -32,6 +33,7 @@ class UrbanGoodzAIChiefOfStaffChatService
     public function __construct(
         private readonly UrbanGoodzAIService $ai,
         private readonly AiChiefOfStaffService $chiefOfStaff,
+        private readonly UrbanGoodzAIExecutionService $execution,
     ) {}
 
     public function processQuery(string $queryText, ?int $adminId, ?string $adminName = null, ?string $sessionId = null): UrbanGoodzAIConversation
@@ -40,7 +42,20 @@ class UrbanGoodzAIChiefOfStaffChatService
             throw new AuthenticationException('Admin authentication is required.');
         }
 
-        $systemPrompt = $this->buildSystemPrompt($adminName);
+        // Try to actually do the thing before talking about it.
+        //
+        // Monique used to be text-only: she could read the operational alerts
+        // and describe them, but had no path to act, so she told the owner to
+        // go and do it in the admin panel. Everything that protects the
+        // business - role check, confirmation gating, idempotency, audit log,
+        // post-execution verification - already lives in the execution
+        // service, so this routes through it rather than around it.
+        //
+        // Actions the registry marks as requiring confirmation come back
+        // awaiting confirmation and are NOT executed here; Monique asks first.
+        $actionResult = $this->attemptAction($queryText, $adminId);
+
+        $systemPrompt = $this->buildSystemPrompt($adminName, $actionResult);
         $history = $this->recentHistory($adminId, $sessionId);
 
         $result = $this->ai->isConfigured()
@@ -171,7 +186,59 @@ class UrbanGoodzAIChiefOfStaffChatService
      * persona system; only the task and the live grounding facts are built
      * here, mirroring UrbanGoodzAIConciergeService::buildSystemPrompt().
      */
-    private function buildSystemPrompt(?string $adminName): string
+    /**
+     * Runs the query through the Digital Human action layer.
+     *
+     * Returns null when the query was not an actionable request, so ordinary
+     * conversation is unaffected. Never throws into the chat path: if the
+     * action layer fails, Monique still answers, but she is told it failed
+     * rather than being left free to imply it worked.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function attemptAction(string $queryText, int $adminId): ?array
+    {
+        try {
+            $result = $this->execution->executeIntent($queryText, $adminId, 'admin');
+
+            // Unroutable / unrecognised queries are conversation, not failed
+            // actions - don't report those as action failures.
+            $intent = $result['intent'] ?? null;
+            if (!$intent || $intent === 'unknown') {
+                return null;
+            }
+
+            return [
+                'attempted' => true,
+                'succeeded' => (bool) ($result['success'] ?? false),
+                'verified' => (bool) ($result['verified'] ?? false),
+                'action' => $result['action'] ?? null,
+                'intent' => $intent,
+                'awaiting_confirmation' => (bool) ($result['awaiting_confirmation'] ?? false),
+                'blocked_reason' => $result['blocked_reason'] ?? null,
+                'outcome' => $result['message'] ?? $result['explanation'] ?? null,
+                'previous_state' => $result['previous_state'] ?? null,
+                'new_state' => $result['new_state'] ?? null,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Chief of staff action attempt failed', [
+                'admin_id' => $adminId,
+                'exception' => $e::class,
+            ]);
+
+            return [
+                'attempted' => true,
+                'succeeded' => false,
+                'verified' => false,
+                'outcome' => 'The action layer returned an error, so nothing was confirmed.',
+            ];
+        }
+    }
+
+    /**
+     * @param array<string,mixed>|null $actionResult
+     */
+    private function buildSystemPrompt(?string $adminName, ?array $actionResult = null): string
     {
         $summary = $this->chiefOfStaff->getCommandCenterSummary();
         $alerts = collect($this->chiefOfStaff->getOperationalAlerts())
@@ -192,12 +259,32 @@ mitigation, and what needs the owner's action in the next few minutes. Do not
 open with a pleasantry when the flag is true.
 
 Escalate to a human specialist (legal, compliance, finance) when the matter is
-outside what operational data can resolve.";
+outside what operational data can resolve.
+
+YOU CAN ACT. You are not limited to advice, and you must never tell the owner
+that an action 'requires direct administrative execution through the admin
+panel' or that you 'cannot execute from this briefing'. Operational requests
+are routed through the Urban Goodz action layer before you reply, and the
+outcome is given to you as `action_result`.
+
+How to use `action_result`:
+- absent: no action was attempted. Answer normally.
+- awaiting_confirmation true: the action is real and available but commits the
+  business, so it needs a yes. State plainly what you are about to do and ask
+  to proceed.
+- succeeded true and verified true: it is done and was confirmed against the
+  database. Say what changed, using previous_state and new_state.
+- succeeded false: it did NOT happen. Say so directly and give the reason from
+  `outcome` or `blocked_reason`. Never soften a failure into an implication of
+  success, and never claim something is done that is not.
+
+Never describe an action as completed unless verified is true.";
 
         $grounding = [
             'admin_name' => $adminName,
             'command_center_summary' => $summary,
             'operational_alerts' => $alerts,
+            'action_result' => $actionResult,
         ];
 
         return $this->ai->persona(PersonaRegistry::CHIEF_OF_STAFF)->systemPrompt($task, $grounding);

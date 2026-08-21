@@ -246,7 +246,7 @@ class UrbanGoodzAIExecutionService
             'marketplaceSearch'  => $this->executeMarketplaceSearch($params),
             'medicalCourier'     => $this->executeMedicalCourier($params),
             'loadBoard'          => $this->executeLoadBoard($params),
-            'operations'         => $this->executeQueueRetry($params),
+            'operations'         => $this->executeOperations($params),
             'delivery'           => $this->executeDelivery($params),
             'creatorCommerce'    => $this->executeCreatorCommerce($params),
             'community'          => $this->executeCommunity($params),
@@ -1134,6 +1134,74 @@ class UrbanGoodzAIExecutionService
     }
 
     // ─── DELIVERY ─────────────────────────────────────────────────────
+
+    /// Operations module dispatcher.
+    public function executeOperations(array $params): array
+    {
+        return match ($params['_routed_action'] ?? null) {
+            'get_out_of_stock_by_store' => $this->executeOutOfStockByStore($params),
+            default => $this->executeQueueRetry($params),
+        };
+    }
+
+    /// Breaks the out-of-stock count down by store.
+    ///
+    /// The executive brief reports "N active items currently out of stock"
+    /// from `DB::table('items')->where('status',1)->where('stock','<=',0)`.
+    /// Monique used to answer the obvious follow-up - which stores? - with
+    /// "the current application data does not include store-level details",
+    /// which was simply untrue: `items.store_id` exists and is indexed. This
+    /// groups the same rows behind the same aggregate, so the totals reconcile
+    /// with the brief by construction.
+    public function executeOutOfStockByStore(array $params): array
+    {
+        try {
+            $limit = (int) ($params['limit'] ?? 20);
+            $limit = $limit > 0 && $limit <= 100 ? $limit : 20;
+
+            $total = DB::table('items')->where('status', 1)->where('stock', '<=', 0)->count();
+
+            $rows = DB::table('items')
+                ->leftJoin('stores', 'stores.id', '=', 'items.store_id')
+                ->where('items.status', 1)
+                ->where('items.stock', '<=', 0)
+                ->groupBy('items.store_id', 'stores.name')
+                ->orderByDesc(DB::raw('COUNT(items.id)'))
+                ->limit($limit)
+                ->get([
+                    'items.store_id',
+                    'stores.name as store_name',
+                    DB::raw('COUNT(items.id) as out_of_stock_count'),
+                ]);
+
+            $stores = $rows->map(fn ($r) => [
+                'store_id' => $r->store_id,
+                'store_name' => $r->store_name ?? "Store #{$r->store_id}",
+                'out_of_stock_count' => (int) $r->out_of_stock_count,
+            ])->all();
+
+            $distinctStores = DB::table('items')
+                ->where('status', 1)->where('stock', '<=', 0)
+                ->distinct()->count('store_id');
+
+            return $this->buildResult(true, [
+                'message' => $total === 0
+                    ? 'No active items are currently out of stock.'
+                    : "{$total} out-of-stock items across {$distinctStores} stores.",
+                'action' => 'get_out_of_stock_by_store',
+                'total_out_of_stock' => $total,
+                'store_count' => $distinctStores,
+                'stores' => $stores,
+                'verified' => true,
+            ], [], ['show_inventory_breakdown' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: out-of-stock breakdown failed', [
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('get_out_of_stock_by_store', 'The inventory query failed, so no breakdown is available.');
+        }
+    }
 
     /// Retries a failed queue job.
     ///

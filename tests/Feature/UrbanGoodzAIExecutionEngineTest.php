@@ -587,6 +587,94 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         $this->assertEquals('abc', $routed['actions'][0]['params']['job_uuid'] ?? null);
     }
 
+    // ═══════════════════════════════════════════
+    // INVENTORY — store-level breakdown
+    // ═══════════════════════════════════════════
+
+    public function test_out_of_stock_breakdown_returns_real_store_grouping(): void
+    {
+        $result = $this->executionService->executeOutOfStockByStore([
+            '_routed_action' => 'get_out_of_stock_by_store',
+            'customer_id' => $this->admin->id,
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['message'] ?? '');
+        $this->assertArrayHasKey('total_out_of_stock', $result);
+        $this->assertArrayHasKey('stores', $result);
+        $this->assertIsArray($result['stores']);
+
+        // The breakdown must reconcile with the aggregate the executive brief
+        // reports, because Monique quotes both in the same conversation.
+        $aggregate = DB::table('items')->where('status', 1)->where('stock', '<=', 0)->count();
+        $this->assertEquals($aggregate, $result['total_out_of_stock']);
+
+        foreach ($result['stores'] as $row) {
+            $this->assertArrayHasKey('store_id', $row);
+            $this->assertArrayHasKey('store_name', $row);
+            $this->assertArrayHasKey('out_of_stock_count', $row);
+        }
+    }
+
+    public function test_out_of_stock_breakdown_is_a_read_and_needs_no_confirmation(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+        $result = $registry->validateUserCanExecute('operations', 'get_out_of_stock_by_store', $this->admin->id, 'admin');
+
+        $this->assertNotEquals(
+            "Action 'get_out_of_stock_by_store' is not registered in the allowed action registry",
+            $result['reason'] ?? null
+        );
+        $this->assertFalse($result['requires_confirmation'] ?? true);
+    }
+
+    // ═══════════════════════════════════════════
+    // SHARED WIRING — same engine, different roles
+    // ═══════════════════════════════════════════
+
+    /**
+     * Monique and Skylar must run on the same execution engine and the same
+     * registry, differing only in which roles each action permits - not in
+     * how they execute.
+     */
+    public function test_both_personas_share_one_registry_and_differ_only_by_role(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        // A customer-scoped action: Skylar's role is allowed, admin also is.
+        $skylarSide = $registry->validateUserCanExecute('marketplace', 'search_marketplace', $this->customer->id, 'customer');
+        $this->assertTrue($skylarSide['allowed'] ?? false);
+
+        // An operational action: admin allowed, customer denied - same
+        // registry, same call, decided purely by role.
+        $moniqueSide = $registry->validateUserCanExecute('operations', 'retry_queue_job', $this->admin->id, 'admin');
+        $customerSide = $registry->validateUserCanExecute('operations', 'retry_queue_job', $this->customer->id, 'customer');
+
+        $this->assertTrue($moniqueSide['allowed'] ?? false);
+        $this->assertFalse($customerSide['allowed'] ?? true);
+    }
+
+    /**
+     * Monique's chat service must route through the shared execution engine.
+     * Before this it had no reference to it at all, which is why she could
+     * describe operational problems but never act on them.
+     */
+    public function test_chief_of_staff_chat_service_depends_on_the_execution_engine(): void
+    {
+        $ctor = (new \ReflectionClass(\App\Services\UrbanGoodz\UrbanGoodzAIChiefOfStaffChatService::class))
+            ->getConstructor();
+
+        $types = array_map(
+            fn ($p) => $p->getType()?->getName(),
+            $ctor?->getParameters() ?? []
+        );
+
+        $this->assertContains(
+            \App\Services\UrbanGoodz\UrbanGoodzAIExecutionService::class,
+            $types,
+            "Monique's chat must run through the same action layer as Skylar"
+        );
+    }
+
     public function test_router_maps_operational_verbs_to_registered_actions(): void
     {
         $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);
