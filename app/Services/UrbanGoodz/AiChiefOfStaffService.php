@@ -306,6 +306,38 @@ markdown.';
         return (int) $query();
     }
 
+    /**
+     * Actions the Digital Human can actually execute for a given alert.
+     *
+     * An alert used to carry only a `url`, so the best Monique could do with
+     * "3 unassigned orders" was point at /admin/order/list/all and tell the
+     * owner to go do it. Naming the registry action here is what lets her
+     * offer to do it instead.
+     *
+     * Only actions that are registered in AllowedActionRegistry AND have a
+     * working executor appear. An alert with an empty list is honest: there is
+     * no automated action for it yet, and she must not imply otherwise.
+     * Authorization is still decided per-call by the registry against the
+     * authenticated actor - listing an action here never grants it.
+     */
+    private const ALERT_ACTIONS = [
+        'unassigned_orders' => [
+            ['action' => 'assign_order', 'label' => 'Assign a courier', 'requires_confirmation' => true],
+        ],
+        'delayed_orders' => [
+            ['action' => 'assign_order', 'label' => 'Assign a courier to move it along', 'requires_confirmation' => true],
+        ],
+        'failed_queue_jobs' => [
+            ['action' => 'retry_queue_job', 'label' => 'Retry the failed job', 'requires_confirmation' => true],
+        ],
+        'out_of_stock_items' => [
+            // Read-only on purpose. "Clearing" out-of-stock items must never
+            // mean deleting them; the breakdown is the safe first step and
+            // tells the owner which stores are driving the number.
+            ['action' => 'get_out_of_stock_by_store', 'label' => 'Break the count down by store', 'requires_confirmation' => false],
+        ],
+    ];
+
     private function alert(string $key, string $label, ?int $count, string $severity, string $url): array
     {
         return [
@@ -315,6 +347,8 @@ markdown.';
             'available' => $count !== null,
             'severity' => $severity,
             'url' => $url,
+            'actions' => self::ALERT_ACTIONS[$key] ?? [],
+            'actionable' => !empty(self::ALERT_ACTIONS[$key]),
         ];
     }
 

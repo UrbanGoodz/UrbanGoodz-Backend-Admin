@@ -725,6 +725,76 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         $this->assertStringContainsString('not found', strtolower($result['message'] ?? ''));
     }
 
+    // ═══════════════════════════════════════════
+    // OPERATIONAL ALERTS CARRY EXECUTABLE ACTIONS
+    // ═══════════════════════════════════════════
+
+    public function test_alerts_expose_executable_actions(): void
+    {
+        $alerts = collect(app(\App\Services\UrbanGoodz\AiChiefOfStaffService::class)->getOperationalAlerts())
+            ->keyBy('key');
+
+        foreach (['unassigned_orders', 'delayed_orders', 'failed_queue_jobs', 'out_of_stock_items'] as $key) {
+            $this->assertTrue(
+                $alerts[$key]['actionable'] ?? false,
+                "The '{$key}' alert must offer an action, not just a link to the admin panel"
+            );
+            $this->assertNotEmpty($alerts[$key]['actions'] ?? []);
+        }
+    }
+
+    /**
+     * An alert may only advertise an action that is actually registered.
+     * Otherwise Monique offers to do something the engine will refuse - which
+     * is the same false capability this whole layer exists to prevent.
+     */
+    public function test_every_advertised_alert_action_is_registered(): void
+    {
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+        $alerts = app(\App\Services\UrbanGoodz\AiChiefOfStaffService::class)->getOperationalAlerts();
+
+        foreach ($alerts as $alert) {
+            foreach ($alert['actions'] ?? [] as $offered) {
+                $action = $offered['action'];
+                $result = $registry->validateUserCanExecute('operations', $action, $this->admin->id, 'admin');
+
+                $this->assertNotEquals(
+                    "Action '{$action}' is not registered in the allowed action registry",
+                    $result['reason'] ?? null,
+                    "Alert '{$alert['key']}' offers unregistered action '{$action}'"
+                );
+            }
+        }
+    }
+
+    public function test_alerts_without_automation_do_not_claim_to_be_actionable(): void
+    {
+        $alerts = collect(app(\App\Services\UrbanGoodz\AiChiefOfStaffService::class)->getOperationalAlerts())
+            ->keyBy('key');
+
+        // No executor exists for these yet; they must say so rather than
+        // implying Monique can handle them.
+        foreach (['failed_payments', 'pending_refunds', 'pending_withdrawals'] as $key) {
+            $this->assertFalse(
+                $alerts[$key]['actionable'] ?? true,
+                "'{$key}' has no executor, so it must not advertise one"
+            );
+        }
+    }
+
+    public function test_out_of_stock_alert_offers_a_breakdown_not_a_deletion(): void
+    {
+        $alerts = collect(app(\App\Services\UrbanGoodz\AiChiefOfStaffService::class)->getOperationalAlerts())
+            ->keyBy('key');
+
+        $actions = array_column($alerts['out_of_stock_items']['actions'] ?? [], 'action');
+
+        $this->assertContains('get_out_of_stock_by_store', $actions);
+        foreach ($actions as $action) {
+            $this->assertStringNotContainsString('delete', $action);
+        }
+    }
+
     public function test_router_maps_operational_verbs_to_registered_actions(): void
     {
         $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);

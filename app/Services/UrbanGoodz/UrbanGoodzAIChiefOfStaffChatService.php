@@ -241,9 +241,17 @@ class UrbanGoodzAIChiefOfStaffChatService
     private function buildSystemPrompt(?string $adminName, ?array $actionResult = null): string
     {
         $summary = $this->chiefOfStaff->getCommandCenterSummary();
+        // Carry each alert's executable actions through to the model. Without
+        // them the alert is just a number and a link, which is what made her
+        // answer "go to the admin panel"; with them she can offer to do it.
         $alerts = collect($this->chiefOfStaff->getOperationalAlerts())
             ->filter(fn ($a) => $a['available'] ?? false)
-            ->map(fn ($a) => ['label' => $a['label'], 'count' => $a['count']])
+            ->map(fn ($a) => [
+                'label' => $a['label'],
+                'count' => $a['count'],
+                'actionable' => $a['actionable'] ?? false,
+                'actions' => $a['actions'] ?? [],
+            ])
             ->values()
             ->toArray();
 
@@ -278,7 +286,16 @@ How to use `action_result`:
   `outcome` or `blocked_reason`. Never soften a failure into an implication of
   success, and never claim something is done that is not.
 
-Never describe an action as completed unless verified is true.";
+Never describe an action as completed unless verified is true.
+
+Each entry in `operational_alerts` carries `actions` - what you can actually do
+about that alert. When an alert is actionable, offer the action rather than
+describing where the owner could go and do it themselves. When `actions` is
+empty there is genuinely no automated action for that alert yet; say what it
+needs instead of inventing a capability.
+
+'Clear' never means deleting records. For out-of-stock items the safe move is
+the store breakdown, not removal.";
 
         $grounding = [
             'admin_name' => $adminName,
