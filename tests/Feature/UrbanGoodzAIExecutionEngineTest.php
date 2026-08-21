@@ -795,6 +795,185 @@ class UrbanGoodzAIExecutionEngineTest extends TestCase
         }
     }
 
+    // ═══════════════════════════════════════════
+    // PLANNER — "clear all of that"
+    // ═══════════════════════════════════════════
+
+    public function test_plan_only_contains_registered_actions(): void
+    {
+        // Seed both an actionable mutation and a read so the plan is non-empty
+        // and this genuinely checks every proposed action.
+        DB::table('items')->insert([
+            'name' => 'UG planner registry item',
+            'store_id' => 1,
+            'module_id' => $this->module->id,
+            'status' => 1,
+            'stock' => 0,
+            'price' => 1.00,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $plan = app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class)->plan();
+        $registry = app(\App\Services\UrbanGoodz\AllowedActionRegistry::class);
+
+        $this->assertNotEmpty($plan['steps'], 'The plan must contain steps for this check to mean anything');
+
+        foreach ($plan['steps'] as $step) {
+            $result = $registry->validateUserCanExecute($step['module'], $step['action'], $this->admin->id, 'admin');
+            $this->assertNotEquals(
+                "Action '{$step['action']}' is not registered in the allowed action registry",
+                $result['reason'] ?? null,
+                "Plan proposes unregistered action '{$step['action']}'"
+            );
+        }
+    }
+
+    public function test_plan_is_capped_so_one_confirmation_cannot_run_unbounded_work(): void
+    {
+        $plan = app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class)->plan();
+
+        $this->assertLessThanOrEqual(
+            \App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::MAX_ACTIONS_PER_PLAN,
+            count($plan['steps'])
+        );
+    }
+
+    public function test_plan_never_proposes_bulk_inventory_mutation(): void
+    {
+        // Seed a real out-of-stock item so the inventory branch is exercised
+        // rather than skipped on an empty table.
+        DB::table('items')->insert([
+            'name' => 'UG planner test item',
+            'store_id' => 1,
+            'module_id' => $this->module->id,
+            'status' => 1,
+            'stock' => 0,
+            'price' => 1.00,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $plan = app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class)->plan(['out_of_stock_items']);
+
+        $inventorySteps = array_filter(
+            $plan['steps'],
+            fn ($s) => ($s['alert'] ?? null) === 'out_of_stock_items'
+        );
+
+        $this->assertNotEmpty($inventorySteps, 'The inventory branch must actually produce a step');
+
+        foreach ($inventorySteps as $step) {
+            $this->assertFalse($step['mutates'], 'Clearing out-of-stock items must never mutate the catalogue');
+            $this->assertStringNotContainsString('delete', $step['action']);
+        }
+
+        // Restocking must be surfaced as work a person still has to do.
+        $this->assertNotEmpty(
+            array_filter($plan['unplannable'], fn ($u) => $u['alert'] === 'out_of_stock_items'),
+            'The plan must say restocking is not something it can do'
+        );
+    }
+
+    public function test_plan_reports_what_it_cannot_do_instead_of_dropping_it(): void
+    {
+        DB::table('items')->insert([
+            'name' => 'UG planner unplannable item',
+            'store_id' => 1,
+            'module_id' => $this->module->id,
+            'status' => 1,
+            'stock' => 0,
+            'price' => 1.00,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $plan = app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class)->plan();
+
+        $this->assertArrayHasKey('unplannable', $plan);
+        $this->assertNotEmpty($plan['unplannable'], 'Work that cannot be automated must be reported, not dropped');
+
+        foreach ($plan['unplannable'] as $item) {
+            $this->assertNotEmpty($item['reason'] ?? null, 'Every unplannable item needs a stated reason');
+        }
+    }
+
+    public function test_plan_orders_reads_before_mutations(): void
+    {
+        $plan = app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class)->plan();
+
+        $seenMutation = false;
+        foreach ($plan['steps'] as $step) {
+            if ($step['mutates']) {
+                $seenMutation = true;
+            } elseif ($seenMutation) {
+                $this->fail('A read-only step was ordered after a mutating step');
+            }
+        }
+        $this->assertTrue(true);
+    }
+
+    public function test_execute_plan_refuses_steps_the_actor_is_not_authorized_for(): void
+    {
+        $steps = [[
+            'action' => 'retry_queue_job',
+            'module' => 'operations',
+            'label' => 'Retry a job',
+            'params' => ['_routed_action' => 'retry_queue_job', 'job_uuid' => 'x'],
+            'mutates' => true,
+            'requires_confirmation' => true,
+        ]];
+
+        // A customer must not be able to run an admin-only step, even inside a plan.
+        $result = $this->executionService->executePlan($steps, $this->customer->id, 'customer');
+
+        $this->assertFalse($result['success'] ?? true);
+        $this->assertEquals(1, $result['failed_count']);
+        $this->assertEquals(0, $result['executed_count']);
+    }
+
+    public function test_execute_plan_reports_partial_success_honestly(): void
+    {
+        $load = $this->makeLoad();
+
+        $steps = [
+            [
+                'action' => 'accept_load',
+                'module' => 'loadBoard',
+                'label' => 'Accept a real load',
+                'params' => ['_routed_action' => 'accept_load', 'load_id' => $load->id, 'driver_id' => $this->driver->id],
+                'mutates' => true,
+                'requires_confirmation' => true,
+            ],
+            [
+                'action' => 'accept_load',
+                'module' => 'loadBoard',
+                'label' => 'Accept a load that does not exist',
+                'params' => ['_routed_action' => 'accept_load', 'load_id' => 999999999, 'driver_id' => $this->driver->id],
+                'mutates' => true,
+                'requires_confirmation' => true,
+            ],
+        ];
+
+        $result = $this->executionService->executePlan($steps, $this->admin->id, 'admin');
+
+        $this->assertEquals(1, $result['executed_count']);
+        $this->assertEquals(1, $result['failed_count']);
+        $this->assertFalse($result['success'] ?? true, 'A batch with a failure must not report overall success');
+        $this->assertStringContainsString('failed', strtolower($result['message']));
+    }
+
+    public function test_chat_service_depends_on_the_planner(): void
+    {
+        $types = array_map(
+            fn ($p) => $p->getType()?->getName(),
+            (new \ReflectionClass(\App\Services\UrbanGoodz\UrbanGoodzAIChiefOfStaffChatService::class))
+                ->getConstructor()?->getParameters() ?? []
+        );
+
+        $this->assertContains(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class, $types);
+    }
+
     public function test_router_maps_operational_verbs_to_registered_actions(): void
     {
         $router = app(\App\Services\UrbanGoodz\UrbanGoodzModuleRouter::class);

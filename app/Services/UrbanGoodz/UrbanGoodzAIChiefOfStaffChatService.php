@@ -34,7 +34,35 @@ class UrbanGoodzAIChiefOfStaffChatService
         private readonly UrbanGoodzAIService $ai,
         private readonly AiChiefOfStaffService $chiefOfStaff,
         private readonly UrbanGoodzAIExecutionService $execution,
+        private readonly UrbanGoodzOperationalPlanner $planner,
     ) {}
+
+    /**
+     * Phrases that mean "deal with everything you just told me about".
+     *
+     * Matched conservatively: a broad sweep is exactly the request that should
+     * not be inferred loosely, and a miss is harmless (Monique answers
+     * normally) while a false positive proposes work nobody asked for.
+     */
+    private const BULK_PATTERNS = [
+        'clear all', 'clear everything', 'clear this', 'clear that', 'clear those',
+        'clear it', 'clear things', 'handle all', 'handle everything', 'handle it',
+        'handle that', 'take care of all', 'take care of everything', 'take care of it',
+        'take care of that', 'fix all', 'fix everything', 'fix that', 'sort it',
+        'sort all', 'deal with all', 'deal with everything', 'deal with it',
+        'resolve all', 'resolve everything', 'do it all',
+    ];
+
+    private function looksLikeBulkRequest(string $query): bool
+    {
+        $q = strtolower($query);
+        foreach (self::BULK_PATTERNS as $pattern) {
+            if (str_contains($q, $pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public function processQuery(string $queryText, ?int $adminId, ?string $adminName = null, ?string $sessionId = null): UrbanGoodzAIConversation
     {
@@ -198,6 +226,14 @@ class UrbanGoodzAIChiefOfStaffChatService
      */
     private function attemptAction(string $queryText, int $adminId): ?array
     {
+        // A broad sweep is a plan, not a single action. Decompose it into
+        // named steps and propose them; nothing mutating runs until the owner
+        // confirms, and the confirmed run goes through executePlan(), which
+        // authorizes and verifies each step individually.
+        if ($this->looksLikeBulkRequest($queryText)) {
+            return $this->planBulkRequest($adminId);
+        }
+
         try {
             $result = $this->execution->executeIntent($queryText, $adminId, 'admin');
 
@@ -231,6 +267,61 @@ class UrbanGoodzAIChiefOfStaffChatService
                 'succeeded' => false,
                 'verified' => false,
                 'outcome' => 'The action layer returned an error, so nothing was confirmed.',
+            ];
+        }
+    }
+
+    /**
+     * Builds the plan for a broad request and returns it as an action result.
+     *
+     * Read-only steps run immediately - they change nothing and make the
+     * proposal concrete. Mutating steps are proposed, never auto-run.
+     *
+     * @return array<string,mixed>
+     */
+    private function planBulkRequest(int $adminId): array
+    {
+        try {
+            $plan = $this->planner->plan();
+
+            $reads = array_values(array_filter($plan['steps'], fn ($s) => !$s['mutates']));
+            $mutations = array_values(array_filter($plan['steps'], fn ($s) => $s['mutates']));
+
+            $readResults = $reads
+                ? $this->execution->executePlan($reads, $adminId, 'admin')
+                : null;
+
+            return [
+                'attempted' => true,
+                'succeeded' => false,
+                'verified' => false,
+                'awaiting_confirmation' => count($mutations) > 0,
+                'action' => 'execute_plan',
+                'intent' => 'operations',
+                'plan' => [
+                    'proposed_steps' => array_map(fn ($s) => [
+                        'label' => $s['label'],
+                        'action' => $s['action'],
+                    ], $mutations),
+                    'proposed_count' => count($mutations),
+                    'unplannable' => $plan['unplannable'],
+                ],
+                'read_results' => $readResults,
+                'outcome' => count($mutations) === 0
+                    ? 'There is nothing I can action automatically right now.'
+                    : count($mutations) . ' action(s) are ready to run once you confirm.',
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Chief of staff bulk planning failed', [
+                'admin_id' => $adminId,
+                'exception' => $e::class,
+            ]);
+
+            return [
+                'attempted' => true,
+                'succeeded' => false,
+                'verified' => false,
+                'outcome' => 'I could not build a plan for that, so nothing was attempted.',
             ];
         }
     }
@@ -295,7 +386,12 @@ empty there is genuinely no automated action for that alert yet; say what it
 needs instead of inventing a capability.
 
 'Clear' never means deleting records. For out-of-stock items the safe move is
-the store breakdown, not removal.";
+the store breakdown, not removal.
+
+When `action_result.plan` is present the owner asked you to handle everything.
+List `proposed_steps` concretely - the actual orders and jobs, not a vague
+offer - then ask to proceed. Name anything in `unplannable` and why it needs a
+person; never let it pass unmentioned, and never imply you handled it.";
 
         $grounding = [
             'admin_name' => $adminName,

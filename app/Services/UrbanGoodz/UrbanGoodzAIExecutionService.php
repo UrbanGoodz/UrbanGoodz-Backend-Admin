@@ -1207,6 +1207,91 @@ class UrbanGoodzAIExecutionService
         }
     }
 
+    /// Executes a plan produced by UrbanGoodzOperationalPlanner.
+    ///
+    /// Each step runs through the same authorization the registry applies to a
+    /// single action - planning a step never grants it - and each result keeps
+    /// whatever the individual executor verified. A step that fails does not
+    /// abort the batch: the remaining work is still attempted and the caller
+    /// gets an exact per-step tally, because "2 of 3 completed, 1 failed" is
+    /// the truthful answer and "done" would not be.
+    ///
+    /// @param array<int,array<string,mixed>> $steps
+    public function executePlan(array $steps, ?int $actorId, string $actorRole = 'admin'): array
+    {
+        $executed = [];
+        $failed = [];
+
+        foreach ($steps as $step) {
+            $action = $step['action'] ?? null;
+            $module = $step['module'] ?? null;
+            $params = $step['params'] ?? [];
+
+            if (!$action || !$module) {
+                $failed[] = ['label' => $step['label'] ?? 'unknown step', 'reason' => 'Malformed plan step.'];
+                continue;
+            }
+
+            $validation = $this->actionRegistry->validateUserCanExecute($module, $action, $actorId, $actorRole);
+            if (!($validation['allowed'] ?? false)) {
+                $failed[] = [
+                    'label' => $step['label'] ?? $action,
+                    'action' => $action,
+                    'reason' => $validation['reason'] ?? 'Not authorized.',
+                ];
+                continue;
+            }
+
+            $params['customer_id'] = $actorId;
+            $params['_actor_role'] = $actorRole;
+
+            $result = match ($module) {
+                'delivery' => $this->executeDelivery($params),
+                'operations' => $this->executeOperations($params),
+                'loadBoard' => $this->executeLoadBoard($params),
+                default => $this->failedAction($action, "No executor for module '{$module}'."),
+            };
+
+            if ($result['success'] ?? false) {
+                $executed[] = [
+                    'label' => $step['label'] ?? $action,
+                    'action' => $action,
+                    'outcome' => $result['message'] ?? null,
+                    'verified' => $result['verified'] ?? false,
+                ];
+            } else {
+                $failed[] = [
+                    'label' => $step['label'] ?? $action,
+                    'action' => $action,
+                    'reason' => $result['message'] ?? 'Failed.',
+                ];
+            }
+        }
+
+        $total = count($executed) + count($failed);
+
+        return $this->buildResult(count($failed) === 0 && $total > 0, [
+            'message' => $this->planSummaryMessage(count($executed), count($failed), $total),
+            'action' => 'execute_plan',
+            'executed' => $executed,
+            'failed' => $failed,
+            'executed_count' => count($executed),
+            'failed_count' => count($failed),
+            'verified' => count($executed) > 0 && !array_filter($executed, fn ($e) => !$e['verified']),
+        ]);
+    }
+
+    private function planSummaryMessage(int $executed, int $failed, int $total): string
+    {
+        if ($total === 0) {
+            return 'There was nothing to do.';
+        }
+        if ($failed === 0) {
+            return "{$executed} of {$total} actions completed.";
+        }
+        return "{$executed} of {$total} actions completed; {$failed} failed.";
+    }
+
     /// Operations module dispatcher.
     public function executeOperations(array $params): array
     {
