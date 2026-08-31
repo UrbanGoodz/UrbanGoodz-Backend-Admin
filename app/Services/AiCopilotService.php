@@ -332,7 +332,27 @@ class AiCopilotService
             if ($req->status === 'quote_needed') {
                 $action = 'Provide quote to customer';
                 $reason = "Request #{$req->id} needs pricing quote, waiting {$reqCreatedHuman}";
-            } elseif (empty($req->description) && $req->status === 'pending_review') {
+
+                // Ground the recommendation in a real matched catalog price
+                // when one exists -- never auto-quoted, just surfaced so
+                // whoever provides the quote isn't pricing blind.
+                $matchedProduct = $req->product_id
+                    ? \App\Models\UrbanGoodzSourcedProduct::find($req->product_id)
+                    : null;
+                if ($matchedProduct && $matchedProduct->price !== null) {
+                    $source = $matchedProduct->source_platform ?? $matchedProduct->source_url ?? 'a matched real catalog';
+                    $reason .= sprintf(
+                        '. Real catalog price found: $%s via %s -- suggest quoting near this.',
+                        number_format((float) $matchedProduct->price, 2),
+                        $source
+                    );
+                }
+            } elseif (empty($req->request_details) && empty($req->item_details) && $req->status === 'pending_review') {
+                // NOTE: this used to check a `description` field that does
+                // not exist on OrderAnywhereRequest (always empty, so this
+                // branch always fired for pending_review regardless of
+                // whether the customer gave details) -- checks the real
+                // detail fields instead.
                 $action = 'Contact customer for details';
                 $reason = "Request #{$req->id} has unclear or missing description";
             }

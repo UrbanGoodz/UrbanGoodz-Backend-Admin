@@ -1,5 +1,5 @@
 <?php return array (
-  'admin_panel' =>
+  'admin_panel' => 
   array (
     'active' => '1',
     'username' => 'UrbanGoodz',
@@ -8,7 +8,7 @@
     'domain' => 'admin.urbangoodzdelivery.com',
     'software_type' => 'product',
   ),
-  'vendor_panel' =>
+  'vendor_panel' => 
   array (
     'active' => '0',
     'username' => '',
@@ -17,7 +17,7 @@
     'domain' => '',
     'software_type' => 'addon',
   ),
-  'user_app' =>
+  'user_app' => 
   array (
     'active' => '1',
     'username' => 'UrbanGoodz',
@@ -26,7 +26,7 @@
     'domain' => '',
     'software_type' => 'addon',
   ),
-  'vendor_app' =>
+  'vendor_app' => 
   array (
     'active' => '1',
     'username' => 'UrbanGoodz',
@@ -35,7 +35,7 @@
     'domain' => 'admin.urbangoodzdelivery.com',
     'software_type' => 'addon',
   ),
-  'deliveryman_app' =>
+  'deliveryman_app' => 
   array (
     'active' => '1',
     'username' => 'UrbanGoodz',
@@ -44,7 +44,7 @@
     'domain' => 'admin.urbangoodzdelivery.com',
     'software_type' => 'addon',
   ),
-  'react_web' =>
+  'react_web' => 
   array (
     'active' => '1',
     'username' => '',

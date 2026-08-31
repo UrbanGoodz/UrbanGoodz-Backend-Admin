@@ -321,6 +321,18 @@ class FashionFitCustomerController extends Controller
         return response()->json(['data' => $versions]);
     }
 
+    public function evaluateProductFit(Request $request, string $uuid, \App\Services\FashionFit\UrbanGoodzFitRecommendationService $fitService)
+    {
+        $profile = $this->ownedProfile($request, $uuid);
+        abort_unless($profile->status === 'approved', 409, 'Customer-approved measurements are required before evaluating fit.');
+        $data = $request->validate([
+            'product_type' => ['required', Rule::in(['sourced_product', 'item'])],
+            'product_id' => ['required', 'integer'],
+        ]);
+        $result = $fitService->recommend($profile, $data['product_type'], $data['product_id']);
+        return response()->json(['data' => $result]);
+    }
+
     public function requests(Request $request)
     {
         return response()->json(FashionFitRequest::where('customer_id', $request->user()->id)->with('estimates')->latest()->paginate(20));

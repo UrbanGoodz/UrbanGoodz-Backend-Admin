@@ -48,6 +48,18 @@ class UrbanGoodzIngestionService
             $classification = $this->classifyBusiness($cand);
             $cand = array_merge($cand, $classification);
 
+            // Only real product data ever reaches extractProducts(): pull a
+            // real catalog from the business's own site when one exists,
+            // and never fabricate a fallback when it doesn't.
+            if (empty($cand['products']) && !empty($cand['website'])) {
+                $cand['products'] = app(UrbanGoodzStorefrontCatalogService::class)
+                    ->fetchRealProductCatalog($cand['website']);
+            }
+
+            // Resolve real images only -- Places photos when available,
+            // otherwise a manually supplied real image, otherwise none.
+            $cand['resolved_images'] = $this->resolveRealImages($cand, $apiKey);
+
             $results[] = $cand;
         }
 
@@ -55,50 +67,126 @@ class UrbanGoodzIngestionService
     }
 
     /**
-     * Fetch businesses from Google Places API (Nearby Search + Text Search).
+     * Raw Places API (New) Text Search -- returns unmapped place results.
+     * Shared by the bulk city/category discovery flow and single-business
+     * lookups (matching a named Order Anywhere request to a real listing).
+     * The legacy Places API (maps.googleapis.com/maps/api/place/*) is
+     * deprecated and blocked for this project; this calls
+     * places.googleapis.com instead, which returns hours/photos/website/
+     * phone in a single request (no separate Details call needed).
      */
-    private function fetchFromGooglePlaces(string $city, string $category, string $apiKey, array $filters): array
+    private function textSearchPlaces(string $query, string $apiKey, int $maxResultCount = 20): array
     {
-        $results = [];
-        $query = "{$category} in {$city}";
-        $url = "https://maps.googleapis.com/maps/api/place/textsearch/json?" . http_build_query([
-            'query' => $query,
-            'key' => $apiKey,
-            'type' => 'establishment',
+        $fieldMask = implode(',', [
+            'places.id',
+            'places.displayName',
+            'places.formattedAddress',
+            'places.location',
+            'places.internationalPhoneNumber',
+            'places.websiteUri',
+            'places.regularOpeningHours',
+            'places.photos',
         ]);
 
-        $response = @file_get_contents($url);
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", [
+                    'Content-Type: application/json',
+                    "X-Goog-Api-Key: {$apiKey}",
+                    "X-Goog-FieldMask: {$fieldMask}",
+                ]),
+                'content' => json_encode([
+                    'textQuery' => $query,
+                    'maxResultCount' => max(1, min(20, $maxResultCount)),
+                ]),
+                'timeout' => 15,
+                'ignore_errors' => true,
+            ],
+        ]);
+
+        $response = @file_get_contents('https://places.googleapis.com/v1/places:searchText', false, $context);
         if ($response === false) {
-            Log::warning("UG Ingestion: Google Places API request failed for query: {$query}");
+            Log::warning("UG Ingestion: Places API request failed for query: {$query}");
             return [];
         }
 
         $data = json_decode($response, true);
-        if (!isset($data['results']) || !is_array($data['results'])) {
+        if (isset($data['error'])) {
+            Log::warning("UG Ingestion: Places API error for '{$query}': " . json_encode($data['error']));
             return [];
         }
 
-        foreach ($data['results'] as $place) {
-            $results[] = [
-                'name' => $place['name'] ?? '',
-                'category' => $category,
-                'phone' => $place['formatted_phone_number'] ?? '',
-                'address' => $place['formatted_address'] ?? $place['vicinity'] ?? '',
-                'city' => $city,
-                'state' => $this->extractStateFromAddress($place['formatted_address'] ?? ''),
-                'lat' => $place['geometry']['location']['lat'] ?? null,
-                'lng' => $place['geometry']['location']['lng'] ?? null,
-                'rating' => $place['rating'] ?? null,
-                'website' => $place['website'] ?? null,
-                'place_id' => $place['place_id'] ?? null,
-                'is_black_owned' => false,
-                'source_urls' => ["https://place.google.com/place?id={$place['place_id']}"],
-                'products' => [],
-            ];
+        return is_array($data['places'] ?? null) ? $data['places'] : [];
+    }
+
+    /**
+     * Map one Places (New) result into our candidate array shape.
+     */
+    private function mapPlaceResult(array $place, string $category, string $city): array
+    {
+        $address = $place['formattedAddress'] ?? '';
+        $placeId = $place['id'] ?? null;
+
+        return [
+            'name' => $place['displayName']['text'] ?? '',
+            'category' => $category,
+            'phone' => $place['internationalPhoneNumber'] ?? null,
+            'address' => $address,
+            'city' => $city,
+            'state' => $this->extractStateFromAddress($address),
+            'latitude' => $place['location']['latitude'] ?? null,
+            'longitude' => $place['location']['longitude'] ?? null,
+            'website' => $place['websiteUri'] ?? null,
+            'google_place_id' => $placeId,
+            'hours' => $place['regularOpeningHours']['weekdayDescriptions'] ?? null,
+            'hours_source_url' => $placeId ? "https://www.google.com/maps/place/?q=place_id:{$placeId}" : null,
+            'hours_verified_at' => isset($place['regularOpeningHours']) ? now() : null,
+            'google_photo_names' => array_column($place['photos'] ?? [], 'name'),
+            'is_black_owned' => false,
+            'source_urls' => $placeId ? ["https://www.google.com/maps/place/?q=place_id:{$placeId}"] : [],
+            'products' => [],
+        ];
+    }
+
+    /**
+     * Fetch businesses from Places API (New) Text Search for the bulk
+     * city/category discovery flow.
+     */
+    private function fetchFromGooglePlaces(string $city, string $category, string $apiKey, array $filters): array
+    {
+        $query = "{$category} in {$city}";
+        $places = $this->textSearchPlaces($query, $apiKey, 20);
+        if (empty($places)) {
+            return [];
         }
 
-        Log::info("UG Ingestion: Fetched " . count($results) . " candidates from Google Places for '{$query}'");
+        $results = array_map(fn ($place) => $this->mapPlaceResult($place, $category, $city), $places);
+        Log::info("UG Ingestion: Fetched " . count($results) . " candidates from Places API for '{$query}'");
         return $results;
+    }
+
+    /**
+     * Match a named Order Anywhere request to a real Places listing. The
+     * customer already named a specific real business -- this looks it up
+     * by name (+ address/website hint if given) so the review queue sees
+     * that business's real hours/photos/phone/address, not a bare stub.
+     * Returns null when Places has no confident match; callers must keep
+     * whatever the customer actually typed in that case.
+     */
+    public function matchOrderAnywhereRequestToPlace(OrderAnywhereRequest $request, string $apiKey, string $city = 'Houston'): ?array
+    {
+        $query = trim($request->store_vendor_name . ' ' . ($request->store_vendor_address_or_website ?? ''));
+        if ($query === '') {
+            return null;
+        }
+
+        $places = $this->textSearchPlaces($query, $apiKey, 1);
+        if (empty($places)) {
+            return null;
+        }
+
+        return $this->mapPlaceResult($places[0], 'Order Anywhere request', $city);
     }
 
     /**
@@ -126,13 +214,18 @@ class UrbanGoodzIngestionService
                 'address' => $b->address ?? '',
                 'city' => $b->city ?? $city,
                 'state' => $b->state ?? 'TX',
-                'lat' => $b->lat ?? null,
-                'lng' => $b->lng ?? null,
+                'latitude' => $b->latitude ?? null,
+                'longitude' => $b->longitude ?? null,
                 'website' => $b->website ?? null,
                 'email' => $b->email ?? null,
                 'is_black_owned' => $b->is_black_owned ?? false,
                 'source_urls' => $b->source_urls ?? [],
-                'products' => $b->products ?? [],
+                // $b->products is a relationship call -- always returns a
+                // Collection object, never null, so `?? []` never applies
+                // and empty()-checks on it downstream always read "not
+                // empty" even with zero real products. Normalize to a
+                // plain array so emptiness checks behave correctly.
+                'products' => $b->products ? $b->products->toArray() : [],
             ])
             ->toArray();
 
@@ -144,28 +237,21 @@ class UrbanGoodzIngestionService
     }
 
     /**
-     * Enrich candidate record with mock website/social lookups and check policies.
+     * Pass through only verified fields. Never invent website, social
+     * links, email, or descriptions -- an unverified guess stored in these
+     * fields is indistinguishable from a verified fact downstream, and the
+     * review queue has no way to tell them apart. Leave unknown fields
+     * null; a real scraper/enrichment pass fills them from actual sources.
      */
     public function enrichBusiness(array $candidate): array
     {
-        $domain = Str::slug($candidate['name']) . '.com';
-        
-        $candidate['website'] = $candidate['website'] ?? "https://www.{$domain}";
-        $candidate['social_links'] = $candidate['social_links'] ?? [
-            'instagram' => "https://instagram.com/" . Str::slug($candidate['name']),
-            'facebook' => "https://facebook.com/" . Str::slug($candidate['name']),
-            'tiktok' => null,
-            'youtube' => null,
-        ];
-        $candidate['email'] = $candidate['email'] ?? "info@{$domain}";
-        $candidate['short_description'] = $candidate['short_description'] ?? $this->generateDescriptions($candidate, 'short');
-        $candidate['description'] = $candidate['description'] ?? $this->generateDescriptions($candidate, 'long');
+        $candidate['website'] = $candidate['website'] ?? null;
+        $candidate['social_links'] = $candidate['social_links'] ?? null;
+        $candidate['email'] = $candidate['email'] ?? null;
+        $candidate['short_description'] = $candidate['short_description'] ?? null;
+        $candidate['description'] = $candidate['description'] ?? null;
         $candidate['source_status'] = $candidate['source_status'] ?? 'ai_sourced';
-        
-        // Add source URLs
-        $candidate['source_urls'] = $candidate['source_urls'] ?? [
-            "https://google.com/search?q=" . urlencode($candidate['name'] . ' ' . $candidate['city'])
-        ];
+        $candidate['source_urls'] = $candidate['source_urls'] ?? [];
 
         return $candidate;
     }
@@ -275,51 +361,35 @@ class UrbanGoodzIngestionService
     }
 
     /**
-     * Generate marketplace copy following strict branding guides.
-     */
-    public function generateDescriptions(array $entity, string $type = 'long'): string
-    {
-        $name = $entity['name'];
-        $city = $entity['city'] ?? 'Houston';
-        $category = $entity['category'] ?? 'local services';
-
-        if ($type === 'short') {
-            return "{$name} offers premium {$category} in {$city}. Requested through Urban Goodz.";
-        }
-
-        return "{$name} is a {$city}-based business publicly listed as offering {$category}. Urban Goodz customers can request items or booking quotes from this business through Order Anywhere while the listing awaits owner verification. Not yet claimed. Sourced by Urban Goodz.";
-    }
-
-    /**
      * Extract products for a candidate.
      */
     public function extractProducts(array $candidate): array
     {
         if (empty($candidate['products'])) {
-            // Create a general quote-required placeholder product
-            return [
-                [
-                    'name' => "Custom request from {$candidate['name']}",
-                    'price' => null,
-                    'price_type' => 'quote_required',
-                    'stock_status' => 'unknown',
-                    'item_type' => 'custom_request',
-                    'requires_quote' => true,
-                    'requires_admin_review' => true,
-                    'is_active' => false,
-                    'is_public' => false,
-                ]
-            ];
+            // No real catalog found -- stay empty rather than invent a
+            // generic "Custom request" product the business never listed.
+            return [];
         }
 
         $products = [];
         foreach ($candidate['products'] as $prod) {
             $products[] = [
                 'name' => $prod['name'],
+                'short_description' => $prod['short_description'] ?? null,
+                'full_description' => $prod['full_description'] ?? null,
                 'price' => $prod['price'] ?? null,
                 'price_type' => isset($prod['price']) ? 'fixed' : 'quote_required',
-                'stock_status' => 'in_stock',
+                'currency' => $prod['currency'] ?? 'USD',
+                'stock_status' => $prod['stock_status'] ?? 'unknown',
                 'item_type' => 'product',
+                'images' => $prod['images'] ?? null,
+                'thumbnail' => $prod['thumbnail'] ?? null,
+                'sku' => $prod['sku'] ?? null,
+                'external_product_id' => $prod['external_product_id'] ?? null,
+                'canonical_url' => $prod['canonical_url'] ?? null,
+                'brand' => $prod['brand'] ?? null,
+                'source_url' => $prod['source_url'] ?? null,
+                'source_type' => $prod['source_type'] ?? null,
                 'requires_quote' => !isset($prod['price']),
                 'requires_admin_review' => true,
                 'is_active' => false,
@@ -331,24 +401,106 @@ class UrbanGoodzIngestionService
     }
 
     /**
-     * Handle images and fallbacks.
+     * Resolve real business images only -- never a generated placeholder.
+     * Downloads real Places photos when photo references are present (the
+     * first becomes the cover image, the rest fill the gallery); otherwise
+     * passes through a single manually supplied real image. Returns []
+     * when nothing verified is available.
      */
-    public function findImages(array $entity): array
+    public function resolveRealImages(array $entity, ?string $googleApiKey = null): array
     {
-        return [
-            'image_url' => $entity['image'] ?? $this->generateBrandedFallbackImage($entity['category'] ?? 'general'),
-            'rights_status' => 'generated_placeholder',
-            'review_status' => 'pending',
-        ];
+        $images = [];
+
+        $photoNames = $entity['google_photo_names'] ?? [];
+        if (!empty($photoNames) && !empty($googleApiKey)) {
+            $slug = Str::slug($entity['name'] ?? 'business');
+            foreach (array_slice($photoNames, 0, 6) as $index => $photoName) {
+                $stored = $this->downloadAndStorePlacesPhoto($photoName, $googleApiKey, $slug);
+                if ($stored === null) {
+                    continue;
+                }
+                $stored['image_role'] = $index === 0 ? 'cover' : 'gallery';
+                $images[] = $stored;
+            }
+        }
+
+        if (empty($images) && !empty($entity['image'])) {
+            $images[] = [
+                'image_url' => $entity['image'],
+                'rights_status' => $entity['image_rights_status'] ?? 'unknown_review_required',
+                'review_status' => 'pending',
+                'image_role' => $entity['image_role'] ?? 'gallery',
+            ];
+        }
+
+        return $images;
     }
 
     /**
-     * Generate branded fallback image url.
+     * Download one Places (New) photo and store it locally. Places photos
+     * are not guaranteed clear for downstream commercial reuse (attribution
+     * / usage restrictions under Google's ToS), so this always comes back
+     * rights_status=unknown_review_required -- a human clears it before it
+     * can go live, same as every other sourced image. Rejects failed
+     * fetches and suspiciously tiny/broken images rather than storing them.
      */
-    public function generateBrandedFallbackImage(string $category): string
+    private function downloadAndStorePlacesPhoto(string $photoName, string $apiKey, string $businessSlug): ?array
     {
-        $cat = Str::slug($category);
-        return "/assets/images/urban_goodz/fallbacks/{$cat}.png";
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => "X-Goog-Api-Key: {$apiKey}\r\n",
+                'timeout' => 15,
+                'ignore_errors' => true,
+                'follow_location' => 1,
+            ],
+        ]);
+
+        $bytes = @file_get_contents(
+            "https://places.googleapis.com/v1/{$photoName}/media?maxWidthPx=1600",
+            false,
+            $context
+        );
+
+        if ($bytes === false || strlen($bytes) < 2048) {
+            return null;
+        }
+
+        $info = @getimagesizefromstring($bytes);
+        if ($info === false || $info[0] < 200 || $info[1] < 200) {
+            return null;
+        }
+
+        $format = match ($info['mime'] ?? '') {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => null,
+        };
+        if ($format === null) {
+            return null;
+        }
+
+        $hash = hash('sha256', $bytes);
+        $path = "urban_goodz/sourced_images/{$businessSlug}/{$hash}.{$format}";
+
+        if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, $bytes);
+        }
+
+        return [
+            'image_url' => asset('storage/' . $path),
+            'local_path' => $path,
+            'source_url' => "https://places.googleapis.com/v1/{$photoName}/media",
+            'width' => $info[0],
+            'height' => $info[1],
+            'format' => $format,
+            'file_size_bytes' => strlen($bytes),
+            'content_hash' => $hash,
+            'source_platform' => 'google_places',
+            'rights_status' => 'unknown_review_required',
+            'review_status' => 'pending',
+        ];
     }
 
     /**
@@ -386,15 +538,14 @@ class UrbanGoodzIngestionService
                 ]));
             }
 
-            // Add image reference
-            $img = $this->findImages($cand);
-            UrbanGoodzSourcedImage::create([
-                'entity_type' => 'business',
-                'entity_id' => $business->id,
-                'image_url' => $img['image_url'],
-                'rights_status' => $img['rights_status'],
-                'review_status' => $img['review_status'],
-            ]);
+            // Only store image rows for images that were actually resolved
+            // to a real photo (Places download or a manually supplied URL).
+            foreach ($cand['resolved_images'] ?? [] as $img) {
+                UrbanGoodzSourcedImage::create(array_merge($img, [
+                    'entity_type' => 'business',
+                    'entity_id' => $business->id,
+                ]));
+            }
 
             $importedCount++;
             $needsReviewCount++;
@@ -436,7 +587,10 @@ class UrbanGoodzIngestionService
             return $existing;
         }
 
-        // Create new pending business from request details
+        // Create new pending business from request details. Start with
+        // exactly what the customer gave us; a real Places match (if found)
+        // overlays real address/phone/hours/photos, never invented ones,
+        // and never overwrites the name the customer actually typed.
         $candidate = [
             'name' => $request->store_vendor_name,
             'slug' => Str::slug($request->store_vendor_name) . '-' . Str::random(4),
@@ -454,12 +608,57 @@ class UrbanGoodzIngestionService
             'fulfillment_modes' => ['order_anywhere'],
         ];
 
+        $apiKey = config('services.google.places_key', env('GOOGLE_PLACES_API_KEY'));
+        $placeMatch = !empty($apiKey)
+            ? $this->matchOrderAnywhereRequestToPlace($request, $apiKey, $candidate['city'])
+            : null;
+        if ($placeMatch !== null) {
+            unset($placeMatch['name']);
+            $candidate = array_merge($candidate, array_filter($placeMatch, fn ($v) => $v !== null && $v !== ''));
+            $candidate['data_confidence_score'] = max($candidate['data_confidence_score'], $this->scoreConfidence($candidate));
+        }
+
         $classification = $this->classifyBusiness($candidate);
         $candidate = array_merge($candidate, $classification);
 
         $business = UrbanGoodzSourcedBusiness::create($candidate);
 
-        // Add custom requested item as pending product
+        // Store any real photos the Places match resolved.
+        if (!empty($apiKey)) {
+            foreach ($this->resolveRealImages($candidate, $apiKey) as $img) {
+                UrbanGoodzSourcedImage::create(array_merge($img, [
+                    'entity_type' => 'business',
+                    'entity_id' => $business->id,
+                ]));
+            }
+        }
+
+        // A matched real website may expose a real catalog too. The first
+        // real product found becomes the request's suggested match -- never
+        // auto-quoted, just something a human reviewer can see and confirm.
+        $matchedProductId = null;
+        if (!empty($candidate['website'])) {
+            $catalog = app(UrbanGoodzStorefrontCatalogService::class)->fetchRealProductCatalog($candidate['website']);
+            foreach ($this->extractProducts(['products' => $catalog]) as $prod) {
+                $created = UrbanGoodzSourcedProduct::create(array_merge($prod, [
+                    'sourced_business_id' => $business->id,
+                    'module_id' => $business->module_id,
+                ]));
+                $matchedProductId = $matchedProductId ?? $created->id;
+            }
+        }
+
+        // Link the request to the real business/product it resolved to.
+        // These columns existed on order_anywhere_requests but were never
+        // written to anywhere in the app before this.
+        $request->update([
+            'business_id' => $business->id,
+            'product_id' => $matchedProductId,
+        ]);
+
+        // Add custom requested item as pending product -- this is literally
+        // what the customer asked for, kept regardless of any real catalog
+        // match above.
         UrbanGoodzSourcedProduct::create([
             'sourced_business_id' => $business->id,
             'module_id' => $business->module_id,

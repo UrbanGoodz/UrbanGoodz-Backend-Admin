@@ -59,6 +59,15 @@ class UrbanGoodzSourcedBusiness extends Model
         'shopper_visible',
         'reviewed_by',
         'reviewed_at',
+        'hours',
+        'hours_source_url',
+        'hours_verified_at',
+        'completeness_score',
+        'completeness_breakdown',
+        'enrichment_status',
+        'next_enrichment_at',
+        'field_provenance',
+        'google_place_id',
     ];
 
     protected $casts = [
@@ -86,6 +95,12 @@ class UrbanGoodzSourcedBusiness extends Model
         'shopper_visible' => 'boolean',
         'reviewed_by' => 'integer',
         'reviewed_at' => 'datetime',
+        'hours' => 'array',
+        'hours_verified_at' => 'datetime',
+        'completeness_score' => 'integer',
+        'completeness_breakdown' => 'array',
+        'next_enrichment_at' => 'datetime',
+        'field_provenance' => 'array',
     ];
 
     public static function boot()
