@@ -23,6 +23,11 @@ class UrbanGoodzSourcedImage extends Model
         'review_status',
         'api_visible',
         'shopper_visible',
+        'width',
+        'height',
+        'format',
+        'file_size_bytes',
+        'content_hash',
     ];
 
     protected $casts = [
@@ -30,6 +35,9 @@ class UrbanGoodzSourcedImage extends Model
         'import_batch_id' => 'integer',
         'api_visible' => 'boolean',
         'shopper_visible' => 'boolean',
+        'width' => 'integer',
+        'height' => 'integer',
+        'file_size_bytes' => 'integer',
     ];
 
     public function entity()

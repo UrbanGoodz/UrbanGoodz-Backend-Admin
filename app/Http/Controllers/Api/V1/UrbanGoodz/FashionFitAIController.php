@@ -141,33 +141,40 @@ class FashionFitAIController extends Controller
             'service_type' => ['nullable', 'string'],
         ]);
 
-        $query = Vendor::where('type', 'fashion_fit_provider')
-            ->where('is_active', true);
+        // NOTE: this previously queried Vendor::where('type', ...)->where('is_active', ...)
+        // and selected name/description/address/city/state/rating -- none of those
+        // columns exist on `vendors` (real columns: f_name/l_name, status, phone,
+        // email; no type/is_active/name/description/address/city/state/rating at
+        // all). That guaranteed a real SQL error on every call. This queries the
+        // real canonical Fashion Fit provider model instead, matching the same
+        // relationship FashionFitCustomerController::providers() already uses.
+        $query = \App\Models\FashionFitProviderProfile::where('status', 'approved')
+            ->whereHas('vendor', fn ($q) => $q->where('status', 1)->whereHas('stores', fn ($s) => $s->where('status', 1)))
+            ->with(['vendor.stores' => fn ($q) => $q->where('status', 1)->select('id', 'vendor_id', 'name', 'address', 'module_id')]);
 
         if ($data['garment_type'] ?? false) {
-            $query->where(function ($q) use ($data) {
-                $q->where('name', 'LIKE', "%{$data['garment_type']}%")
-                  ->orWhere('description', 'LIKE', "%{$data['garment_type']}%");
-            });
+            $query->whereJsonContains('service_categories', $data['garment_type']);
         }
 
         if ($data['location'] ?? false) {
-            $query->where(function ($q) use ($data) {
+            $query->whereHas('vendor.stores', function ($q) use ($data) {
                 $q->where('address', 'LIKE', "%{$data['location']}%")
-                  ->orWhere('city', 'LIKE', "%{$data['location']}%")
-                  ->orWhere('state', 'LIKE', "%{$data['location']}%");
+                  ->orWhere('name', 'LIKE', "%{$data['location']}%");
             });
         }
 
         $providers = $query->limit(10)->get()
-            ->map(fn($v) => [
-                'id' => $v->id,
-                'name' => $v->name,
-                'phone' => $v->phone,
-                'email' => $v->email,
-                'address' => $v->address,
-                'rating' => $v->rating ?? 0,
-            ])->toArray();
+            ->map(function ($provider) {
+                $store = $provider->vendor->stores->first();
+                return [
+                    'id' => $provider->vendor_id,
+                    'name' => trim($provider->vendor->f_name.' '.$provider->vendor->l_name),
+                    'phone' => $provider->vendor->phone,
+                    'email' => $provider->vendor->email,
+                    'address' => $store->address ?? null,
+                    'rating' => 0,
+                ];
+            })->toArray();
 
         if (empty($providers)) {
             $providers = UrbanGoodzServiceProvider::where('service_category', 'LIKE', '%fashion%')
@@ -277,11 +284,17 @@ class FashionFitAIController extends Controller
             'measurements.sleeve' => ['nullable', 'numeric'],
         ]);
 
+        // NOTE: this previously built the update payload via array_map(fn($k,$v)=>[$k=>$v], ...)
+        // which produces a LIST of single-key arrays (e.g. [['height'=>70],['waist'=>32]]),
+        // not a flat associative array -- merging that in gave update() numeric keys
+        // (0,1,2...) pointing at array values, which is not valid column=>value input
+        // and would error on every real call. $data['measurements'] is already the
+        // correct flat associative shape straight out of validation.
         $updated = \DB::table('urban_goodz_measurement_requests')
             ->where('id', $data['request_id'])
             ->update(array_merge(
                 ['measurement_status' => 'completed', 'updated_at' => now()],
-                array_map(fn($k, $v) => [$k => $v], array_keys($data['measurements']), array_values($data['measurements']))
+                $data['measurements']
             ));
 
         return response()->json([

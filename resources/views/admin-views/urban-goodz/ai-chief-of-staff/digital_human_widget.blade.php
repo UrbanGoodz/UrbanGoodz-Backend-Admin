@@ -43,7 +43,7 @@
             @endif
 
             <div class="d-flex align-items-center mt-3 gap-2">
-                <button type="button" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech()">
+                <button type="button" id="skylar-speak-btn" class="btn btn-sm btn-light font-weight-semibold mr-2" onclick="triggerSkylarSpeech(this)">
                     <i class="tio-volume-up mr-1"></i> Hear Executive Brief
                 </button>
             </div>
@@ -178,26 +178,45 @@
     };
 })();
 
-function triggerSkylarSpeech() {
-    fetch('{{ url("api/v1/urban-goodz/cross-app/ai/digital-human/state") }}', {
+function triggerSkylarSpeech(btn) {
+    const statusEl = document.getElementById('skylar-chat-status');
+    const text = (document.getElementById('skylar-narrative-text').innerText || '').trim();
+    if (!text) return;
+
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.innerText = 'Generating audio...';
+
+    fetch('{{ route("admin.urban-goodz.ai-chief-of-staff.speak") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'audio/mpeg, application/json'
         },
-        body: JSON.stringify({
-            persona: 'chief_of_staff',
-            text: document.getElementById('skylar-narrative-text').innerText,
-            domain: 'finance',
-            event_type: 'executive_brief'
-        })
+        body: JSON.stringify({ text: text })
     })
-    .then(res => res.json())
-    .then(data => {
-        console.log('Digital Human State Payload loaded:', data.data);
+    .then(res => {
+        const contentType = res.headers.get('Content-Type') || '';
+        if (!res.ok || contentType.indexOf('audio') === -1) {
+            return res.json().then(data => {
+                throw new Error((data && data.message) || 'Voice could not be generated right now.');
+            });
+        }
+        return res.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+        if (statusEl) statusEl.innerText = '';
+        return audio.play();
     })
     .catch(err => {
-        console.error('Digital Human API Error:', err);
+        console.error('Digital Human speak error:', err);
+        if (statusEl) statusEl.innerText = err.message || "Couldn't play the brief right now.";
+    })
+    .finally(() => {
+        if (btn) btn.disabled = false;
     });
 }
 </script>

@@ -40,6 +40,11 @@ class UrbanGoodzSourcedProduct extends Model
         'api_visible',
         'shopper_visible',
         'import_batch_id',
+        'sku',
+        'external_product_id',
+        'canonical_url',
+        'brand',
+        'last_verified_at',
     ];
 
     protected $casts = [
@@ -59,6 +64,7 @@ class UrbanGoodzSourcedProduct extends Model
         'api_visible' => 'boolean',
         'shopper_visible' => 'boolean',
         'import_batch_id' => 'integer',
+        'last_verified_at' => 'datetime',
     ];
 
     public static function boot()

@@ -21,6 +21,7 @@ Route::prefix('fashion-fit')->middleware(['auth:api', 'throttle:api'])->group(fu
     Route::get('profiles/{profileUuid}/analyses/{analysisUuid}', 'Api\V1\FashionFitCustomerController@analysis');
     Route::put('profiles/{profileUuid}/measurements/{measurementId}', 'Api\V1\FashionFitCustomerController@correctMeasurement');
     Route::post('profiles/{uuid}/approve', 'Api\V1\FashionFitCustomerController@approve');
+    Route::post('profiles/{uuid}/fit-check', 'Api\V1\FashionFitCustomerController@evaluateProductFit');
     Route::get('requests', 'Api\V1\FashionFitCustomerController@requests');
     Route::post('requests', 'Api\V1\FashionFitCustomerController@createRequest');
     Route::get('requests/{uuid}', 'Api\V1\FashionFitCustomerController@requestDetails');
