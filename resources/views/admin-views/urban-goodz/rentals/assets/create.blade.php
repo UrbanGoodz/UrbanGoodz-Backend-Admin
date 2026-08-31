@@ -15,7 +15,7 @@
             </div>
         </div>
 
-        <form action="{{ route('admin.urban-goodz.rentals.assets.store') }}" method="POST">
+        <form action="{{ route('admin.urban-goodz.rentals.assets.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="card">
                 <div class="card-body">
@@ -126,6 +126,13 @@
                             <div class="form-group">
                                 <label class="input-label">{{ translate('Description') }}</label>
                                 <textarea name="description" class="form-control" rows="3">{{ old('description') }}</textarea>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-group">
+                                <label class="input-label">{{ translate('Photos') }}</label>
+                                <input type="file" name="photos[]" class="form-control" accept="image/*" multiple>
+                                <small class="text-muted">{{ translate('You can select multiple photos of the vehicle or equipment being offered.') }}</small>
                             </div>
                         </div>
                         <div class="col-12">

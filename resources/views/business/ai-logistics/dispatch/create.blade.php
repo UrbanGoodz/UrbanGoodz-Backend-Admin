@@ -3,7 +3,7 @@
 @section('title', translate('Create Dispatch'))
 
 @push('css_or_js')
-<link rel="stylesheet" href="{{ dynamicAsset('public/assets/admin-module/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('public/assets/admin/css/select2.min.css') }}">
 @endpush
 
 @section('content')
@@ -85,7 +85,7 @@
 @endsection
 
 @push('script')
-<script src="{{ dynamicAsset('public/assets/admin-module/js/select2.min.js') }}"></script>
+<script src="{{ asset('public/assets/admin/js/select2.min.js') }}"></script>
 <script>
     $(document).ready(function () {
         $('.select2').select2({ width: '100%' });

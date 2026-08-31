@@ -515,7 +515,7 @@ class BusinessAIController extends Controller
         $user = $request->user('business');
         abort_unless($user, 401, 'Business authentication required.');
 
-        $client = $user->businessClient ?? $user->business_client;
+        $client = $user->client;
         abort_unless($client, 403, 'Business client profile not found.');
 
         return $client;

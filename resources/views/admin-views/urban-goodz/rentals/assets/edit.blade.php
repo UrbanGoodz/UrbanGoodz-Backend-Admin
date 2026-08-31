@@ -15,7 +15,7 @@
             </div>
         </div>
 
-        <form action="{{ route('admin.urban-goodz.rentals.assets.update', $asset->id) }}" method="POST">
+        <form action="{{ route('admin.urban-goodz.rentals.assets.update', $asset->id) }}" method="POST" enctype="multipart/form-data">
             @csrf @method('PUT')
             <div class="card">
                 <div class="card-body">
@@ -116,6 +116,27 @@
                             <div class="form-group">
                                 <label class="input-label">{{ translate('Description') }}</label>
                                 <textarea name="description" class="form-control" rows="2">{{ old('description', $asset->description) }}</textarea>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-group">
+                                <label class="input-label">{{ translate('Photos') }}</label>
+                                @php $existingPhotos = json_decode($asset->photos ?? '[]', true) ?: []; @endphp
+                                @if(count($existingPhotos))
+                                    <div class="d-flex flex-wrap gap-10px mb-2">
+                                        @foreach($existingPhotos as $index => $photo)
+                                            <div class="text-center">
+                                                <img src="{{ \App\CentralLogics\Helpers::get_full_url('rental_assets', $photo['img'] ?? '', $photo['storage'] ?? 'public', 'upload_image') }}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:4px;">
+                                                <div class="form-check mt-1">
+                                                    <input type="checkbox" class="form-check-input" name="remove_photos[]" value="{{ $index }}" id="remove_photo_{{ $index }}">
+                                                    <label class="form-check-label" for="remove_photo_{{ $index }}">{{ translate('Remove') }}</label>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <input type="file" name="photos[]" class="form-control" accept="image/*" multiple>
+                                <small class="text-muted">{{ translate('Add more photos of the vehicle or equipment being offered.') }}</small>
                             </div>
                         </div>
                         <div class="col-12">

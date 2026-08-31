@@ -8,15 +8,31 @@ use App\Models\UrbanGoodzManifest;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Models\DeliveryMan;
 use App\Services\UrbanGoodz\UrbanGoodzRouteClusteringService;
+use App\Services\UrbanGoodz\LoadSource\LoadSourcingService;
 use Illuminate\Support\Facades\Log;
 
 class BusinessClientAIService
 {
     private UrbanGoodzAIService $ai;
+    private LoadSourcingService $loadSourcing;
 
-    public function __construct(UrbanGoodzAIService $ai)
+    public function __construct(UrbanGoodzAIService $ai, ?LoadSourcingService $loadSourcing = null)
     {
         $this->ai = $ai;
+        $this->loadSourcing = $loadSourcing ?? app(LoadSourcingService::class);
+    }
+
+    /**
+     * Business Portal's load-sourcing search, delegating to the canonical
+     * multi-adapter LoadSourcingService rather than duplicating its logic.
+     */
+    public function searchExternalLoads(array $criteria, array $context = []): array
+    {
+        return $this->loadSourcing->searchAllSources(
+            $criteria,
+            $context['client_id'] ?? null,
+            'business_client'
+        );
     }
 
     public function optimizeManifest(array $jobs, array $drivers = []): array
@@ -657,5 +673,144 @@ You MUST return ONLY a valid JSON object with this structure, no markdown, no co
         ]);
 
         return $fallback;
+    }
+
+    /**
+     * Analyzes a set of the client's route batches (already fetched by the
+     * caller, with packages/deliveryMan eager-loaded) for on-time, cost, and
+     * exception patterns over the given date window.
+     */
+    public function analyzeRoutePerformance(array $routes, array $options = []): array
+    {
+        $dateFrom = $options['date_from'] ?? now()->subDays(30)->toDateString();
+        $dateTo = $options['date_to'] ?? now()->toDateString();
+
+        $totalRoutes = count($routes);
+        $totalPackages = 0;
+        $completedPackages = 0;
+        $exceptionPackages = 0;
+        $driverTotals = [];
+
+        foreach ($routes as $route) {
+            $packages = $route['packages'] ?? [];
+            $totalPackages += count($packages);
+            foreach ($packages as $pkg) {
+                if (in_array($pkg['status'] ?? null, ['delivered', 'completed'])) {
+                    $completedPackages++;
+                }
+                if (($pkg['status'] ?? null) === 'exception') {
+                    $exceptionPackages++;
+                }
+            }
+            $driverName = trim(($route['delivery_man']['f_name'] ?? '') . ' ' . ($route['delivery_man']['l_name'] ?? ''));
+            if ($driverName !== '') {
+                $driverTotals[$driverName] = ($driverTotals[$driverName] ?? 0) + count($packages);
+            }
+        }
+
+        $completionRate = $totalPackages > 0 ? round($completedPackages / $totalPackages * 100, 1) : 0;
+        $exceptionRate = $totalPackages > 0 ? round($exceptionPackages / $totalPackages * 100, 1) : 0;
+
+        $systemPrompt = "You are a logistics performance analyst for Urban Goodz.
+Analyze this business client's route batch performance for the given period and provide actionable insights.
+
+You MUST return ONLY a valid JSON object with this structure, no markdown, no code fences:
+{
+  \"summary\": string,
+  \"on_time_estimate\": \"strong\"|\"moderate\"|\"needs_attention\",
+  \"insights\": [{\"finding\": string, \"impact\": \"high\"|\"medium\"|\"low\", \"recommendation\": string}],
+  \"top_drivers_by_volume\": [{\"driver\": string, \"packages\": number}],
+  \"risk_flags\": [string]
+}";
+
+        $context = [
+            'period' => ['from' => $dateFrom, 'to' => $dateTo],
+            'total_routes' => $totalRoutes,
+            'total_packages' => $totalPackages,
+            'completion_rate_percent' => $completionRate,
+            'exception_rate_percent' => $exceptionRate,
+            'driver_volume' => $driverTotals,
+        ];
+
+        $result = $this->ai->chat($systemPrompt, 'Analyze this route batch performance data and provide insights.', $context);
+
+        $parsed = $this->parseJsonResponse($result, [
+            'summary' => 'No AI narrative available; showing computed metrics only.',
+            'on_time_estimate' => 'unknown',
+            'insights' => [],
+            'top_drivers_by_volume' => [],
+            'risk_flags' => [],
+        ]);
+
+        // Computed metrics are real regardless of whether the AI narrative
+        // parsed; never let a fallback lose the actual numbers.
+        return array_merge($parsed, [
+            'total_routes' => $totalRoutes,
+            'total_packages' => $totalPackages,
+            'completion_rate_percent' => $completionRate,
+            'exception_rate_percent' => $exceptionRate,
+        ]);
+    }
+
+    /**
+     * Flags cost outliers by comparing each of the client's rated loads in
+     * the lookback window against that lane's own historical average
+     * (deterministic statistics — not an LLM guess at what "anomalous"
+     * means), then asks the AI service only to narrate the flagged set.
+     */
+    public function detectCostAnomalies(int $clientId, array $options = []): array
+    {
+        $lookbackDays = $options['lookback_days'] ?? 30;
+        $thresholdPercent = $options['threshold_percent'] ?? 20;
+
+        $loads = \App\Models\UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
+            ->whereNotNull('payout_amount')
+            ->where('payout_amount', '>', 0)
+            ->where('created_at', '>=', now()->subDays($lookbackDays))
+            ->get(['id', 'load_number', 'origin_state', 'destination_state', 'payout_amount', 'created_at']);
+
+        $laneAverages = $loads->groupBy(fn($l) => ($l->origin_state ?? '?') . '-' . ($l->destination_state ?? '?'))
+            ->map(fn($group) => $group->avg('payout_amount'));
+
+        $anomalies = [];
+        foreach ($loads as $load) {
+            $lane = ($load->origin_state ?? '?') . '-' . ($load->destination_state ?? '?');
+            $laneAvg = $laneAverages[$lane] ?? null;
+            if ($laneAvg === null || $laneAvg <= 0) {
+                continue;
+            }
+            $deviationPercent = round((($load->payout_amount - $laneAvg) / $laneAvg) * 100, 1);
+            if (abs($deviationPercent) >= $thresholdPercent) {
+                $anomalies[] = [
+                    'load_id' => $load->id,
+                    'load_number' => $load->load_number,
+                    'lane' => $lane,
+                    'payout_amount' => (float) $load->payout_amount,
+                    'lane_average' => round($laneAvg, 2),
+                    'deviation_percent' => $deviationPercent,
+                    'direction' => $deviationPercent > 0 ? 'above_average' : 'below_average',
+                ];
+            }
+        }
+
+        if (empty($anomalies)) {
+            return [];
+        }
+
+        $systemPrompt = "You are a cost-control analyst for Urban Goodz.
+Each item below is a load whose payout already deviates from its own lane's average by at least {$thresholdPercent}%.
+Return ONLY a JSON array, no markdown, no code fences, where each element is:
+{\"load_id\": number, \"note\": string, \"severity\": \"high\"|\"medium\"|\"low\"}";
+
+        $result = $this->ai->chat($systemPrompt, 'Give a one-sentence note and severity for each flagged load.', ['anomalies' => $anomalies]);
+        $notes = $this->parseJsonResponse('{"items":' . $result . '}', ['items' => []]);
+        $notesByLoadId = collect($notes['items'] ?? [])->keyBy('load_id');
+
+        return array_map(function ($a) use ($notesByLoadId) {
+            $note = $notesByLoadId->get($a['load_id']);
+            $a['note'] = $note['note'] ?? null;
+            $a['severity'] = $note['severity'] ?? (abs($a['deviation_percent']) >= 50 ? 'high' : 'medium');
+            return $a;
+        }, $anomalies);
     }
 }

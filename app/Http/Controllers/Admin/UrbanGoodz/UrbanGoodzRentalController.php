@@ -123,10 +123,18 @@ class UrbanGoodzRentalController extends Controller
             'pickup_location' => ['nullable', 'string', 'max:255'],
             'return_location' => ['nullable', 'string', 'max:255'],
             'instructions' => ['nullable', 'string'],
+            'photos' => ['nullable', 'array'],
+            'photos.*' => ['image', 'max:5120'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
         $data['status'] = 'available';
+
+        $photos = [];
+        foreach ($request->file('photos', []) as $photo) {
+            $photos[] = ['img' => Helpers::upload('rental_assets/', 'png', $photo), 'storage' => Helpers::getDisk()];
+        }
+        $data['photos'] = json_encode($photos);
 
         UrbanGoodzRentalAsset::create($data);
 
@@ -166,9 +174,28 @@ class UrbanGoodzRentalController extends Controller
             'pickup_location' => ['nullable', 'string', 'max:255'],
             'return_location' => ['nullable', 'string', 'max:255'],
             'instructions' => ['nullable', 'string'],
+            'photos' => ['nullable', 'array'],
+            'photos.*' => ['image', 'max:5120'],
+            'remove_photos' => ['nullable', 'array'],
+            'remove_photos.*' => ['integer'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
+
+        $existingPhotos = json_decode($asset->photos ?? '[]', true) ?: [];
+        $keptPhotos = [];
+        $removeIndexes = $request->input('remove_photos', []);
+        foreach ($existingPhotos as $index => $photo) {
+            if (in_array($index, $removeIndexes)) {
+                Helpers::check_and_delete('rental_assets/', $photo['img'] ?? '');
+                continue;
+            }
+            $keptPhotos[] = $photo;
+        }
+        foreach ($request->file('photos', []) as $photo) {
+            $keptPhotos[] = ['img' => Helpers::upload('rental_assets/', 'png', $photo), 'storage' => Helpers::getDisk()];
+        }
+        $data['photos'] = json_encode($keptPhotos);
 
         $asset->update($data);
 

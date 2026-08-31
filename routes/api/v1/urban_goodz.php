@@ -242,14 +242,21 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     Route::post('business-jobs/{jobId}/exception', 'Api\UrbanGoodzDriverBusinessCourierController@reportException');
 
     // Driver load board browsing and bidding
-    Route::get('load-board', 'Api\UrbanGoodzDriverApiController@loadBoardAvailable');
+    // 'load-board' (list) and 'load-board/{loadId}/bid' moved below to the
+    // unified controller (2026-08-31): this controller's loadBoardAvailable()
+    // returned a flat array from ->items(), which silently broke pagination
+    // for any client expecting a real paginated resource, and its response
+    // shape shadowed the correct one since routes here were registered
+    // first. loadBoardDetail/myBids/withdrawBid have no unified equivalent
+    // and are unaffected — left as-is.
     Route::get('load-board/{loadId}', 'Api\UrbanGoodzDriverApiController@loadBoardDetail');
-    Route::post('load-board/{loadId}/bid', 'Api\UrbanGoodzDriverApiController@loadBoardPlaceBid');
     Route::get('my-bids', 'Api\UrbanGoodzDriverApiController@loadBoardMyBids');
     Route::post('my-bids/{bidId}/withdraw', 'Api\UrbanGoodzDriverApiController@loadBoardWithdrawBid');
 
-    // Active jobs overview
-    Route::get('active-jobs', 'Api\UrbanGoodzDriverApiController@activeJobs');
+    // Active jobs overview moved below (2026-08-31) — see the unified
+    // active-jobs group; this legacy route was shadowing it and only
+    // covered dedicated routes + load board, not Order Anywhere or
+    // business-courier jobs.
 
     // Load sourcing — AI recommendations
     Route::get('load-sourcing/recommendations', 'Api\UrbanGoodzDriverApiController@loadSourcingRecommendations');
@@ -394,6 +401,13 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
 
         Route::group(['prefix' => 'vendor', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
             Route::get('daily-brief', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorDailyBrief');
+            // Added 2026-08-31: vendor_app's AI Assistant screen has called
+            // these since it was built, but they never existed server-side
+            // (P0 — screen partially failed on every open).
+            Route::get('catalog-suggestions', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorCatalogSuggestions');
+            Route::get('recommended-actions', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorRecommendedActions');
+            Route::get('settlement-metrics', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorSettlementMetrics');
+            Route::post('catalog-update', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorCatalogUpdate');
             Route::post('order-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorOrderSummary');
             Route::get('alerts', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorAlerts');
             Route::get('performance', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPerformance');
@@ -581,4 +595,12 @@ Route::group(['prefix' => 'urban-goodz/events-marketplace', 'middleware' => ['au
     Route::delete('{id}/remind', 'Api\V1\EventMarketplaceController@removeReminder');
     Route::post('{id}/interest', 'Api\V1\EventMarketplaceController@expressInterest');
     Route::post('{id}/report', 'Api\V1\EventMarketplaceController@reportEvent');
+});
+
+Route::group(['prefix' => 'urban-goodz/historical-reconstruction', 'middleware' => ['auth:api', 'throttle:30,1,ug-historical-reconstruction']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\UrbanGoodzHistoricalReconstructionApiController@index');
+    Route::get('{id}', 'Api\V1\UrbanGoodz\UrbanGoodzHistoricalReconstructionApiController@show');
+    Route::get('{id}/snapshot/{reconstructionId}', 'Api\V1\UrbanGoodz\UrbanGoodzHistoricalReconstructionApiController@snapshot');
+    Route::get('{id}/truck-timeline', 'Api\V1\UrbanGoodz\UrbanGoodzHistoricalReconstructionApiController@truckTimeline');
+    Route::get('{id}/export/json', 'Api\V1\UrbanGoodz\UrbanGoodzHistoricalReconstructionApiController@exportJson');
 });

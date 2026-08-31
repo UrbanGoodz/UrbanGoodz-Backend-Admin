@@ -280,6 +280,37 @@ class CrossAppAIController extends Controller
         ]);
     }
 
+    public function vendorCatalogSuggestions(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
+        return response()->json($this->vendorAI->catalogSuggestions($vendorId));
+    }
+
+    public function vendorRecommendedActions(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
+        return response()->json($this->vendorAI->recommendedActions($vendorId));
+    }
+
+    public function vendorSettlementMetrics(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
+        return response()->json($this->vendorAI->settlementMetrics($vendorId));
+    }
+
+    public function vendorCatalogUpdate(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedActorId($request, 'vendor');
+        $data = $request->validate([
+            'item_id' => ['required', 'integer'],
+            'changes' => ['required', 'array'],
+        ]);
+
+        $result = $this->vendorAI->applyCatalogUpdate($vendorId, $data['item_id'], $data['changes']);
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
     /**
      * Vendor Order Summary
      */
