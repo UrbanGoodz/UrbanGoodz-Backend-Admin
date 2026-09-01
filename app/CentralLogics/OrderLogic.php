@@ -254,7 +254,15 @@ class OrderLogic
                 'order_amount' => $order->order_amount,
                 'store_amount' => $type == 'parcel' ? 0 : $store_amount,
                 // 'store_amount'=>$type=='parcel' ? 0 : $order_amount + $order->total_tax_amount - $comission_on_store_amount,
-                'admin_commission' => $comission_amount + $order->additional_charge - $admin_subsidy - $admin_coupon_discount_subsidy - $ref_bonus_amount - $store_discount_amount,
+                // Must match the AdminWallet mutation below exactly (both subtract
+                // the same five costs from comission_amount) - this column is what
+                // reports/reconciliation read, and it was silently overstating
+                // admin's commission by flash_admin_discount_amount on every order
+                // with an admin-funded flash-sale discount, because that one term
+                // was missing here while it was already present in the wallet
+                // update. The wallet balance itself was always correct; only this
+                // per-order ledger record was wrong.
+                'admin_commission' => $comission_amount + $order->additional_charge - $admin_subsidy - $admin_coupon_discount_subsidy - $ref_bonus_amount - $store_discount_amount - $flash_admin_discount_amount,
                 'delivery_charge' => $order->delivery_charge,
                 'original_delivery_charge' => $dm_commission,
                 'tax' => $order->total_tax_amount,
