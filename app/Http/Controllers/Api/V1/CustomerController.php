@@ -220,7 +220,6 @@ class CustomerController extends Controller
             ], 403);
         }
         $address = [
-            'user_id' => $request->user()->id,
             'contact_person_name' => $request->contact_person_name,
             'contact_person_number' => $request->contact_person_number,
             'address_type' => $request->address_type,
@@ -231,10 +230,20 @@ class CustomerController extends Controller
             'longitude' => $request->longitude,
             'latitude' => $request->latitude,
             'zone_id' => $zone->first()->id,
-            'created_at' => now(),
             'updated_at' => now()
         ];
-        DB::table('customer_addresses')->where('id', $id)->update($address);
+        // Was previously unscoped by user_id - any authenticated customer could
+        // overwrite (and, via the user_id key removed above, silently reassign
+        // ownership of) any other customer's saved address by guessing {id}.
+        // delete_address() two methods below already gets this right; this now
+        // matches it.
+        $updated = DB::table('customer_addresses')
+            ->where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->update($address);
+        if (!$updated) {
+            return response()->json(['message' => translate('messages.not_found')], 404);
+        }
         return response()->json(['message' => translate('messages.updated_successfully'), 'zone_id' => $zone->first()->id], 200);
     }
 
