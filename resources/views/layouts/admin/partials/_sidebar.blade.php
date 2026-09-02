@@ -484,7 +484,7 @@
 
                     @if (\App\CentralLogics\Helpers::module_permission_check('zone'))
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/zone*') ? 'active' : '' }}">
-                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.zone.home') }}" title="{{ translate('messages.zone_setup') }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.business-settings.zone.home') }}" title="{{ translate('messages.zone_setup') }}">
                             <i class="tio-city nav-icon"></i>
                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
                                 {{ translate('messages.zone_setup') }} </span>
@@ -500,7 +500,7 @@
                         </a>
                         <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="display:{{ Request::is('admin/module*') ? 'block' : 'none' }}">
                             <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/module/create') ? 'active' : '' }}">
-                                <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.module.create') }}" title="{{ translate('messages.add_module') }}">
+                                <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.business-settings.module.create') }}" title="{{ translate('messages.add_module') }}">
                                     <span class="tio-circle nav-indicator-icon"></span>
                                     <span class="text-truncate">
                                         {{ translate('messages.add_module') }}
@@ -508,7 +508,7 @@
                                 </a>
                             </li>
                             <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/module') ? 'active' : '' }}">
-                                <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.module.index') }}" title="{{ translate('messages.modules') }}">
+                                <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.business-settings.module.index') }}" title="{{ translate('messages.modules') }}">
                                     <span class="tio-circle nav-indicator-icon"></span>
                                     <span class="text-truncate">
                                         {{ translate('messages.modules') }}
@@ -571,7 +571,7 @@
                 <!-- End Coupon -->
                  @if (\App\CentralLogics\Helpers::module_permission_check('cashback'))
                  <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/cashback*') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.cashback.add-new') }}" title="{{ translate('messages.cashback') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.users.cashback.add-new') }}" title="{{ translate('messages.cashback') }}">
                         <i class="tio-settings-back nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ translate('messages.cashback') }}</span>
                     </a>
@@ -723,7 +723,7 @@
                                     <span class="text-truncate sidebar--badge-container">
                                         {{ translate('messages.Offline_Payments') }}
                                         <span class="badge badge-soft-danger bg-light badge-pill ml-1">
-                                            {{ \App\Models\Order::where('payment_method', 'offline_payments')->whereHas('offline_payment')->StoreOrder()->module(Config::get('module.current_module_id'))->count() }}
+                                            {{ \App\Models\Order::where('payment_method', 'offline_payments')->whereHas('offline_payments')->StoreOrder()->module(Config::get('module.current_module_id'))->count() }}
                                         </span>
                                     </span>
                                 </a>
@@ -830,7 +830,7 @@
                                 </a>
                             </li>
                             <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/parcel/orders*') ? 'active' : '' }}">
-                                <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.parcel.orders') }}" title="{{ translate('messages.parcel_orders') }}">
+                                <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.parcel.orders', ['all']) }}" title="{{ translate('messages.parcel_orders') }}">
                                     <span class="tio-circle nav-indicator-icon"></span>
                                     <span class="text-truncate">
                                         {{ translate('messages.parcel_orders') }}
@@ -871,13 +871,12 @@
                                 </a>
                             </li>
 
-                            <li class="nav-item @yield('sub_category') {{ Request::is('admin/category/add-sub-category') ? 'active' : '' }}">
-                                <a class="nav-link " href="{{ route('admin.category.add-sub-category') }}" title="{{ translate('messages.sub_category') }}">
-                                    <span class="tio-circle nav-indicator-icon"></span>
-                                    <span class="text-truncate">{{ translate('messages.sub_category') }}</span>
-                                </a>
-                            </li>
-
+                            {{--
+                            Sub-category and sub-sub-category used to be separate pages; category
+                            management is now a single unified page (admin.category.add) that
+                            handles the full hierarchy via the position param on store, so these
+                            dedicated nav entries were left pointing at routes that no longer exist.
+                            --}}
                             {{-- <li class="nav-item {{Request::is('admin/category/add-sub-sub-category')?'active':''}}">
                             <a class="nav-link " href="{{route('admin.category.add-sub-sub-category')}}" title="add new sub sub category">
                                 <span class="tio-circle nav-indicator-icon"></span>
@@ -1085,7 +1084,7 @@
                     <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/delivery-man/add') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.delivery-man.add') }}" title="{{ translate('messages.add_delivery_man') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.users.delivery-man.add') }}" title="{{ translate('messages.add_delivery_man') }}">
                         <i class="tio-running nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
                             {{ translate('messages.add_delivery_man') }}
@@ -1094,7 +1093,7 @@
                 </li>
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/delivery-man/new') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link text-capitalize" href="{{ route('admin.delivery-man.new') }}" title="{{ translate('messages.new_joining_requests') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link text-capitalize" href="{{ route('admin.users.delivery-man.new') }}" title="{{ translate('messages.new_joining_requests') }}">
                         <i class="tio-man nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
                             {{ translate('messages.new_joining_requests') }}
@@ -1104,7 +1103,7 @@
 
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/delivery-man/list') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.delivery-man.list') }}" title="{{ translate('messages.deliveryman_list') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.users.delivery-man.list') }}" title="{{ translate('messages.deliveryman_list') }}">
                         <i class="tio-filter-list nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
                             {{ translate('messages.deliveryman_list') }}
@@ -1113,7 +1112,7 @@
                 </li>
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/delivery-man/reviews/list') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.delivery-man.reviews.list') }}" title="{{ translate('messages.reviews') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.users.delivery-man.reviews.list') }}" title="{{ translate('messages.reviews') }}">
                         <i class="tio-star-outlined nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
                             {{ translate('messages.reviews') }}
@@ -1194,7 +1193,7 @@
                     </a>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/contact/contact-list') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.contact.contact-list') }}" title="{{ translate('messages.contact_messages') }}">
+                    <a class="nav-link " href="{{ route('admin.users.contact.contact-list') }}" title="{{ translate('messages.contact_messages') }}">
                         <span class="tio-message nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.contact_messages') }}</span>
                     </a>
@@ -1240,7 +1239,7 @@
                 <!-- account -->
                 @if (\App\CentralLogics\Helpers::module_permission_check('collect_cash'))
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/account-transaction*') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.account-transaction.index') }}" title="{{ translate('messages.collect_cash') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.transactions.account-transaction.index') }}" title="{{ translate('messages.collect_cash') }}">
                         <i class="tio-money nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ translate('messages.collect_cash') }}</span>
                     </a>
@@ -1251,7 +1250,7 @@
                 <!-- provide_dm_earning -->
                 @if (\App\CentralLogics\Helpers::module_permission_check('provide_dm_earning'))
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/provide-deliveryman-earnings*') ? 'active' : '' }}">
-                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.provide-deliveryman-earnings.index') }}" title="{{ translate('messages.deliverymen_earning_provide') }}">
+                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.transactions.provide-deliveryman-earnings.index') }}" title="{{ translate('messages.deliverymen_earning_provide') }}">
                         <i class="tio-send nav-icon"></i>
                         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ translate('messages.deliverymen_earning_provide') }}</span>
                     </a>
@@ -1278,19 +1277,19 @@
                     </a>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/business-settings/payment-method') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.business-settings.payment-method') }}" title="{{ translate('messages.payment_methods') }}">
+                    <a class="nav-link " href="{{ route('admin.business-settings.third-party.payment-method') }}" title="{{ translate('messages.payment_methods') }}">
                         <span class="tio-atm nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.payment_methods') }}</span>
                     </a>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/business-settings/mail-config') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.business-settings.mail-config') }}" title="{{ translate('messages.mail_config') }}">
+                    <a class="nav-link " href="{{ route('admin.business-settings.third-party.mail-config') }}" title="{{ translate('messages.mail_config') }}">
                         <span class="tio-email nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.mail_config') }}</span>
                     </a>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/business-settings/sms-module') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.business-settings.sms-module') }}" title="{{ translate('messages.sms_system_module') }}">
+                    <a class="nav-link " href="{{ route('admin.business-settings.third-party.sms-module') }}" title="{{ translate('messages.sms_system_module') }}">
                         <span class="tio-message nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.sms_system_module') }}</span>
                     </a>
@@ -1319,13 +1318,13 @@
                     </a>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/business-settings/landing-page-settings*') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.business-settings.landing-page-settings', 'index') }}" title="{{ translate('messages.landing_page_settings') }}">
+                    <a class="nav-link " href="{{ route('admin.business-settings.admin-landing-page-settings', 'index') }}" title="{{ translate('messages.landing_page_settings') }}">
                         <span class="tio-website nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.landing_page_settings') }}</span>
                     </a>
                 </li>
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/business-settings/config*') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.business-settings.config-setup') }}" title="{{ translate('messages.third_party_apis') }}">
+                    <a class="nav-link " href="{{ route('admin.business-settings.third-party.config-setup') }}" title="{{ translate('messages.third_party_apis') }}">
                         <span class="tio-key nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.third_party_apis') }}</span>
                     </a>
@@ -1399,7 +1398,7 @@
                 </li>
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/business-settings/recaptcha*') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.business-settings.recaptcha_index') }}" title="{{ translate('messages.reCaptcha') }}">
+                    <a class="nav-link " href="{{ route('admin.business-settings.third-party.recaptcha_index') }}" title="{{ translate('messages.reCaptcha') }}">
                         <span class="tio-top-security-outlined nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.reCaptcha') }}</span>
                     </a>
@@ -1424,7 +1423,7 @@
                 </li>
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/report/item-wise-report') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.report.item-wise-report') }}" title="{{ translate('messages.item_report') }}">
+                    <a class="nav-link " href="{{ route('admin.transactions.report.item-wise-report') }}" title="{{ translate('messages.item_report') }}">
                         <span class="tio-chart-bar-1 nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.item_report') }}</span>
                     </a>
@@ -1438,7 +1437,7 @@
 
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/report/store-wise-report') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.report.store-summary-report') }}" title="{{ translate('messages.store_wise_report') }}">
+                    <a class="nav-link " href="{{ route('admin.transactions.report.store-summary-report') }}" title="{{ translate('messages.store_wise_report') }}">
                         <span class="tio-home nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.store_report') }}</span>
                     </a>
@@ -1446,14 +1445,14 @@
 
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/report/order-report') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.report.order-report') }}" title="{{ translate('messages.order_report') }}">
+                    <a class="nav-link " href="{{ route('admin.transactions.report.order-report') }}" title="{{ translate('messages.order_report') }}">
                         <span class="tio-voice nav-icon"></span>
                         <span class="text-truncate text-capitalize">{{ translate('messages.order_report') }}</span>
                     </a>
                 </li>
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/report/transaction-report') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.report.transaction-report') }}" title="{{ translate('messages.transaction_report') }}">
+                    <a class="nav-link " href="{{ route('admin.transactions.report.day-wise-report') }}" title="{{ translate('messages.transaction_report') }}">
                         <span class="tio-chart-pie-1 nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.transaction_report') }}</span>
                     </a>
@@ -1461,7 +1460,7 @@
 
 
                 <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/report/expense-report') ? 'active' : '' }}">
-                    <a class="nav-link " href="{{ route('admin.report.expense-report') }}" title="{{ translate('messages.expense_report') }}">
+                    <a class="nav-link " href="{{ route('admin.transactions.report.expense-report') }}" title="{{ translate('messages.expense_report') }}">
                         <span class="tio-money nav-icon"></span>
                         <span class="text-truncate">{{ translate('messages.expense_report') }}</span>
                     </a>
