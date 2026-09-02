@@ -6,6 +6,10 @@ use App\Models\Order;
 use App\Models\OrderCancelReason;
 use App\Models\Store;
 use App\Models\Coupon;
+use App\Models\Item;
+use App\Models\ItemCampaign;
+use App\Models\OrderDetail;
+use App\Scopes\StoreScope;
 use App\Exports\OrderExport;
 use Illuminate\Http\Request;
 use App\CentralLogics\Helpers;
@@ -215,14 +219,579 @@ class OrderController extends Controller
             return $query->withCount('orders');
         },'delivery_man'=>function($query){
             return $query->withCount('orders');
+        }, 'details.item' => function ($query) {
+            return $query->withoutGlobalScope(StoreScope::class);
+        }, 'details.campaign' => function ($query) {
+            return $query->withoutGlobalScope(StoreScope::class);
         }])->where(['id' => $id, 'store_id' => Helpers::get_store_id()])->first();
         if (isset($order)) {
             $reasons=OrderCancelReason::where('status', 1)->where('user_type' ,'store' )->get();
-            return view('vendor-views.order.order-view', compact('order' ,'reasons'));
+            $editing = false;
+            if ($request->session()->has('order_cart')) {
+                $cart = session()->get('order_cart');
+                if (count($cart) > 0 && $cart[0]->order_id == $order->id) {
+                    $editing = true;
+                } else {
+                    session()->forget('order_cart');
+                }
+            }
+            $category = $request->query('category_id', 0);
+            $categories = \App\Models\Category::active()->get();
+            $keyword = $request->query('keyword', false);
+            $key = explode(' ', $keyword);
+            $products = Item::where('store_id', Helpers::get_store_id())
+                ->when($category, function ($query) use ($category) {
+                    $query->whereHas('category', function ($q) use ($category) {
+                        return $q->whereId($category)->orWhere('parent_id', $category);
+                    });
+                })
+                ->when($keyword, function ($query) use ($key) {
+                    return $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            $q->orWhere('name', 'like', "%{$value}%");
+                        }
+                    });
+                })
+                ->latest()->active()->paginate(10);
+            return view('vendor-views.order.order-view', compact('order' ,'reasons', 'editing', 'categories', 'products', 'category', 'keyword'));
         } else {
             Toastr::info('No more orders!');
             return back();
         }
+    }
+
+    /**
+     * Ports the admin panel's order-cart-editing engine (edit/update/
+     * checkValidity/add_to_cart/remove_from_cart/quick_view/
+     * quick_view_cart_item) to the vendor panel, store-scoped throughout.
+     * The routes for all of these already existed - they pointed at
+     * methods that were never written. makeEditOrderDetails() and
+     * setOrderEditCalculatedTax() come from the PlaceNewOrder trait this
+     * controller already uses, same as the admin controller.
+     */
+    public function edit(Request $request, $id)
+    {
+        $order = Order::with(['details', 'store' => function ($query) {
+            return $query->withCount('orders');
+        }, 'customer' => function ($query) {
+            return $query->withCount('orders');
+        }, 'delivery_man' => function ($query) {
+            return $query->withCount('orders');
+        }, 'details.item' => function ($query) {
+            return $query->withoutGlobalScope(StoreScope::class);
+        }, 'details.campaign' => function ($query) {
+            return $query->withoutGlobalScope(StoreScope::class);
+        }])->where(['id' => $id, 'store_id' => Helpers::get_store_id()])->first();
+
+        if (!$order) {
+            Toastr::info('No more orders!');
+            return back();
+        }
+
+        if ($request->cancle) {
+            if ($request->session()->has(['order_cart'])) {
+                session()->forget(['order_cart']);
+            }
+            return back();
+        }
+        $cart = collect([]);
+        foreach ($order->details as $details) {
+            unset($details['item_details']);
+            $details['status'] = true;
+            $cart->push($details);
+        }
+        if ($cart->isEmpty()) {
+            Toastr::error(translate('messages.cart_is_empty'));
+            return back();
+        }
+
+        if ($request->session()->has('order_cart')) {
+            session()->forget('order_cart');
+        } else {
+            $request->session()->put('order_cart', $cart);
+            $this->setOrderEditCalculatedTax(store: $order->store, order_id: $order->id);
+        }
+        return back();
+    }
+
+    public function update(Request $request, $id)
+    {
+        $order = Order::with(['details', 'store' => function ($query) {
+            return $query->withCount('orders');
+        }, 'customer' => function ($query) {
+            return $query->withCount('orders');
+        }, 'delivery_man' => function ($query) {
+            return $query->withCount('orders');
+        }, 'details.item' => function ($query) {
+            return $query->withoutGlobalScope(StoreScope::class);
+        }, 'details.campaign' => function ($query) {
+            return $query->withoutGlobalScope(StoreScope::class);
+        }])->where(['id' => $id, 'store_id' => Helpers::get_store_id()])->first();
+
+        if (!$order) {
+            Toastr::info('No more orders!');
+            return back();
+        }
+
+        if (!$request->session()->has('order_cart')) {
+            Toastr::error(translate('messages.order_data_not_found'));
+            return back();
+        }
+        $cart = $request->session()->get('order_cart', collect([]));
+        $store = $order->store;
+        $validity = $this->checkValidity($cart, $store, $request);
+        if ($validity['status_code'] != 200) {
+            Toastr::error($validity['message']);
+            return back();
+        }
+        $coupon = null;
+        $total_addon_price = 0;
+        $product_price = 0;
+        $store_discount_amount = 0;
+        $order_details_ids = [];
+        if ($order->coupon_code) {
+            $coupon = Coupon::where(['code' => $order->coupon_code])->first();
+        }
+
+        foreach ($cart as $c) {
+            try {
+                if ($c['status'] == true) {
+                    unset($c['status']);
+                    $product = $c['item_campaign_id'] != null ? ItemCampaign::find($c['item_campaign_id']) : Item::find($c['item_id']);
+                    if ($product) {
+                        $price = $c['price'];
+                        $product = Helpers::product_data_formatting($product);
+                        $c->item_details = json_encode($product);
+                        $c->updated_at = now();
+                        if (isset($c->id)) {
+                            OrderDetail::where('id', $c->id)->update([
+                                'item_id' => $c->item_id,
+                                'item_campaign_id' => $c->item_campaign_id,
+                                'item_details' => $c->item_details,
+                                'quantity' => $c->quantity,
+                                'price' => $c->price,
+                                'tax_amount' => $c->tax_amount,
+                                'discount_on_item' => $c->discount_on_item * $c->quantity,
+                                'discount_on_product_by' => $request->session()->has('discount_on_product_by_session') ? $request->session()->get('discount_on_product_by_session') : $c?->discount_on_product_by,
+                                'discount_type' => $c->discount_type,
+                                'variant' => $c->variant,
+                                'variation' => $c->variation,
+                                'add_ons' => $c->add_ons,
+                                'total_add_on_price' => $c->total_add_on_price,
+                                'updated_at' => $c->updated_at
+                            ]);
+                        } else {
+                            $c->save();
+                        }
+                        $order_details_ids[] = $c->id;
+                        $total_addon_price += $c['total_add_on_price'];
+                        $product_price += $price * $c['quantity'];
+                        $store_discount_amount += $c['discount_on_item'] * $c['quantity'];
+                    } else {
+                        Toastr::error(translate('messages.item_not_found'));
+                        return back();
+                    }
+                } else {
+                    $c->delete();
+                }
+            } catch (\Throwable $th) {
+                info($th->getMessage());
+            }
+        }
+
+        $store_discount = Helpers::get_store_discount($store);
+        if (isset($store_discount)) {
+            if ($product_price + $total_addon_price < $store_discount['min_purchase']) {
+                $store_discount_amount = 0;
+            }
+            if ($store_discount_amount > $store_discount['max_discount'] && $store_discount_amount > $store_discount['max_discount']) {
+                $store_discount_amount = $store_discount['max_discount'];
+            }
+        }
+        $order->delivery_charge = $order->original_delivery_charge;
+        if ($coupon) {
+            if ($coupon->coupon_type == 'free_delivery') {
+                $order->delivery_charge = 0;
+                $coupon = null;
+            }
+        }
+        if ($order->store->free_delivery || $order->order_type == 'take_away') {
+            $order->delivery_charge = 0;
+        }
+
+        $additionalCharges = [];
+        $settings = BusinessSetting::whereIn('key', [
+            'additional_charge_status',
+            'additional_charge',
+            'extra_packaging_data',
+        ])->pluck('value', 'key');
+        $additional_charge_status = $settings['additional_charge_status'] ?? null;
+        $additional_charge = $settings['additional_charge'] ?? null;
+        $order->additional_charge = 0;
+        if ($additional_charge_status == 1) {
+            $order->additional_charge = $additional_charge ?? 0;
+        }
+
+        $order_details = $this->makeEditOrderDetails($cart, null, $store);
+
+        foreach ($order_details['order_details'] as $key => $order_de) {
+            $order->details()->where('id', $order_de['cart_id'])->update([
+                'discount_on_item' => $order_de['discount_on_item'],
+                'discount_on_product_by' => $order_de['discount_on_product_by'],
+                'discount_type' => $order_de['discount_type'],
+            ]);
+        }
+
+        if (data_get($order_details, 'status_code') === 403) {
+            DB::rollBack();
+            return response()->json([
+                'errors' => [
+                    ['code' => data_get($order_details, 'code'), 'message' => data_get($order_details, 'message')]
+                ]
+            ], data_get($order_details, 'status_code'));
+        }
+        $total_addon_price = $order_details['total_addon_price'];
+        $product_price = $order_details['product_price'];
+        $store_discount_amount = $order_details['store_discount_amount'];
+        $flash_sale_admin_discount_amount = $order_details['flash_sale_admin_discount_amount'];
+        $flash_sale_vendor_discount_amount = $order_details['flash_sale_vendor_discount_amount'];
+        $product_data = $order_details['product_data'];
+        $order_details = $order_details['order_details'];
+        $coupon_discount_amount = $coupon ? CouponLogic::get_discount($coupon, $product_price + $total_addon_price - $store_discount_amount) : 0;
+        $total_price = $product_price + $total_addon_price - $store_discount_amount - $flash_sale_admin_discount_amount - $flash_sale_vendor_discount_amount - $coupon_discount_amount;
+        $totalDiscount = $store_discount_amount + $flash_sale_admin_discount_amount + $flash_sale_vendor_discount_amount + $coupon_discount_amount + $order->ref_bonus_amount;
+
+        $finalCalculatedTax = Helpers::getFinalCalculatedTax($order_details, $additionalCharges, $totalDiscount, $total_price, $store->id);
+        $tax_amount = $finalCalculatedTax['tax_amount'];
+        $tax_included = $finalCalculatedTax['tax_included'];
+        $tax_status = $finalCalculatedTax['tax_status'];
+        $taxMap = $finalCalculatedTax['taxMap'];
+        $orderTaxIds = data_get($finalCalculatedTax, 'taxData.orderTaxIds', []);
+        $taxType = data_get($finalCalculatedTax, 'taxType');
+        $order->tax_type = $taxType;
+        $order->tax_status = $tax_status;
+        $total_tax_amount = $tax_amount;
+        $total_tax_amount = $order->tax_status == 'included' ? 0 : $total_tax_amount;
+
+        if ($store->minimum_order > $product_price + $total_addon_price) {
+            Toastr::error(translate('messages.you_need_to_order_at_least', ['amount' => $store->minimum_order . ' ' . Helpers::currency_code()]));
+            return back();
+        }
+
+        $free_delivery_over = BusinessSetting::where('key', 'free_delivery_over')->first()->value;
+        if (isset($free_delivery_over)) {
+            if ($free_delivery_over <= $product_price + $total_addon_price - $coupon_discount_amount - $store_discount_amount) {
+                $order->delivery_charge = 0;
+            }
+        }
+
+        $total_order_ammount = $total_price + $total_tax_amount + $order->delivery_charge + $order->additional_charge;
+        $adjustment = $order->order_amount - $total_order_ammount;
+
+        $order->coupon_discount_amount = $coupon_discount_amount;
+        $order->store_discount_amount = $store_discount_amount;
+        $order->total_tax_amount = $total_tax_amount;
+        $order->order_amount = $total_order_ammount;
+        $order->adjusment = $adjustment;
+        $order->edited = true;
+        $order->save();
+
+        if ($order->order_type !== 'parcel') {
+            $taxMapCollection = collect($taxMap);
+            foreach ($order_details as $key => $item) {
+                $order_details[$key]['order_id'] = $order->id;
+                $item_id = $item['item_id'] ? $item['item_id'] : $item['item_campaign_id'];
+                $index = $taxMapCollection->search(function ($tax) use ($item_id) {
+                    return $tax['product_id'] == $item_id;
+                });
+                if ($index !== false) {
+                    $matchedTax = $taxMapCollection->pull($index);
+                    $order_details[$key]['tax_status'] = $matchedTax['include'] == 1 ? 'included' : 'excluded';
+                    $order_details[$key]['tax_amount'] = $matchedTax['totalTaxamount'];
+                }
+            }
+
+            $order?->orderTaxes()?->delete();
+            if (count($orderTaxIds)) {
+                \Modules\TaxModule\Services\CalculateTaxService::updateOrderTaxData(
+                    orderId: $order->id,
+                    orderTaxIds: $orderTaxIds,
+                );
+            }
+            if (count($product_data) > 0) {
+                foreach ($product_data as $item) {
+                    ProductLogic::update_stock($item['item'], $item['quantity'], $item['variant'])->save();
+                    ProductLogic::update_flash_stock($item['item'], $item['quantity'])?->save();
+                }
+            }
+        }
+
+        session()->forget('order_cart');
+        session()->forget('edit_tax_amount');
+        session()->forget('edit_tax_included');
+        Toastr::success(translate('messages.order_updated_successfully'));
+        return back();
+    }
+
+    public function checkValidity($carts, $store, $request)
+    {
+        if ($carts->isEmpty()) {
+            return [
+                'status_code' => 403,
+                'code' => 'not_found',
+                'message' => translate('Cart is empty'),
+            ];
+        }
+        foreach ($carts as $c) {
+            if (!isset($c['status']) || $c['status'] !== false) {
+                if (isset($c['item_type']) && ($c['item_type'] === 'App\Models\ItemCampaign' || $c['item_type'] === 'AppModelsItemCampaign')) {
+                    $product = ItemCampaign::with('module')->active()->find($c['item_id']);
+                } else {
+                    $product = Item::with('module')->active()->find($c['item_id'] ?? $c['id']);
+                }
+
+                if ($product) {
+                    if ($product->store_id != $store->id) {
+                        return [
+                            'status_code' => 403,
+                            'code' => 'different_stores',
+                            'message' => translate('messages.Please_select_items_from_the_same_store'),
+                        ];
+                    }
+                    if ($product?->maximum_cart_quantity && $c['quantity'] > $product?->maximum_cart_quantity) {
+                        return [
+                            'status_code' => 403,
+                            'code' => 'quantity',
+                            'message' => translate('messages.maximum_cart_quantity_limit_over'),
+                        ];
+                    }
+                    if ($product?->module?->module_type != 'food') {
+                        if (
+                            is_array(json_decode($product['variations'], true)) && count(json_decode($product['variations'], true)) > 0 &&
+                            is_array($c['variation']) && count($c['variation']) > 0
+                        ) {
+                            $variant_data = Helpers::variation_price($product, json_encode($c['variation']));
+                            $stock = $variant_data['stock'];
+                        } else {
+                            $stock = $product?->stock;
+                        }
+                        if (config('module.' . $product->module->module_type)['stock']) {
+                            if ($c['quantity'] > $stock) {
+                                return [
+                                    'status_code' => 403,
+                                    'code' => 'stock',
+                                    'message' => $product?->name . ' ' . translate('messages.is_out_of_stock')
+                                ];
+                            }
+                        }
+                    }
+                } else {
+                    return [
+                        'status_code' => 403,
+                        'code' => 'not_found',
+                        'message' => translate('messages.product_not_found'),
+                    ];
+                }
+            }
+        }
+        return [
+            'status_code' => 200,
+            'code' => 'success',
+            'message' => translate('messages.order_updated_successfully'),
+        ];
+    }
+
+    /**
+     * Security boundary admin doesn't need: a vendor can only add items
+     * from their own store into the order-edit cart.
+     */
+    public function add_to_cart(Request $request)
+    {
+        $product = $request->item_type == 'item' ? Item::find($request->id) : ItemCampaign::find($request->id);
+
+        if (!$product || $product->store_id != Helpers::get_store_id()) {
+            return response()->json([
+                'errors' => [['code' => 'store_id', 'message' => translate('messages.Please_select_items_from_the_same_store')]]
+            ], 403);
+        }
+
+        if (isset($product->module_id) && $product->module->module_type == 'food' && $product->food_variations) {
+            $data = new OrderDetail();
+            if ($request->order_details_id) {
+                $data['id'] = $request->order_details_id;
+            }
+            $data['item_id'] = $request->item_type == 'item' ? $product->id : null;
+            $data['item_campaign_id'] = $request->item_type == 'campaign' ? $product->id : null;
+            $data['item'] = $request->item_type == 'item' ? $product : null;
+            $data['item_campaign'] = $request->item_type == 'campaign' ? $product : null;
+            $data['order_id'] = $request->order_id;
+            $variations = [];
+            $price = 0;
+            $variation_price = 0;
+
+            $product_variations = json_decode($product->food_variations, true);
+            if ($request->variations && $product_variations && count($product_variations)) {
+                foreach ($request->variations as $key => $value) {
+                    if ($value['required'] == 'on' && isset($value['values']) == false) {
+                        return response()->json(['data' => 'variation_error', 'message' => translate('Please select items from') . ' ' . $value['name']]);
+                    }
+                    if (isset($value['values']) && $value['min'] != 0 && $value['min'] > count($value['values']['label'])) {
+                        return response()->json(['data' => 'variation_error', 'message' => translate('Please select minimum ') . $value['min'] . translate('For') . $value['name'] . '.']);
+                    }
+                    if (isset($value['values']) && $value['max'] != 0 && $value['max'] < count($value['values']['label'])) {
+                        return response()->json(['data' => 'variation_error', 'message' => translate('Please select maximum ') . $value['max'] . translate('For') . $value['name'] . '.']);
+                    }
+                }
+                $variation_data = Helpers::get_varient($product_variations, $request->variations);
+                $variation_price = $variation_data['price'];
+                $variations = $variation_data['variations'];
+            }
+            $price = $product->price + $variation_price;
+            $data['variation'] = json_encode($variations);
+            $data['variant'] = '';
+            $data['quantity'] = $request['quantity'];
+            $data['price'] = $price;
+            $data['status'] = true;
+            $data['discount_on_item'] = Helpers::product_discount_calculate($product, $price, $product->store)['discount_amount'];
+            $data["discount_type"] = "discount_on_product";
+            $data["tax_amount"] = Helpers::tax_calculate($product, $price);
+            $add_ons = [];
+            $add_on_qtys = [];
+            if ($request['addon_id']) {
+                foreach ($request['addon_id'] as $id) {
+                    $add_on_qtys[] = $request['addon-quantity' . $id];
+                }
+                $add_ons = $request['addon_id'];
+            }
+            $addon_data = Helpers::calculate_addon_price(\App\Models\AddOn::withOutGlobalScope(StoreScope::class)->whereIn('id', $add_ons)->get(), $add_on_qtys);
+            $data['add_ons'] = json_encode($addon_data['addons']);
+            $data['total_add_on_price'] = $addon_data['total_add_on_price'];
+            $cart = $request->session()->get('order_cart', collect([]));
+
+            if (isset($request->cart_item_key)) {
+                $cart[$request->cart_item_key] = $data;
+                $this->setOrderEditCalculatedTax(store: $product->store, order_id: $request->order_id);
+                return response()->json(['data' => 2]);
+            } else {
+                $cart->push($data);
+                $this->setOrderEditCalculatedTax(store: $product->store, order_id: $request->order_id);
+            }
+        } else {
+            $data = new OrderDetail();
+            if ($request->order_details_id) {
+                $data['id'] = $request->order_details_id;
+            }
+            $data['item_id'] = $request->item_type == 'item' ? $product->id : null;
+            $data['item_campaign_id'] = $request->item_type == 'campaign' ? $product->id : null;
+            $data['order_id'] = $request->order_id;
+            $str = '';
+            $price = 0;
+
+            foreach (json_decode($product->choice_options) as $key => $choice) {
+                $str .= $str != null ? '-' . str_replace(' ', '', $request[$choice->name]) : str_replace(' ', '', $request[$choice->name]);
+            }
+            $data['variant'] = json_encode([]);
+            $data['variation'] = json_encode([]);
+            if ($request->session()->has('order_cart') && !isset($request->cart_item_key)) {
+                if (count($request->session()->get('order_cart')) > 0) {
+                    foreach ($request->session()->get('order_cart') as $key => $cartItem) {
+                        if ($cartItem && $cartItem['item_id'] == $request['id'] && $cartItem['status'] == true) {
+                            if (count(json_decode($cartItem['variation'], true)) > 0) {
+                                if (json_decode($cartItem['variation'], true)[0]['type'] == $str) {
+                                    return response()->json(['data' => 1]);
+                                }
+                            } else {
+                                return response()->json(['data' => 1]);
+                            }
+                        }
+                    }
+                }
+            }
+            if ($str != null) {
+                $count = count(json_decode($product->variations));
+                for ($i = 0; $i < $count; $i++) {
+                    if (json_decode($product->variations)[$i]->type == $str) {
+                        $vr = json_decode($product->variations);
+                        $price = $vr[$i]->price;
+                        $stock = isset($vr[$i]->stock) ? $vr[$i]->stock : 0;
+                    }
+                }
+                $data['variation'] = json_encode([["type" => $str, "price" => $price, "stock" => $stock]]);
+            } else {
+                $price = $product->price;
+            }
+
+            $data['quantity'] = $request['quantity'];
+            $data['price'] = $price;
+            $data['status'] = true;
+            $data['discount_on_item'] = Helpers::product_discount_calculate($product, $price, $product->store)['discount_amount'];
+            $data["discount_type"] = "discount_on_product";
+            $data["tax_amount"] = Helpers::tax_calculate($product, $price);
+            $add_ons = [];
+            $add_on_qtys = [];
+            if ($request['addon_id']) {
+                foreach ($request['addon_id'] as $id) {
+                    $add_on_qtys[] = $request['addon-quantity' . $id];
+                }
+                $add_ons = $request['addon_id'];
+            }
+            $addon_data = Helpers::calculate_addon_price(\App\Models\AddOn::withoutGlobalScope(StoreScope::class)->whereIn('id', $add_ons)->get(), $add_on_qtys);
+            $data['add_ons'] = json_encode($addon_data['addons']);
+            $data['total_add_on_price'] = $addon_data['total_add_on_price'];
+
+            $cart = $request->session()->get('order_cart', collect([]));
+            if (isset($request->cart_item_key)) {
+                $cart[$request->cart_item_key] = $data;
+                $this->setOrderEditCalculatedTax(store: $product->store, order_id: $request->order_id);
+                return response()->json(['data' => 2]);
+            } else {
+                $this->setOrderEditCalculatedTax(store: $product->store, order_id: $request->order_id);
+                $cart->push($data);
+            }
+        }
+
+        $this->setOrderEditCalculatedTax(store: $product->store, order_id: $request->order_id);
+        return response()->json(['data' => 0]);
+    }
+
+    public function remove_from_cart(Request $request)
+    {
+        $cart = $request->session()->get('order_cart', collect([]));
+        $item_id = $cart[$request->key]['item_id'];
+        $cart[$request->key]->status = false;
+        $request->session()->put('order_cart', $cart);
+
+        $product = Item::withoutGlobalScope(StoreScope::class)->with('store')->find($item_id);
+        if ($product && $product->store) {
+            $this->setOrderEditCalculatedTax(store: $product->store, order_id: $request->order_id);
+        }
+        return response()->json([], 200);
+    }
+
+    public function quick_view(Request $request)
+    {
+        $product = Item::where('store_id', Helpers::get_store_id())->findOrFail($request->product_id);
+        $item_type = 'item';
+        $order_id = $request->order_id;
+
+        return response()->json([
+            'success' => 1,
+            'view' => view('vendor-views.order.partials._quick-view', compact('product', 'order_id', 'item_type'))->render(),
+        ]);
+    }
+
+    public function quick_view_cart_item(Request $request)
+    {
+        $cart_item = session('order_cart')[$request->key];
+        $order_id = $request->order_id;
+        $item_key = $request->key;
+        $product = $cart_item->item ? $cart_item->item : $cart_item->campaign;
+        $item_type = $cart_item->item ? 'item' : 'campaign';
+
+        return response()->json([
+            'success' => 1,
+            'view' => view('vendor-views.order.partials._quick-view-cart-item', compact('order_id', 'product', 'cart_item', 'item_key', 'item_type'))->render(),
+        ]);
     }
 
     public function status(Request $request)

@@ -7,6 +7,7 @@
     <?php
 
     $tax_included =0;
+    $campaign_order = false;
     if (count($order->details) > 0) {
         $campaign_order = isset($order?->details[0]?->item_campaign_id ) ? true : false;
     }
@@ -121,6 +122,13 @@
 
                         <div class="order-invoice-right mt-3 mt-sm-0">
                             <div class="btn--container ml-auto align-items-center justify-content-end">
+                                @if ( !$editing && in_array($order->order_status, ['pending', 'confirmed', 'processing', 'accepted']) &&
+                                        !$campaign_order && $order->prescription_order == 0 && count($order?->payments) == 0 &&
+                                        $order?->ref_bonus_amount == 0 && $order?->flash_admin_discount_amount == 0 && ($order->payment_method == 'cash_on_delivery'))
+                                    <button class="btn btn-sm btn--danger btn-outline-danger font-regular edit-order" type="button">
+                                        <i class="tio-edit"></i> {{ translate('messages.edit') }}
+                                    </button>
+                                @endif
                                 <a class="btn btn--primary print--btn font-regular d-none d-sm-block"
                                     href={{ route('vendor.order.generate-invoice', [$order['id']]) }}>
                                     <i class="tio-print mr-sm-1"></i> <span>{{ translate('messages.print_invoice') }}</span>
@@ -286,7 +294,59 @@
 
                     <!-- Body -->
                     <div class="card-body px-0">
+                        @if ($editing && !$campaign_order)
+                            <hr>
+                            <div class="row px-4 py-5">
+                                <div class="col-12">
+                                    <div class="row justify-content-end">
+                                        <div class="col-sm-6">
+                                            <form id="search-form">
+                                                <div class="input-group input--group">
+                                                    <input id="datatableSearch" type="search"
+                                                           value="{{ $keyword ? $keyword : '' }}" name="search"
+                                                           class="form-control h--45px" placeholder="Search here"
+                                                           aria-label="Search here">
+                                                    <button class="btn btn--secondary h--45px"><i
+                                                            class="tio-search"></i></button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="input-group header-item w-100">
+                                                <select name="category" id="category"
+                                                        class="form-control js-select2-custom mx-1 set-category-filter"
+                                                        title="{{ translate('messages.select_category') }}">
+                                                    <option value="">{{ translate('messages.all_categories') }}
+                                                    </option>
+                                                    @foreach ($categories as $item)
+                                                        <option value="{{ $item->id }}"
+                                                            {{ $category == $item->id ? 'selected' : '' }}>
+                                                            {{ $item->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 mt-5" id="items">
+                                    <div class="row g-3 mb-auto justify-content-center">
+                                        @foreach ($products as $product)
+                                            <div class="order--item-box item-box">
+                                                @include('admin-views.order.partials._single_product', [
+                                                    'product' => $product,
+                                                    'store_data' => $order->store,
+                                                ])
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    {!! $products->withQueryString()->links() !!}
+                                </div>
+                            </div>
+                        @endif
                         <?php
+                        $coupon = null;
                         $total_addon_price = 0;
                         $product_price = 0;
                         $store_discount_amount = 0;
@@ -294,6 +354,17 @@
                         $ref_bonus_amount = $order['ref_bonus_amount'];
                         $extra_packaging_amount = $order['extra_packaging_amount'];
                         $store_flash_discount_amount = $order['flash_store_discount_amount'];
+                        $del_c = $order['delivery_charge'];
+                        if ($editing) {
+                            $del_c = $order['original_delivery_charge'];
+                        }
+                        if ($order->coupon_code) {
+                            $coupon = \App\Models\Coupon::where(['code' => $order['coupon_code']])->first();
+                            if ($editing && $coupon && $coupon->coupon_type == 'free_delivery') {
+                                $del_c = 0;
+                                $coupon = null;
+                            }
+                        }
 
                         if ($order->prescription_order == 1) {
                             $product_price = $order['order_amount'] - $order['delivery_charge'] - $order['total_tax_amount'] - $order['dm_tips'] - $order['additional_charge'] + $order['store_discount_amount'];
@@ -302,7 +373,14 @@
                             }
                         }
 
-                        $total_addon_price = 0;
+                        $details = $order->details;
+                        if ($editing) {
+                            $details = session('order_cart');
+                        } else {
+                            foreach ($details as $key => $item) {
+                                $details[$key]->status = true;
+                            }
+                        }
                         ?>
                         <div class="table-responsive">
                             <table
@@ -318,10 +396,17 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($order->details as $key => $detail)
-                                        @if (isset($detail->item_id))
-                                            @php($detail->item = json_decode($detail->item_details, true))
-                                            @php($product = \App\Models\Item::where(['id' => $detail->item['id']])->first())
+                                    @foreach ($details as $key => $detail)
+                                        @if (isset($detail->item_id) && $detail->status)
+                                            <?php
+                                            if (!$editing) {
+                                                $detail->item = json_decode($detail->item_details, true);
+                                            }
+                                            $product = \App\Models\Item::where(['id' => data_get($detail->item, 'id')])->first();
+                                            if (!$product) {
+                                                $detail->item = json_decode($detail->item_details, true);
+                                            }
+                                            ?>
                                             <!-- Media -->
                                             <tr>
                                                 <td>
@@ -331,13 +416,24 @@
                                                 </td>
                                                 <td>
                                                     <div class="media media--sm">
-                                                        <a class="avatar avatar-xl mr-3"
-                                                            href="{{ route('vendor.item.view', $detail->item['id']) }}">
-                                                            <img class="img-fluid rounded onerror-image"
-                                                            src="{{ $product->image_full_url  ?? asset('public/assets/admin/img/160x160/img2.jpg') }}"
-                                                                 data-onerror-image="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
-                                                                alt="Image Description">
-                                                        </a>
+                                                        @if ($editing)
+                                                            <div class="avatar avatar-xl mr-3 cursor-pointer quick-view-cart-item" data-key="{{ $key }}"
+                                                                 title="{{ translate('messages.click_to_edit_this_item') }}">
+                                                                <span class="avatar-status avatar-lg-status avatar-status-dark"><i class="tio-edit"></i></span>
+                                                                <img class="img-fluid rounded onerror-image"
+                                                                    src="{{ $product?->image_full_url ?? asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                     data-onerror-image="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                    alt="Image Description">
+                                                            </div>
+                                                        @else
+                                                            <a class="avatar avatar-xl mr-3"
+                                                                href="{{ route('vendor.item.view', $detail->item['id']) }}">
+                                                                <img class="img-fluid rounded onerror-image"
+                                                                src="{{ $product->image_full_url  ?? asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                     data-onerror-image="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                    alt="Image Description">
+                                                            </a>
+                                                        @endif
                                                         <div class="media-body">
                                                             <div>
                                                                 <strong
@@ -435,11 +531,15 @@
                                                 </td>
                                             </tr>
                                             @php($product_price += $amount)
-                                            @php($store_discount_amount += $detail['discount_on_item'] * $detail['quantity'])
+                                            @php($store_discount_amount += $detail['discount_on_item'] * ( $detail['discount_on_product_by'] == 'store_discount' ? 1 : $detail['quantity'] ))
                                             <!-- End Media -->
-                                        @elseif(isset($detail->item_campaign_id))
-                                            @php($detail->campaign = json_decode($detail->item_details, true))
-                                            @php($campaign = \App\Models\ItemCampaign::where(['id' => $detail->campaign['id']])->first())
+                                        @elseif(isset($detail->item_campaign_id) && $detail->status)
+                                            <?php
+                                            if (!$editing) {
+                                                $detail->campaign = json_decode($detail->item_details, true);
+                                            }
+                                            $campaign = \App\Models\ItemCampaign::where(['id' => $detail->campaign['id']])->first();
+                                            ?>
                                             <!-- Media -->
                                             <tr>
                                                 <td>
@@ -449,13 +549,24 @@
                                                 </td>
                                                 <td>
                                                     <div class="media media--sm">
-                                                        <div class="avatar avatar-xl mr-3">
-                                                            <img class="img-fluid onerror-image"
-                                                            src="{{$campaign?->image_full_url ?? asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                        @if ($editing)
+                                                            <div class="avatar avatar-xl mr-3 cursor-pointer quick-view-cart-item" data-key="{{ $key }}"
+                                                                 title="{{ translate('messages.click_to_edit_this_item') }}">
+                                                                <span class="avatar-status avatar-lg-status avatar-status-dark"><i class="tio-edit"></i></span>
+                                                                <img class="img-fluid onerror-image"
+                                                                src="{{$campaign?->image_full_url ?? asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                     data-onerror-image="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                    alt="Image Description">
+                                                            </div>
+                                                        @else
+                                                            <div class="avatar avatar-xl mr-3">
+                                                                <img class="img-fluid onerror-image"
+                                                                src="{{$campaign?->image_full_url ?? asset('public/assets/admin/img/160x160/img2.jpg') }}"
 
-                                                                 data-onerror-image="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
-                                                                alt="Image Description">
-                                                        </div>
+                                                                     data-onerror-image="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
+                                                                    alt="Image Description">
+                                                            </div>
+                                                        @endif
                                                         <div class="media-body">
                                                             <div>
                                                                 <strong
@@ -510,7 +621,7 @@
                                                 </td>
                                             </tr>
                                             @php($product_price += $amount)
-                                            @php($store_discount_amount += $detail['discount_on_item'] * $detail['quantity'])
+                                            @php($store_discount_amount += $detail['discount_on_item'] * ( $detail['discount_on_product_by'] == 'store_discount' ? 1 : $detail['quantity'] ))
                                             <!-- End Media -->
                                         @endif
                                     @endforeach
@@ -521,9 +632,7 @@
                             <hr>
                         </div>
                         <?php
-
                         $coupon_discount_amount = $order['coupon_discount_amount'];
-
                         $total_price = $product_price + $total_addon_price - $store_discount_amount - $coupon_discount_amount - $admin_flash_discount_amount -$ref_bonus_amount -$extra_packaging_amount -$store_flash_discount_amount;
 
                         $total_tax_amount = $order['total_tax_amount'];
@@ -534,6 +643,45 @@
 
                         $store_discount_amount = $order['store_discount_amount'];
 
+                        if ($editing) {
+                            $old_store_discount_amount = 0;
+                            $store_discount = \App\CentralLogics\Helpers::get_store_discount($order->store);
+                            if (isset($store_discount)) {
+                                if ($product_price + $total_addon_price < $store_discount['min_purchase']) {
+                                    $store_discount_amount = 0;
+                                }
+                                if ($store_discount_amount > $store_discount['max_discount']) {
+                                    $old_store_discount_amount = $store_discount_amount;
+                                    $store_discount_amount = $store_discount['max_discount'];
+                                }
+                                $store_discount_amount = max($store_discount_amount, $old_store_discount_amount);
+                            }
+
+                            $coupon_discount_amount = $coupon ? \App\CentralLogics\CouponLogic::get_discount($coupon, $product_price + $total_addon_price - $store_discount_amount) : $order['coupon_discount_amount'];
+
+                            $tax_amount = session()->get('edit_tax_amount');
+                            $total_tax_amount = round($tax_amount, 2);
+
+                            $tax_included_edit = session()->get('edit_tax_included');
+                            if ($tax_included_edit == 1) {
+                                $total_tax_amount = 0;
+                            }
+
+                            $store_discount_amount = round($store_discount_amount, 2);
+
+                            if ($order?->store?->free_delivery) {
+                                $del_c = 0;
+                            }
+                            $free_delivery_over = \App\Models\BusinessSetting::where('key', 'free_delivery_over')->first()->value;
+                            if (isset($free_delivery_over)) {
+                                if ($free_delivery_over <= $product_price + $total_addon_price - $coupon_discount_amount - $store_discount_amount) {
+                                    $del_c = 0;
+                                }
+                            }
+                            if ($order->order_type == 'take_away') {
+                                $del_c = 0;
+                            }
+                        }
                         ?>
                         <div class="row justify-content-md-end mb-3 mx-0 mt-4">
                             <div class="col-md-9 col-lg-8">
@@ -603,7 +751,6 @@
                                         + {{ \App\CentralLogics\Helpers::format_currency($order->dm_tips) }}</dd>
                                     <dt class="col-6">{{ translate('messages.delivery_fee') }}:</dt>
                                     <dd class="col-6">
-                                        @php($del_c = $order['delivery_charge'])
                                         + {{ \App\CentralLogics\Helpers::format_currency($del_c) }}
                                         <hr>
                                     </dd>
@@ -661,6 +808,12 @@
                                         @endforeach
                                     @endif
                                 </dl>
+                                @if ($editing)
+                                    <div class="btn--container justify-content-end">
+                                        <button class="btn btn-sm btn--reset cancel-edit-order" type="button">{{ translate('messages.cancel') }}</button>
+                                        <button class="btn btn-sm btn--primary submit-edit-order" type="button">{{ translate('messages.submit') }}</button>
+                                    </div>
+                                @endif
                                 <!-- End Row -->
                             </div>
                         </div>
@@ -1235,6 +1388,14 @@
         </div>
     </div>
 
+    <div class="modal fade" id="quick-view" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" id="quick-view-modal">
+
+            </div>
+        </div>
+    </div>
+
     <!-- End Content -->
 
 
@@ -1390,5 +1551,310 @@
                 }
             });
         });
+
+        $(document).on("click", ".addon-quantity-input-toggle", function (event) {
+            let cb = $(event.target);
+            if (cb.is(":checked")) {
+                cb.siblings(".addon-quantity-input").css({ visibility: "visible" });
+            } else {
+                cb.siblings(".addon-quantity-input").css({ visibility: "hidden" });
+            }
+        });
+        $(document).on("click", ".decrease-button", function () {
+            let addonId = $(this).data("id");
+            let addon_quantity_input = $('input[name="addon-quantity' + addonId + '"]');
+            let currentValue = parseInt(addon_quantity_input.val(), 10);
+            if (currentValue > 1) {
+                addon_quantity_input.val(currentValue - 1);
+                getVariantPrice();
+            }
+        });
+        $(document).on("click", ".increase-button", function () {
+            let addonId = $(this).data("id");
+            let addon_quantity_input = $('input[name="addon-quantity' + addonId + '"]');
+            let currentValue = parseInt(addon_quantity_input.val(), 10);
+            addon_quantity_input.val(currentValue + 1);
+            getVariantPrice();
+        });
+        $('#search-form').on('submit', function(e) {
+            e.preventDefault();
+            var keyword = $('#datatableSearch').val();
+            var nurl = new URL('{!! url()->full() !!}');
+            nurl.searchParams.set('keyword', keyword);
+            location.href = nurl;
+        });
+
+        $('.set-category-filter').on('change', function() {
+            let id = $(this).val();
+            var nurl = new URL('{!! url()->full() !!}');
+            nurl.searchParams.set('category_id', id);
+            location.href = nurl;
+        })
+
+        $('.addon_quantity_input_toggle').on('change', function(event) {
+            addon_quantity_input_toggle(event);
+        })
+
+        function addon_quantity_input_toggle(e) {
+            var cb = $(e.target);
+            if (cb.is(":checked")) {
+                cb.siblings('.addon-quantity-input').css({ 'visibility': 'visible' });
+            } else {
+                cb.siblings('.addon-quantity-input').css({ 'visibility': 'hidden' });
+            }
+        }
+
+        $(document).on('click', '.quick-view-cart-item', function (){
+            let key = $(this).data('key');
+            $.get({
+                url: '{{ route('vendor.order.quick-view-cart-item') }}',
+                dataType: 'json',
+                data: {
+                    key: key,
+                    order_id: '{{ $order->id }}',
+                },
+                beforeSend: function() {
+                    $('#loading').show();
+                },
+                success: function(data) {
+                    $('#quick-view').modal('show');
+                    $('#quick-view-modal').empty().html(data.view);
+                },
+                complete: function() {
+                    $('#loading').hide();
+                },
+            });
+        })
+
+        $(document).on('click', '.quick-view', function (){
+            let product_id = $(this).data('product-id');
+            quickView(product_id);
+        })
+
+        function quickView(product_id) {
+            $.get({
+                url: '{{ route('vendor.order.quick-view') }}',
+                dataType: 'json',
+                data: {
+                    product_id: product_id,
+                    order_id: '{{ $order->id }}',
+                },
+                beforeSend: function() {
+                    $('#loading').show();
+                },
+                success: function(data) {
+                    $('#quick-view').modal('show');
+                    $('#quick-view-modal').empty().html(data.view);
+                },
+                complete: function() {
+                    $('#loading').hide();
+                },
+            });
+        }
+
+        function cartQuantityInitialize() {
+            $('.btn-number').click(function(e) {
+                e.preventDefault();
+                var fieldName = $(this).attr('data-field');
+                var type = $(this).attr('data-type');
+                var input = $("input[name='" + fieldName + "']");
+                var currentVal = parseInt(input.val());
+                if (!isNaN(currentVal)) {
+                    if (type == 'minus') {
+                        if (currentVal > input.attr('min')) {
+                            input.val(currentVal - 1).change();
+                        }
+                        if (parseInt(input.val()) == input.attr('min')) {
+                            $(this).attr('disabled', true);
+                        }
+                    } else if (type == 'plus') {
+                        if (currentVal < input.attr('max')) {
+                            input.val(currentVal + 1).change();
+                        }
+                        if (parseInt(input.val()) == input.attr('max')) {
+                            $(this).attr('disabled', true);
+                        }
+                    }
+                } else {
+                    input.val(0);
+                }
+            });
+
+            $('.input-number').focusin(function() {
+                $(this).data('oldValue', $(this).val());
+            });
+
+            $('.input-number').change(function() {
+                minValue = parseInt($(this).attr('min'));
+                maxValue = parseInt($(this).attr('max'));
+                valueCurrent = parseInt($(this).val());
+                var name = $(this).attr('name');
+                if (valueCurrent >= minValue) {
+                    $(".btn-number[data-type='minus'][data-field='" + name + "']").removeAttr('disabled')
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Cart', text: 'Sorry, the minimum value was reached' });
+                    $(this).val($(this).data('oldValue'));
+                }
+                if (valueCurrent <= maxValue) {
+                    $(".btn-number[data-type='plus'][data-field='" + name + "']").removeAttr('disabled')
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Cart', text: 'Sorry, stock limit exceeded.' });
+                    $(this).val($(this).data('oldValue'));
+                }
+            });
+            $(".input-number").keydown(function(e) {
+                if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 190]) !== -1 ||
+                    (e.keyCode == 65 && e.ctrlKey === true) ||
+                    (e.keyCode >= 35 && e.keyCode <= 39)) {
+                    return;
+                }
+                if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function getVariantPrice() {
+            if ($('#add-to-cart-form input[name=quantity]').val() > 0) {
+                $.ajaxSetup({
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content') }
+                });
+                $.ajax({
+                    type: "POST",
+                    url: '{{ route('vendor.pos.variant_price') }}',
+                    data: $('#add-to-cart-form').serializeArray(),
+                    success: function(data) {
+                        $('#add-to-cart-form #chosen_price_div').removeClass('d-none');
+                        $('#add-to-cart-form #chosen_price_div #chosen_price').html(data.price);
+                    }
+                });
+            }
+        }
+
+        $(document).on('click', '.update_order_item', function () {
+            update_order_item();
+        })
+
+        function update_order_item(form_id = 'add-to-cart-form') {
+            $.ajaxSetup({
+                headers: { 'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content') }
+            });
+            $.post({
+                url: '{{ route('vendor.order.add-to-cart') }}',
+                data: $('#' + form_id).serializeArray(),
+                beforeSend: function() {
+                    $('#loading').show();
+                },
+                success: function(data) {
+                    if (data.data == 1) {
+                        Swal.fire({ icon: 'info', title: 'Cart', text: "{{ translate('messages.product_already_added_in_cart') }}" });
+                        return false;
+                    } else if (data.data == 0) {
+                        toastr.success('{{ translate('messages.product_has_been_added_in_cart') }}', { CloseButton: true, ProgressBar: true });
+                        location.reload();
+                        return false;
+                    } else if (data.data == 'variation_error') {
+                        Swal.fire({ icon: 'error', title: 'Cart', text: data.message });
+                        return false;
+                    }
+                    $('.call-when-done').click();
+                    toastr.success('{{ translate('messages.order_updated_successfully') }}', { CloseButton: true, ProgressBar: true });
+                    location.reload();
+                },
+                complete: function() {
+                    $('#loading').hide();
+                }
+            });
+        }
+
+        $(document).on('click', '.removeFromCart', function () {
+            let key = $(this).data('key');
+            removeFromCart(key);
+        })
+
+        function removeFromCart(key) {
+            Swal.fire({
+                title: '{{ translate('messages.are_you_sure') }}',
+                text: '{{ translate('messages.you_want_to_remove_this_order_item') }}',
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#FC6A57',
+                cancelButtonText: '{{ translate('messages.no') }}',
+                confirmButtonText: '{{ translate('messages.yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    $.post('{{ route('vendor.order.remove-from-cart') }}', {
+                        _token: '{{ csrf_token() }}',
+                        key: key,
+                        order_id: '{{ $order->id }}'
+                    }, function(data) {
+                        if (data.errors) {
+                            for (var i = 0; i < data.errors.length; i++) {
+                                toastr.error(data.errors[i].message, { CloseButton: true, ProgressBar: true });
+                            }
+                        } else {
+                            toastr.success('{{ translate('messages.item_has_been_removed_from_cart') }}', { CloseButton: true, ProgressBar: true });
+                            location.reload();
+                        }
+                    });
+                }
+            })
+        }
+
+        $('.edit-order').on('click',function (){
+            Swal.fire({
+                title: '{{ translate('messages.are_you_sure') }}',
+                text: '{{ translate('messages.you_want_to_edit_this_order') }}',
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#FC6A57',
+                cancelButtonText: '{{ translate('messages.no') }}',
+                confirmButtonText: '{{ translate('messages.yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    location.href = '{{ route('vendor.order.edit', $order->id) }}';
+                }
+            })
+        })
+
+        $('.cancel-edit-order').on('click',function (){
+            Swal.fire({
+                title: '{{ translate('messages.are_you_sure') }}',
+                text: '{{ translate('messages.you_want_to_cancel_editing') }}',
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#FC6A57',
+                cancelButtonText: '{{ translate('messages.no') }}',
+                confirmButtonText: '{{ translate('messages.yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    location.href = '{{ route('vendor.order.edit', $order->id) }}?cancle=true';
+                }
+            })
+        })
+
+        $('.submit-edit-order').on('click',function (){
+            Swal.fire({
+                title: '{{ translate('messages.are_you_sure') }}',
+                text: '{{ translate('messages.you_want_to_submit_all_changes_for_this_order') }}',
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#FC6A57',
+                cancelButtonText: '{{ translate('messages.no') }}',
+                confirmButtonText: '{{ translate('messages.yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    location.href = '{{ route('vendor.order.update', $order->id) }}';
+                }
+            })
+        })
     </script>
 @endpush
