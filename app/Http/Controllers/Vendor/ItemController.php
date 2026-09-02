@@ -1022,36 +1022,43 @@ class ItemController extends Controller
         return view('vendor-views.product.list', compact('items', 'category', 'type', 'sub_categories','productWiseTax'));
     }
 
-    // public function search(Request $request)
-    // {
-    //     $view = 'vendor-views.product.partials._table';
-    //     $key = explode(' ', $request['search']);
-    //     $settings_access = Helpers::get_mail_status('access_all_products');
-    //     $items = Item::where(function ($q) use ($key) {
-    //         foreach ($key as $value) {
-    //             $q->where('name', 'like', "%{$value}%");
-    //         }
-    //     })
-    //         ->module(Helpers::get_store_data()->module_id)
-    //         ->where('is_approved', 1);
+    /**
+     * Backs the search box on the stock-limit list (vendor-views.product.
+     * stock_limit_list) - the only live caller of vendor.item.search. Mirrors
+     * stock_limit_list()'s own low-stock filter so a search doesn't surface
+     * items outside that list's scope.
+     */
+    public function search(Request $request)
+    {
+        $key = explode(' ', $request['search']);
+        $category_id = $request->query('category_id', 'all');
+        $type = $request->query('type', 'all');
 
-    //     if (isset($request->product_gallery) && $request->product_gallery == 1 && $settings_access == 1) {
+        $items = Item::when(is_numeric($category_id), function ($query) use ($category_id) {
+                return $query->whereHas('category', function ($q) use ($category_id) {
+                    return $q->whereId($category_id)->orWhere('parent_id', $category_id);
+                });
+            })
+            ->type($type)
+            ->where(function ($q) use ($key) {
+                foreach ($key as $value) {
+                    $q->where('name', 'like', "%{$value}%");
+                }
+            });
 
-    //         $items = $items->withoutGlobalScope(StoreScope::class)->limit(12)->get();
+        if (Helpers::get_store_data()->storeConfig?->show_low_stock_count && Helpers::get_store_data()->storeConfig?->minimum_stock_for_warning > 0) {
+            $items = $items->where('stock', '<=', Helpers::get_store_data()->storeConfig->minimum_stock_for_warning);
+        } else {
+            $items = $items->whereRaw('1 = 0');
+        }
 
-    //         $view = 'vendor-views.product.partials._gallery';
-    //     } elseif (isset($request->product_gallery) && $request->product_gallery == 1 && $settings_access == 0) {
-    //         $items = $items->limit(12)->get();
-    //         $view = 'vendor-views.product.partials._gallery';
-    //     } else {
-    //         $items = $items->latest()->limit(50)->get();
-    //     }
+        $items = $items->orderby('stock')->latest()->paginate(config('default_pagination'));
 
-    //     return response()->json([
-    //         'view' => view($view, compact('items'))->render(),
-    //         'count' => $items->count()
-    //     ]);
-    // }
+        return response()->json([
+            'view' => view('vendor-views.product.partials._stock_limit_rows', compact('items'))->render(),
+            'count' => $items->total(),
+        ]);
+    }
 
     public function remove_image(Request $request)
     {
