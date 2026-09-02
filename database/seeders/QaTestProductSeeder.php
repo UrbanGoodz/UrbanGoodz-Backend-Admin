@@ -26,6 +26,11 @@ class QaTestProductSeeder extends Seeder
             [
                 'description' => 'A test product for end-to-end order flow verification.',
                 'category_id' => 85,
+                'category_ids' => json_encode([['id' => 85, 'position' => 1]]),
+                'choice_options' => json_encode([]),
+                'add_ons' => json_encode([]),
+                'attributes' => json_encode([]),
+                'variations' => json_encode([]),
                 'price' => 19.99,
                 'tax' => 0,
                 'discount' => 0,
