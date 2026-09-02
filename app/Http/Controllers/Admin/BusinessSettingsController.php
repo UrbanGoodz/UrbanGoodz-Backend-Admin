@@ -598,6 +598,7 @@ class BusinessSettingsController extends Controller
         $this->updatePaymentSettings($request);
         $this->updateLocationSettings($request);
         $this->updateAdditionalChargeSettings($request);
+        $this->updateAdvertisementPricingSettings($request);
         $this->updateBusinessModelSettings($request);
 
         Toastr::success(translate('messages.successfully_updated_to_changes_restart_app'));
@@ -7820,6 +7821,27 @@ class BusinessSettingsController extends Controller
             'additional_charge_status' => $request->additional_charge_status ?: null,
             'additional_charge_name' => $request->additional_charge_name ?: null,
             'additional_charge' => $request->additional_charge ?: null,
+        ];
+
+        foreach ($settings as $key => $value) {
+            Helpers::businessUpdateOrInsert(['key' => $key], ['value' => $value]);
+        }
+    }
+
+    /**
+     * Configuration only - whether/how much vendor advertisement submissions
+     * are expected to cost. Does not itself charge anyone: Vendor\
+     * AdvertisementController::store() still hardcodes is_paid = 0, and the
+     * existing per-advertisement Admin\Promotion\AdvertisementController::
+     * paidStatus() manual toggle is unaffected. This just gives the price a
+     * single configurable source of truth for whenever real charging is
+     * wired up.
+     */
+    private function updateAdvertisementPricingSettings(Request $request): void
+    {
+        $settings = [
+            'advertisement_paid_status' => $request->advertisement_paid_status ?: 0,
+            'advertisement_price' => $request->advertisement_price ?: 0,
         ];
 
         foreach ($settings as $key => $value) {
