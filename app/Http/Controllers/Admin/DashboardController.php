@@ -684,6 +684,55 @@ class DashboardController extends Controller
         ], 200);
     }
 
+    /**
+     * The doughnut chart partial (_business-overview-chart) has existed
+     * since this dashboard page was built and already expects data['food'],
+     * data['reviews'], data['wishlist'] - the calc feeding it was never
+     * written, so the route pointed at a method that didn't exist.
+     */
+    public function business_overview(Request $request)
+    {
+        $params = session('dash_params');
+        foreach ($params as $key => $value) {
+            if ($key == 'business_overview') {
+                $params['business_overview'] = $request['business_overview'];
+            }
+        }
+        session()->put('dash_params', $params);
+
+        $data = self::business_overview_calc($params['zone_id'], $params['module_id']);
+
+        return response()->json([
+            'view' => view('admin-views.partials._business-overview-chart', compact('data'))->render(),
+        ], 200);
+    }
+
+    public function business_overview_calc($zone_id, $module_id)
+    {
+        $storeIds = Store::when(is_numeric($zone_id), function ($q) use ($zone_id) {
+            return $q->where('zone_id', $zone_id);
+        })->where('module_id', $module_id)->pluck('id');
+
+        $food = Item::where('module_id', $module_id)
+            ->when(is_numeric($zone_id), function ($q) use ($storeIds) {
+                return $q->whereIn('store_id', $storeIds);
+            })->count();
+
+        $reviews = Review::module($module_id)
+            ->when(is_numeric($zone_id), function ($q) use ($storeIds) {
+                return $q->whereIn('store_id', $storeIds);
+            })->count();
+
+        $wishlist = Wishlist::whereHas('item', function ($q) use ($module_id, $zone_id, $storeIds) {
+            $q->where('module_id', $module_id);
+            if (is_numeric($zone_id)) {
+                $q->whereIn('store_id', $storeIds);
+            }
+        })->count();
+
+        return ['food' => $food, 'reviews' => $reviews, 'wishlist' => $wishlist];
+    }
+
     public function order_stats_calc($zone_id, $module_id)
     {
         $params = session('dash_params');

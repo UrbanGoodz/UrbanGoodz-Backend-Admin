@@ -1515,7 +1515,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('list', 'AccountTransactionController@index')->name('index');
                 Route::post('store', 'AccountTransactionController@store')->name('store');
                 Route::get('details/{id}', 'AccountTransactionController@show')->name('view');
-                Route::delete('delete/{id}', 'AccountTransactionController@distroy')->name('delete');
+                Route::delete('delete/{id}', 'AccountTransactionController@destroy')->name('delete');
                 Route::post('search', 'EmployeeController@search')->name('search');
                 Route::get('export', 'AccountTransactionController@export_account_transaction')->name('export');
                 Route::post('search', 'AccountTransactionController@search_account_transaction')->name('search');

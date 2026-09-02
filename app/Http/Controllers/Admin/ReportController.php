@@ -697,6 +697,17 @@ class ReportController extends Controller
         return view('admin-views.report.order-transactions', compact('order_transactions'));
     }
 
+    /**
+     * Superseded by the dedicated admin/store/deliveryman earning-report
+     * controllers registered right below this route - no "earning_index"
+     * view was ever built for this one. Send it to the real replacement
+     * instead of building a second, redundant earning page.
+     */
+    public function earning_index()
+    {
+        return redirect()->route('admin.report.admin-earning-report');
+    }
+
 
     public function set_date(Request $request)
     {
@@ -2673,6 +2684,96 @@ class ReportController extends Controller
     }
 
 
+
+    /**
+     * AJAX-partial companion to stock_report() - mirrors low_stock_search()
+     * but scoped to the current module type (stock_report's own scope),
+     * not "not food" (low_stock_report's scope).
+     */
+    public function stock_search(Request $request)
+    {
+        $zone_id = $request->query('zone_id', isset(auth('admin')->user()->zone_id) ? auth('admin')->user()->zone_id : 'all');
+        $store_id = $request->query('store_id', 'all');
+        $zone = is_numeric($zone_id) ? Zone::findOrFail($zone_id) : null;
+        $store = is_numeric($store_id) ? Store::findOrFail($store_id) : null;
+        $key = isset($request['search']) ? explode(' ', $request['search']) : [];
+
+        $items = Item::withoutGlobalScope(StoreScope::class)->with(['store', 'store.zone'])->whereHas('store.module', function ($query) {
+            $query->where('module_type', Config::get('module.current_module_type'));
+        })
+            ->when($request->query('module_id', null), function ($query) use ($request) {
+                return $query->module($request->query('module_id'));
+            })
+            ->when(isset($zone), function ($query) use ($zone) {
+                return $query->whereIn('store_id', $zone->stores->pluck('id'));
+            })
+            ->when(isset($store), function ($query) use ($store) {
+                return $query->where('store_id', $store->id);
+            })
+            ->when(count($key), function ($query) use ($key) {
+                return $query->where(function ($q) use ($key) {
+                    foreach ($key as $value) {
+                        $q->orWhere('name', 'like', "%{$value}%");
+                    }
+                });
+            })
+            ->orderBy('stock')
+            ->limit(25)->get();
+
+        return response()->json([
+            'count' => count($items),
+            'view' => view('admin-views.report.partials._stock_table', compact('items'))->render()
+        ]);
+    }
+
+    /**
+     * Export companion to stock_report() - mirrors low_stock_wise_export()
+     * with the same current-module-type scope as stock_report()/
+     * stock_search() above.
+     */
+    public function stock_wise_export(Request $request)
+    {
+        $zone_id = $request->query('zone_id', isset(auth('admin')->user()->zone_id) ? auth('admin')->user()->zone_id : 'all');
+        $store_id = $request->query('store_id', 'all');
+        $zone = is_numeric($zone_id) ? Zone::findOrFail($zone_id) : null;
+        $store = is_numeric($store_id) ? Store::findOrFail($store_id) : null;
+        $key = isset($request['search']) ? explode(' ', $request['search']) : [];
+
+        $items = Item::withoutGlobalScope(StoreScope::class)->with(['store', 'store.zone'])->whereHas('store.module', function ($query) {
+            $query->where('module_type', Config::get('module.current_module_type'));
+        })
+            ->when($request->query('module_id', null), function ($query) use ($request) {
+                return $query->module($request->query('module_id'));
+            })
+            ->when(isset($zone), function ($query) use ($zone) {
+                return $query->whereIn('store_id', $zone->stores->pluck('id'));
+            })
+            ->when(isset($store), function ($query) use ($store) {
+                return $query->where('store_id', $store->id);
+            })
+            ->when(count($key), function ($query) use ($key) {
+                return $query->where(function ($q) use ($key) {
+                    foreach ($key as $value) {
+                        $q->orWhere('name', 'like', "%{$value}%");
+                    }
+                });
+            })
+            ->orderBy('stock')
+            ->get();
+
+        $data = [
+            'items' => $items,
+            'search' => $request->search ?? null,
+            'zone' => is_numeric($zone_id) ? Helpers::get_zones_name($zone_id) : null,
+            'store' => is_numeric($store_id) ? Helpers::get_stores_name($store_id) : null,
+        ];
+
+        if ($request->type == 'excel') {
+            return Excel::download(new LimitedStockReportExport($data), 'StockReport.xlsx');
+        } else if ($request->type == 'csv') {
+            return Excel::download(new LimitedStockReportExport($data), 'StockReport.csv');
+        }
+    }
 
     public function low_stock_wise_export(Request $request)
     {

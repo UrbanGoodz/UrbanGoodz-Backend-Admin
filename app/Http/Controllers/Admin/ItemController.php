@@ -1228,38 +1228,38 @@ class ItemController extends Controller
         return back();
     }
 
-    // public function search(Request $request)
-    // {
-    //     $view = 'admin-views.product.partials._table';
-    //     $key = explode(' ', $request['search']);
-    //     $store_id = $request->query('store_id', 'all');
-    //     $category_id = $request->query('category_id', 'all');
-    //     $items = Item::withoutGlobalScope(StoreScope::class)
-    //         ->where(function ($q) use ($key) {
-    //             foreach ($key as $value) {
-    //                 $q->where('name', 'like', "%{$value}%");
-    //             }
-    //         })->when(is_numeric($store_id), function ($query) use ($store_id) {
-    //             return $query->where('store_id', $store_id);
-    //         })
-    //         ->when(is_numeric($category_id), function ($query) use ($category_id) {
-    //             return $query->whereHas('category', function ($q) use ($category_id) {
-    //                 return $q->whereId($category_id)->orWhere('parent_id', $category_id);
-    //             });
-    //         })->module(Config::get('module.current_module_id'))->where('is_approved', 1);
+    public function search(Request $request)
+    {
+        $view = 'admin-views.product.partials._table';
+        $key = explode(' ', $request['search']);
+        $store_id = $request->query('store_id', 'all');
+        $category_id = $request->query('category_id', 'all');
+        $items = Item::withoutGlobalScope(StoreScope::class)
+            ->where(function ($q) use ($key) {
+                foreach ($key as $value) {
+                    $q->where('name', 'like', "%{$value}%");
+                }
+            })->when(is_numeric($store_id), function ($query) use ($store_id) {
+                return $query->where('store_id', $store_id);
+            })
+            ->when(is_numeric($category_id), function ($query) use ($category_id) {
+                return $query->whereHas('category', function ($q) use ($category_id) {
+                    return $q->whereId($category_id)->orWhere('parent_id', $category_id);
+                });
+            })->module(Config::get('module.current_module_id'))->where('is_approved', 1);
 
-    //     if (isset($request->product_gallery) && $request->product_gallery == 1) {
-    //         $items = $items->limit(12)->get();
-    //         $view = 'admin-views.product.partials._gallery';
-    //     } else {
-    //         $items = $items->latest()->limit(50)->get();
-    //     }
+        if (isset($request->product_gallery) && $request->product_gallery == 1) {
+            $items = $items->limit(12)->get();
+            $view = 'admin-views.product.partials._gallery';
+        } else {
+            $items = $items->latest()->limit(50)->get();
+        }
 
-    //     return response()->json([
-    //         'count' => $items->count(),
-    //         'view' => view($view, compact('items'))->render(),
-    //     ]);
-    // }
+        return response()->json([
+            'count' => $items->count(),
+            'view' => view($view, compact('items'))->render(),
+        ]);
+    }
 
     public function review_list(Request $request)
     {
