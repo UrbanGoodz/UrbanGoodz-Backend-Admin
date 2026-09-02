@@ -633,6 +633,72 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="shadow-sm p-xxl-20 p-xl-3 p-2 bg-white mb-20" id="advertisement_pricing_section">
+                                <div class="row g-3">
+                                    <div class="col-xxl-9 col-lg-8 col-md-7 col-sm-6">
+                                        <div>
+                                            <h4 class="mb-1">
+                                                {{ translate('Vendor Advertisement Pricing') }}
+                                            </h4>
+                                            <p class="mb-0 fs-12">
+                                                {{ translate('Configures the price shown for vendor advertisement submissions. This sets the figure only - it does not yet charge vendors automatically.') }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-xxl-3 col-lg-4 col-md-5 col-sm-6">
+                                        @php($advertisement_paid_status = \App\Models\BusinessSetting::where('key', 'advertisement_paid_status')->first())
+                                        @php($advertisement_paid_status = $advertisement_paid_status ? $advertisement_paid_status->value : 0)
+                                        <div class="form-group mb-0">
+                                            <label
+                                                class="toggle-switch h--45px toggle-switch-sm d-flex justify-content-between border rounded px-3 py-0 form-control">
+                                                <span class="pr-1 d-flex align-items-center switch--label">
+                                                    <span class="line--limit-1">
+                                                        {{translate('Status') }}
+                                                    </span>
+                                                </span>
+                                                <input type="checkbox" data-id="advertisement_paid_status" data-type="toggle"
+                                                    data-image-on="{{ asset('/public/assets/admin/img/modal/dm-tips-on.png') }}"
+                                                    data-image-off="{{ asset('/public/assets/admin/img/modal/dm-tips-off.png') }}"
+                                                    data-title-on="<strong>{{ translate('Want_to_enable_advertisement_pricing?') }}</strong>"
+                                                    data-title-off="<strong>{{ translate('Want_to_disable_advertisement_pricing?') }}</strong>"
+                                                    data-text-on="<p>{{ translate('This_records_that_vendor_advertisements_are_priced._Actual_charging_is_not_yet_automated.') }}</p>"
+                                                    data-text-off="<p>{{ translate('Vendor_advertisements_are_treated_as_free.') }}</p>"
+                                                    class="status toggle-switch-input dynamic-checkbox-toggle" value="1"
+                                                    name="advertisement_paid_status" id="advertisement_paid_status" {{ $advertisement_paid_status == 1 ? 'checked' : '' }}>
+                                                <span class="toggle-switch-label text">
+                                                    <span class="toggle-switch-indicator"></span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-light2 rounded p-xxl-20 p-3 mt-20">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6 col-lg-6">
+                                            @php($advertisement_price = \App\Models\BusinessSetting::where('key', 'advertisement_price')->first())
+                                            <div class="form-group mb-0">
+                                                <label
+                                                    class="form-label d-flex justify-content-between text-capitalize mb-1"
+                                                    for="advertisement_price">
+                                                    <span class="line--limit-1">{{ translate('advertisement_price') }}
+                                                        ({{ \App\CentralLogics\Helpers::currency_symbol() }})
+                                                    </span>
+                                                </label>
+                                                <input type="number" name="advertisement_price" class="form-control"
+                                                    id="advertisement_price" placeholder="{{ translate('Ex:_25') }}"
+                                                    value="{{ $advertisement_price ? $advertisement_price->value : 0 }}" min="0"
+                                                    step="{{ \App\CentralLogics\Helpers::getDecimalPlaces() }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="info-notes-bg px-3 py-2 rounded fz-11 gap-2 d-flex mt-20">
+                                    <img src="{{asset('public/assets/admin/img/info-idea.svg')}}" alt="">
+                                    <span>
+                                        {{translate('This price is a reference figure only. Vendor advertisement submissions are not currently charged automatically - use the per-advertisement paid toggle in Promotions to mark individual ads as paid once collected.')}}
+                                    </span>
+                                </div>
+                            </div>
                             <div class="card mb-20" id="others_setup_section">
                         <div class="card-body">
                             <div class="mb-20">
