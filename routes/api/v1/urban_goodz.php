@@ -108,7 +108,7 @@ Route::post('order-anywhere/cards/stripe/webhook', 'Api\V1\StripeIssuingWebhookC
 
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1,ug-order-anywhere-customer']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
-    Route::post('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
+    Route::get('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');
     Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereController@authorizePayment');
     Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereController@uploadReceipt');

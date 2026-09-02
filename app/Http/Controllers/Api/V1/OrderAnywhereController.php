@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\OrderAnywhereRequest;
 use App\Services\UrbanGoodzPaymentService;
@@ -68,6 +69,23 @@ class OrderAnywhereController extends Controller
             'message' => 'Order Anywhere request submitted for admin review.',
             'data' => $record,
         ], 201);
+    }
+
+    /**
+     * A rough delivery-fee preview shown before the customer submits a
+     * request. Order Anywhere has no store/distance data yet at this point
+     * (the "store" is free text, not a lookup) - admin sets the real
+     * `delivery_fee` during review - so this is a configurable base figure,
+     * not a computed quote.
+     */
+    public function estimate(Request $request)
+    {
+        $fee = Helpers::get_business_settings('order_anywhere_estimated_delivery_fee');
+
+        return response()->json([
+            'success' => true,
+            'fee' => is_numeric($fee) ? (float) $fee : 8.0,
+        ]);
     }
 
     public function show(Request $request, $record)
