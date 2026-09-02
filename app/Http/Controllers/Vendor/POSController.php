@@ -450,13 +450,35 @@ class POSController extends Controller
         return response()->json([],200);
     }
 
-    // public function update_tax(Request $request)
-    // {
-    //     $cart = $request->session()->get('cart', collect([]));
-    //     $cart['tax'] = $request->tax;
-    //     $request->session()->put('cart', $cart);
-    //     return back();
-    // }
+    public function update_tax(Request $request)
+    {
+        $request->validate([
+            'tax' => 'required|numeric|min:0|max:100',
+        ]);
+
+        $subtotal = 0;
+        $addon_price = 0;
+        $discount_on_product = 0;
+
+        $cart = session()->get('cart', []);
+
+        foreach ($cart as $cartItem) {
+            if (is_array($cartItem)) {
+                $subtotal += $cartItem['price'] * $cartItem['quantity'];
+                $addon_price += $cartItem['addon_price'] ?? 0;
+                $discount_on_product += ($cartItem['discount'] ?? 0) * $cartItem['quantity'];
+            }
+        }
+
+        $taxable_total = ($subtotal + $addon_price) - $discount_on_product;
+
+        session()->put('tax_amount', round($taxable_total * ($request->tax / 100), 2));
+        session()->put('tax_included', 0);
+
+        $this->setPosCalculatedTax(Helpers::get_store_data());
+
+        return back();
+    }
 
     public function update_discount(Request $request)
     {
