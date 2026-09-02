@@ -64,7 +64,7 @@ class QaTestAccountsSeeder extends Seeder
                 'address' => '901 Bagby St, Houston, TX 77002, USA',
                 'latitude' => '29.7633',
                 'longitude' => '-95.3708',
-                'module_id' => 1,
+                'module_id' => 13, // Retail/Shopping - active; id 1 ("Demo Module") is inactive
                 'zone_id' => $zoneId,
                 'status' => 1,
                 'active' => 1,
