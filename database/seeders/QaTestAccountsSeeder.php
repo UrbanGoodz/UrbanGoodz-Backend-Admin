@@ -51,7 +51,7 @@ class QaTestAccountsSeeder extends Seeder
                 'l_name' => 'Vendor',
                 'phone' => '+12815550102',
                 'password' => Hash::make(self::PASSWORD),
-                'status' => 'approved',
+                'status' => 1,
             ]
         );
 
