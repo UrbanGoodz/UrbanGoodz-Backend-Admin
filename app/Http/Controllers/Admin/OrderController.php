@@ -121,6 +121,9 @@ class OrderController extends Controller
             ->when(isset($request->order_type), function ($query) use ($request) {
                 return $query->where('order_type', $request->order_type);
             })
+            ->when(isset($request->payment_status), function ($query) use ($request) {
+                return $query->where('payment_status', $request->payment_status);
+            })
             ->when(isset($request->from_date) && isset($request->to_date) && $request->from_date != null && $request->to_date != null, function ($query) use ($request) {
                 return $query->whereBetween('created_at', [$request->from_date . " 00:00:00", $request->to_date . " 23:59:59"]);
             })
@@ -333,6 +336,48 @@ class OrderController extends Controller
             return back();
         }
     }
+
+    /**
+     * admin.order.view predates admin.order.details as the order-detail page
+     * and was never removed from the route list after the rename - same
+     * destination, so just delegate rather than duplicate the query above.
+     */
+    public function view(Request $request, $id)
+    {
+        return $this->details($request, $id);
+    }
+
+    /**
+     * Orders are financial/audit records - hard-deleting one that already
+     * has a captured payment would destroy the paper trail. Only allow it
+     * for orders that never moved money.
+     */
+    public function delete($id)
+    {
+        $order = Order::where('id', $id)->first();
+        if (!$order) {
+            Toastr::info(translate('messages.no_more_orders'));
+            return back();
+        }
+        if ($order->payment_status == 'paid' || !in_array($order->order_status, ['pending', 'canceled', 'failed'])) {
+            Toastr::error(translate('You_can_not_delete_a_paid_or_in-progress_order._Cancel_it_instead.'));
+            return back();
+        }
+        $order->details()->delete();
+        $order->delete();
+        Toastr::success(translate('messages.order_deleted_successfully'));
+        return back();
+    }
+
+    /**
+     * Read-only filter into the same order list the status tabs already
+     * use - lets a link pass ?payment_status=paid|unpaid directly.
+     */
+    public function payment_status(Request $request)
+    {
+        return $this->list($request->query('status', 'all'), $request);
+    }
+
     public function switch_to_cod($id){
         $order = Order::where('id', $id)->first();
         if($order){

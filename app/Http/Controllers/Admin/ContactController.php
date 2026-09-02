@@ -55,6 +55,31 @@ class ContactController extends Controller
         return view('admin-views.contacts.list', compact('contacts'));
 
     }
+    /**
+     * AJAX-partial counterpart to list() - same query, returns the table
+     * partial + count instead of the full page.
+     */
+    public function search(Request $request)
+    {
+        $key = explode(' ', $request['search']);
+        $contacts = Contact::orderBy('name')
+            ->when(isset($key), function ($query) use ($key) {
+                $query->where(function ($q) use ($key) {
+                    foreach ($key as $value) {
+                        $q->orWhere('name', 'like', "%{$value}%")
+                            ->orWhere('subject', 'like', "%{$value}%")
+                            ->orWhere('email', 'like', "%{$value}%");
+                    }
+                });
+            })
+            ->paginate(config('default_pagination'));
+
+        return response()->json([
+            'count' => $contacts->total(),
+            'view' => view('admin-views.contacts.partials._table', compact('contacts'))->render(),
+        ]);
+    }
+
     public function exportList(Request $request)
     {
         $key = explode(' ', $request['search']);

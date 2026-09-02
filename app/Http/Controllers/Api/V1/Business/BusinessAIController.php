@@ -114,6 +114,16 @@ class BusinessAIController extends Controller
         ]);
     }
 
+    /**
+     * packages/group predates package-pool/packages/pool as the route name
+     * for this exact grouping logic - same real, working implementation,
+     * never removed after the rename.
+     */
+    public function groupPackages(Request $request): JsonResponse
+    {
+        return $this->packagePool($request);
+    }
+
     // ─── ROUTE CREATION ─────────────────────────────────────────────────
 
     public function createRoute(Request $request): JsonResponse
@@ -195,6 +205,17 @@ class BusinessAIController extends Controller
             'route' => $routeBatch->fresh(['packages', 'deliveryMan']),
             'optimization' => $result,
         ]);
+    }
+
+    /**
+     * route/dedicated predates createRoute's own 'dedicated' flag as the
+     * route name for this - createRoute already does the real optimization
+     * and route-batch creation; this just forces that flag on.
+     */
+    public function recommendDedicatedRoute(Request $request): JsonResponse
+    {
+        $request->merge(['dedicated' => true]);
+        return $this->createRoute($request);
     }
 
     public function optimizeRoute(Request $request): JsonResponse

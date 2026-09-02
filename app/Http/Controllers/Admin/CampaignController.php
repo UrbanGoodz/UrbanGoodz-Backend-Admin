@@ -70,6 +70,62 @@ class CampaignController extends Controller
         return view('admin-views.campaign.'.$type.'.list', compact('campaigns','productWiseTax', 'taxVats', 'store'));
     }
 
+    /**
+     * AJAX-partial counterpart to list('basic', ...) - same query, returns
+     * the table partial + count instead of the full page.
+     */
+    public function searchBasic(Request $request)
+    {
+        $key = explode(' ', $request['search']);
+        $campaigns = Campaign::with('module')->where('module_id', Config::get('module.current_module_id'))
+            ->when(isset($key), function ($q) use ($key) {
+                $q->where(function ($q) use ($key) {
+                    foreach ($key as $value) {
+                        $q->orWhere('title', 'like', "%{$value}%");
+                    }
+                });
+            })->withCount('stores')
+            ->latest()->paginate(config('default_pagination'));
+
+        $taxData = Helpers::getTaxSystemType();
+        $productWiseTax = $taxData['productWiseTax'];
+        $taxVats = $taxData['taxVats'];
+
+        return response()->json([
+            'count' => $campaigns->total(),
+            'view' => view('admin-views.campaign.basic.partials._table', compact('campaigns', 'productWiseTax', 'taxVats'))->render(),
+        ]);
+    }
+
+    /**
+     * AJAX-partial counterpart to list('item', ...).
+     */
+    public function searchItem(Request $request)
+    {
+        $key = explode(' ', $request['search']);
+        $campaigns = ItemCampaign::where('module_id', Config::get('module.current_module_id'))
+            ->when(isset($key), function ($q) use ($key) {
+                $q->where(function ($q) use ($key) {
+                    foreach ($key as $value) {
+                        $q->orWhere('title', 'like', "%{$value}%");
+                    }
+                });
+            })
+            ->when($request->store_id && is_numeric($request->store_id), function ($q) use ($request) {
+                $q->where('store_id', $request->store_id);
+            })
+            ->latest()->paginate(config('default_pagination'));
+
+        $taxData = Helpers::getTaxSystemType();
+        $productWiseTax = $taxData['productWiseTax'];
+        $taxVats = $taxData['taxVats'];
+
+        return response()->json([
+            'count' => $campaigns->total(),
+            'view' => view('admin-views.campaign.item.partials._table', compact('campaigns', 'productWiseTax', 'taxVats'))->render(),
+        ]);
+    }
+
     public function storeBasic(Request $request)
     {
         $validator = Validator::make($request->all(), [
