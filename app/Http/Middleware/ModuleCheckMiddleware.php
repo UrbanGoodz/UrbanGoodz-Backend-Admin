@@ -22,7 +22,7 @@ class ModuleCheckMiddleware
             // selected (see lib/features/home/screens/home_screen.dart
             // loadData()) - these are the module-agnostic feeds it calls
             // unconditionally on every cold start, with or without a module.
-            'api/v1/stores/recommended', 'api/v1/stores/popular', 'api/v1/stores/latest', 'api/v1/stores/top-offer-near-me', 'api/v1/advertisement/list'
+            'api/v1/stores/recommended', 'api/v1/stores/popular', 'api/v1/stores/latest', 'api/v1/stores/top-offer-near-me', 'api/v1/advertisement/list', 'api/v1/other-banners'
         ];
 
         foreach ($except as $except) {
