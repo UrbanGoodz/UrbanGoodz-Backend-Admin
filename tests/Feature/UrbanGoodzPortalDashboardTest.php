@@ -89,7 +89,7 @@ class UrbanGoodzPortalDashboardTest extends TestCase
         $response->assertOk();
         $response->assertSee('ug-portal', false);
         $response->assertSee('Urban Goodz Command Overview', false);
-        $response->assertSee('Skylar Insights', false);
+        $response->assertSee('Monique Insights', false);
         $response->assertSee('ug-count', false);
         $response->assertSee('ug-live-feed', false);
         $response->assertSee('/admin/dashboard-stats/ug-live-feed', false);
@@ -151,7 +151,7 @@ class UrbanGoodzPortalDashboardTest extends TestCase
         $response->assertOk();
         $response->assertSee('ug-portal', false);
         $response->assertSee('Your Store at a Glance', false);
-        $response->assertSee('Skylar Suggestions', false);
+        $response->assertSee('Monique Suggestions', false);
         $response->assertSee('Live Orders', false);
         $response->assertSee('/vendor-panel/dashboard/live-feed', false);
     }

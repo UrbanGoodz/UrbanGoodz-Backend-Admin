@@ -137,6 +137,12 @@
                         </a>
                     </li>
                     @endif
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/historical-reconstruction*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.historical-reconstruction.index') }}" title="Historical Reconstruction">
+                            <i class="tio-history nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Historical Reconstruction</span>
+                        </a>
+                    </li>
 
                     {{-- Commerce --}}
                     <li class="nav-item">

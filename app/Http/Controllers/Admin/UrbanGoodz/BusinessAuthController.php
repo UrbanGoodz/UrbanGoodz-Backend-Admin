@@ -48,7 +48,7 @@ class BusinessAuthController extends Controller
             $user->save();
 
             if ($client->isDispatchCompany() && $user->isDispatchRole()) {
-                return redirect()->route('dispatcher.dashboard');
+                return redirect()->route('business.dispatcher.dashboard');
             }
 
             return redirect()->route('business.dashboard');

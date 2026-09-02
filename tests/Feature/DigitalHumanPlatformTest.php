@@ -62,7 +62,12 @@ class DigitalHumanPlatformTest extends TestCase
         );
 
         $this->assertTrue($payload['success']);
-        $this->assertEquals('Monique', $payload['data']['persona']['display_name']);
+        // 'concierge' is the customer-facing persona — Skylar. 'chief_of_staff'
+        // (Monique) is the business/executive-facing persona. See
+        // app/Services/UrbanGoodz/AI/Persona/PersonaRegistry.php and the
+        // canonical mapping in UrbanGoodz2026-Revised's
+        // lib/features/digital_human/core/personality_profile.dart.
+        $this->assertEquals('Skylar', $payload['data']['persona']['display_name']);
         $this->assertEquals('houston_loft', $payload['data']['digital_human']['environment_key']);
         $this->assertNotEmpty($payload['data']['playback']['viseme_timeline']);
     }
