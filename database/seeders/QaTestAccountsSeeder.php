@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\DeliveryMan;
 use App\Models\Store;
+use App\Models\StoreSchedule;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Zone;
@@ -70,6 +71,14 @@ class QaTestAccountsSeeder extends Seeder
                 'active' => 1,
             ]
         );
+
+        $store = Store::where('vendor_id', $vendor->id)->first();
+        foreach (range(0, 6) as $day) {
+            StoreSchedule::updateOrCreate(
+                ['store_id' => $store->id, 'day' => $day],
+                ['opening_time' => '00:00:00', 'closing_time' => '23:59:59']
+            );
+        }
 
         DeliveryMan::updateOrCreate(
             ['email' => 'qa.driver@urbangoodzdelivery.com'],
