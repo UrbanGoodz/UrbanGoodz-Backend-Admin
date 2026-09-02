@@ -21,7 +21,7 @@ class OtherBannerController extends Controller
 
         $bannerData = null;
 
-        if($module->module_type == 'parcel'){
+        if($module?->module_type == 'parcel'){
             $bannerData['banners'] = $banners;
         }else{
             foreach ($banners as $banner) {
