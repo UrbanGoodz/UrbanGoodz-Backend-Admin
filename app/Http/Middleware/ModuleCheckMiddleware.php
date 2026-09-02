@@ -17,7 +17,12 @@ class ModuleCheckMiddleware
     public function handle($request, Closure $next)
     {
         $except = [
-            'api/v1/customer*', 'api/v1/banners', 'api/v1/stores/get-stores/*', 'api/v1/coupon/list', 'api/v1/categories', 'api/v1/items/reviews/submit', 'api/v1/delivery-man/reviews/submit'
+            'api/v1/customer*', 'api/v1/banners', 'api/v1/stores/get-stores', 'api/v1/stores/get-stores/*', 'api/v1/coupon/list', 'api/v1/categories', 'api/v1/items/reviews/submit', 'api/v1/delivery-man/reviews/submit',
+            // The home screen browses across all modules before one is
+            // selected (see lib/features/home/screens/home_screen.dart
+            // loadData()) - these are the module-agnostic feeds it calls
+            // unconditionally on every cold start, with or without a module.
+            'api/v1/stores/recommended', 'api/v1/stores/popular', 'api/v1/stores/latest', 'api/v1/stores/top-offer-near-me', 'api/v1/advertisement/list'
         ];
 
         foreach ($except as $except) {
