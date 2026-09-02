@@ -1608,4 +1608,23 @@ Route::group(['namespace' => 'Admin\UrbanGoodz', 'as' => 'admin.urban-goodz.', '
         Route::get('expired/list', 'UrbanGoodzEventAdminController@expiredEvents')->name('expired');
         Route::get('duplicates/list', 'UrbanGoodzEventAdminController@duplicates')->name('duplicates');
     });
+
+    Route::group(['prefix' => 'historical-reconstruction', 'as' => 'historical-reconstruction.'], function () {
+        Route::get('/', 'UrbanGoodzHistoricalReconstructionController@index')->name('index');
+        Route::get('create', 'UrbanGoodzHistoricalReconstructionController@create')->name('create');
+        Route::post('/', 'UrbanGoodzHistoricalReconstructionController@store')->name('store');
+        Route::get('{id}', 'UrbanGoodzHistoricalReconstructionController@show')->name('show');
+        Route::get('{id}/edit', 'UrbanGoodzHistoricalReconstructionController@edit')->name('edit');
+        Route::put('{id}', 'UrbanGoodzHistoricalReconstructionController@update')->name('update');
+        Route::delete('{id}', 'UrbanGoodzHistoricalReconstructionController@destroy')->name('destroy');
+        Route::post('{id}/run', 'UrbanGoodzHistoricalReconstructionController@runReconstruction')->name('run');
+        Route::get('{id}/snapshot/{snapshotId}', 'UrbanGoodzHistoricalReconstructionController@snapshotDetail')->name('snapshot');
+        Route::get('{id}/source-records', 'UrbanGoodzHistoricalReconstructionController@sourceRecords')->name('source-records');
+        Route::post('{id}/source-records', 'UrbanGoodzHistoricalReconstructionController@importSourceRecord')->name('source-records.import');
+        Route::get('{id}/audit-trail', 'UrbanGoodzHistoricalReconstructionController@auditTrail')->name('audit-trail');
+        Route::get('{id}/export/csv', 'UrbanGoodzHistoricalReconstructionController@exportCsv')->name('export.csv');
+        Route::get('{id}/export/json', 'UrbanGoodzHistoricalReconstructionController@exportJson')->name('export.json');
+        Route::get('{id}/export/pdf', 'UrbanGoodzHistoricalReconstructionController@exportPdf')->name('export.pdf');
+        Route::get('{id}/truck-timeline', 'UrbanGoodzHistoricalReconstructionController@truckPurchaseTimeline')->name('truck-timeline');
+    });
 });

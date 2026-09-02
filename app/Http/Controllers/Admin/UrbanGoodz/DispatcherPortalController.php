@@ -249,7 +249,7 @@ class DispatcherPortalController extends Controller
         }
 
         Toast::success(translate('Driver assigned successfully'));
-        return redirect()->route('dispatcher.loads.show', $id);
+        return redirect()->route('business.dispatcher.loads.show', $id);
     }
 
     public function updateLoadStatus(Request $request, $id, UrbanGoodzLoadBoardService $service)
@@ -286,7 +286,7 @@ class DispatcherPortalController extends Controller
         );
 
         Toast::success(translate('Load status updated'));
-        return redirect()->route('dispatcher.loads.show', $id);
+        return redirect()->route('business.dispatcher.loads.show', $id);
     }
 
     public function drivers()
@@ -382,7 +382,7 @@ class DispatcherPortalController extends Controller
         ]);
 
         Toast::success(translate('Territory updated successfully'));
-        return redirect()->route('dispatcher.territory');
+        return redirect()->route('business.dispatcher.territory');
     }
 
     public function users()
@@ -441,7 +441,7 @@ class DispatcherPortalController extends Controller
         ]);
 
         Toast::success(translate('User created successfully'));
-        return redirect()->route('dispatcher.users');
+        return redirect()->route('business.dispatcher.users');
     }
 
     public function editUser($id)
@@ -503,7 +503,7 @@ class DispatcherPortalController extends Controller
         }
 
         Toast::success(translate('User updated successfully'));
-        return redirect()->route('dispatcher.users');
+        return redirect()->route('business.dispatcher.users');
     }
 
     public function deactivateUser($id)
@@ -527,6 +527,6 @@ class DispatcherPortalController extends Controller
         $editUser->update(['is_active' => false, 'status' => 'inactive']);
 
         Toast::success(translate('User deactivated'));
-        return redirect()->route('dispatcher.users');
+        return redirect()->route('business.dispatcher.users');
     }
 }

@@ -119,7 +119,9 @@ class AdminRouteAndServiceContractTest extends TestCase
             }
 
             $contents = file_get_contents($file->getPathname());
-            preg_match_all("/route\(\s*'([a-zA-Z0-9_.\-]+)'/", $contents, $matches);
+            // Negative lookbehind excludes `->route('id')` (Request::route(), a
+            // route-parameter getter) from matching the global route() helper.
+            preg_match_all("/(?<!->)route\(\s*'([a-zA-Z0-9_.\-]+)'/", $contents, $matches);
 
             foreach (array_unique($matches[1]) as $name) {
                 if (! Route::getRoutes()->getByName($name)) {

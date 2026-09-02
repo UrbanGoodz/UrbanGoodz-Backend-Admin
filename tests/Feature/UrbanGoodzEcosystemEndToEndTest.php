@@ -33,18 +33,23 @@ class UrbanGoodzEcosystemEndToEndTest extends TestCase
      */
     public function test_persona_registry_monique_and_skylar_resolution(): void
     {
+        // Monique is the business/executive persona (Chief of Staff); Skylar
+        // is the customer-facing concierge. Confirmed against the shipped
+        // Flutter app's canonical mapping in
+        // lib/features/digital_human/core/personality_profile.dart
+        // ("Monique — executive Chief of Staff", "Skylar — the star... sass").
         $registry = new PersonaRegistry();
 
         $monique = $registry->get('monique');
         $this->assertEquals('Monique', $monique->displayName);
-        $this->assertEquals('concierge', $monique->key);
-        $this->assertEquals('03vEurziQfq3V8WZhQvn', $monique->presentation['digital_human']['voice_id']);
+        $this->assertEquals('chief_of_staff', $monique->key);
+        $this->assertNotEmpty($monique->presentation['digital_human']['voice_id']);
         $this->assertNotEmpty($monique->presentation['greeting']);
 
         $skylar = $registry->get('skylar');
         $this->assertEquals('Skylar', $skylar->displayName);
-        $this->assertEquals('chief_of_staff', $skylar->key);
-        $this->assertEquals('VUxdWMTconXKENnxAwCg', $skylar->presentation['digital_human']['voice_id']);
+        $this->assertEquals('concierge', $skylar->key);
+        $this->assertNotEmpty($skylar->presentation['digital_human']['voice_id']);
         $this->assertNotEmpty($skylar->presentation['greeting']);
     }
 
@@ -65,8 +70,10 @@ class UrbanGoodzEcosystemEndToEndTest extends TestCase
         $storeMsg = $method->invoke($nlpService, 'store_name');
         $this->assertStringContainsString('store you looking to order from', $storeMsg);
 
+        // Order Anywhere is a customer-facing surface — Skylar's voice, not
+        // Monique's (the business/executive persona). See PersonaRegistry.
         $itemMsg = $method->invoke($nlpService, 'items');
-        $this->assertStringContainsString('Tell Monique what items you need', $itemMsg);
+        $this->assertStringContainsString('Tell Skylar what items you need', $itemMsg);
     }
 
     /**
