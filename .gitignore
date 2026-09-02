@@ -97,3 +97,6 @@ storage/debugbar/
 
 # Raw unsanitized schema export (never commit)
 database/baseline/raw_schema.sql
+
+# Claude Code worktrees/session state - never commit
+.claude/
