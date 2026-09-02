@@ -106,19 +106,21 @@ class OrderAnywhereController extends Controller
         ]);
 
         $model = $this->findRecord($record);
-        $newStatus = $data['status'] ?? $data['request_status'] ?? 'reviewing';
+        $newStatus = $data['status'] ?? $data['request_status'] ?? 'sourcing';
         $oldStatus = $model->status;
 
-        if ($oldStatus !== $newStatus) {
-            $model->transitionTo($newStatus);
-        }
+        return $this->guarded(function () use ($model, $oldStatus, $newStatus, $data) {
+            if ($oldStatus !== $newStatus) {
+                $model->transitionTo($newStatus);
+            }
 
-        $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
-        $model->reviewed_at = now();
-        $model->save();
-        $model->logStatusTransition($oldStatus, $newStatus, $data['reason'] ?? null);
+            $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
+            $model->reviewed_at = now();
+            $model->save();
+            $model->logStatusTransition($oldStatus, $newStatus, $data['reason'] ?? null);
 
-        return $this->updated($model, 'Order Anywhere status updated.');
+            return $this->updated($model, 'Order Anywhere status updated.');
+        });
     }
 
     public function vendorUpdate(Request $request, $record)
@@ -134,15 +136,17 @@ class OrderAnywhereController extends Controller
         $model->vendor_notes = $data['vendor_notes'] ?? $model->vendor_notes;
         $model->vendor_quote_amount = $data['vendor_quote_amount'] ?? $model->vendor_quote_amount;
 
-        if (($data['vendor_status'] ?? null) === 'accepted') {
-            $model->transitionTo('vendor_accepted');
-        } elseif (($data['vendor_status'] ?? null) === 'rejected') {
-            $model->transitionTo('rejected');
-        } else {
-            $model->save();
-        }
+        return $this->guarded(function () use ($model, $data) {
+            if (($data['vendor_status'] ?? null) === 'accepted') {
+                $model->transitionTo('vendor_accepted');
+            } elseif (($data['vendor_status'] ?? null) === 'rejected') {
+                $model->transitionTo('rejected');
+            } else {
+                $model->save();
+            }
 
-        return $this->updated($model, 'Order Anywhere vendor response updated.');
+            return $this->updated($model, 'Order Anywhere vendor response updated.');
+        });
     }
 
     public function authorizePayment(Request $request, $record, UrbanGoodzPaymentService $payments)
@@ -153,15 +157,17 @@ class OrderAnywhereController extends Controller
             'authorization_reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $model = $payments->authorizeCustomerPayment($this->findCustomerRecord($request, $record), array_merge($data, [
-            'source' => 'customer_api',
-        ]));
+        return $this->guarded(function () use ($request, $record, $payments, $data) {
+            $model = $payments->authorizeCustomerPayment($this->findCustomerRecord($request, $record), array_merge($data, [
+                'source' => 'customer_api',
+            ]));
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Order Anywhere payment authorized.',
-            'data' => $model,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Order Anywhere payment authorized.',
+                'data' => $model,
+            ]);
+        });
     }
 
     public function uploadReceipt(Request $request, $record, UrbanGoodzPaymentService $payments)
@@ -179,13 +185,15 @@ class OrderAnywhereController extends Controller
 
         abort_if(! $path, 422, 'Receipt file or receipt_path is required.');
 
-        $model = $payments->storeReceipt($this->findCustomerRecord($request, $record), $path);
+        return $this->guarded(function () use ($request, $record, $payments, $path) {
+            $model = $payments->storeReceipt($this->findCustomerRecord($request, $record), $path);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Order Anywhere receipt uploaded.',
-            'data' => $model,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Order Anywhere receipt uploaded.',
+                'data' => $model,
+            ]);
+        });
     }
 
     public function addNotes(Request $request, $record)
@@ -210,13 +218,16 @@ class OrderAnywhereController extends Controller
         ]);
 
         $model = $this->findRecord($record);
-        $result = $payments->createPaymentSession($model, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Payment link created.',
-            'data' => $result,
-        ]);
+        return $this->guarded(function () use ($model, $payments, $data) {
+            $result = $payments->createPaymentSession($model, $data);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment link created.',
+                'data' => $result,
+            ]);
+        });
     }
 
     public function assignDriver(Request $request, $record)
@@ -231,9 +242,12 @@ class OrderAnywhereController extends Controller
         $model->driver_task_status = 'assigned';
         $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
         $model->reviewed_at = now();
-        $model->transitionTo('approved');
 
-        return $this->updated($model, 'Driver assigned to Order Anywhere request.');
+        return $this->guarded(function () use ($model) {
+            $model->transitionTo('approved');
+
+            return $this->updated($model, 'Driver assigned to Order Anywhere request.');
+        });
     }
 
     public function driverAvailable(Request $request)
@@ -267,16 +281,19 @@ class OrderAnywhereController extends Controller
             'picked_up' => 'picked_up',
             'en_route' => 'out_for_delivery',
             'delivered' => 'completed',
-            'issue_reported' => 'reviewing',
+            'issue_reported' => 'sourcing',
             default => 'shopping',
         };
 
         $model = $this->findDriverRecord($record);
         $model->driver_task_status = $driverStatus;
         $model->driver_notes = $data['driver_notes'] ?? $model->driver_notes;
-        $model->transitionTo($status);
 
-        return $this->updated($model, 'Driver task status updated.');
+        return $this->guarded(function () use ($model, $status) {
+            $model->transitionTo($status);
+
+            return $this->updated($model, 'Driver task status updated.');
+        });
     }
 
     public function driverIssue(Request $request, $record)
@@ -289,9 +306,12 @@ class OrderAnywhereController extends Controller
         $model = $this->findDriverRecord($record);
         $model->driver_task_status = 'issue_reported';
         $model->driver_notes = $data['driver_notes'] ?? $data['issue'] ?? $model->driver_notes;
-        $model->transitionTo('reviewing');
 
-        return $this->updated($model, 'Driver issue reported.');
+        return $this->guarded(function () use ($model) {
+            $model->transitionTo('sourcing');
+
+            return $this->updated($model, 'Driver issue reported.');
+        });
     }
 
     private function findRecord($record): OrderAnywhereRequest
@@ -352,6 +372,25 @@ class OrderAnywhereController extends Controller
         abort_unless($driverId, 401, 'Unauthorized.');
 
         return (int) $driverId;
+    }
+
+    /**
+     * The state machine (Model::transitionTo) and UrbanGoodzPaymentService
+     * both throw InvalidArgumentException for legitimate rule violations
+     * (wrong status, payment not authorized, etc.) - not implementation
+     * bugs. Uncaught, those surfaced as opaque 500s on a payment flow.
+     * Translate them into a real 422 the client can act on.
+     */
+    private function guarded(\Closure $action)
+    {
+        try {
+            return $action();
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     private function updated(OrderAnywhereRequest $record, string $message)
