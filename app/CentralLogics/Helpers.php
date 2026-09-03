@@ -197,7 +197,7 @@ class Helpers
         $variations = [];
         $categories = [];
         $category_ids = gettype($data['category_ids']) == 'array' ? $data['category_ids'] : json_decode($data['category_ids'], true);
-        foreach ($category_ids as $value) {
+        foreach ($category_ids ?? [] as $value) {
             $category_name = Category::where('id', $value['id'])->pluck('name');
             $categories[] = ['id' => (string) $value['id'], 'position' => $value['position'], 'name' => data_get($category_name, '0', 'NA')];
         }
@@ -221,7 +221,7 @@ class Helpers
         }
         $data['addons'] = $data_addons;
         $data_variations = gettype($data['variations']) == 'array' ? $data['variations'] : json_decode($data['variations'], true);
-        foreach ($data_variations as $var) {
+        foreach ($data_variations ?? [] as $var) {
             array_push($variations, [
                 'type' => $var['type'],
                 'price' => (float) $var['price'],
