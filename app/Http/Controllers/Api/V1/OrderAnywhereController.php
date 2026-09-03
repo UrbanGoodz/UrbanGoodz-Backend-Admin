@@ -196,6 +196,29 @@ class OrderAnywhereController extends Controller
         });
     }
 
+    public function cancelRequest(Request $request, $record, UrbanGoodzPaymentService $payments)
+    {
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $model = $this->findCustomerRecord($request, $record);
+
+        return $this->guarded(function () use ($model, $payments, $data) {
+            if (in_array($model->status, ['completed', 'delivered', 'rejected', 'cancelled'])) {
+                throw new \InvalidArgumentException('Cannot cancel a request that is already in a terminal state.');
+            }
+
+            $payments->cancelOrder($model, $data['reason'] ?? '');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order Anywhere request cancelled.',
+                'data' => $model->fresh(),
+            ]);
+        });
+    }
+
     public function addNotes(Request $request, $record)
     {
         $data = $request->validate([

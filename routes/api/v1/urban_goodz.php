@@ -112,6 +112,7 @@ Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'thrott
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');
     Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereController@authorizePayment');
     Route::post('requests/{record}/receipt', 'Api\V1\OrderAnywhereController@uploadReceipt');
+    Route::post('requests/{record}/cancel', [\App\Http\Controllers\Api\V1\OrderAnywhereController::class, 'cancelRequest']);
     Route::get('customer/requests', 'Api\V1\OrderAnywhereController@customerRequests');
     Route::post('orders/{orderId}/dispatch/trigger-nearest', 'Api\V1\UrbanGoodz\OrderAiDispatchController@triggerNearestDriver');
     Route::get('orders/{orderId}/dispatch/status', 'Api\V1\UrbanGoodz\OrderAiDispatchController@dispatchStatus');
