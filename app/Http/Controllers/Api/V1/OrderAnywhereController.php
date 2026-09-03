@@ -8,9 +8,86 @@ use App\Models\OrderAnywhereRequest;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class OrderAnywhereController extends Controller
 {
+    public function createFromOption(Request $request, UrbanGoodzPaymentService $payments)
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'merchant_name' => ['required', 'string', 'max:255'],
+            'merchant_address_or_website' => ['nullable', 'string', 'max:500'],
+            'price' => ['required', 'numeric', 'min:0.01'],
+            'delivery_fee' => ['nullable', 'numeric', 'min:0'],
+            'service_fee' => ['nullable', 'numeric', 'min:0'],
+            'delivery_address' => ['required', 'string', 'max:500'],
+            'contact_phone' => ['nullable', 'string', 'max:50'],
+            'customer_notes' => ['nullable', 'string', 'max:1000'],
+            'urgency' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        return $this->guarded(function () use ($request, $data, $payments) {
+            $user = $request->user();
+            $price = (float) $data['price'];
+            $deliveryFee = isset($data['delivery_fee']) ? (float) $data['delivery_fee'] : 7.99;
+            $serviceFee = isset($data['service_fee']) ? (float) $data['service_fee'] : max(5.00, round($price * 0.15, 2));
+            $tax = round($price * 0.0825, 2);
+            $quoteAmount = round($price + $deliveryFee + $serviceFee + $tax, 2);
+
+            $record = OrderAnywhereRequest::create([
+                'request_number' => OrderAnywhereRequest::nextRequestNumber(),
+                'customer_id' => $user?->id,
+                'customer_name' => $user ? ($user->f_name . ' ' . $user->l_name) : 'Customer',
+                'customer_phone' => $data['contact_phone'] ?? $user?->phone,
+                'customer_email' => $user?->email,
+                'store_vendor_name' => $data['merchant_name'],
+                'store_vendor_address_or_website' => $data['merchant_address_or_website'] ?? null,
+                'request_details' => $data['title'],
+                'item_details' => $data['title'],
+                'quantity' => 1,
+                'budget_estimate' => $price,
+                'item_subtotal' => $price,
+                'delivery_fee' => $deliveryFee,
+                'service_fee' => $serviceFee,
+                'tax' => $tax,
+                'quote_amount' => $quoteAmount,
+                'authorized_amount' => $quoteAmount,
+                'status' => 'quote_ready',
+                'payment_status' => 'awaiting_payment',
+                'fulfillment_type' => 'external_merchant',
+                'dropoff_address' => $data['delivery_address'],
+                'delivery_address' => $data['delivery_address'],
+                'admin_notes' => 'Created directly from Skylar AI Concierge commerce discovery.',
+                'metadata' => [
+                    'source' => 'skylar_commerce_discovery',
+                    'customer_notes' => $data['customer_notes'] ?? null,
+                    'urgency' => $data['urgency'] ?? 'standard',
+                ],
+            ]);
+
+            try {
+                $session = $payments->createPaymentSession($record, ['amount' => $quoteAmount]);
+                if (!empty($session['payment_url'])) {
+                    $record->update([
+                        'payment_url' => $session['payment_url'],
+                        'payment_link_id' => $session['payment_link_id'] ?? null,
+                        'payment_status' => 'payment_session_created',
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Could not create immediate payment session for Order Anywhere option: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order Anywhere request created from option.',
+                'data' => $record->fresh(),
+                'payment_url' => $record->payment_url,
+            ], 201);
+        });
+    }
+
     public function customerRequests(Request $request)
     {
         $customerId = $this->customerId($request);

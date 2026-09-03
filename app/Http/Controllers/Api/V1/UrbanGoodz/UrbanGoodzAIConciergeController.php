@@ -62,6 +62,7 @@ class UrbanGoodzAIConciergeController extends Controller
                 'status' => $conversation->status,
                 'suggested_action' => $suggestedAction,
                 'suggested_route' => $suggestedRoute,
+                'discovered_options' => $conversation->metadata['discovered_options'] ?? [],
                 'created_at' => $conversation->created_at?->toIso8601String(),
             ],
         ], $successful ? 200 : 503);
