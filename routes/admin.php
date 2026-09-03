@@ -8,7 +8,7 @@ use App\Http\Controllers\Admin\UrbanGoodzAdminController;
 
 Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
-    Route::group(['middleware' => ['admin']], function () {
+    Route::group(['middleware' => ['admin', 'current-module']], function () {
         Route::get('two-factor', 'TwoFactorAuthController@index')->name('two-factor.index');
         Route::get('two-factor/setup', 'TwoFactorAuthController@showSetup')->name('two-factor.show-setup');
         Route::post('two-factor/confirm', 'TwoFactorAuthController@confirm')->name('two-factor.confirm');
