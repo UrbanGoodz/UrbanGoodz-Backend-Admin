@@ -418,6 +418,29 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
             Route::post('prep-time', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPrepTime');
         });
 
+        // Monique Chief of Staff for Vendor App
+        Route::group(['prefix' => 'vendor/monique', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
+            Route::post('chat', 'Api\V1\UrbanGoodz\VendorMoniqueController@chat');
+            Route::get('morning-brief', 'Api\V1\UrbanGoodz\VendorMoniqueController@morningBrief');
+            Route::get('notifications', 'Api\V1\UrbanGoodz\VendorMoniqueController@getNotifications');
+            Route::post('notifications/{id}/action', 'Api\V1\UrbanGoodz\VendorMoniqueController@handleNotificationAction');
+            Route::get('trial-dashboard', 'Api\V1\UrbanGoodz\VendorMoniqueController@trialDashboard');
+            Route::get('subscription', 'Api\V1\UrbanGoodz\VendorMoniqueController@getSubscription');
+            Route::post('subscription/cancel', 'Api\V1\UrbanGoodz\VendorMoniqueController@cancelSubscription');
+            Route::post('subscription/reactivate', 'Api\V1\UrbanGoodz\VendorMoniqueController@reactivateSubscription');
+            Route::post('subscription/auto-continue', 'Api\V1\UrbanGoodz\VendorMoniqueController@setAutoContinue');
+        });
+
+        // Vendor-Owned Drivers & Shared Network (My Drivers)
+        Route::group(['prefix' => 'vendor/drivers', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
+            Route::get('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@index');
+            Route::post('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@store');
+            Route::put('{id}/pay', 'Api\V1\UrbanGoodz\VendorDriverManagementController@updateCompensation');
+            Route::delete('{id}', 'Api\V1\UrbanGoodz\VendorDriverManagementController@destroy');
+            Route::post('{id}/assign', 'Api\V1\UrbanGoodz\VendorDriverManagementController@assignOrder');
+            Route::post('{id}/release', 'Api\V1\UrbanGoodz\VendorDriverManagementController@releaseDriver');
+        });
+
         Route::group(['prefix' => 'driver', 'middleware' => ['dm.api']], function () {
             Route::get('daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
             Route::post('route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');

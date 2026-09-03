@@ -86,4 +86,23 @@ return [
         'face_id' => env('TAVUS_MONIQUE_FACE_ID'),
         'pal_id' => env('TAVUS_MONIQUE_PAL_ID'),
     ],
+
+    /*
+    | Monique Chief of Staff Execution & Entitlement Configuration
+    */
+    'execution' => [
+        'default_adapter' => env('AI_EXECUTION_ADAPTER', 'native'),
+        'polsia' => [
+            'api_key' => env('POLSIA_API_KEY'),
+            'endpoint' => env('POLSIA_ENDPOINT', 'https://api.polsia.com/v1'),
+            'timeout' => (int) env('POLSIA_TIMEOUT', 30),
+        ],
+    ],
+
+    'monique_pricing' => [
+        'trial_days' => (int) env('MONIQUE_TRIAL_DAYS', 30),
+        'monthly_fee' => (float) env('MONIQUE_MONTHLY_FEE', 49.00),
+        'post_trial_policy' => env('MONIQUE_POST_TRIAL_POLICY', 'auto_charge'), // 'auto_charge', 'explicit_opt_in', 'auto_disable'
+        'default_auto_continue' => (bool) env('MONIQUE_AUTO_CONTINUE', true),
+    ],
 ];

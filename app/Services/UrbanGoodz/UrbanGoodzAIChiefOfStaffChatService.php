@@ -35,7 +35,19 @@ class UrbanGoodzAIChiefOfStaffChatService
         private readonly AiChiefOfStaffService $chiefOfStaff,
         private readonly UrbanGoodzAIExecutionService $execution,
         private readonly UrbanGoodzOperationalPlanner $planner,
+        private ?\App\Services\UrbanGoodz\Agent\ExecutionRouter $router = null,
+        private ?\App\Services\UrbanGoodz\Agent\JobEngine $jobEngine = null,
     ) {}
+
+    private function router(): \App\Services\UrbanGoodz\Agent\ExecutionRouter
+    {
+        return $this->router ??= app(\App\Services\UrbanGoodz\Agent\ExecutionRouter::class);
+    }
+
+    private function jobEngine(): \App\Services\UrbanGoodz\Agent\JobEngine
+    {
+        return $this->jobEngine ??= app(\App\Services\UrbanGoodz\Agent\JobEngine::class);
+    }
 
     /**
      * Phrases that mean "deal with everything you just told me about".
@@ -57,6 +69,22 @@ class UrbanGoodzAIChiefOfStaffChatService
     {
         $q = strtolower($query);
         foreach (self::BULK_PATTERNS as $pattern) {
+            if (str_contains($q, $pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function looksLikeJobRequest(string $query): bool
+    {
+        $q = strtolower($query);
+        $patterns = [
+            'do this job', 'handle this job', 'run job', 'audit vendor',
+            'clean up vendor', 'vendor onboarding backlog', 'audit onboarding',
+            'onboarding backlog', 'process backlog',
+        ];
+        foreach ($patterns as $pattern) {
             if (str_contains($q, $pattern)) {
                 return true;
             }
@@ -226,14 +254,106 @@ class UrbanGoodzAIChiefOfStaffChatService
      */
     private function attemptAction(string $queryText, int $adminId): ?array
     {
-        // A broad sweep is a plan, not a single action. Decompose it into
-        // named steps and propose them; nothing mutating runs until the owner
-        // confirms, and the confirmed run goes through executePlan(), which
-        // authorizes and verifies each step individually.
+        $lower = strtolower(trim($queryText));
+
+        // 1. Multi-step autonomous Job execution
+        if ($this->looksLikeJobRequest($lower)) {
+            try {
+                $jobResult = $this->jobEngine()->runJob($queryText, $adminId, ['actor_role' => 'admin']);
+                return [
+                    'attempted' => true,
+                    'succeeded' => (bool) ($jobResult['success'] ?? false),
+                    'verified' => (bool) ($jobResult['verified'] ?? false),
+                    'action' => 'execute_job',
+                    'intent' => 'job_execution',
+                    'outcome' => $jobResult['report'] ?? 'Job executed.',
+                    'job_id' => $jobResult['job_id'] ?? null,
+                    'data' => $jobResult['output'] ?? [],
+                ];
+            } catch (\Throwable $e) {
+                Log::warning('Chief of Staff Job execution failed', ['exception' => $e::class]);
+            }
+        }
+
+        // 2. Authoritative Agent Tool Router execution (Vendors, Inventory, Operational Tools)
+        if (str_contains($lower, 'vendor') || str_contains($lower, 'merchant')) {
+            if (str_contains($lower, 'suspend') || str_contains($lower, 'deactivate') || str_contains($lower, 'activate')) {
+                $status = (str_contains($lower, 'suspend') || str_contains($lower, 'deactivate')) ? 'inactive' : 'active';
+                preg_match('/\b(?:vendor|merchant)\s*(?:#|id\s*)?(\d+)\b/i', $queryText, $matches);
+                $vendorId = !empty($matches[1]) ? (int) $matches[1] : null;
+
+                $isConfirmed = str_contains($lower, 'confirm') || str_contains($lower, 'yes') || str_contains($lower, 'proceed');
+                $toolRes = $this->router()->execute('update_vendor_status', [
+                    'vendor_id' => $vendorId,
+                    'status' => $status,
+                    'reason' => 'Requested by admin in Chief of Staff chat',
+                ], [
+                    'admin_id' => $adminId,
+                    'actor_role' => 'admin',
+                    'confirmed' => $isConfirmed,
+                ]);
+
+                return [
+                    'attempted' => true,
+                    'succeeded' => (bool) ($toolRes['success'] ?? false),
+                    'verified' => (bool) ($toolRes['verified'] ?? false),
+                    'action' => 'update_vendor_status',
+                    'intent' => 'vendor_management',
+                    'awaiting_confirmation' => (bool) ($toolRes['awaiting_confirmation'] ?? false),
+                    'outcome' => $toolRes['message'] ?? null,
+                    'previous_state' => $toolRes['previous_state'] ?? null,
+                    'new_state' => $toolRes['new_state'] ?? null,
+                ];
+            }
+
+            if (str_contains($lower, 'audit') || str_contains($lower, 'onboard') || str_contains($lower, 'backlog')) {
+                $toolRes = $this->router()->execute('audit_vendor_onboarding', [], [
+                    'admin_id' => $adminId,
+                    'actor_role' => 'admin',
+                ]);
+
+                return [
+                    'attempted' => true,
+                    'succeeded' => (bool) ($toolRes['success'] ?? false),
+                    'verified' => (bool) ($toolRes['verified'] ?? false),
+                    'action' => 'audit_vendor_onboarding',
+                    'intent' => 'vendor_management',
+                    'outcome' => $toolRes['message'] ?? null,
+                    'data' => $toolRes['data'] ?? [],
+                ];
+            }
+
+            if (str_contains($lower, 'details') || str_contains($lower, 'check') || str_contains($lower, 'status') || str_contains($lower, 'show')) {
+                preg_match('/\b(?:vendor|merchant)\s*(?:#|id\s*)?(\d+)\b/i', $queryText, $matches);
+                $vendorId = !empty($matches[1]) ? (int) $matches[1] : null;
+                $name = trim(preg_replace('/\b(?:check|show|vendor|merchant|details|status|id|#|\d+)\b/i', '', $queryText));
+
+                $toolRes = $this->router()->execute('get_vendor_details', [
+                    'vendor_id' => $vendorId,
+                    'name' => $name !== '' ? $name : null,
+                ], [
+                    'admin_id' => $adminId,
+                    'actor_role' => 'admin',
+                ]);
+
+                return [
+                    'attempted' => true,
+                    'succeeded' => (bool) ($toolRes['success'] ?? false),
+                    'verified' => (bool) ($toolRes['verified'] ?? false),
+                    'action' => 'get_vendor_details',
+                    'intent' => 'vendor_management',
+                    'outcome' => $toolRes['message'] ?? null,
+                    'data' => $toolRes['data'] ?? [],
+                ];
+            }
+        }
+
+        // 3. Operational Planner broad request handling
         if ($this->looksLikeBulkRequest($queryText)) {
             return $this->planBulkRequest($adminId);
         }
 
+        // 4. UrbanGoodzAIExecutionService intent execution
         try {
             $result = $this->execution->executeIntent($queryText, $adminId, 'admin');
 

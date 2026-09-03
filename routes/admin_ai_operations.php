@@ -59,3 +59,43 @@ Route::post('urban-goodz/ai-chief-of-staff/chat', [AiOperationsController::class
 Route::post('urban-goodz/ai-chief-of-staff/speak', [AiOperationsController::class, 'chiefOfStaffSpeak'])
     ->middleware(['module:urban_goodz_ai_copilot_use', 'throttle:20,1'])
     ->name('admin.urban-goodz.ai-chief-of-staff.speak');
+
+Route::get('urban-goodz/ai-chief-of-staff/notifications', [AiOperationsController::class, 'chiefOfStaffNotifications'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.notifications');
+
+Route::post('urban-goodz/ai-chief-of-staff/notifications/{id}/action', [AiOperationsController::class, 'chiefOfStaffNotificationAction'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.notification.action');
+
+Route::get('urban-goodz/ai-chief-of-staff/trial-dashboard', [AiOperationsController::class, 'chiefOfStaffTrialDashboard'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.trial-dashboard');
+
+Route::get('urban-goodz/ai-chief-of-staff/subscription', [AiOperationsController::class, 'chiefOfStaffSubscription'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.subscription');
+
+Route::post('urban-goodz/ai-chief-of-staff/subscription/cancel', [AiOperationsController::class, 'chiefOfStaffSubscriptionCancel'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.subscription.cancel');
+
+Route::post('urban-goodz/ai-chief-of-staff/subscription/reactivate', [AiOperationsController::class, 'chiefOfStaffSubscriptionReactivate'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.subscription.reactivate');
+
+Route::post('urban-goodz/ai-chief-of-staff/subscription/auto-continue', [AiOperationsController::class, 'chiefOfStaffSubscriptionAutoContinue'])
+    ->middleware('module:urban_goodz_ai_copilot_use')
+    ->name('admin.urban-goodz.ai-chief-of-staff.subscription.auto-continue');
+
+Route::group([
+    'prefix' => 'urban-goodz/driver-network',
+    'as' => 'admin.urban-goodz.driver-network.',
+    'middleware' => 'module:urban_goodz_ai_copilot_use',
+], function () {
+    Route::get('/', [\App\Http\Controllers\Admin\UrbanGoodzDriverNetworkAdminController::class, 'dashboard'])->name('dashboard');
+    Route::post('{id}/approve', [\App\Http\Controllers\Admin\UrbanGoodzDriverNetworkAdminController::class, 'approve'])->name('approve');
+    Route::post('{id}/suspend', [\App\Http\Controllers\Admin\UrbanGoodzDriverNetworkAdminController::class, 'suspend'])->name('suspend');
+    Route::post('{id}/reactivate', [\App\Http\Controllers\Admin\UrbanGoodzDriverNetworkAdminController::class, 'reactivate'])->name('reactivate');
+    Route::get('shortage-analysis', [\App\Http\Controllers\Admin\UrbanGoodzDriverNetworkAdminController::class, 'shortageAnalysis'])->name('shortage-analysis');
+});
