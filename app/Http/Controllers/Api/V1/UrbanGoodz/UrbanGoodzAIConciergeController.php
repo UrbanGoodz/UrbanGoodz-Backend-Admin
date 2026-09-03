@@ -16,12 +16,17 @@ class UrbanGoodzAIConciergeController extends Controller
             'session_id' => ['nullable', 'string', 'max:64'],
         ]);
 
-        $customerId = $request->user()?->id;
+        // This route is open to guests, so there is no auth middleware to resolve
+        // the caller for us. Ask the api guard directly: it returns the user when a
+        // valid bearer token is present and null otherwise, which is exactly the
+        // optional behaviour we want -- a signed-in customer keeps personalisation,
+        // a guest is simply recorded with a null customer_id.
+        $customerId = auth('api')->user()?->id ?? $request->user()?->id;
 
         $conversation = $concierge->processQuery(
             queryText: $data['query'],
             customerId: $customerId,
-            source: 'customer_api',
+            source: $customerId ? 'customer_api' : 'customer_guest',
             sessionId: $data['session_id'] ?? null,
         );
 

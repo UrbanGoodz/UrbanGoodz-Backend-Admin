@@ -19,7 +19,13 @@ class CommerceDiscoveryService
     public function discover(string $queryText, array $entities = [], array $context = []): array
     {
         $budgetMax = isset($entities['budget_max']) ? (float) $entities['budget_max'] : null;
-        $searchTerm = trim((string) ($entities['search_query'] ?? $entities['items'] ?? $queryText));
+        // 'items' arrives as an array when the model extracts more than one, and
+        // casting an array to string is a fatal. Flatten it instead.
+        $rawTerm = $entities['search_query'] ?? $entities['items'] ?? $queryText;
+        if (is_array($rawTerm)) {
+            $rawTerm = implode(' ', array_filter($rawTerm, 'is_scalar'));
+        }
+        $searchTerm = trim((string) $rawTerm);
 
         if (empty($searchTerm)) {
             return [];
@@ -80,10 +86,12 @@ class CommerceDiscoveryService
                 $tax = round($price * 0.0825, 2);
                 $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
 
-                $imageUrl = null;
-                if ($item->image) {
-                    $imageUrl = asset('storage/app/public/product/' . $item->image);
-                }
+                // Use the model's own accessor rather than hand-building a path:
+                // 'storage/app/public/product/...' is the on-disk location, not the
+                // public URL, so the hand-built form 404s for every item. The
+                // accessor routes through Helpers::get_full_url and also handles the
+                // s3/local storage split and the missing-file placeholder.
+                $imageUrl = $item->image ? $item->image_full_url : null;
 
                 $results[] = [
                     'id' => 'ug_item_' . $item->id,
@@ -186,7 +194,13 @@ class CommerceDiscoveryService
                 $catalogProducts = !empty($b->website) ? $catalogService->fetchRealProductCatalog($b->website, 2) : [];
 
                 foreach ($catalogProducts as $idx => $cp) {
-                    $price = (float) ($cp['price'] ?? 25.00);
+                    // A catalog entry with no price used to default to $25.00, which
+                    // quoted the customer a number nobody had ever verified. Skip it:
+                    // showing fewer real options beats showing one invented price.
+                    if (!isset($cp['price']) || (float) $cp['price'] <= 0) {
+                        continue;
+                    }
+                    $price = (float) $cp['price'];
                     $deliveryFee = 7.99;
                     $serviceFee = max(5.0, round($price * 0.15, 2));
                     $tax = round($price * 0.0825, 2);

@@ -155,11 +155,23 @@ Route::group(['prefix' => 'urban-goodz/files', 'middleware' => ['auth:api', 'thr
     Route::post('upload/{category}', 'Api\V1\UrbanGoodz\UrbanGoodzFileUploadController@upload');
 });
 
-Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1,ug-ai-concierge']], function () {
+// Talking to Skylar is open to logged-out visitors -- she is the front door of
+// the product, and a guest who has to sign up before she will say hello is a
+// guest we lose. The controller resolves the customer id optionally, so a
+// signed-in caller still gets personalisation and a guest simply gets none.
+// The tighter per-IP throttle is what pays for opening it: unauthenticated
+// requests cost us real provider spend, so they get 15/min rather than 60/min.
+Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['throttle:15,1,ug-ai-concierge-guest']], function () {
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::post('chat', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
-    Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
     Route::get('video-avatar/status', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@videoAvatarStatus');
+});
+
+// Anything that reads back an account's own history, or spends money on a Tavus
+// video session, stays behind auth:api. history() filters on customer_id, which
+// is null for every guest -- opening it would show each guest all the others'.
+Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1,ug-ai-concierge']], function () {
+    Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
     Route::post('video-avatar/start', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@startVideoAvatar')->middleware('throttle:10,1,ug-ai-concierge-video-avatar-start');
     Route::post('video-avatar/{conversationId}/end', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@endVideoAvatar');
 });

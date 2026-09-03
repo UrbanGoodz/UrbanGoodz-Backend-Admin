@@ -36,7 +36,12 @@ class UrbanGoodzAIConciergeService
 
     public function processQuery(string $queryText, ?int $customerId = null, string $source = 'customer_api', ?string $sessionId = null): UrbanGoodzAIConversation
     {
-        if (!$customerId && $source !== 'admin_test') {
+        // Skylar is the product's front door, so a logged-out visitor is allowed
+        // to talk to her: 'customer_guest' is the source the customer API sends
+        // when no bearer token resolved. Every other source still has to name a
+        // customer, so an internal caller cannot silently write orphaned rows.
+        $guestSources = ['admin_test', 'customer_guest'];
+        if (!$customerId && !in_array($source, $guestSources, true)) {
             throw new AuthenticationException('Customer authentication is required.');
         }
 
@@ -64,11 +69,18 @@ class UrbanGoodzAIConciergeService
      */
     private function recentHistory(?int $customerId, ?string $sessionId): array
     {
-        if (!$customerId || !$sessionId) {
+        // A guest has no customer id, so their turns are keyed on session alone.
+        // Scoped with whereNull('customer_id') so a guest session can never read
+        // back a signed-in customer's turns even if it reuses their session id.
+        if (!$sessionId) {
             return [];
         }
 
-        $rows = UrbanGoodzAIConversation::where('customer_id', $customerId)
+        $rows = UrbanGoodzAIConversation::when(
+                $customerId,
+                fn ($q) => $q->where('customer_id', $customerId),
+                fn ($q) => $q->whereNull('customer_id'),
+            )
             ->where('session_id', $sessionId)
             ->whereNotNull('response_text')
             ->latest()
