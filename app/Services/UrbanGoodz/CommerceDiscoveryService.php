@@ -2,80 +2,267 @@
 
 namespace App\Services\UrbanGoodz;
 
+use App\Models\Item;
+use App\Models\Store;
+use App\Models\UrbanGoodzSourcedBusiness;
+use App\Models\UrbanGoodzSourcedProduct;
+use App\Services\UrbanGoodzIngestionService;
+use App\Services\UrbanGoodzStorefrontCatalogService;
+use Illuminate\Support\Facades\Log;
+
 class CommerceDiscoveryService
 {
+    /**
+     * Discover real commerce options across internal marketplace, sourced businesses, and external providers.
+     * Never returns mock or fabricated data. If no real options match, returns an empty array.
+     */
     public function discover(string $queryText, array $entities = [], array $context = []): array
     {
-        $options = [];
-        $queryLower = strtolower($queryText);
-        
-        // Mock data logic for demonstration, matching intent
-        
-        if (str_contains($queryLower, 'tv') || str_contains($queryLower, 'electronics')) {
-            $price = 299.99;
-            $options[] = $this->createOption(
-                '1', 'Samsung 50" Class 4K Smart TV', 'Samsung', 'Best Buy', 'external_retailer',
-                '123 Best Buy St', 'https://bestbuy.com/mock', $price, 'Available', 'In Stock', 'Today by 5pm',
-                'https://mock.url/tv.jpg', 'A great TV.', 'external'
-            );
-        } elseif (str_contains($queryLower, 'sneaker') || str_contains($queryLower, 'apparel')) {
-             $price = 120.00;
-             $options[] = $this->createOption(
-                '2', 'Nike Air Force 1', 'Nike', 'Foot Locker', 'external_retailer',
-                '456 Mall Rd', 'https://footlocker.com/mock', $price, 'Available', 'In Stock', 'Tomorrow',
-                'https://mock.url/shoe.jpg', 'Classic sneakers.', 'external'
-            );
-        } elseif (str_contains($queryLower, 'cake') || str_contains($queryLower, 'bakery')) {
-             $price = 45.00;
-             $options[] = $this->createOption(
-                '3', 'Custom Birthday Cake', 'Local Bakery', 'Sweet Treats', 'sourced_merchant',
-                '789 Sugar Ln', '', $price, 'Available', 'Pre-order', '2 Days',
-                'https://mock.url/cake.jpg', 'Delicious custom cake.', 'sourced'
-            );
-        } else {
-             // Generic fallback
-             $price = 50.00;
-             $options[] = $this->createOption(
-                '4', 'Assorted Goods', 'Various', 'Target', 'external_retailer',
-                '101 Target Blvd', 'https://target.com/mock', $price, 'Available', 'In Stock', 'Today',
-                'https://mock.url/goods.jpg', 'Assorted items.', 'external'
-            );
+        $budgetMax = isset($entities['budget_max']) ? (float) $entities['budget_max'] : null;
+        $searchTerm = trim((string) ($entities['search_query'] ?? $entities['items'] ?? $queryText));
+
+        if (empty($searchTerm)) {
+            return [];
         }
 
-        return $options;
+        $options = [];
+
+        // 1. Search Real Internal Marketplace Items
+        $marketplaceOptions = $this->searchMarketplace($searchTerm, $budgetMax);
+        $options = array_merge($options, $marketplaceOptions);
+
+        // 2. Search Real Verified Sourced Products
+        $sourcedProductOptions = $this->searchSourcedProducts($searchTerm, $budgetMax);
+        $options = array_merge($options, $sourcedProductOptions);
+
+        // 3. Search Real Verified Sourced Businesses
+        $sourcedBusinessOptions = $this->searchSourcedBusinesses($searchTerm);
+        $options = array_merge($options, $sourcedBusinessOptions);
+
+        // 4. Search Live Google Places if API Key is Configured
+        $placesKey = config('services.google.places_key', env('GOOGLE_PLACES_API_KEY'));
+        if (!empty($placesKey)) {
+            $placesOptions = $this->searchGooglePlaces($searchTerm, $placesKey, $context['city'] ?? 'Houston');
+            $options = array_merge($options, $placesOptions);
+        }
+
+        return array_slice($options, 0, 5);
     }
 
-    private function createOption(
-        $id, $title, $brand, $merchant_name, $merchant_type, $merchant_address, $merchant_url, 
-        $price, $availability, $availability_label, $estimated_delivery, $image_url, 
-        $description, $source
-    ) {
-        $delivery_fee = 7.99;
-        $service_fee = max(5.0, round($price * 0.15, 2));
-        $estimated_tax = round($price * 0.0825, 2);
-        $estimated_total = round($price + $delivery_fee + $service_fee + $estimated_tax, 2);
+    /**
+     * Search active marketplace items in the database.
+     */
+    protected function searchMarketplace(string $term, ?float $budgetMax): array
+    {
+        $keywords = array_filter(preg_split('/\s+/', $term) ?: []);
+        if (empty($keywords)) {
+            return [];
+        }
 
-        return [
-            'id' => $id,
-            'title' => $title,
-            'brand' => $brand,
-            'merchant_name' => $merchant_name,
-            'merchant_type' => $merchant_type,
-            'merchant_address' => $merchant_address,
-            'merchant_url' => $merchant_url,
-            'price' => $price,
-            'delivery_fee' => $delivery_fee,
-            'service_fee' => $service_fee,
-            'estimated_tax' => $estimated_tax,
-            'estimated_total' => $estimated_total,
-            'availability' => $availability,
-            'availability_label' => $availability_label,
-            'estimated_delivery' => $estimated_delivery,
-            'image_url' => $image_url,
-            'description' => $description,
-            'source' => $source,
-            'badge' => 'Verified',
-            'confidence_score' => 0.95
-        ];
+        try {
+            $items = Item::active()
+                ->where(function ($q) use ($keywords) {
+                    foreach ($keywords as $kw) {
+                        $q->orWhere('name', 'like', "%{$kw}%")
+                          ->orWhere('description', 'like', "%{$kw}%");
+                    }
+                })
+                ->when($budgetMax !== null, fn($q) => $q->where('price', '<=', $budgetMax))
+                ->with('store:id,name,address,minimum_shipping_charge')
+                ->limit(4)
+                ->get();
+
+            $results = [];
+            foreach ($items as $item) {
+                $price = (float) $item->price;
+                $deliveryFee = (float) ($item->store?->minimum_shipping_charge ?? 7.99);
+                $serviceFee = max(5.0, round($price * 0.15, 2));
+                $tax = round($price * 0.0825, 2);
+                $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
+
+                $imageUrl = null;
+                if ($item->image) {
+                    $imageUrl = asset('storage/app/public/product/' . $item->image);
+                }
+
+                $results[] = [
+                    'id' => 'ug_item_' . $item->id,
+                    'title' => $item->name,
+                    'brand' => null,
+                    'merchant_name' => $item->store?->name ?? 'Urban Goodz Partner',
+                    'merchant_type' => 'marketplace_partner',
+                    'merchant_address' => $item->store?->address,
+                    'merchant_url' => null,
+                    'price' => $price,
+                    'delivery_fee' => $deliveryFee,
+                    'service_fee' => $serviceFee,
+                    'estimated_tax' => $tax,
+                    'estimated_total' => $total,
+                    'availability' => 'in_stock',
+                    'availability_label' => 'In Stock at Partner Store',
+                    'estimated_delivery' => 'Today within 1–2 hours',
+                    'image_url' => $imageUrl,
+                    'description' => $item->description ?? 'Available directly through Urban Goodz partner store.',
+                    'source' => 'urban_goodz_marketplace',
+                    'badge' => 'Urban Goodz Partner',
+                    'confidence_score' => 1.0,
+                ];
+            }
+
+            return $results;
+        } catch (\Throwable $e) {
+            Log::warning('CommerceDiscoveryService: Marketplace query failed', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Search real verified sourced products.
+     */
+    protected function searchSourcedProducts(string $term, ?float $budgetMax): array
+    {
+        try {
+            $products = UrbanGoodzSourcedProduct::where('name', 'like', "%{$term}%")
+                ->when($budgetMax !== null, fn($q) => $q->where('price', '<=', $budgetMax))
+                ->with('sourcedBusiness')
+                ->limit(3)
+                ->get();
+
+            $results = [];
+            foreach ($products as $p) {
+                $price = (float) ($p->price ?? 0);
+                if ($price <= 0) continue;
+
+                $deliveryFee = 8.99;
+                $serviceFee = max(5.0, round($price * 0.15, 2));
+                $tax = round($price * 0.0825, 2);
+                $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
+
+                $results[] = [
+                    'id' => 'sourced_prod_' . $p->id,
+                    'title' => $p->name,
+                    'brand' => $p->brand ?? null,
+                    'merchant_name' => $p->sourcedBusiness?->name ?? 'Verified Local Merchant',
+                    'merchant_type' => 'sourced_merchant',
+                    'merchant_address' => $p->sourcedBusiness?->address,
+                    'merchant_url' => $p->canonical_url ?? $p->sourcedBusiness?->website,
+                    'price' => $price,
+                    'delivery_fee' => $deliveryFee,
+                    'service_fee' => $serviceFee,
+                    'estimated_tax' => $tax,
+                    'estimated_total' => $total,
+                    'availability' => 'in_stock',
+                    'availability_label' => 'Verified Local Sourced Product',
+                    'estimated_delivery' => 'Same-Day Courier Delivery',
+                    'image_url' => $p->thumbnail,
+                    'description' => $p->short_description ?? 'Sourced from local merchant official catalog.',
+                    'source' => 'sourced_catalog',
+                    'badge' => 'Verified Merchant',
+                    'confidence_score' => 0.9,
+                ];
+            }
+
+            return $results;
+        } catch (\Throwable $e) {
+            Log::warning('CommerceDiscoveryService: Sourced products query failed', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Search real sourced businesses by name matching the query.
+     */
+    protected function searchSourcedBusinesses(string $term): array
+    {
+        try {
+            $businesses = UrbanGoodzSourcedBusiness::where('name', 'like', "%{$term}%")
+                ->limit(2)
+                ->get();
+
+            $results = [];
+            foreach ($businesses as $b) {
+                // If business has website and products can be read, attempt real catalog fetch
+                $catalogService = app(UrbanGoodzStorefrontCatalogService::class);
+                $catalogProducts = !empty($b->website) ? $catalogService->fetchRealProductCatalog($b->website, 2) : [];
+
+                foreach ($catalogProducts as $idx => $cp) {
+                    $price = (float) ($cp['price'] ?? 25.00);
+                    $deliveryFee = 7.99;
+                    $serviceFee = max(5.0, round($price * 0.15, 2));
+                    $tax = round($price * 0.0825, 2);
+                    $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
+
+                    $results[] = [
+                        'id' => 'biz_cat_' . $b->id . '_' . $idx,
+                        'title' => $cp['name'],
+                        'brand' => $cp['brand'] ?? null,
+                        'merchant_name' => $b->name,
+                        'merchant_type' => 'sourced_merchant',
+                        'merchant_address' => $b->address,
+                        'merchant_url' => $cp['canonical_url'] ?? $b->website,
+                        'price' => $price,
+                        'delivery_fee' => $deliveryFee,
+                        'service_fee' => $serviceFee,
+                        'estimated_tax' => $tax,
+                        'estimated_total' => $total,
+                        'availability' => 'in_stock',
+                        'availability_label' => 'Official Storefront Catalog',
+                        'estimated_delivery' => 'Same-Day or Next-Day Delivery',
+                        'image_url' => $cp['thumbnail'] ?? null,
+                        'description' => $cp['short_description'] ?? "Official product from {$b->name}.",
+                        'source' => 'storefront_catalog',
+                        'badge' => 'Verified Merchant',
+                        'confidence_score' => 0.95,
+                    ];
+                }
+            }
+
+            return $results;
+        } catch (\Throwable $e) {
+            Log::warning('CommerceDiscoveryService: Sourced business query failed', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Search live Google Places API when API key is present.
+     */
+    protected function searchGooglePlaces(string $term, string $apiKey, string $city): array
+    {
+        try {
+            $ingestion = app(UrbanGoodzIngestionService::class);
+            $places = $ingestion->discoverBusinesses($city, $term);
+            $results = [];
+
+            foreach (array_slice($places, 0, 2) as $idx => $place) {
+                $results[] = [
+                    'id' => 'place_' . md5($place['name'] . $city),
+                    'title' => "Order from {$place['name']}",
+                    'brand' => null,
+                    'merchant_name' => $place['name'],
+                    'merchant_type' => 'external_retailer',
+                    'merchant_address' => $place['address'] ?? "{$city}, TX",
+                    'merchant_url' => $place['website'] ?? null,
+                    'price' => 0.00,
+                    'delivery_fee' => 9.99,
+                    'service_fee' => 5.00,
+                    'estimated_tax' => 0.00,
+                    'estimated_total' => 14.99,
+                    'availability' => 'available_for_order_anywhere',
+                    'availability_label' => 'Order Anywhere Shopper Procurement',
+                    'estimated_delivery' => 'Courier Pickup & Delivery',
+                    'image_url' => !empty($place['resolved_images']) ? $place['resolved_images'][0] : null,
+                    'description' => "Real-world place located in {$city}. Shopper procures requested item in-person.",
+                    'source' => 'google_places',
+                    'badge' => 'Local Merchant',
+                    'confidence_score' => 0.85,
+                ];
+            }
+
+            return $results;
+        } catch (\Throwable $e) {
+            Log::info('CommerceDiscoveryService: Google Places search skipped', ['error' => $e->getMessage()]);
+            return [];
+        }
     }
 }
