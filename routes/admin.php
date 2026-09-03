@@ -405,19 +405,19 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzLoadBoardController@index')->name('index');
                 Route::get('create', 'UrbanGoodz\UrbanGoodzLoadBoardController@create')->name('create');
                 Route::post('/', 'UrbanGoodz\UrbanGoodzLoadBoardController@store')->name('store');
-                Route::get('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@show')->name('show');
-                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzLoadBoardController@edit')->name('edit');
-                Route::put('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@update')->name('update');
-                Route::post('{id}/status', 'UrbanGoodz\UrbanGoodzLoadBoardController@updateStatus')->name('status');
-                Route::post('{id}/assign', 'UrbanGoodz\UrbanGoodzLoadBoardController@assignDriver')->name('assign');
-                Route::post('{id}/reassign', 'UrbanGoodz\UrbanGoodzLoadBoardController@reassignDriver')->name('reassign');
-                Route::post('{id}/review', 'UrbanGoodz\UrbanGoodzLoadBoardController@review')->name('review');
-                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy');
+                Route::get('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@show')->name('show')->where('id', '[0-9]+');
+                Route::get('{id}/edit', 'UrbanGoodz\UrbanGoodzLoadBoardController@edit')->name('edit')->where('id', '[0-9]+');
+                Route::put('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@update')->name('update')->where('id', '[0-9]+');
+                Route::post('{id}/status', 'UrbanGoodz\UrbanGoodzLoadBoardController@updateStatus')->name('status')->where('id', '[0-9]+');
+                Route::post('{id}/assign', 'UrbanGoodz\UrbanGoodzLoadBoardController@assignDriver')->name('assign')->where('id', '[0-9]+');
+                Route::post('{id}/reassign', 'UrbanGoodz\UrbanGoodzLoadBoardController@reassignDriver')->name('reassign')->where('id', '[0-9]+');
+                Route::post('{id}/review', 'UrbanGoodz\UrbanGoodzLoadBoardController@review')->name('review')->where('id', '[0-9]+');
+                Route::delete('{id}', 'UrbanGoodz\UrbanGoodzLoadBoardController@destroy')->name('destroy')->where('id', '[0-9]+');
                 Route::post('sync', 'UrbanGoodz\UrbanGoodzLoadBoardController@syncProviders')->name('sync');
                 Route::post('purge', 'UrbanGoodz\UrbanGoodzLoadBoardController@purgeStale')->name('purge');
-                Route::get('{id}/bids', 'UrbanGoodz\UrbanGoodzLoadBoardController@bids')->name('bids');
-                Route::post('{loadId}/bids/{bidId}/accept', 'UrbanGoodz\UrbanGoodzLoadBoardController@acceptBid')->name('bid-accept');
-                Route::post('{loadId}/bids/{bidId}/reject', 'UrbanGoodz\UrbanGoodzLoadBoardController@rejectBid')->name('bid-reject');
+                Route::get('{id}/bids', 'UrbanGoodz\UrbanGoodzLoadBoardController@bids')->name('bids')->where('id', '[0-9]+');
+                Route::post('{loadId}/bids/{bidId}/accept', 'UrbanGoodz\UrbanGoodzLoadBoardController@acceptBid')->name('bid-accept')->where(['loadId' => '[0-9]+', 'bidId' => '[0-9]+']);
+                Route::post('{loadId}/bids/{bidId}/reject', 'UrbanGoodz\UrbanGoodzLoadBoardController@rejectBid')->name('bid-reject')->where(['loadId' => '[0-9]+', 'bidId' => '[0-9]+']);
             });
 
             Route::group(['prefix' => 'load-sourcing', 'as' => 'load-sourcing.'], function () {
