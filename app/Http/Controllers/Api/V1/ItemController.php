@@ -95,6 +95,10 @@ class ItemController extends Controller
 
 
         $zone_id = $request->header('zoneId');
+        $zone_ids = json_decode((string)$zone_id, true);
+        if (!is_array($zone_ids)) {
+            $zone_ids = is_numeric($zone_id) ? [(int)$zone_id] : [];
+        }
 
         $key = explode(' ', $request['name']);
 
