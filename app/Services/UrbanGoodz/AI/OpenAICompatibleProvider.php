@@ -82,15 +82,25 @@ class OpenAICompatibleProvider extends AbstractAIProvider
             ]);
 
             if (! $response->successful()) {
+                $status = $response->status();
+                $errorCode = match ($status) {
+                    429 => 'rate_limit_exceeded',
+                    401, 403 => 'authentication_failure',
+                    404 => 'model_not_found',
+                    500, 502, 503, 504 => 'provider_unavailable',
+                    default => 'provider_error',
+                };
+
                 Log::warning('UrbanGoodz AI provider request failed.', [
                     'provider' => $this->name(),
-                    'status' => $response->status(),
+                    'status' => $status,
+                    'error_code' => $errorCode,
                     'provider_request_id' => $response->header('x-request-id'),
                 ]);
 
                 return $this->failure(
                     'AI assistance could not process this request. No action was taken.',
-                    'provider_error'
+                    $errorCode
                 );
             }
 

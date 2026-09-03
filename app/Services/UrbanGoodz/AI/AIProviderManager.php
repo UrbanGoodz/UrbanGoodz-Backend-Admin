@@ -24,9 +24,32 @@ class AIProviderManager
 
     public const SOURCE_FALLBACK = 'shipped_default';
 
-    public function resolve(?string $provider = null): AIProviderInterface
+    public function resolve(?string $provider = null, bool $withFallback = true): AIProviderInterface
     {
-        $provider = strtolower(trim($provider ?? (string) config('urban_goodz_ai.provider', 'gemini')));
+        if ($provider !== null) {
+            return $this->resolveSingle($provider);
+        }
+
+        $primaryName = strtolower(trim((string) config('urban_goodz_ai.provider', 'gemini')));
+        $primary = $this->resolveSingle($primaryName);
+
+        if (! $withFallback) {
+            return $primary;
+        }
+
+        $fallbackName = strtolower(trim((string) config('urban_goodz_ai.fallback_provider', 'openai')));
+        if ($fallbackName !== '' && $fallbackName !== $primaryName && $fallbackName !== 'disabled') {
+            $fallback = $this->resolveSingle($fallbackName);
+
+            return new FallbackProvider($primary, $fallback);
+        }
+
+        return $primary;
+    }
+
+    public function resolveSingle(string $provider): AIProviderInterface
+    {
+        $provider = strtolower(trim($provider));
 
         return match ($provider) {
             'openai', 'openrouter' => new OpenAICompatibleProvider($provider),
@@ -47,24 +70,13 @@ class AIProviderManager
     /**
      * Machine-readable answer to "which provider is live, why, and what would
      * it take to change it?" - no secret values, only names and booleans.
-     *
-     * @return array{
-     *     selected: string,
-     *     source: string,
-     *     supported: array<int, string>,
-     *     is_supported: bool,
-     *     shipped_default: string,
-     *     is_shipped_default: bool,
-     *     configured: bool,
-     *     model: string,
-     *     switch_requires: array<int, string>
-     * }
      */
     public function selectionDiagnostics(?string $provider = null): array
     {
-        $shippedDefault = $this->normalize((string) config('urban_goodz_ai.default_provider', 'openai'));
+        $shippedDefault = $this->normalize((string) config('urban_goodz_ai.default_provider', 'gemini'));
         $raw = $provider ?? config('urban_goodz_ai.provider');
         $selected = $this->normalize($provider ?? $this->configuredProvider());
+        $fallback = $this->normalize((string) config('urban_goodz_ai.fallback_provider', 'openai'));
 
         if ($provider !== null) {
             $source = self::SOURCE_ARGUMENT;
@@ -78,6 +90,10 @@ class AIProviderManager
 
         return [
             'selected' => $selected,
+            'primary_provider' => $selected,
+            'primary_model' => (string) config("urban_goodz_ai.providers.{$selected}.model", 'default'),
+            'fallback_provider' => $fallback,
+            'fallback_model' => (string) config("urban_goodz_ai.providers.{$fallback}.model", 'default'),
             'source' => $source,
             'supported' => self::SUPPORTED,
             'is_supported' => in_array($selected, self::SUPPORTED, true),
@@ -87,6 +103,7 @@ class AIProviderManager
             'model' => $instance->model(),
             'switch_requires' => [
                 'set AI_PROVIDER=<provider> in .env',
+                'set AI_FALLBACK_PROVIDER=<fallback_provider> in .env',
                 'set the matching credential env var for that provider',
                 'run: php artisan config:clear',
             ],
@@ -98,7 +115,7 @@ class AIProviderManager
         $configured = config('urban_goodz_ai.provider');
 
         if (! is_string($configured) || trim($configured) === '') {
-            return (string) config('urban_goodz_ai.default_provider', 'openai');
+            return (string) config('urban_goodz_ai.default_provider', 'gemini');
         }
 
         return $configured;

@@ -7347,7 +7347,12 @@ class BusinessSettingsController extends Controller
         // explicitly alongside it. See ConfigServiceProvider.
         $provider = strtolower(trim((string) ($request['AI_PROVIDER'] ?? '')));
         if (!in_array($provider, ['openai', 'openrouter', 'gemini'], true)) {
-            $provider = $existing['AI_PROVIDER'] ?? 'openai';
+            $provider = $existing['AI_PROVIDER'] ?? 'gemini';
+        }
+
+        $fallbackProvider = strtolower(trim((string) ($request['AI_FALLBACK_PROVIDER'] ?? '')));
+        if (!in_array($fallbackProvider, ['openai', 'openrouter', 'gemini', 'disabled'], true)) {
+            $fallbackProvider = $existing['AI_FALLBACK_PROVIDER'] ?? 'openai';
         }
 
         $model = trim((string) ($request['AI_MODEL'] ?? ''));
@@ -7363,6 +7368,7 @@ class BusinessSettingsController extends Controller
                     'OPENAI_ORGANIZATION' => $request['OPENAI_ORGANIZATION'] ?? '',
                     'OPENAI_API_KEY' => $apiKey,
                     'AI_PROVIDER' => $provider,
+                    'AI_FALLBACK_PROVIDER' => $fallbackProvider,
                     'AI_MODEL' => $model,
                 ]),
                 'updated_at' => now(),

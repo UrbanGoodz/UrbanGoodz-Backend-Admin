@@ -18,6 +18,7 @@ return [
     |   docs/urban-goodz/notifications/AI_PROVIDER_SELECTION.md
     */
     'provider' => env('AI_PROVIDER', 'gemini'),
+    'fallback_provider' => env('AI_FALLBACK_PROVIDER', 'openai'),
 
     /*
     | The provider name AIProviderManager::selectionDiagnostics() reports as
@@ -62,11 +63,9 @@ return [
         */
         'gemini' => [
             'api_key' => env('GEMINI_API_KEY', env('GOOGLE_API_KEY')),
-            // gemini-2.5-flash is closed to new API keys ("no longer available
-            // to new users") and 404s on generateContent. 3.6-flash is verified
-            // live against the production key; gemini-flash-latest is the
-            // fallback alias if a specific version is ever retired again.
-            'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
+            // gemini-flash-latest is verified live against the production key;
+            // Google automatically points it to the current stable Flash snapshot.
+            'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
             'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         ],
     ],

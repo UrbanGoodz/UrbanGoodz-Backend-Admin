@@ -146,14 +146,28 @@
                                     --}}
                                     <div class="col-sm-6">
                                         <div class="form-group mb-0">
-                                            <label class="form-label">{{ translate('AI Provider') }}</label><br>
+                                            <label class="form-label">{{ translate('Primary AI Provider') }}</label><br>
                                             <select class="form-control" name="AI_PROVIDER">
-                                                @php($selectedProvider = $data['AI_PROVIDER'] ?? 'openai')
+                                                @php($selectedProvider = $data['AI_PROVIDER'] ?? config('urban_goodz_ai.provider', 'gemini'))
+                                                <option value="gemini" {{ $selectedProvider === 'gemini' ? 'selected' : '' }}>Gemini (Primary)</option>
                                                 <option value="openai" {{ $selectedProvider === 'openai' ? 'selected' : '' }}>OpenAI</option>
                                                 <option value="openrouter" {{ $selectedProvider === 'openrouter' ? 'selected' : '' }}>OpenRouter</option>
-                                                <option value="gemini" {{ $selectedProvider === 'gemini' ? 'selected' : '' }}>Gemini</option>
                                             </select>
-                                            <small class="text-muted">{{ translate('Must match the key above. An OpenRouter key with OpenAI selected will fail every call.') }}</small>
+                                            <small class="text-muted">{{ translate('Primary provider handles high-volume conversational AI.') }}</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-sm-6">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label">{{ translate('Fallback AI Provider') }}</label><br>
+                                            <select class="form-control" name="AI_FALLBACK_PROVIDER">
+                                                @php($selectedFallback = $data['AI_FALLBACK_PROVIDER'] ?? config('urban_goodz_ai.fallback_provider', 'openai'))
+                                                <option value="openai" {{ $selectedFallback === 'openai' ? 'selected' : '' }}>OpenAI (Fallback)</option>
+                                                <option value="gemini" {{ $selectedFallback === 'gemini' ? 'selected' : '' }}>Gemini</option>
+                                                <option value="openrouter" {{ $selectedFallback === 'openrouter' ? 'selected' : '' }}>OpenRouter</option>
+                                                <option value="disabled" {{ $selectedFallback === 'disabled' ? 'selected' : '' }}>Disabled</option>
+                                            </select>
+                                            <small class="text-muted">{{ translate('Automatically takes over when primary provider reaches quota or rate limits.') }}</small>
                                         </div>
                                     </div>
 
