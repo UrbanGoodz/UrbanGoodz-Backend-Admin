@@ -62,6 +62,10 @@ class CurrentModule
             Config::set('module.current_module_id', null);
             Config::set('module.current_module_type', 'settings');
         }
+        if (Request::is('admin/mobile-releases*') && auth('admin')->check()) {
+            Config::set('module.current_module_id', null);
+            Config::set('module.current_module_type', 'settings');
+        }
 
         return $next($request);
     }
