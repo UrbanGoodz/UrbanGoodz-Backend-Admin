@@ -113,6 +113,8 @@ return [
         'elevenlabs_model_id' => env('ELEVENLABS_MODEL_ID', 'eleven_turbo_v2_5'),
         'elevenlabs_output_format' => env('ELEVENLABS_OUTPUT_FORMAT', 'mp3_44100_128'),
         'elevenlabs_base_url' => env('ELEVENLABS_BASE_URL', 'https://api.elevenlabs.io/v1'),
+        'qwen_base_url' => env('UG_QWEN_BASE_URL', ''),
+        'qwen_api_key' => env('UG_QWEN_API_KEY', ''),
         'environment_variables' => [
             'ELEVENLABS_API_KEY',
             'MONIQUE_ELEVENLABS_VOICE_ID',
