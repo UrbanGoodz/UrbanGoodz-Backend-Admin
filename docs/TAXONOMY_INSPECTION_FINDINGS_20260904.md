@@ -64,11 +64,23 @@ businessType.value = module is Map
 ```
 Same pattern as the customer app: no structured taxonomy field, just whatever free-text `module_name`/`module_type` the backend happens to return for that store's assigned module.
 
-## 2. Surfaces NOT yet inspected (3 of 6 remaining)
+## 1d. `urban_goodz_business_types` — the table `URBAN_GOODZ_BUSINESS_TYPES_AND_CAPABILITIES.md` describes is DEAD, UNBUILT scaffolding
 
-- **Business Portal** (`admin.urbangoodzdelivery.com/urban-goodz/...` business-facing onboarding) — found the view directory (`resources/views/admin-views/urban-goodz/business-types/`) but did not read its contents yet.
-- **Admin Panel category management** (`admin/category/*`, `CategoryController`, `GenerateAdminRoute.php`) — not yet inspected this pass (a previous session attempt hit a redirect on `/admin/category/add-new` and didn't retry with a corrected URL).
+This is the single most important finding so far and changes the shape of any real plan.
+
+- `UrbanGoodzBusinessTypeController` has a real CRUD UI (`create`, `edit`, `index`, `mapping` — all 4 blade views exist and render) for `urban_goodz_business_types` + a `mapping()` action that assigns `urban_goodz_capabilities` to a business type via a pivot (`urban_goodz_business_type_default_capabilities`).
+- The `urban_goodz_business_types` table schema (`id, slug, name, description, icon, is_active, sort_order, created_at, updated_at`) has **no `module_id` or any other link to the real `modules` table at all.**
+- Searched every controller and model for `business_type_id` usage: it appears **only** in the business-type model files themselves (`UrbanGoodzBusinessType.php`, `UrbanGoodzCapability.php`, `UrbanGoodzBusinessTypeDefaultCapability.php`) — **zero controllers for vendors, stores, or business clients ever read or write it.** Nothing in the live app assigns a business type to a real vendor/store.
+- Confirmed directly against production: `DB::table('urban_goodz_business_types')->count()` → **0**. `DB::table('urban_goodz_business_type_default_capabilities')->count()` → **0**. The 18-row table the registry doc describes was never seeded into production at all.
+
+**What this means:** `URBAN_GOODZ_BUSINESS_TYPES_AND_CAPABILITIES.md` is not documentation of a working system — it's a design spec for a system that was built (migrations, models, controller, admin UI) but never seeded or connected to anything real. There are, right now, **two entirely separate, unconnected taxonomy concepts in this codebase**: the real one (`modules`/`categories`, messy but actually driving the live storefront — see §1a-c) and the designed-but-dead one (`urban_goodz_business_types`/`urban_goodz_capabilities`, clean schema, zero real usage). Any taxonomy plan needs to explicitly decide: resurrect and wire up the dead-but-clean system, extend the messy-but-live system, or replace both with something new. That's a real architectural decision for the plan phase, not something to default into.
+
+## 2. Surfaces NOT yet inspected (2 of 6 remaining)
+
+- **Admin Panel category management UI** (`admin/category/*`) — confirmed the controller (`app/Http/Controllers/Admin/Item/CategoryController.php`) exists and drives `categories` table CRUD; have not yet read its route registration or tested the actual UI path (a previous session attempt hit a redirect on `/admin/category/add-new` — likely wrong route name, not yet corrected).
 - **API layer** (`ItemController::get_searched_products`, module-scoped list endpoints) — not yet inspected for how module-scoping interacts with the fragmented taxonomy above.
+
+(Business Portal is now understood via §1d — the `urban_goodz_business_types` admin UI IS the business-portal-adjacent onboarding concept, and it's confirmed dead/unseeded, so no further inspection needed there specifically.)
 
 ## 3. Preliminary pattern (not yet a plan — needs the remaining 3 surfaces before one is credible)
 
