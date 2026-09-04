@@ -75,12 +75,30 @@ This is the single most important finding so far and changes the shape of any re
 
 **What this means:** `URBAN_GOODZ_BUSINESS_TYPES_AND_CAPABILITIES.md` is not documentation of a working system — it's a design spec for a system that was built (migrations, models, controller, admin UI) but never seeded or connected to anything real. There are, right now, **two entirely separate, unconnected taxonomy concepts in this codebase**: the real one (`modules`/`categories`, messy but actually driving the live storefront — see §1a-c) and the designed-but-dead one (`urban_goodz_business_types`/`urban_goodz_capabilities`, clean schema, zero real usage). Any taxonomy plan needs to explicitly decide: resurrect and wire up the dead-but-clean system, extend the messy-but-live system, or replace both with something new. That's a real architectural decision for the plan phase, not something to default into.
 
-## 2. Surfaces NOT yet inspected (2 of 6 remaining)
+## 1e. Admin Panel category management UI — real URL and structure confirmed
 
-- **Admin Panel category management UI** (`admin/category/*`) — confirmed the controller (`app/Http/Controllers/Admin/Item/CategoryController.php`) exists and drives `categories` table CRUD; have not yet read its route registration or tested the actual UI path (a previous session attempt hit a redirect on `/admin/category/add-new` — likely wrong route name, not yet corrected).
-- **API layer** (`ItemController::get_searched_products`, module-scoped list endpoints) — not yet inspected for how module-scoping interacts with the fragmented taxonomy above.
+The earlier redirect (`/admin/category/add-new`) was simply a wrong URL guess. The real route, per `routes/admin/routes.php` + `app/Enums/ViewPaths/Admin/Category.php`:
+- **Add/list categories: `admin/category/add`** (not `add-new`).
+- Full CRUD exists: add, edit `/update/{id}`, delete, status toggle, featured toggle, priority reorder.
+- **A category-level bulk-import/bulk-export ALSO exists** (`admin/category/bulk-import`, `admin/category/bulk-export`) — separate from the item bulk-import used for the 110-131 store work. Worth knowing: if the taxonomy plan needs to seed a large new category tree (e.g., real subcategories for the 18 primary categories), this bulk path is the mechanism, same as items.
+- The `category.add`/`category.edit` etc. routes carry `middleware('module:category')` — **the same session-based module-context pattern documented for item bulk-import in `STORE_ITEM_BULK_IMPORT_110_131_HANDOFF_20260903.md` §5 applies here too.** Any admin-UI category work (existing or new) is scoped by whatever module the session is currently on — this is a pervasive pattern across admin panel features, not unique to items.
 
-(Business Portal is now understood via §1d — the `urban_goodz_business_types` admin UI IS the business-portal-adjacent onboarding concept, and it's confirmed dead/unseeded, so no further inspection needed there specifically.)
+## 1f. API layer — confirmed the module-scoping mechanism, and that it's NOT the same mechanism as the admin panel
+
+`app/Http/Controllers/Api/V1/CategoryController.php` scopes category/item queries by `config('module.current_module_data')['id']` — same underlying config key the admin panel's session middleware sets, but the public API path is stateless (each customer-app request carries its own zone/module context via request headers, not a server session) while the admin panel is session-based. **Both ultimately read the same `module.current_module_*` config values, just populated differently per request type.** This is architecturally consistent (good), but means any taxonomy fix touching module-scoping needs to be tested against both request patterns, not just one.
+
+## 2. All 6 surfaces now inspected — summary
+
+| # | Surface | Status |
+|---|---|---|
+| 1 | Backend DB (`modules`, `categories`) | Done — §1a |
+| 2 | Customer app | Done — §1b |
+| 3 | Vendor app | Done — §1c |
+| 4 | Business Portal / onboarding | Done via §1d (confirmed dead `business_types` system) |
+| 5 | Admin Panel category management | Done — §1e |
+| 6 | API layer | Done — §1f |
+
+**Inspection phase is complete.** Per the mandate (`HANDOFF_110_131_IMPORT_AND_TAXONOMY_20260904.md` §8), the next step is producing an actual implementation plan from these findings and getting D'Andre's approval before any implementation — not yet done, and should not be started without that approval per the explicit gate.
 
 ## 3. Preliminary pattern (not yet a plan — needs the remaining 3 surfaces before one is credible)
 
