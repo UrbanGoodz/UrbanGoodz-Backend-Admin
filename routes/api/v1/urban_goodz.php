@@ -446,11 +446,16 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
         Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
         Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
 
-        // Real, paid external TTS calls -- authenticated and separately
-        // throttled so an open text field can't run up the ElevenLabs bill.
-        Route::group(['middleware' => ['auth:api', 'throttle:20,1']], function () {
-            Route::post('digital-human/speak', 'Api\V1\UrbanGoodz\DigitalHumanController@speak');
-        });
+        // Real, paid external TTS calls (provider config lives in
+        // ElevenLabsVoiceService/config, swap freely). Open to guests to
+        // match the ai-concierge chat endpoint above -- a guest gets AI
+        // chat text but was silently falling back to the on-device
+        // robotic voice because this route 401'd for anyone without a
+        // token. Tightly throttled (named bucket, same pattern as
+        // ug-ai-concierge-guest) so an open text field still can't run
+        // up the provider bill, whichever provider is wired in.
+        Route::post('digital-human/speak', 'Api\V1\UrbanGoodz\DigitalHumanController@speak')
+            ->middleware('throttle:10,1,ug-digital-human-speak');
     });
 
 // Urban Goodz Stranded -- "Never Stay Stranded Again."
