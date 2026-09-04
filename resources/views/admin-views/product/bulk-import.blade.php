@@ -580,6 +580,17 @@ $('#reset_btn').click(function(){
         reverseButtons: true
         }).then((result) => {
             if (result.value) {
+                // Guard against a double form submission (and therefore a
+                // double-processed import - confirmed live on 2026-09-04:
+                // an admin-panel bulk import ran twice off a single
+                // upload, creating duplicate item rows in production).
+                // .submit() is a real page navigation with no built-in
+                // debounce, unlike the AJAX handlers elsewhere in this
+                // file, so a fast double-click on "Yes" (or an automated
+                // click landing twice) fires two full submissions.
+                let $uploadBtn = $('.update_or_import');
+                if ($uploadBtn.prop('disabled')) return;
+                $uploadBtn.prop('disabled', true);
                 $('#btn_value').val(data);
                 $("#import_form").submit();
             }
