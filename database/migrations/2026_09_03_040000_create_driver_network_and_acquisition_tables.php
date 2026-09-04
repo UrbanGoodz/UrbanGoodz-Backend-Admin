@@ -9,9 +9,24 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Extend delivery_men with ownership, shared network, and vendor pay fields
-        Schema::table('delivery_men', function (Blueprint $table) {
+        //
+        // The anchor for the first ->after() is resolved at runtime because
+        // 'business_client_id' does not exist on every environment -- it is absent on
+        // production, where hard-coding it made this migration die with
+        // "Unknown column 'business_client_id' in 'delivery_men'" before adding
+        // anything. Column order is cosmetic, so when the anchor is missing we simply
+        // append instead. Every later ->after() is safe: it names a column this same
+        // blueprint has just added (or that already existed).
+        $anchor = Schema::hasColumn('delivery_men', 'business_client_id')
+            ? 'business_client_id'
+            : null;
+
+        Schema::table('delivery_men', function (Blueprint $table) use ($anchor) {
             if (!Schema::hasColumn('delivery_men', 'vendor_id')) {
-                $table->unsignedBigInteger('vendor_id')->nullable()->after('business_client_id')->index();
+                $column = $table->unsignedBigInteger('vendor_id')->nullable()->index();
+                if ($anchor !== null) {
+                    $column->after($anchor);
+                }
             }
             if (!Schema::hasColumn('delivery_men', 'ownership_type')) {
                 $table->string('ownership_type', 32)->default('urban_goodz')->after('vendor_id'); // urban_goodz, vendor_owned, business_owned

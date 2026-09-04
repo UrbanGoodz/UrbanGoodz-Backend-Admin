@@ -2,6 +2,7 @@
 
 namespace App\Services\UrbanGoodz;
 
+use App\CentralLogics\Helpers;
 use App\Models\Item;
 use App\Models\Store;
 use App\Models\UrbanGoodzSourcedBusiness;
@@ -12,6 +13,14 @@ use Illuminate\Support\Facades\Log;
 
 class CommerceDiscoveryService
 {
+    /** Used only when the admin panel has no commission percentage set. */
+    private const DEFAULT_SERVICE_FEE_PERCENT = 15.0;
+
+    /** Floor on the service fee, so small baskets still cover handling. */
+    private const MIN_SERVICE_FEE = 5.0;
+
+    private const TAX_PERCENT = 8.25;
+
     /**
      * Discover real commerce options across internal marketplace, sourced businesses, and external providers.
      * Never returns mock or fabricated data. If no real options match, returns an empty array.
@@ -82,9 +91,11 @@ class CommerceDiscoveryService
             foreach ($items as $item) {
                 $price = (float) $item->price;
                 $deliveryFee = (float) ($item->store?->minimum_shipping_charge ?? 7.99);
-                $serviceFee = max(5.0, round($price * 0.15, 2));
-                $tax = round($price * 0.0825, 2);
-                $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
+                $fees = $this->feeBreakdown($price, $deliveryFee);
+                $serviceFee = $fees['service_fee'];
+                $surcharge = $fees['additional_charge'];
+                $tax = $fees['tax'];
+                $total = $fees['total'];
 
                 // Use the model's own accessor rather than hand-building a path:
                 // 'storage/app/public/product/...' is the on-disk location, not the
@@ -104,6 +115,7 @@ class CommerceDiscoveryService
                     'price' => $price,
                     'delivery_fee' => $deliveryFee,
                     'service_fee' => $serviceFee,
+                    'additional_charge' => $surcharge,
                     'estimated_tax' => $tax,
                     'estimated_total' => $total,
                     'availability' => 'in_stock',
@@ -142,9 +154,11 @@ class CommerceDiscoveryService
                 if ($price <= 0) continue;
 
                 $deliveryFee = 8.99;
-                $serviceFee = max(5.0, round($price * 0.15, 2));
-                $tax = round($price * 0.0825, 2);
-                $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
+                $fees = $this->feeBreakdown($price, $deliveryFee);
+                $serviceFee = $fees['service_fee'];
+                $surcharge = $fees['additional_charge'];
+                $tax = $fees['tax'];
+                $total = $fees['total'];
 
                 $results[] = [
                     'id' => 'sourced_prod_' . $p->id,
@@ -157,6 +171,7 @@ class CommerceDiscoveryService
                     'price' => $price,
                     'delivery_fee' => $deliveryFee,
                     'service_fee' => $serviceFee,
+                    'additional_charge' => $surcharge,
                     'estimated_tax' => $tax,
                     'estimated_total' => $total,
                     'availability' => 'in_stock',
@@ -202,9 +217,11 @@ class CommerceDiscoveryService
                     }
                     $price = (float) $cp['price'];
                     $deliveryFee = 7.99;
-                    $serviceFee = max(5.0, round($price * 0.15, 2));
-                    $tax = round($price * 0.0825, 2);
-                    $total = round($price + $deliveryFee + $serviceFee + $tax, 2);
+                    $fees = $this->feeBreakdown($price, $deliveryFee);
+                    $serviceFee = $fees['service_fee'];
+                    $surcharge = $fees['additional_charge'];
+                    $tax = $fees['tax'];
+                    $total = $fees['total'];
 
                     $results[] = [
                         'id' => 'biz_cat_' . $b->id . '_' . $idx,
@@ -217,6 +234,7 @@ class CommerceDiscoveryService
                         'price' => $price,
                         'delivery_fee' => $deliveryFee,
                         'service_fee' => $serviceFee,
+                        'additional_charge' => $surcharge,
                         'estimated_tax' => $tax,
                         'estimated_total' => $total,
                         'availability' => 'in_stock',
@@ -278,5 +296,43 @@ class CommerceDiscoveryService
             Log::info('CommerceDiscoveryService: Google Places search skipped', ['error' => $e->getMessage()]);
             return [];
         }
+    }
+
+    /**
+     * Fee breakdown for a discovered option.
+     *
+     * The service-fee percentage and the flat surcharge are read from the admin
+     * panel's Business Settings rather than hard-coded, so pricing can be changed
+     * without a deploy. 'admin_commission' is the panel's percentage field, and
+     * 'additional_charge' is the flat surcharge -- applied only while its own
+     * 'additional_charge_status' toggle is on, which is what makes it toggleable
+     * from the panel. Both fall back to the previous constants if unset, so an
+     * empty settings table cannot silently produce a zero-fee quote.
+     *
+     * @return array{service_fee: float, additional_charge: float, tax: float, total: float}
+     */
+    protected function feeBreakdown(float $price, float $deliveryFee): array
+    {
+        $percent = (float) (Helpers::get_business_settings('admin_commission')
+            ?: self::DEFAULT_SERVICE_FEE_PERCENT);
+        if ($percent <= 0) {
+            $percent = self::DEFAULT_SERVICE_FEE_PERCENT;
+        }
+
+        $serviceFee = max(self::MIN_SERVICE_FEE, round($price * ($percent / 100), 2));
+
+        $surcharge = 0.0;
+        if ((int) Helpers::get_business_settings('additional_charge_status') === 1) {
+            $surcharge = round((float) Helpers::get_business_settings('additional_charge'), 2);
+        }
+
+        $tax = round($price * (self::TAX_PERCENT / 100), 2);
+
+        return [
+            'service_fee' => $serviceFee,
+            'additional_charge' => $surcharge,
+            'tax' => $tax,
+            'total' => round($price + $deliveryFee + $serviceFee + $surcharge + $tax, 2),
+        ];
     }
 }
