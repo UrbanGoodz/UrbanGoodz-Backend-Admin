@@ -52,9 +52,42 @@ Other real, sourced candidates not yet matched to a specific store ID:
 
 **Not yet checked**: whether the currently-listed names for the OTHER 20 stores (Premium Goods Houston, Proper HTX, Leopard Lounge Vintage, Jubilee Houston Boutique, Melodrama Boutique, etc.) are real/verifiable/minority-owned or need replacement like DLM Supply did. Jubilee and Leopard Lounge were confirmed as REAL, long-standing Houston businesses (25+ and 20+ years respectively) but NOT confirmed minority-owned — same situation as DLM Supply, likely need replacement too. Melodrama Boutique WAS found in a minority-owned-business search result, so it may be fine as-is — not fully confirmed.
 
-## 4. What's NOT resolved: category IDs for module 6
+## 4. Category IDs for module 6 — RESOLVED
 
-The already-successful stores 21-31 import used `CategoryId` values like 300, 317 (book-related, matching Kindred Stories being a bookstore). The general `/api/v1/categories` endpoint does NOT filter by module and doesn't obviously expose which IDs belong to module 6's category tree — attempted `/admin/category/add-new` to find the real category management UI and it redirected back to the dashboard (wrong URL for this admin build, or a permission issue — not investigated further). **Next builder: find the actual category management page (check the admin sidebar under whatever menu holds "Categories" for the Home-Based Businesses / Retail modules) and get the real CategoryId/SubCategoryId values before building the import Excel** — using the wrong IDs will either 500 or silently miscategorize products.
+Queried the database directly (read-only, via `php artisan tinker` over SSH — safe, no writes):
+
+```php
+DB::table('categories')->where('module_id', 6)->select('id','name','parent_id')->get();
+```
+
+Real, current, active module-6 top-level categories (`parent_id: 0`, no children exist under any of these — items attach directly to these IDs, there is no subcategory level in practice for this module):
+
+| id | name |
+|---|---|
+| 65 | Books & Media |
+| 66 | Beauty Products |
+| **67** | **Apparel** ← use this for the boutique/clothing stores in this batch |
+| 68 | Jewelry |
+| 69 | Handmade Goods |
+| 70 | Gifts |
+| 71 | Food Products |
+| 72 | Home Decor |
+| 73 | Art & Crafts |
+| 74 | Digital Products |
+| 75 | Custom Orders |
+| 76 | Candles |
+| 77 | Stationery |
+| 78 | Baked Goods |
+| 79 | Sauces & Seasonings |
+| 80 | Wellness Products |
+| 81 | Party Favors |
+| 82 | Children's Products |
+| 83 | Print-On-Demand |
+| 84 | Business Services |
+
+**Important finding**: the already-successful stores 21-31 import (Kindred Stories etc.) used `CategoryId` 300 and 317. Those IDs **do not exist in the categories table anymore** (`DB::table('categories')->whereIn('id',[300,317])->get()` returns empty) — they're orphaned references, presumably from categories that existed at import time and were later deleted/renumbered. The items still display and work fine, meaning `category_id` on the `items` table is NOT strictly foreign-key-enforced at the DB level, or at minimum isn't validated on read. **Do not copy the 300/317 pattern** — use the real, current IDs above (67 for Apparel) instead, now that they're known.
+
+`SubCategoryId` and `UnitId` can both be left blank/null — confirmed via the same query that Kindred Stories' real, active items all have `unit_id: null`, and there are zero rows in the `units` table at all, so `UnitId` isn't meaningfully populatable regardless.
 
 ## 5. The mechanism (confirmed real, not guessed)
 
