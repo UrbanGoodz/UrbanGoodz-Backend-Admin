@@ -87,11 +87,24 @@ $countryCode = strtolower($country ? $country : 'auto');
     @php($module_type = 'settings')
     @endif
 
-    @if(in_array($module_type, ['rental', 'ride-share']))
-        @include("{$module_type}::admin.partials._sidebar_{$module_type}")
-    @else
-        @include("layouts.admin.partials._sidebar_{$module_type}")
-    @endif
+    @php
+        // $module_type comes from the `current-module` middleware. Any admin route
+        // that renders this layout without that middleware leaves it null, which
+        // used to interpolate the view name "layouts.admin.partials._sidebar_" —
+        // a partial that has never existed in this repository — and fatal with
+        // "View not found". Resolve the partial, then fall back to the settings
+        // sidebar, which is the same sidebar CurrentModule already selects when
+        // no module is active. No second sidebar is introduced.
+        $sidebar_view = in_array($module_type, ['rental', 'ride-share'], true)
+            ? "{$module_type}::admin.partials._sidebar_{$module_type}"
+            : "layouts.admin.partials._sidebar_{$module_type}";
+
+        if (! view()->exists($sidebar_view)) {
+            $sidebar_view = 'layouts.admin.partials._sidebar_settings';
+        }
+    @endphp
+
+    @include($sidebar_view)
 
     <!-- END ONLY DEV -->
 
