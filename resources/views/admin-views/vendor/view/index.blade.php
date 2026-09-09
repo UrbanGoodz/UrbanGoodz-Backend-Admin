@@ -820,15 +820,11 @@
     <script>
         "use strict";
 
-        $('.swal_fire_alert').on('click', function (event) {
-            let url = $(this).data('url');
-            let message = $(this).data('message');
-            let title = $(this).data('title');
-            let imageUrl = $(this).data('image_url');
-            let cancelButtonText = $(this).data('cancel_button_text');
-            let confirmButtonText = $(this).data('confirm_button_text');
-            swalFire(url,title, message, imageUrl,cancelButtonText, confirmButtonText)
-        })
+        // The .swal_fire_alert handler now lives in
+        // admin-views.vendor.view.partials._header, which is where the controls
+        // it drives are defined. It was here, but this partial is included by
+        // ten store tabs and only this one bound a handler, so the approve and
+        // reject controls were inert on the other nine.
         // Call the dataTables jQuery plugin
         $(document).ready(function() {
             $('#dataTable').DataTable();

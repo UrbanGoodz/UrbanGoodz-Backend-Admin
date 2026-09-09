@@ -36,6 +36,7 @@
                     @endif
                     <a class="btn btn--primary border-0   py-1 d-center h-35px m-0 text-capitalize font-weight-bold float-right swal_fire_alert"
                         data-url="{{ route('admin.store.application', [$store['id'], 1]) }}"
+                        data-method="post"
                          data-title="{{translate('messages.are_you_sure_?')}}"
                                        data-image_url="{{ asset('public/assets/admin/img/off-danger.png') }}"
                                        data-confirm_button_text="{{ translate('messages.yes') }}"
@@ -190,7 +191,12 @@
         aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content pb-2 max-w-500">
-                <form action="{{ route('admin.store.application', [$store['id'], 0]) }}" method="get">
+                {{-- POST, not GET: the route is registered POST-only, so submitting
+                     this returned 405 and the store application could never be
+                     denied from the panel. A GET would also have put the
+                     rejection reason in the query string. --}}
+                <form action="{{ route('admin.store.application', [$store['id'], 0]) }}" method="post">
+                @csrf
                 <div class="modal-header">
                     <button type="button"
                         class="close bg-modal-btn w-30px h-30 rounded-circle position-absolute right-0 top-0 m-2 z-2"
@@ -219,3 +225,63 @@
             </div>
         </div>
     </div>
+
+
+@push('script')
+<script>
+    "use strict";
+    // Owns the confirm behaviour for the approve / reject controls defined in
+    // this partial. It lives here rather than in a page, because this partial is
+    // included by ten store tabs (index, order, product, review, settings,
+    // subscription, discount, disbursement, meta-data, conversations) and only
+    // index.blade.php ever bound a handler - so on the other nine the controls
+    // were completely inert.
+    $(document).on('click', '.swal_fire_alert', function () {
+        const url = $(this).data('url');
+        const message = $(this).data('message');
+        const title = $(this).data('title');
+        const imageUrl = $(this).data('image_url');
+        const cancelButtonText = $(this).data('cancel_button_text');
+        const confirmButtonText = $(this).data('confirm_button_text');
+        const isPost = ($(this).data('method') || '').toString().toLowerCase() === 'post';
+
+        if (!isPost) {
+            swalFire(url, title, message, imageUrl, cancelButtonText, confirmButtonText);
+            return;
+        }
+
+        // The shared swalFire() helper finishes with `location.href = url`, a GET.
+        // admin/store/update-application/{id}/{status} is registered POST-only, so
+        // approving a vendor joining request returned 405 and appeared to do
+        // nothing. swalFire() itself is deliberately left alone - its other
+        // callers across the panel do point at genuine GET routes.
+        Swal.fire({
+            title: title,
+            text: message,
+            imageUrl: imageUrl,
+            imageWidth: 80,
+            imageHeight: 80,
+            imageAlt: 'Custom icon',
+            showCancelButton: true,
+            showCloseButton: true,
+            closeButtonHtml: '&times;',
+            cancelButtonColor: 'default',
+            confirmButtonColor: 'primary',
+            cancelButtonText: cancelButtonText,
+            confirmButtonText: confirmButtonText,
+            reverseButtons: true
+        }).then((result) => {
+            if (result.value) {
+                $('<form>', { method: 'POST', action: url })
+                    .append($('<input>', {
+                        type: 'hidden',
+                        name: '_token',
+                        value: $('meta[name="csrf-token"]').attr('content')
+                    }))
+                    .appendTo('body')
+                    .trigger('submit');
+            }
+        });
+    });
+</script>
+@endpush
