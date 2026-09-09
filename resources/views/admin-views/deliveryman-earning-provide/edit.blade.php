@@ -24,7 +24,7 @@
             <h4 class="text-capitalize">{{translate('messages.add_account_transaction')}}</h4>
         </div>
         <div class="card-body">
-            <form action="{{route('admin.account-transaction.store')}}" method='post' id="add_transaction">
+            <form action="{{route('admin.transactions.account-transaction.store')}}" method='post' id="add_transaction">
                 @csrf
                 @method('PUT')
                 <div class="row">
@@ -166,7 +166,7 @@
                         ProgressBar: true
                     });
                     setTimeout(function () {
-                        location.href = '{{route('admin.account-transaction.index')}}';
+                        location.href = '{{route('admin.transactions.account-transaction.index')}}';
                     }, 2000);
                 }
             }

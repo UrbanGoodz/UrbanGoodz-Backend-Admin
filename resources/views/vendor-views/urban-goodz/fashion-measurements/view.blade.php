@@ -141,7 +141,7 @@
                         <h5>{{ translate('Vendor Actions') }}</h5>
                     </div>
                     <div class="card-body">
-                        <form action="{{ route('vendor.urban-goodz.stylist-request.update', $request->id) }}" method="POST">
+                        <form action="{{ route('vendor.stylist-request.update', $request->id) }}" method="POST">
                             @csrf
                             <div class="form-group">
                                 <label>{{ translate('Review Status') }}</label>
