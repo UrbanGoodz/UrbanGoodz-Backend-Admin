@@ -57,7 +57,8 @@
 
         <form method="POST" action="{{ route('admin.urban-goodz.load-sourcing.update-settings') }}">
             @csrf
-            @method('PUT')
+            {{-- Verb spoofing deliberately omitted: the route is POST-only, so spoofing
+                 the verb made this submit match no route at all and return 405. --}}
 
             {{-- Sourcing Behavior --}}
             <div class="card mb-3">

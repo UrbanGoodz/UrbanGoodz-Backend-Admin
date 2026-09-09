@@ -156,7 +156,9 @@
                                         @if(!$error->resolved_at)
                                         <form method="POST" action="{{ route('admin.urban-goodz.load-sourcing.resolve-error', $error->id) }}" class="d-inline">
                                             @csrf
-                                            @method('PUT')
+                                            {{-- Verb spoofing deliberately omitted: the route is registered POST-only, so
+                                                 spoofing the verb made this submit match no route at all
+                                                 and return 405. --}}
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="{{ translate('Mark Resolved') }}">
                                                 <i class="tio-checkmark-circle"></i> {{ translate('Resolve') }}
                                             </button>
