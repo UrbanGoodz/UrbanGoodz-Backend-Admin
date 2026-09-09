@@ -1579,7 +1579,11 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 });
 
 // Admin Sourcing and Event Admin routes
-Route::group(['namespace' => 'Admin\UrbanGoodz', 'as' => 'admin.urban-goodz.', 'prefix' => 'admin/urban-goodz', 'middleware' => ['admin']], function () {
+// prefix is 'urban-goodz', NOT 'admin/urban-goodz'. RouteServiceProvider already
+// applies Route::prefix('admin') to the whole of this file, so re-declaring the
+// admin segment here produced admin/admin/urban-goodz/... for all 38 routes in
+// this group. This now matches the correctly-declared group further up the file.
+Route::group(['namespace' => 'Admin\UrbanGoodz', 'as' => 'admin.urban-goodz.', 'prefix' => 'urban-goodz', 'middleware' => ['admin']], function () {
     Route::group(['prefix' => 'sourcing', 'as' => 'sourcing.'], function () {
         Route::get('dashboard', 'UrbanGoodzSourcingController@dashboard')->name('dashboard');
         Route::get('leads', 'UrbanGoodzSourcingController@leads')->name('leads');
