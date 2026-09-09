@@ -124,6 +124,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
             Route::get('order', 'DeliverymanController@get_order');
             Route::put('send-order-otp', 'DeliverymanController@send_order_otp');
             Route::put('update-fcm-token', 'DeliverymanController@update_fcm_token');
+            Route::post('logout', 'DeliverymanController@logout');
             Route::post('parcel-return', 'DeliverymanController@parcelReturn');
             //Remove account
             Route::delete('remove-account', 'DeliverymanController@remove_account');
