@@ -347,11 +347,11 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
         Route::post('search', 'Api\V1\UrbanGoodz\RentalAIController@searchAssets');
         Route::post('match', 'Api\V1\UrbanGoodz\RentalAIController@matchAssets');
         Route::post('availability', 'Api\V1\UrbanGoodz\RentalAIController@checkAvailability');
-        Route::post('quote', 'Api\V1\UrbanGoodz\RentalAIController@getQuote');
-        Route::post('extension', 'Api\V1\UrbanGoodz\RentalAIController@extendRental');
+        Route::post('quote', 'Api\V1\UrbanGoodz\RentalAIController@generateQuote');
+        Route::post('extension', 'Api\V1\UrbanGoodz\RentalAIController@requestExtension');
         Route::post('late-return', 'Api\V1\UrbanGoodz\RentalAIController@handleLateReturn');
         Route::post('damage-report', 'Api\V1\UrbanGoodz\RentalAIController@reportDamage');
-        Route::post('return-inspection', 'Api\V1\UrbanGoodz\RentalAIController@inspectReturn');
+        Route::post('return-inspection', 'Api\V1\UrbanGoodz\RentalAIController@returnInspection');
     });
 
     // Support AI
@@ -375,10 +375,16 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
 
     // ETA Prediction AI
     Route::group(['prefix' => 'urban-goodz/eta/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
-        Route::post('predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictETA');
-        Route::post('batch-predict', 'Api\V1\UrbanGoodz\ETAPredictionController@batchPredict');
-        Route::get('driver/{driver_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getDriverETA');
-        Route::get('order/{order_id}', 'Api\V1\UrbanGoodz\ETAPredictionController@getOrderETA');
+        // Method names below match ETAPredictionController exactly. The previous
+        // four references (predictETA, batchPredict, getDriverETA, getOrderETA)
+        // did not exist on the controller and were guaranteed 500s.
+        Route::post('predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictOrderETA');
+        Route::post('batch-predict', 'Api\V1\UrbanGoodz\ETAPredictionController@predictRouteETA');
+        // driverStopETA validates driver_id AND stop_id off the request, which a
+        // GET /driver/{driver_id} path could not satisfy - so it is a POST.
+        Route::post('driver-stop', 'Api\V1\UrbanGoodz\ETAPredictionController@driverStopETA');
+        // getAccuracyMetrics already existed on the controller but was never routed.
+        Route::get('accuracy', 'Api\V1\UrbanGoodz\ETAPredictionController@getAccuracyMetrics');
     });
 
     // Dynamic Pricing AI
