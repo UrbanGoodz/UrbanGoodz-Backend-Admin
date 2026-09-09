@@ -57,9 +57,14 @@
                                         </td>
                                         <td>
                                             @if ($review->customer)
-                                            <a href="{{route('vendor.customer.view',[$review->user_id])}}">
+                                            {{-- Rendered as plain text: the vendor panel has no customer
+                                                 detail screen. This linked to a vendor customer-view
+                                                 route that is not registered anywhere, so Laravel threw
+                                                 RouteNotFoundException and this page 500'd for any review
+                                                 that had a customer attached. --}}
+                                            <span>
                                                 {{$review->customer->f_name}} {{$review->customer?->l_name}}
-                                            </a>
+                                            </span>
                                             @else
                                                 {{translate('messages.customer_not_found')}}
                                             @endif
