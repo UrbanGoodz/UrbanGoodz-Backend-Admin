@@ -97,8 +97,11 @@ class AdminImpersonationController extends Controller
     {
         $admin = $this->authorizeAdmin();
 
+        // admin is eager-loaded alongside client because the view renders the
+        // acting administrator on every row; without it a 50-row page fired 50
+        // extra queries.
         $logs = UrbanGoodzBusinessPortalAuditLog::query()
-            ->with('client')
+            ->with(['client', 'admin'])
             ->latest()
             ->paginate(50);
 

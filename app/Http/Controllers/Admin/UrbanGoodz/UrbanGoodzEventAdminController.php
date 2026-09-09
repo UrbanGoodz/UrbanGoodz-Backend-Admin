@@ -29,9 +29,29 @@ class UrbanGoodzEventAdminController extends Controller
         return response()->json($query->paginate(15));
     }
 
+    /**
+     * Describes the payload store() accepts.
+     *
+     * This previously did `return view('admin.events.create')` with the comment
+     * "Assuming view exists". It does not - resources/views/admin/events/ has
+     * never existed - so this endpoint returned a 500 on every request, which
+     * it was still doing in production. Every other method on this controller
+     * responds with JSON, and nothing in the panel links here, so it now
+     * answers in the same shape rather than rendering a UI that was never
+     * built. The fields below mirror store()'s validation rules exactly.
+     */
     public function create()
     {
-        return view('admin.events.create'); // Assuming view exists
+        return response()->json([
+            'fields' => [
+                'title' => 'required|string',
+                'description' => 'required|string',
+                'starts_at' => 'required|date',
+                'ends_at' => 'required|date|after:starts_at',
+                'source' => 'required|string',
+            ],
+            'submit_to' => route('admin.urban-goodz.events.store'),
+        ]);
     }
 
     public function store(Request $request)
