@@ -1171,6 +1171,35 @@ class DeliverymanController extends Controller
         }
     }
 
+    /**
+     * Ends the delivery-man session server-side.
+     *
+     * The driver app has called POST /api/v1/delivery-man/logout since it was
+     * written, but no such route existed - only vendor and web logout did - so
+     * every logout 404'd and the token kept working on the device. Resolves the
+     * caller the same way every other dm.api endpoint does, by matching
+     * delivery_men.auth_token against the ?token= query parameter.
+     */
+    public function logout(Request $request)
+    {
+        $dm = DeliveryMan::where(['auth_token' => $request['token']])->first();
+
+        if (!$dm) {
+            return response()->json([
+                'errors' => [['code' => 'auth-001', 'message' => translate('messages.Unauthorized')]]
+            ], 401);
+        }
+
+        // Clearing fcm_token as well as auth_token so a logged-out device stops
+        // receiving job notifications. It is repopulated on the next login by
+        // update-fcm-token.
+        $dm->auth_token = null;
+        $dm->fcm_token = null;
+        $dm->save();
+
+        return response()->json(['message' => translate('messages.logout_successful')], 200);
+    }
+
     public function remove_account(Request $request)
     {
         $dm = DeliveryMan::where(['auth_token' => $request['token']])->first();
