@@ -1,4 +1,22 @@
 #!/bin/bash
+# ============================ DO NOT RUN ============================
+# SUPERSEDED 2026-09-09 by script/deploy.sh.
+#
+# The DEPLOY_SHA below is 087cf2c from 2026-07-13, which is now 505
+# commits behind the branch. Running this would check production out to
+# July code and silently roll back the IDOR fix, the repaired admin
+# routes, the driver logout endpoint and every other fix since.
+#
+# It also hardcodes a "pending migrations" list from July that no longer
+# reflects reality, and it git-checkouts over the live tree without first
+# capturing uncommitted production-only hotfixes.
+#
+# Use:  bash script/deploy.sh
+# ====================================================================
+echo "REFUSING TO RUN: superseded by script/deploy.sh (this script would"
+echo "roll production back 505 commits to a 2026-07-13 SHA)." >&2
+exit 1
+
 # =====================================================
 # Urban Goodz — Sprint Integration Deployment Script
 # Branch: adminpanel-v39-backend-sprint
