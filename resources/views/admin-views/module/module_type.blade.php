@@ -21,7 +21,7 @@
         <div class="card">
             <div class="card-header"><h5>{{translate('messages.add_new_module')}}</h5></div>
             <div class="card-body">
-                <form action="{{route('admin.module.create')}}" method="get" enctype="multipart/form-data">
+                <form action="{{route('admin.business-settings.module.create')}}" method="get" enctype="multipart/form-data">
                     @csrf
                     <div class="form-group">
                         <label class="input-label" for="exampleFormControlInput1">{{translate('messages.type')}}</label>

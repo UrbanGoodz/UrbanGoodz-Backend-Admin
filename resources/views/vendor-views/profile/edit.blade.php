@@ -18,7 +18,7 @@
                 </div>
 
                 <div class="col-sm-auto">
-                    <a class="btn btn-primary" href="{{route('seller.dashboard')}}">
+                    <a class="btn btn-primary" href="{{route('vendor.dashboard')}}">
                         <i class="tio-home mr-1"></i> {{translate('messages.Dashboard')}}
                     </a>
                 </div>
@@ -71,7 +71,7 @@
             </div>
 
             <div class="col-lg-9">
-                <form action="{{route('seller.profile.update')}}" method="post" enctype="multipart/form-data" id="seller-profile-form">
+                <form action="{{route('vendor.profile.update')}}" method="post" enctype="multipart/form-data" id="seller-profile-form">
                 @csrf
                 <!-- Card -->
                     <div class="card mb-3 mb-lg-5" id="generalDiv">
@@ -184,7 +184,7 @@
                     <!-- Body -->
                     <div class="card-body">
                         <!-- Form -->
-                        <form id="changePasswordForm" action="{{route('seller.profile.settings-password')}}" method="post"
+                        <form id="changePasswordForm" action="{{route('vendor.profile.settings-password')}}" method="post"
                               enctype="multipart/form-data">
                         @csrf
 
