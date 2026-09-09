@@ -219,13 +219,11 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('assigned_driver_id', $driver->id)
             ->firstOrFail();
 
-        return response()->json([
-            'message' => 'Driver-side route resequencing is disabled. The persisted Business/dispatcher sequence is authoritative.',
-            'route_id' => $route->id,
-            'optimization_status' => $route->optimization_status,
-            'optimization_version' => $route->optimization_version,
-        ], 409);
-
+        // Driver-initiated resequencing is enabled. Dispatcher authority is
+        // preserved by the variance gate further down: any reordering that
+        // moves the route more than 20% or 15 miles from the persisted
+        // sequence is not committed, it flips the route to admin_review and
+        // returns requires_approval=true for a dispatcher to confirm.
         $startLocation = [
             'lat' => (float)$route->pickup_lat,
             'lng' => (float)$route->pickup_lng,
