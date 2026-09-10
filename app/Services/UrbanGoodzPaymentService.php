@@ -1459,18 +1459,51 @@ class UrbanGoodzPaymentService
         return $request->fresh();
     }
 
+    /**
+     * Reconcile a receipt for an order with no issued purchase card.
+     *
+     * NOTE ON AUTHORITY: when a virtual purchase card is issued, the
+     * authoritative reconciliation is OrderAnywhereCardService::syncReconciliation(),
+     * which compares against approved_purchase_budget and raises overage /
+     * receipt_transaction_mismatch exceptions. This method is the fallback for
+     * the cardless path only. Do not run both against the same order.
+     *
+     * The receipt covers MERCHANDISE, so it must be compared against the
+     * purchase authorisation - not authorized_amount, which is the full
+     * customer charge including delivery, service fee and tip. Comparing
+     * against the customer total got the variance wrong by the whole fee
+     * stack and, worse, inverted the control: on a $133 authorisation with
+     * $108 of goods, a $130 receipt (a $22 overspend) produced a difference of
+     * -$3.00 and auto-approved, while a perfectly correct $108 receipt
+     * produced -$25.00 and was flagged for review.
+     */
     public function reconcileReceipt(OrderAnywhereRequest $request, array $data): OrderAnywhereRequest
     {
         return DB::transaction(function () use ($request, $data) {
             $receiptAmount = (float) ($data['receipt_amount'] ?? 0);
-            $authorizedAmount = (float) $request->authorized_amount;
-            $difference = $receiptAmount - $authorizedAmount;
+
+            // Purchase authorisation: what the customer funded for goods.
+            $purchaseAuthorization = (float) ($request->merchant_purchase_amount ?? 0);
+            if ($purchaseAuthorization <= 0) {
+                $purchaseAuthorization = round(
+                    (float) ($request->item_subtotal ?? 0) + (float) ($request->tax ?? 0),
+                    2
+                );
+            }
+            // Positive difference = driver spent MORE than was authorised.
+            $difference = round($receiptAmount - $purchaseAuthorization, 2);
 
             $request->update([
                 'receipt_amount' => $receiptAmount,
                 'receipt_difference' => $difference,
                 'receipt_notes' => $data['receipt_notes'] ?? null,
-                'reconciliation_status' => abs($difference) <= ($request->overage_threshold ?? 5.00) ? 'auto_approved' : 'pending_review',
+                // An overspend is never auto-approved on tolerance alone: the
+                // tolerance exists to absorb small rounding and tax variance on
+                // an UNDER-spend, not to wave through a driver exceeding the
+                // authorised budget.
+                'reconciliation_status' => $difference > 0.01
+                    ? 'pending_review'
+                    : (abs($difference) <= (float) ($request->overage_threshold ?? 5.00) ? 'auto_approved' : 'pending_review'),
             ]);
 
             $request->logActivity('receipt_reconciled', "Receipt reconciled: \${$receiptAmount} (difference: \${$difference})", [], $data);
