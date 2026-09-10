@@ -54,16 +54,36 @@ class ServicesMarketplaceReleaseContractTest extends TestCase
         $this->assertStringNotContainsString('$service->delete()', $controller);
     }
 
-    public function test_admin_approval_requires_complete_provider_onboarding(): void
+    /**
+     * Approval reports incomplete onboarding rather than refusing it.
+     *
+     * This previously asserted the opposite - that approval hard-failed until a
+     * provider had submitted onboarding and configured services, availability
+     * and (when mobile) a service area. That was deliberately reversed: admins
+     * approve a barber or lawn-care operator first and the setup follows, so
+     * blocking made the real onboarding order impossible.
+     *
+     * All four checks must still be evaluated - losing them would hide genuinely
+     * unbookable providers - but they must feed `outstanding_setup`, not an abort.
+     */
+    public function test_admin_approval_reports_incomplete_onboarding_without_blocking(): void
     {
         $controller = file_get_contents(app_path(
             'Http/Controllers/Api/V1/Admin/ServiceBookingController.php'
         ));
 
+        // Every prerequisite is still inspected.
         $this->assertStringContainsString('$provider->submitted_at', $controller);
-        $this->assertStringContainsString("\$provider->services()->where('is_active',true)->exists()", $controller);
-        $this->assertStringContainsString("\$provider->availability()->where('is_active',true)->exists()", $controller);
-        $this->assertStringContainsString("\$provider->areas()->where('is_active',true)->exists()", $controller);
+        $this->assertStringContainsString("\$provider->services()->where('is_active', true)->exists()", $controller);
+        $this->assertStringContainsString("\$provider->availability()->where('is_active', true)->exists()", $controller);
+        $this->assertStringContainsString("\$provider->areas()->where('is_active', true)->exists()", $controller);
+
+        // ...and surfaced to the admin.
+        $this->assertStringContainsString('outstanding_setup', $controller);
+        $this->assertStringContainsString("'bookable' => \$bookable", $controller);
+
+        // ...but never used to refuse the approval.
+        $this->assertStringNotContainsString('abort_unless', $controller);
     }
 
     public function test_payment_refunds_are_idempotent_and_reconciled_from_transactions(): void
