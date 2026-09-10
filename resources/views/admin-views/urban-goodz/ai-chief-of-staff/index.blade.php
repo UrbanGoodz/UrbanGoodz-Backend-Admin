@@ -111,8 +111,10 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if($alert['available'])
-                                                <a href="{{ url($alert['url']) }}" class="btn btn-xs btn-outline-primary">{{ translate('View Records') }}</a>
+                                            @if($alert['available'] && !empty($alert['url']))
+                                                <a href="{{ $alert['url'] }}" class="btn btn-xs btn-outline-primary">{{ translate('View Records') }}</a>
+                                            @elseif($alert['available'])
+                                                <span class="text-muted">{{ translate('Record page not routed') }}</span>
                                             @else
                                                 <span class="text-muted">{{ translate('Module table not deployed') }}</span>
                                             @endif
@@ -122,6 +124,56 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title"><i class="tio-dns mr-1"></i> {{ translate("Monique's Proactive Tasks") }}</h5>
+                </div>
+                <div class="card-body">
+                    @if(empty($moniqueTasks))
+                        <div class="alert alert-soft-success mb-0">
+                            {{ translate('No tasks are waiting on you right now. Monique will act on what she can and notify you when something needs your decision.') }}
+                        </div>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>{{ translate('Priority') }}</th>
+                                        <th>{{ translate('Task') }}</th>
+                                        <th>{{ translate('Action') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($moniqueTasks as $task)
+                                        <tr>
+                                            <td><span class="badge badge-soft-{{ $task->priority === 'urgent' ? 'danger' : ($task->priority === 'high' ? 'warning' : 'info') }}">{{ ucfirst($task->priority) }}</span></td>
+                                            <td>
+                                                <strong>{{ $task->title }}</strong><br>
+                                                <small class="text-muted">{{ $task->message }}</small>
+                                            </td>
+                                            <td>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-chief-of-staff.notification.action', ['id' => $task->id]) }}" class="d-inline notify-action-form">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="let_monique_handle_it">
+                                                    <button class="btn btn-xs btn-primary" type="submit">{{ translate('Let Monique Handle It') }}</button>
+                                                </form>
+                                                <form method="POST" action="{{ route('admin.urban-goodz.ai-chief-of-staff.notification.action', ['id' => $task->id]) }}" class="d-inline notify-action-form">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="dismiss">
+                                                    <button class="btn btn-xs btn-outline-secondary" type="submit">{{ translate('Dismiss') }}</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -187,4 +239,41 @@
         </div>
     </div>
 </div>
+
+@push('script')
+<script>
+    document.querySelectorAll('.notify-action-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const btn = form.querySelector('button');
+            btn.disabled = true;
+            const original = btn.textContent;
+            btn.textContent = '{{ translate("Working...") }}';
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json',
+                },
+                body: new URLSearchParams(new FormData(form)),
+            })
+                .then(function (res) { return res.json().catch(function () { return {}; }); })
+                .then(function (data) {
+                    if (data && data.success) {
+                        window.location.reload();
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = original;
+                        alert('{{ translate("Monique could not complete that task.") }}');
+                    }
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                    btn.textContent = original;
+                    alert('{{ translate("Could not reach Monique. Please try again.") }}');
+                });
+        });
+    });
+</script>
+@endpush
 @endsection

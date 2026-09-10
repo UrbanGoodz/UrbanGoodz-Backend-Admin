@@ -128,6 +128,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyMinute()
             ->withoutOverlapping(5)
             ->runInBackground();
+
+        $schedule->command('monique:work', ['--account-type=all'])
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn () => config('urban_goodz_ai.monique_proactive.enabled', true));
     })
 
     ->withExceptions(function (Exceptions $exceptions) {

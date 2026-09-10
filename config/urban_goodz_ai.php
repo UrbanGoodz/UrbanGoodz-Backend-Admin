@@ -105,4 +105,70 @@ return [
         'post_trial_policy' => env('MONIQUE_POST_TRIAL_POLICY', 'auto_charge'), // 'auto_charge', 'explicit_opt_in', 'auto_disable'
         'default_auto_continue' => (bool) env('MONIQUE_AUTO_CONTINUE', true),
     ],
+
+    /*
+    | Monique's proactive operating loop -- thresholds and authority.
+    |
+    | Every `category` gets one of three action modes:
+    |   auto_run     - Monique performs the action herself on the scheduled
+    |                  loop, then reports it as a RESOLVED notification.
+    |   ask          - Monique detects the problem and asks you first; the
+    |                  notification carries a "Let Monique Handle It" button.
+    |   observe_only - Monique flags it for your review with NO action button
+    |                  (read-only categories Monique must never touch).
+    |
+    | Nothing runs unless `monique_proactive.enabled` is true, and auto_run
+    | always goes through the ExecutionRouter with confirmation, so a failed or
+    | unverifiable write is reported as failure -- never as success.
+    */
+    'monique_proactive' => [
+        'enabled' => (bool) env('MONIQUE_PROACTIVE_ENABLED', true),
+
+        // Global thresholds (also env-tunable at runtime via .env).
+        'delayed_order_minutes' => (int) env('MONIQUE_DELAYED_ORDER_MINUTES', 30),
+        'delayed_order_urgent_minutes' => (int) env('MONIQUE_DELAYED_ORDER_URGENT_MINUTES', 60),
+        'out_of_stock_min_items' => (int) env('MONIQUE_OUT_OF_STOCK_MIN_ITEMS', 6),
+
+        // Vendor-side cadence differs deliberately: store owners decide their
+        // own accepting queue, and a single stalled order matters more to them.
+        'vendor' => [
+            'waiting_order_minutes' => (int) env('MONIQUE_VENDOR_WAITING_MINUTES', 15),
+            'waiting_order_urgent_minutes' => (int) env('MONIQUE_VENDOR_WAITING_URGENT_MINUTES', 30),
+            'out_of_stock_min_items' => (int) env('MONIQUE_VENDOR_OUT_OF_STOCK_MIN_ITEMS', 1),
+        ],
+
+        'categories' => [
+            'delayed_orders' => [
+                'enabled' => true,
+                // auto_run assigns the oldest delayed order automatically;
+                // ask lets Monique propose the assignment first.
+                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'ask'),
+                'max_auto_assign_per_cycle' => (int) env('MONIQUE_DELAYED_MAX_ASSIGN_PER_CYCLE', 1),
+            ],
+            'failed_queue_jobs' => [
+                'enabled' => true,
+                // Retrying a failed background job is low-risk and reversible,
+                // so Monique drains one per cycle by default; flip to ask to
+                // require sign-off before any retry.
+                'action' => env('MONIQUE_FAILED_JOBS_ACTION', 'auto_run'),
+                'max_auto_retry_per_cycle' => (int) env('MONIQUE_FAILED_JOBS_MAX_RETRY_PER_CYCLE', 1),
+            ],
+            'out_of_stock' => [
+                'enabled' => true,
+                // Read-only: Monique cannot restock a product, so this is a
+                // notice (plus a stock breakdown via the chat) -- never a write.
+                'action' => 'observe_only',
+            ],
+            'vendor_onboarding' => [
+                'enabled' => true,
+                'action' => 'ask',
+            ],
+            'pending_withdrawals' => [
+                'enabled' => true,
+                // Money always needs the owner's sign-off; there is no approval
+                // tool and Monique must never imply she moved funds.
+                'action' => 'observe_only',
+            ],
+        ],
+    ],
 ];

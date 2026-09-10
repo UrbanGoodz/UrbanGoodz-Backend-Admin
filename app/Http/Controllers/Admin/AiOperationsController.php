@@ -504,9 +504,20 @@ class AiOperationsController extends Controller
         $persona = config('urban_goodz_personas.personas.chief_of_staff.presentation', []);
         $narration = $chiefOfStaffService->narrateExecutiveBrief(auth('admin')->user()?->f_name);
 
+        // Monique's proactive loop, surfaced on this page. observeAndAct() is
+        // idempotent within its 6-hour per-category window, so a page load
+        // never spams duplicate tasks.
+        $adminId = auth('admin')->id() ?? 1;
+        $attention = app(\App\Services\UrbanGoodz\Agent\MoniqueProactiveAttentionService::class);
+        $attention->observeAndAct('admin', $adminId);
+        $moniqueTasks = \App\Models\AiMoniqueNotification::forAccount('admin', $adminId)
+            ->pending()
+            ->latest('id')
+            ->get();
+
         return view(
             'admin-views.urban-goodz.ai-chief-of-staff.index',
-            compact('brief', 'summary', 'diagnostics', 'persona', 'narration')
+            compact('brief', 'summary', 'diagnostics', 'persona', 'narration', 'moniqueTasks')
         );
     }
 

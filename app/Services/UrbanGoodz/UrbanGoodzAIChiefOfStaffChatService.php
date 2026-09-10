@@ -30,6 +30,17 @@ class UrbanGoodzAIChiefOfStaffChatService
 
     private const MAX_STORED_PER_ADMIN = 30;
 
+    /**
+     * The router is stateless: a confirmation is never carried over between
+     * calls, so when Monique asks "may I?" the owner's next "yes" arrives as a
+     * brand-new query with no memory of what it confirms. The pending action
+     * is therefore persisted on the conversation row and replayed here verbatim
+     * (with confirmed=true) when the next turn is an affirmative answer.
+     */
+    private const CONFIRM_PATTERN = '/\b(?:yes|yep|yeah|affirmative|correct|confirm(?:ed)?|proceed|go ahead|go for it|do it|handle it|handle them|approved?|okay|ok|sure|fine by me|lets do it|let\'s do it)\b/i';
+
+    private const DENY_PATTERN = '/\b(?:no|nope|negative|cancel(?:led)?|never mind|hold off|don\'t|dont|stop|skip|wait|not now|hold on)\b/i';
+
     public function __construct(
         private readonly UrbanGoodzAIService $ai,
         private readonly AiChiefOfStaffService $chiefOfStaff,
@@ -111,12 +122,19 @@ class UrbanGoodzAIChiefOfStaffChatService
         // awaiting confirmation and are NOT executed here; Monique asks first.
         $actionResult = $this->attemptAction($queryText, $adminId);
 
-        $systemPrompt = $this->buildSystemPrompt($adminName, $actionResult);
+        // If that was pure conversation, it may still be the owner's answer to
+        // a question Monique asked last turn ("do you want me to...?"). Replay
+        // the stored pending action on a "yes", clear it on a "no".
+        if ($actionResult === null) {
+            $actionResult = $this->replayPendingConfirmation($queryText, $adminId, $sessionId);
+        }
+
         $history = $this->recentHistory($adminId, $sessionId);
+        $systemPrompt = $this->buildSystemPrompt($adminName, $actionResult, empty($history));
 
         $result = $this->ai->isConfigured()
-            ? $this->processWithAI($queryText, $adminId, $systemPrompt, $sessionId, $history)
-            : $this->processWithoutAI($queryText, $adminId, $sessionId);
+            ? $this->processWithAI($queryText, $adminId, $systemPrompt, $sessionId, $history, $actionResult)
+            : $this->processWithoutAI($queryText, $adminId, $sessionId, $actionResult);
 
         $this->pruneOld($adminId);
 
@@ -168,7 +186,10 @@ class UrbanGoodzAIChiefOfStaffChatService
             ->delete();
     }
 
-    private function processWithAI(string $queryText, int $adminId, string $systemPrompt, ?string $sessionId, array $history): UrbanGoodzAIConversation
+    /**
+     * @param array<string,mixed>|null $actionResult
+     */
+    private function processWithAI(string $queryText, int $adminId, string $systemPrompt, ?string $sessionId, array $history, ?array $actionResult): UrbanGoodzAIConversation
     {
         $isUrgent = $this->looksUrgent($queryText);
 
@@ -179,6 +200,19 @@ class UrbanGoodzAIChiefOfStaffChatService
         $responseText = $providerResult['response'];
         $status = $providerResult['success'] ? 'resolved' : 'failed';
 
+        $metadata = [
+            'response_source' => 'ai_provider',
+            'provider_success' => $providerResult['success'],
+            'provider_error_code' => $providerResult['error_code'],
+            'flagged_as_urgent' => $isUrgent,
+        ];
+
+        // Persist anything awaiting the owner's confirmation so the next turn
+        // ("yes, do it") can replay it through a now-stateless router.
+        if ($actionResult && !empty($actionResult['awaiting_confirmation'])) {
+            $metadata['pending_action'] = $actionResult['pending_action'] ?? null;
+        }
+
         return UrbanGoodzAIConversation::create([
             'customer_id' => $adminId,
             'session_id' => $sessionId,
@@ -186,12 +220,7 @@ class UrbanGoodzAIChiefOfStaffChatService
             'response_text' => $responseText,
             'status' => $status,
             'source' => self::SOURCE,
-            'metadata' => [
-                'response_source' => 'ai_provider',
-                'provider_success' => $providerResult['success'],
-                'provider_error_code' => $providerResult['error_code'],
-                'flagged_as_urgent' => $isUrgent,
-            ],
+            'metadata' => $metadata,
         ]);
     }
 
@@ -200,7 +229,10 @@ class UrbanGoodzAIChiefOfStaffChatService
      * dashboard rather than a canned line, so this is never a fabricated
      * number even without a model attached.
      */
-    private function processWithoutAI(string $queryText, int $adminId, ?string $sessionId): UrbanGoodzAIConversation
+    /**
+     * @param array<string,mixed>|null $actionResult
+     */
+    private function processWithoutAI(string $queryText, int $adminId, ?string $sessionId, ?array $actionResult): UrbanGoodzAIConversation
     {
         $summary = $this->chiefOfStaff->getCommandCenterSummary();
         $responseText = sprintf(
@@ -211,6 +243,15 @@ class UrbanGoodzAIChiefOfStaffChatService
             $summary['approvals'] ?? 0,
         );
 
+        $metadata = [
+            'response_source' => 'deterministic_database',
+            'flagged_as_urgent' => $this->looksUrgent($queryText),
+        ];
+
+        if ($actionResult && !empty($actionResult['awaiting_confirmation'])) {
+            $metadata['pending_action'] = $actionResult['pending_action'] ?? null;
+        }
+
         return UrbanGoodzAIConversation::create([
             'customer_id' => $adminId,
             'session_id' => $sessionId,
@@ -218,10 +259,7 @@ class UrbanGoodzAIChiefOfStaffChatService
             'response_text' => $responseText,
             'status' => 'resolved',
             'source' => self::SOURCE,
-            'metadata' => [
-                'response_source' => 'deterministic_database',
-                'flagged_as_urgent' => $this->looksUrgent($queryText),
-            ],
+            'metadata' => $metadata,
         ]);
     }
 
@@ -283,15 +321,19 @@ class UrbanGoodzAIChiefOfStaffChatService
                 $vendorId = !empty($matches[1]) ? (int) $matches[1] : null;
 
                 $isConfirmed = str_contains($lower, 'confirm') || str_contains($lower, 'yes') || str_contains($lower, 'proceed');
-                $toolRes = $this->router()->execute('update_vendor_status', [
+
+                $toolParams = [
                     'vendor_id' => $vendorId,
                     'status' => $status,
                     'reason' => 'Requested by admin in Chief of Staff chat',
-                ], [
+                ];
+                $toolRes = $this->router()->execute('update_vendor_status', $toolParams, [
                     'admin_id' => $adminId,
                     'actor_role' => 'admin',
                     'confirmed' => $isConfirmed,
                 ]);
+
+                $awaitingConfirmation = (bool) ($toolRes['awaiting_confirmation'] ?? false);
 
                 return [
                     'attempted' => true,
@@ -299,10 +341,18 @@ class UrbanGoodzAIChiefOfStaffChatService
                     'verified' => (bool) ($toolRes['verified'] ?? false),
                     'action' => 'update_vendor_status',
                     'intent' => 'vendor_management',
-                    'awaiting_confirmation' => (bool) ($toolRes['awaiting_confirmation'] ?? false),
+                    'awaiting_confirmation' => $awaitingConfirmation,
                     'outcome' => $toolRes['message'] ?? null,
                     'previous_state' => $toolRes['previous_state'] ?? null,
                     'new_state' => $toolRes['new_state'] ?? null,
+                    'pending_action' => $awaitingConfirmation ? [
+                        'mode' => 'router',
+                        'tool' => 'update_vendor_status',
+                        'parameters' => $toolParams,
+                        'actor_role' => 'admin',
+                        'action' => 'update_vendor_status',
+                        'intent' => 'vendor_management',
+                    ] : null,
                 ];
             }
 
@@ -364,17 +414,29 @@ class UrbanGoodzAIChiefOfStaffChatService
                 return null;
             }
 
+            $awaitingConfirmation = (bool) ($result['awaiting_confirmation'] ?? false);
+
             return [
                 'attempted' => true,
                 'succeeded' => (bool) ($result['success'] ?? false),
                 'verified' => (bool) ($result['verified'] ?? false),
                 'action' => $result['action'] ?? null,
                 'intent' => $intent,
-                'awaiting_confirmation' => (bool) ($result['awaiting_confirmation'] ?? false),
+                'awaiting_confirmation' => $awaitingConfirmation,
                 'blocked_reason' => $result['blocked_reason'] ?? null,
                 'outcome' => $result['message'] ?? $result['explanation'] ?? null,
                 'previous_state' => $result['previous_state'] ?? null,
                 'new_state' => $result['new_state'] ?? null,
+                'pending_action' => $awaitingConfirmation ? [
+                    'mode' => 'plan',
+                    'action' => $result['proposed_action']['action'] ?? ($result['action'] ?? null),
+                    'intent' => $intent,
+                    'steps' => [[
+                        'module' => $result['proposed_action']['module'] ?? null,
+                        'action' => $result['proposed_action']['action'] ?? ($result['action'] ?? null),
+                        'params' => $result['proposed_action']['params'] ?? ($result['action'] ? ['_routed_action' => $result['action']] : []),
+                    ]],
+                ] : null,
             ];
         } catch (\Throwable $e) {
             Log::warning('Chief of staff action attempt failed', [
@@ -430,6 +492,12 @@ class UrbanGoodzAIChiefOfStaffChatService
                 'outcome' => count($mutations) === 0
                     ? 'There is nothing I can action automatically right now.'
                     : count($mutations) . ' action(s) are ready to run once you confirm.',
+                'pending_action' => count($mutations) > 0 ? [
+                    'mode' => 'plan',
+                    'steps' => $mutations,
+                    'action' => 'execute_plan',
+                    'intent' => 'operations',
+                ] : null,
             ];
         } catch (\Throwable $e) {
             Log::warning('Chief of staff bulk planning failed', [
@@ -447,9 +515,105 @@ class UrbanGoodzAIChiefOfStaffChatService
     }
 
     /**
+     * Stateless-confirmation glue. Because the router keeps no server-side
+     * state, a proposed action is persisted on the last conversation row; this
+     * method either replays it (owner said yes) or clears it (owner declined).
+     *
+     * Returns an action_result array when the query was a real answer, or null
+     * when it was ordinary conversation with nothing pending.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function replayPendingConfirmation(string $queryText, int $adminId, ?string $sessionId): ?array
+    {
+        $last = $this->lastConversation($adminId, $sessionId);
+        $pending = is_array($last?->metadata['pending_action'] ?? null)
+            ? $last->metadata['pending_action']
+            : null;
+
+        // Nothing awaiting confirmation: treat as normal conversation.
+        if (!$pending) {
+            return null;
+        }
+
+        $lower = strtolower(trim($queryText));
+
+        // "No / cancel / wait" answers the question in the negative.
+        if (preg_match(self::DENY_PATTERN, $lower)) {
+            $this->clearPendingAction($last);
+            return [
+                'attempted' => true,
+                'succeeded' => false,
+                'verified' => false,
+                'action' => 'confirmation_declined',
+                'outcome' => 'Understood - nothing was run and the proposed action was cancelled.',
+            ];
+        }
+
+        if (!preg_match(self::CONFIRM_PATTERN, $lower)) {
+            return null;
+        }
+
+        $result = match ($pending['mode'] ?? null) {
+            'router' => $this->router()->execute(
+                $pending['tool'],
+                $pending['parameters'] ?? [],
+                [
+                    'admin_id' => $adminId,
+                    'actor_role' => $pending['actor_role'] ?? 'admin',
+                    'confirmed' => true,
+                ]
+            ),
+            'plan' => $this->execution->executePlan($pending['steps'] ?? [], $adminId, 'admin'),
+            default => [
+                'success' => false,
+                'verified' => false,
+                'message' => 'The pending action could not be replayed.',
+            ],
+        };
+
+        $this->clearPendingAction($last);
+
+        $succeeded = (bool) ($result['success'] ?? false);
+
+        return [
+            'attempted' => true,
+            'succeeded' => $succeeded,
+            'verified' => (bool) ($result['verified'] ?? false),
+            'action' => $pending['action'] ?? 'confirmed_replay',
+            'intent' => $pending['intent'] ?? null,
+            'awaiting_confirmation' => false,
+            'outcome' => $result['message'] ?? null,
+            'previous_state' => $result['previous_state'] ?? null,
+            'new_state' => $result['new_state'] ?? null,
+        ];
+    }
+
+    private function clearPendingAction(UrbanGoodzAIConversation $last): void
+    {
+        $metadata = $last->metadata;
+        $metadata['pending_action'] = null;
+        $metadata['pending_action_handled_at'] = now()->toIso8601String();
+        $last->update(['metadata' => $metadata]);
+    }
+
+    private function lastConversation(?int $adminId, ?string $sessionId): ?UrbanGoodzAIConversation
+    {
+        if (!$adminId || !$sessionId) {
+            return null;
+        }
+
+        return UrbanGoodzAIConversation::where('customer_id', $adminId)
+            ->where('source', self::SOURCE)
+            ->where('session_id', $sessionId)
+            ->latest()
+            ->first();
+    }
+
+    /**
      * @param array<string,mixed>|null $actionResult
      */
-    private function buildSystemPrompt(?string $adminName, ?array $actionResult = null): string
+    private function buildSystemPrompt(?string $adminName, ?array $actionResult = null, bool $isFirstTurn = true): string
     {
         $summary = $this->chiefOfStaff->getCommandCenterSummary();
         // Carry each alert's executable actions through to the model. Without
@@ -511,10 +675,20 @@ the store breakdown, not removal.
 When `action_result.plan` is present the owner asked you to handle everything.
 List `proposed_steps` concretely - the actual orders and jobs, not a vague
 offer - then ask to proceed. Name anything in `unplannable` and why it needs a
-person; never let it pass unmentioned, and never imply you handled it.";
+person; never let it pass unmentioned, and never imply you handled it.
 
+Conversation awareness (`first_turn`):
+- first_turn true: this is the opening message of the session. Give the full
+  operating picture and brief the owner on what needs attention.
+- first_turn false: the owner already saw today's full briefing and the live
+  counts in earlier turns of THIS conversation. Do NOT re-print the whole brief,
+  re-list every metric, or re-walk every alert. Stay tightly focused on the
+  current question; reference live numbers only to answer it, and only call out
+  something that changed or is directly relevant. A fresh ``action_result`` that
+  just carried out work is relevant and should be reported concisely.";
         $grounding = [
             'admin_name' => $adminName,
+            'first_turn' => $isFirstTurn,
             'command_center_summary' => $summary,
             'operational_alerts' => $alerts,
             'action_result' => $actionResult,

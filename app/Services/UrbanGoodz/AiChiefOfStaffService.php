@@ -9,6 +9,7 @@ use App\Models\HumanActionItem;
 use App\Models\MerchantProspect;
 use App\Services\UrbanGoodz\AI\Persona\PersonaRegistry;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 class AiChiefOfStaffService
@@ -190,7 +191,8 @@ markdown.';
                     ['delivery_man_id', 'order_status']
                 ),
                 'high',
-                '/admin/order/list/all'
+                routeFor: 'admin.order.list',
+                routeParams: ['status' => 'pending'],
             ),
             $this->alert(
                 'delayed_orders',
@@ -204,7 +206,8 @@ markdown.';
                     ['order_status', 'created_at']
                 ),
                 'high',
-                '/admin/order/list/all'
+                routeFor: 'admin.order.list',
+                routeParams: ['status' => 'pending'],
             ),
             $this->alert(
                 'failed_payments',
@@ -217,7 +220,7 @@ markdown.';
                     ['payment_status']
                 ),
                 'high',
-                '/admin/urban-goodz/payments'
+                routeFor: 'admin.urban-goodz.payments.index',
             ),
             $this->alert(
                 'pending_refunds',
@@ -228,7 +231,8 @@ markdown.';
                     ['order_status']
                 ),
                 'high',
-                '/admin/refund/pending'
+                routeFor: 'admin.refund.refund_attr',
+                routeParams: ['status' => 'pending'],
             ),
             $this->alert(
                 'pending_withdrawals',
@@ -239,14 +243,14 @@ markdown.';
                     ['approved']
                 ),
                 'medium',
-                '/admin/vendor/withdraw_list'
+                routeFor: 'admin.store.withdraw_list',
             ),
             $this->alert(
                 'failed_queue_jobs',
                 'Failed queue jobs',
                 $this->countWhen('failed_jobs', fn() => DB::table('failed_jobs')->count()),
                 'high',
-                '/admin/urban-goodz/ai-operations/logs'
+                routeFor: 'admin.urban-goodz.ai-operations.logs',
             ),
             $this->alert(
                 'load_sourcing_errors',
@@ -257,7 +261,7 @@ markdown.';
                     ['resolved']
                 ),
                 'high',
-                '/admin/urban-goodz/load-sourcing/errors'
+                routeFor: 'admin.urban-goodz.ai-operations.load-sourcing',
             ),
             $this->alert(
                 'out_of_stock_items',
@@ -268,7 +272,7 @@ markdown.';
                     ['stock', 'status']
                 ),
                 'medium',
-                '/admin/item/list/all'
+                routeFor: 'admin.item.list',
             ),
         ];
     }
@@ -338,8 +342,23 @@ markdown.';
         ],
     ];
 
-    private function alert(string $key, string $label, ?int $count, string $severity, string $url): array
+    /**
+     * Builds an alert; the record link is generated from a named route so it
+     * always matches the actual route table (no hard-coded paths that 404).
+     * When the route does not exist the link is left null and the UI says so
+     * instead of navigating nowhere.
+     */
+    private function alert(string $key, string $label, ?int $count, string $severity, string $routeFor, array $routeParams = []): array
     {
+        $url = null;
+        if ($count !== null && Route::has($routeFor)) {
+            try {
+                $url = $routeParams === [] ? route($routeFor) : route($routeFor, $routeParams);
+            } catch (\Throwable $e) {
+                $url = null;
+            }
+        }
+
         return [
             'key' => $key,
             'label' => $label,
@@ -347,6 +366,7 @@ markdown.';
             'available' => $count !== null,
             'severity' => $severity,
             'url' => $url,
+            'route_name' => $routeFor,
             'actions' => self::ALERT_ACTIONS[$key] ?? [],
             'actionable' => !empty(self::ALERT_ACTIONS[$key]),
         ];
