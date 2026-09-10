@@ -1311,12 +1311,19 @@ class UrbanGoodzPaymentService
                 ?? $fresh->refund_reference
                 ?? ('refund-' . $fresh->id . '-' . Str::uuid()));
 
-            // Idempotency before the state guards: a redelivered refund confirmation
-            // (new provider event id, same refund reference) must replay cleanly even
-            // after the payment moved to refunded.
-            $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
-            if ($existing) {
-                return $fresh->fresh();
+            // Idempotency before the state guards, but only for provider-confirmed
+            // calls: a redelivered refund confirmation (new provider event id, same
+            // refund reference) must replay cleanly even after the payment moved to
+            // refunded. An operator-initiated duplicate carries no provider evidence
+            // and must still fail loudly against the state guards below.
+            $providerConfirmed = ! empty($data['refund_idempotency_key'])
+                || ($data['source'] ?? null) === 'webhook';
+
+            if ($providerConfirmed) {
+                $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
+                if ($existing) {
+                    return $fresh->fresh();
+                }
             }
 
             if (! in_array($fresh->payment_status, ['captured', 'partially_captured', 'partially_refunded'], true)) {
