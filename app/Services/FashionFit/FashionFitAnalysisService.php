@@ -6,8 +6,11 @@ use App\Contracts\FashionFitMeasurementProvider;
 use App\Models\FashionFitAnalysis;
 use App\Models\FashionFitAuditEvent;
 use App\Models\FashionFitMeasurement;
+use App\Models\FashionFitMeasurementVersion;
+use App\Models\FashionFitProfile;
 use App\Models\UserNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use RuntimeException;
@@ -20,6 +23,9 @@ class FashionFitAnalysisService
     public function process(FashionFitAnalysis $analysis): void
     {
         $analysis->load('profile');
+        if (in_array($analysis->status, ['completed', 'needs_retake', 'failed'], true)) {
+            return;
+        }
         $consent = $analysis->profile->consents()
             ->whereNull('revoked_at')
             ->latest('accepted_at')
@@ -75,6 +81,16 @@ class FashionFitAnalysisService
             'measurements.*.unit' => ['required', Rule::in(['in', 'cm'])],
             'measurements.*.confidence' => ['required', 'numeric', 'between:0,1'],
             'measurements.*.requires_confirmation' => ['required', 'boolean'],
+            'measurements.*.provenance' => ['nullable', Rule::in(['detected', 'estimated', 'fallback', 'unknown', 'direct'])],
+            'measurements.*.status' => ['nullable', Rule::in(['measured', 'needs_better_photo', 'customer_confirmation_required'])],
+            'measurements.*.landmark_sources' => ['nullable', 'array'],
+            'measurements.*.calculation' => ['nullable', 'array'],
+            'unavailable_measurements' => ['nullable', 'array'],
+            'unavailable_measurements.*.name' => ['required', Rule::in(config('fashion_fit_ai.allowed_measurements'))],
+            'unavailable_measurements.*.reason' => ['required', 'string', 'max:500'],
+            'unavailable_measurements.*.code' => ['required', Rule::in(['needs_better_photo', 'customer_confirmation_required'])],
+            'quality_warnings' => ['nullable', 'array'],
+            'quality_warnings.*' => ['string', 'max:500'],
             'retake_requirements' => ['nullable', 'array'],
             'retake_requirements.*.view' => ['required', Rule::in(['front', 'side', 'back'])],
             'retake_requirements.*.reason' => ['required', 'string', 'max:500'],
@@ -87,6 +103,36 @@ class FashionFitAnalysisService
         return $validator->validated();
     }
 
+    /**
+     * Content signature of the accepted photos feeding an analysis. Two analyses
+     * over identical photo contents hash to the same value, which is the
+     * idempotency guard: re-submitting the same photos must not re-analyse.
+     *
+     * @return array{hash: string, files: array<string, array{file_id: int, hash: string}>}
+     */
+    public function sourceSignature(FashionFitProfile $profile): array
+    {
+        $files = [];
+        $parts = [(string) $profile->id];
+        foreach ($profile->photos()->with('file')->where('status', 'accepted')->orderBy('view')->get() as $photo) {
+            $hash = hash('sha256', (string) Storage::disk($photo->file->disk)->get($photo->file->stored_path));
+            $files[$photo->view] = ['file_id' => $photo->file_id, 'hash' => $hash];
+            $parts[] = $photo->view.':'.$hash;
+        }
+
+        return ['hash' => hash('sha256', implode('|', $parts)), 'files' => $files];
+    }
+
+    /** @return ?FashionFitAnalysis An existing terminal analysis over the same photos. */
+    public function findTerminalForSignature(FashionFitProfile $profile, string $hash): ?FashionFitAnalysis
+    {
+        return FashionFitAnalysis::where('profile_id', $profile->id)
+            ->where('source_hash', $hash)
+            ->whereIn('status', ['completed', 'needs_retake'])
+            ->latest()
+            ->first();
+    }
+
     private function persist(FashionFitAnalysis $analysis, array $result): void
     {
         DB::transaction(function () use ($analysis, $result) {
@@ -95,6 +141,8 @@ class FashionFitAnalysisService
                     'status' => 'needs_retake',
                     'overall_confidence' => $result['overall_confidence'],
                     'retake_requirements' => $result['retake_requirements'] ?? [],
+                    'quality_warnings' => $result['quality_warnings'] ?? [],
+                    'unavailable_measurements' => $result['unavailable_measurements'] ?? [],
                     'model_name' => $result['model'],
                     'model_version' => $result['model_version'],
                     'response_hash' => hash('sha256', json_encode($result)),
@@ -105,22 +153,72 @@ class FashionFitAnalysisService
                 return;
             }
 
-            FashionFitMeasurement::where('profile_id', $analysis->profile_id)->delete();
+            $existing = FashionFitMeasurement::where('profile_id', $analysis->profile_id)->get()->keyBy('name');
+
             foreach ($result['measurements'] as $measurement) {
-                FashionFitMeasurement::create([
-                    'profile_id' => $analysis->profile_id,
-                    'analysis_id' => $analysis->id,
-                    'name' => $measurement['name'],
+                $row = $existing->get($measurement['name']);
+                $payload = [
                     'value' => $measurement['value'],
                     'unit' => $measurement['unit'],
                     'confidence' => $measurement['confidence'],
                     'source' => 'ai',
                     'requires_confirmation' => $measurement['requires_confirmation'],
+                    'provenance' => $measurement['provenance'] ?? 'unknown',
+                    'status' => $measurement['status'] ?? 'measured',
+                    'landmark_sources' => $measurement['landmark_sources'] ?? null,
+                    'calculation' => $measurement['calculation'] ?? null,
+                    'original_value' => $row?->original_value,
+                    'corrected_at' => null,
+                    'approved_at' => null,
+                ];
+
+                if ($row && $row->isLocked()) {
+                    continue;
+                }
+
+                if ($row) {
+                    $row->update(array_merge($payload, ['analysis_id' => $analysis->id]));
+                } else {
+                    $row = FashionFitMeasurement::create(array_merge($payload, [
+                        'profile_id' => $analysis->profile_id,
+                        'analysis_id' => $analysis->id,
+                        'name' => $measurement['name'],
+                    ]));
+                }
+
+                FashionFitMeasurementVersion::create([
+                    'measurement_id' => $row->id,
+                    'analysis_id' => $analysis->id,
+                    'value' => $measurement['value'],
+                    'unit' => $measurement['unit'],
+                    'source' => 'ai',
+                    'provenance' => $measurement['provenance'] ?? 'unknown',
+                    'confidence' => $measurement['confidence'],
+                    'actor_type' => 'system',
+                    'corrected' => false,
+                    'approved' => false,
                 ]);
             }
+
+            foreach ($result['unavailable_measurements'] ?? [] as $unavailable) {
+                $row = $existing->get($unavailable['name']);
+                if (! $row || $row->isLocked()) {
+                    continue;
+                }
+                $row->update([
+                    'status' => $unavailable['code'] === 'customer_confirmation_required'
+                        ? 'customer_confirmation_required'
+                        : 'needs_better_photo',
+                    'requires_confirmation' => true,
+                    'analysis_id' => $analysis->id,
+                ]);
+            }
+
             $analysis->update([
                 'status' => 'completed',
                 'overall_confidence' => $result['overall_confidence'],
+                'quality_warnings' => $result['quality_warnings'] ?? [],
+                'unavailable_measurements' => $result['unavailable_measurements'] ?? [],
                 'model_name' => $result['model'],
                 'model_version' => $result['model_version'],
                 'response_hash' => hash('sha256', json_encode($result)),
@@ -132,9 +230,11 @@ class FashionFitAnalysisService
                 'analysis_provider' => $this->provider->name(),
                 'model_name' => $result['model'],
                 'model_version' => $result['model_version'],
+                'approved_at' => null,
             ]);
             $this->audit('system', null, 'analysis_completed', FashionFitAnalysis::class, $analysis->id, [
                 'measurement_count' => count($result['measurements']),
+                'unavailable_count' => count($result['unavailable_measurements'] ?? []),
                 'model_version' => $result['model_version'],
             ]);
             $this->notifyCustomer($analysis->customer_id, 'fashion_fit_analysis_completed', 'Your Fashion Fit measurements are ready to review.');

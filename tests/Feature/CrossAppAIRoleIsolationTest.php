@@ -12,17 +12,17 @@ class CrossAppAIRoleIsolationTest extends TestCase
     {
         $this->assertRouteMiddleware(
             'api/v1/urban-goodz/cross-app/ai/customer/history',
-            ['auth:api', 'throttle:120,1'],
+            ['auth:api', 'throttle:120,1,ug-cross-app-ai'],
             ['vendor.api', 'dm.api']
         );
         $this->assertRouteMiddleware(
             'api/v1/urban-goodz/cross-app/ai/vendor/daily-brief',
-            ['vendor.api', 'actch:vendor_app', 'throttle:120,1'],
+            ['vendor.api', 'actch:vendor_app', 'throttle:120,1,ug-cross-app-ai'],
             ['auth:api', 'dm.api']
         );
         $this->assertRouteMiddleware(
             'api/v1/urban-goodz/cross-app/ai/driver/daily-summary',
-            ['dm.api', 'throttle:120,1'],
+            ['dm.api', 'throttle:120,1,ug-cross-app-ai'],
             ['auth:api', 'vendor.api']
         );
     }

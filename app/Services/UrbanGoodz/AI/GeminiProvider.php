@@ -13,7 +13,7 @@ class GeminiProvider extends AbstractAIProvider
      * the production key; gemini-flash-latest is the fallback alias if a
      * specific version is ever retired again.
      */
-    public const DEFAULT_MODEL = 'gemini-3.6-flash';
+    public const DEFAULT_MODEL = 'gemini-flash-latest';
 
     public function name(): string
     {
@@ -64,6 +64,25 @@ class GeminiProvider extends AbstractAIProvider
         }
         $contents[] = ['role' => 'user', 'parts' => [['text' => $userContent]]];
 
+        $tools = [];
+        if (config('urban_goodz_ai.providers.gemini.search_grounding', false)) {
+            $tools[] = ['google_search' => (object)[]];
+        }
+
+        $payload = [
+            'systemInstruction' => [
+                'parts' => [['text' => $systemPrompt]],
+            ],
+            'contents' => $contents,
+            'generationConfig' => [
+                'temperature' => (float) config('urban_goodz_ai.temperature', 0.4),
+                'maxOutputTokens' => max(1500, (int) config('urban_goodz_ai.max_tokens', 3000)),
+            ],
+        ];
+        if (! empty($tools)) {
+            $payload['tools'] = $tools;
+        }
+
         try {
             $response = Http::acceptJson()
                 ->asJson()
@@ -74,27 +93,38 @@ class GeminiProvider extends AbstractAIProvider
                     max(0, (int) config('urban_goodz_ai.retry_delay_ms', 250)),
                     throw: false
                 )
-                ->post($this->endpoint(), [
-                    'systemInstruction' => [
-                        'parts' => [['text' => $systemPrompt]],
-                    ],
-                    'contents' => $contents,
-                    'generationConfig' => [
-                        'temperature' => (float) config('urban_goodz_ai.temperature', 0.4),
-                        'maxOutputTokens' => (int) config('urban_goodz_ai.max_tokens', 1500),
-                    ],
-                ]);
+                ->post($this->endpoint(), $payload);
+
+            if (! $response->successful() && ! empty($tools) && $response->status() === 429) {
+                Log::info('Gemini Search Grounding rate limit reached; retrying direct generation without search tool.');
+                unset($payload['tools']);
+                $response = Http::acceptJson()
+                    ->asJson()
+                    ->withHeaders(['x-goog-api-key' => $this->apiKey()])
+                    ->timeout(max(1, (int) config('urban_goodz_ai.request_timeout', 30)))
+                    ->post($this->endpoint(), $payload);
+            }
 
             if (! $response->successful()) {
+                $status = $response->status();
+                $errorCode = match ($status) {
+                    429 => 'rate_limit_exceeded',
+                    404 => 'model_not_found',
+                    401, 403 => 'authentication_failure',
+                    500, 502, 503, 504 => 'provider_unavailable',
+                    default => 'provider_error',
+                };
+
                 Log::warning('UrbanGoodz AI provider request failed.', [
                     'provider' => $this->name(),
-                    'status' => $response->status(),
+                    'status' => $status,
+                    'error_code' => $errorCode,
                     'provider_request_id' => $response->header('x-request-id'),
                 ]);
 
                 return $this->failure(
                     'AI assistance could not process this request. No action was taken.',
-                    'provider_error'
+                    $errorCode
                 );
             }
 
@@ -104,12 +134,33 @@ class GeminiProvider extends AbstractAIProvider
                 ->filter(fn ($part) => is_string($part))
                 ->implode(''));
 
-            return $content !== ''
-                ? $this->success($content)
-                : $this->failure(
+            if ($content === '') {
+                return $this->failure(
                     'AI assistance returned no usable response. No action was taken.',
                     'empty_provider_response'
                 );
+            }
+
+            $successResult = $this->success($content);
+
+            // Extract Google Search citations if available
+            $groundingMetadata = data_get($response->json(), 'candidates.0.groundingMetadata', []);
+            $citations = [];
+            if (! empty($groundingMetadata['groundingChunks'])) {
+                foreach ($groundingMetadata['groundingChunks'] as $chunk) {
+                    if (! empty($chunk['web']['uri'])) {
+                        $citations[] = [
+                            'title' => $chunk['web']['title'] ?? '',
+                            'url' => $chunk['web']['uri'],
+                        ];
+                    }
+                }
+            }
+            if (! empty($citations)) {
+                $successResult['citations'] = $citations;
+            }
+
+            return $successResult;
         } catch (\Throwable $exception) {
             Log::warning('UrbanGoodz AI provider is unavailable.', [
                 'provider' => $this->name(),
@@ -135,7 +186,7 @@ class GeminiProvider extends AbstractAIProvider
         );
 
         return $this->healthResult(
-            $result['success'] && trim(strtoupper($result['response'])) === 'OK',
+            $result['success'] && str_contains(strtoupper($result['response'] ?? ''), 'OK'),
             $result['success'] ? null : $result['error_code']
         );
     }

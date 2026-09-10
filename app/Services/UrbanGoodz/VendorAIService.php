@@ -606,4 +606,183 @@ Return JSON:
 
         return max(1, min(100, $score));
     }
+
+    /**
+     * Real, deterministic catalog issues (out of stock, missing photos,
+     * stale listings) — the Vendor AI Assistant screen previously called an
+     * endpoint that did not exist anywhere in the backend. No AI narrative
+     * here: these are facts about the vendor's own items, not judgment
+     * calls, so fabricating an LLM opinion on top would add nothing real.
+     */
+    public function catalogSuggestions(int $vendorId): array
+    {
+        $vendor = Vendor::findOrFail($vendorId);
+        $storeIds = $vendor->stores()->pluck('stores.id')->toArray();
+
+        $suggestions = [];
+
+        $outOfStock = \App\Models\Item::whereIn('store_id', $storeIds)
+            ->where('status', 1)
+            ->where('stock', 0)
+            ->select('id', 'name')
+            ->limit(25)
+            ->get();
+        foreach ($outOfStock as $item) {
+            $suggestions[] = [
+                'item_id' => $item->id,
+                'item_name' => $item->name,
+                'type' => 'out_of_stock',
+                'message' => "\"{$item->name}\" is out of stock and still shown as active.",
+                'severity' => 'high',
+            ];
+        }
+
+        $missingImage = \App\Models\Item::whereIn('store_id', $storeIds)
+            ->where('status', 1)
+            ->where(function ($q) {
+                $q->whereNull('image')->orWhere('image', '')->orWhere('image', 'def.png');
+            })
+            ->select('id', 'name')
+            ->limit(25)
+            ->get();
+        foreach ($missingImage as $item) {
+            $suggestions[] = [
+                'item_id' => $item->id,
+                'item_name' => $item->name,
+                'type' => 'missing_image',
+                'message' => "\"{$item->name}\" has no product photo.",
+                'severity' => 'medium',
+            ];
+        }
+
+        $staleItemIds = \App\Models\Item::whereIn('store_id', $storeIds)
+            ->where('status', 1)
+            ->where('created_at', '<=', Carbon::now()->subDays(60))
+            ->pluck('id');
+        $recentlyOrderedIds = OrderDetail::whereIn('item_id', $staleItemIds)
+            ->where('created_at', '>=', Carbon::now()->subDays(60))
+            ->distinct()
+            ->pluck('item_id');
+        $stale = \App\Models\Item::whereIn('id', $staleItemIds->diff($recentlyOrderedIds))
+            ->select('id', 'name')
+            ->limit(25)
+            ->get();
+        foreach ($stale as $item) {
+            $suggestions[] = [
+                'item_id' => $item->id,
+                'item_name' => $item->name,
+                'type' => 'no_recent_sales',
+                'message' => "\"{$item->name}\" has had no orders in 60 days.",
+                'severity' => 'low',
+            ];
+        }
+
+        return ['success' => true, 'suggestions' => $suggestions];
+    }
+
+    /**
+     * Real, actionable operational items: orders waiting too long for a
+     * status update, and customer reviews with no vendor reply. Same
+     * fact-based approach as catalogSuggestions() above.
+     */
+    public function recommendedActions(int $vendorId): array
+    {
+        $vendor = Vendor::findOrFail($vendorId);
+        $storeIds = $vendor->stores()->pluck('stores.id')->toArray();
+
+        $actions = [];
+
+        $stalePending = Order::whereIn('store_id', $storeIds)
+            ->where('order_status', 'pending')
+            ->where('created_at', '<=', Carbon::now()->subHours(2))
+            ->select('id', 'created_at')
+            ->limit(25)
+            ->get();
+        foreach ($stalePending as $order) {
+            $actions[] = [
+                'type' => 'stale_pending_order',
+                'target_id' => $order->id,
+                'message' => "Order #{$order->id} has been pending for " . Carbon::parse($order->created_at)->diffForHumans(null, true) . '.',
+                'priority' => 'high',
+            ];
+        }
+
+        $unreplied = Review::whereIn('store_id', $storeIds)
+            ->whereNull('reply')
+            ->where('created_at', '>=', Carbon::now()->subDays(30))
+            ->select('id', 'created_at')
+            ->limit(25)
+            ->get();
+        foreach ($unreplied as $review) {
+            $actions[] = [
+                'type' => 'unreplied_review',
+                'target_id' => $review->id,
+                'message' => "Review #{$review->id} from " . Carbon::parse($review->created_at)->diffForHumans() . ' has no reply yet.',
+                'priority' => 'medium',
+            ];
+        }
+
+        return ['success' => true, 'actions' => $actions];
+    }
+
+    /**
+     * Real wallet/settlement figures from store_wallets — no fabricated
+     * numbers. The vendor app renders whatever keys are present, so this
+     * intentionally returns a flat map matching what an earnings summary
+     * screen needs, not a nested envelope.
+     */
+    public function settlementMetrics(int $vendorId): array
+    {
+        $wallet = StoreWallet::where('vendor_id', $vendorId)->first();
+
+        $pendingWithdrawalTotal = DB::table('withdraw_requests')
+            ->where('vendor_id', $vendorId)
+            ->sum('amount');
+
+        return [
+            'success' => true,
+            'total_earning' => (float) ($wallet->total_earning ?? 0),
+            'total_withdrawn' => (float) ($wallet->total_withdrawn ?? 0),
+            'pending_withdraw' => (float) ($wallet->pending_withdraw ?? 0),
+            'collected_cash' => (float) ($wallet->collected_cash ?? 0),
+            'requested_withdrawal_total' => (float) $pendingWithdrawalTotal,
+            'available_balance' => (float) (($wallet->total_earning ?? 0) - ($wallet->total_withdrawn ?? 0) - ($wallet->pending_withdraw ?? 0)),
+        ];
+    }
+
+    /**
+     * Applies one vendor-initiated catalog change from the AI Assistant
+     * screen. Ownership is enforced (item must belong to one of this
+     * vendor's stores) and only a narrow, safe field set is writable —
+     * this endpoint did not exist before, so there was no prior contract
+     * to preserve; scoping it tightly here rather than allowing arbitrary
+     * mass-assignment is the safe default for a new write endpoint.
+     */
+    public function applyCatalogUpdate(int $vendorId, int $itemId, array $changes): array
+    {
+        $vendor = Vendor::findOrFail($vendorId);
+        $storeIds = $vendor->stores()->pluck('stores.id')->toArray();
+
+        $item = \App\Models\Item::whereIn('store_id', $storeIds)->findOrFail($itemId);
+
+        $allowed = array_intersect_key($changes, array_flip(['price', 'discount', 'discount_type', 'stock', 'status']));
+        if (empty($allowed)) {
+            return ['success' => false, 'error' => 'No supported fields in changes.'];
+        }
+
+        $item->fill($allowed);
+        $item->save();
+
+        return [
+            'success' => true,
+            'item' => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'price' => (float) $item->price,
+                'discount' => (float) $item->discount,
+                'stock' => (int) $item->stock,
+                'status' => (int) $item->status,
+            ],
+        ];
+    }
 }

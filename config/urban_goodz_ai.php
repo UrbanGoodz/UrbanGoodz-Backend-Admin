@@ -18,6 +18,7 @@ return [
     |   docs/urban-goodz/notifications/AI_PROVIDER_SELECTION.md
     */
     'provider' => env('AI_PROVIDER', 'gemini'),
+    'fallback_provider' => env('AI_FALLBACK_PROVIDER', 'openai'),
 
     /*
     | The provider name AIProviderManager::selectionDiagnostics() reports as
@@ -62,11 +63,9 @@ return [
         */
         'gemini' => [
             'api_key' => env('GEMINI_API_KEY', env('GOOGLE_API_KEY')),
-            // gemini-2.5-flash is closed to new API keys ("no longer available
-            // to new users") and 404s on generateContent. 3.6-flash is verified
-            // live against the production key; gemini-flash-latest is the
-            // fallback alias if a specific version is ever retired again.
-            'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
+            // gemini-flash-latest is verified live against the production key;
+            // Google automatically points it to the current stable Flash snapshot.
+            'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
             'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         ],
     ],
@@ -86,5 +85,24 @@ return [
         // (displayed as "Skylar"; env keys below keep their original names).
         'face_id' => env('TAVUS_MONIQUE_FACE_ID'),
         'pal_id' => env('TAVUS_MONIQUE_PAL_ID'),
+    ],
+
+    /*
+    | Monique Chief of Staff Execution & Entitlement Configuration
+    */
+    'execution' => [
+        'default_adapter' => env('AI_EXECUTION_ADAPTER', 'native'),
+        'polsia' => [
+            'api_key' => env('POLSIA_API_KEY'),
+            'endpoint' => env('POLSIA_ENDPOINT', 'https://api.polsia.com/v1'),
+            'timeout' => (int) env('POLSIA_TIMEOUT', 30),
+        ],
+    ],
+
+    'monique_pricing' => [
+        'trial_days' => (int) env('MONIQUE_TRIAL_DAYS', 30),
+        'monthly_fee' => (float) env('MONIQUE_MONTHLY_FEE', 49.00),
+        'post_trial_policy' => env('MONIQUE_POST_TRIAL_POLICY', 'auto_charge'), // 'auto_charge', 'explicit_opt_in', 'auto_disable'
+        'default_auto_continue' => (bool) env('MONIQUE_AUTO_CONTINUE', true),
     ],
 ];

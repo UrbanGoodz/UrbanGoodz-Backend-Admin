@@ -345,6 +345,8 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         $chat = new UrbanGoodzAIChiefOfStaffChatService(
             Mockery::mock(UrbanGoodzAIService::class, ['isConfigured' => false, 'persona' => $persona]),
             app(AiChiefOfStaffService::class),
+            app(\App\Services\UrbanGoodz\UrbanGoodzAIExecutionService::class),
+            app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class),
         );
 
         $conversation = $chat->processQuery('how are we doing', 1, 'D\'Andre Good', 'sky-sess-1');
@@ -388,7 +390,12 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
             })
             ->andReturn(['success' => true, 'response' => 'Nothing urgent right now.', 'error_code' => null]);
 
-        $chat = new UrbanGoodzAIChiefOfStaffChatService($provider, app(AiChiefOfStaffService::class));
+        $chat = new UrbanGoodzAIChiefOfStaffChatService(
+            $provider,
+            app(AiChiefOfStaffService::class),
+            app(\App\Services\UrbanGoodz\UrbanGoodzAIExecutionService::class),
+            app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class),
+        );
         $chat->processQuery('anything urgent?', 7, 'Real Admin', 'shared-id-7');
 
         $this->assertSame([], $capturedHistory);
@@ -412,7 +419,12 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
             })
             ->andReturn(['success' => true, 'response' => 'On it.', 'error_code' => null]);
 
-        $chat = new UrbanGoodzAIChiefOfStaffChatService($provider, app(AiChiefOfStaffService::class));
+        $chat = new UrbanGoodzAIChiefOfStaffChatService(
+            $provider,
+            app(AiChiefOfStaffService::class),
+            app(\App\Services\UrbanGoodz\UrbanGoodzAIExecutionService::class),
+            app(\App\Services\UrbanGoodz\UrbanGoodzOperationalPlanner::class),
+        );
         $conversation = $chat->processQuery('we have an emergency, the site is down', 3, null, 'sky-sess-2');
 
         $this->assertTrue($capturedContext['flagged_as_urgent']);

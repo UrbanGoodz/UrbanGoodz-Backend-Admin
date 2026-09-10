@@ -278,6 +278,11 @@ class ConfigServiceProvider extends ServiceProvider
                         Config::set("urban_goodz_ai.providers.{$provider}.model", $model);
                     }
                 }
+
+                $fallbackProvider = strtolower(trim((string) ($openAi['AI_FALLBACK_PROVIDER'] ?? '')));
+                if (in_array($fallbackProvider, ['openai', 'openrouter', 'gemini', 'disabled'], true)) {
+                    Config::set('urban_goodz_ai.fallback_provider', $fallbackProvider);
+                }
             }
 
             app(\App\Services\UrbanGoodz\AiWorkforceSettingsService::class)->apply();

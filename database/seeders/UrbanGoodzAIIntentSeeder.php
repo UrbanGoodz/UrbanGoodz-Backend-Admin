@@ -110,6 +110,15 @@ class UrbanGoodzAIIntentSeeder extends Seeder
                 'sort_order' => 11,
             ],
             [
+                'slug' => 'operations',
+                'name' => 'Internal Operations',
+                'keywords' => ['failed job', 'retry job', 'queue', 'requeue', 'stuck job', 'clear the queue', 'operational issues'],
+                'response_template' => 'Operational queue actions are available to administrators. Failed jobs can be inspected and retried from the operations view.',
+                'capability_slug' => 'operations',
+                'admin_section_key' => 'operations',
+                'sort_order' => 90,
+            ],
+            [
                 'slug' => 'package-route',
                 'name' => 'Package Route Tracking',
                 'keywords' => ['package route', 'route tracking', 'dedicated route', 'route status', 'delivery route', 'stop tracking'],

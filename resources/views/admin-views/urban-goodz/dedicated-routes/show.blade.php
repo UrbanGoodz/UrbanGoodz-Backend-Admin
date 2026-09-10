@@ -4,6 +4,15 @@
 
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        /* Bootstrap row children are flex items with min-width:auto by
+           default, so a nowrap badge's intrinsic content width (e.g. the
+           Distance Basis label) can force the whole grid wider than the
+           viewport at mobile widths instead of stacking. Scoped to this
+           page's info grid only. */
+        .row.g-2 > [class*="col-"] { min-width: 0; }
+        .row.g-2 .badge { white-space: normal; word-break: break-word; }
+    </style>
 @endpush
 
 @section('content')
@@ -34,7 +43,7 @@
                 <div class="card mb-3">
                     <div class="card-header"><h5>{{ translate('Route Details') }}</h5></div>
                     <div class="card-body">
-                        <div class="row g-2">
+                        <div class="row g-2" style="min-width: 0;">
                             <div class="col-md-4"><strong>{{ translate('Client') }}:</strong> {{ $route->client?->company_name ?? 'N/A' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Type') }}:</strong> {{ ucwords(str_replace('_', ' ', $route->route_type)) }}</div>
                             <div class="col-md-4">
@@ -72,8 +81,8 @@
 
                 <div class="card mb-3">
                     <div class="card-header"><h5>{{ translate('Optimized Stops') }}</h5></div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
+                    <div class="card-body p-0" style="min-width: 0;">
+                        <div class="table-responsive" style="overflow-x: auto; max-width: 100%;">
                             <table class="table table-hover table-borderless table-nowrap mb-0">
                                 <thead class="thead-light">
                                     <tr>
@@ -86,6 +95,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @php $priorityMap = ['normal' => 'secondary', 'high' => 'info', 'urgent' => 'warning', 'medical' => 'danger']; @endphp
                                     @forelse($route->optimizationStops->sortBy('stop_order') as $stop)
                                         <tr>
                                             <td>{{ $stop->stop_order }}</td>
@@ -96,7 +106,6 @@
                                             </td>
                                             <td>{{ $stop->package?->dropoff_name ?? $stop->package?->dropoff_address }}</td>
                                             <td>
-                                                @php $priorityMap = ['normal' => 'secondary', 'high' => 'info', 'urgent' => 'warning', 'medical' => 'danger']; @endphp
                                                 <span class="badge badge-soft-{{ $priorityMap[$stop->package?->priority ?? 'normal'] }}">{{ ucwords($stop->package?->priority ?? 'normal') }}</span>
                                             </td>
                                             <td>{{ ucfirst($stop->package?->status ?? 'pending') }}</td>

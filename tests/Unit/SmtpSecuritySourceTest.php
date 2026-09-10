@@ -11,7 +11,7 @@ class SmtpSecuritySourceTest extends TestCase
         $routes = file_get_contents(__DIR__.'/../../routes/admin.php');
 
         $this->assertStringContainsString("Route::post('send-mail'", $routes);
-        $this->assertStringContainsString("->middleware('throttle:3,1')", $routes);
+        $this->assertStringContainsString("->middleware('throttle:3,1,admin-mail-send')", $routes);
         $this->assertStringNotContainsString("Route::get('send-mail'", $routes);
     }
 

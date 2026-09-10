@@ -186,7 +186,7 @@ class VendorPasswordResetEnumerationTest extends TestCase
 
             $this->assertNotNull($route, "Route {$uri} is missing.");
             $this->assertContains(
-                'throttle:5,1',
+                'throttle:5,1,auth-vendor',
                 $route->gatherMiddleware(),
                 "Rate limiting was dropped from {$uri}."
             );

@@ -246,6 +246,7 @@ class UrbanGoodzAIExecutionService
             'marketplaceSearch'  => $this->executeMarketplaceSearch($params),
             'medicalCourier'     => $this->executeMedicalCourier($params),
             'loadBoard'          => $this->executeLoadBoard($params),
+            'operations'         => $this->executeOperations($params),
             'delivery'           => $this->executeDelivery($params),
             'creatorCommerce'    => $this->executeCreatorCommerce($params),
             'community'          => $this->executeCommunity($params),
@@ -844,8 +845,165 @@ class UrbanGoodzAIExecutionService
 
     // ─── LOAD BOARD ───────────────────────────────────────────────────
 
+    /// Operational load-board actions (accept / reassign / status / cancel /
+    /// review / bid decisions / stats).
+    ///
+    /// Every branch delegates to UrbanGoodzLoadBoardService, which owns the
+    /// business rules and the status state machine. Nothing here duplicates
+    /// that logic. After a mutation the load is re-read from the database and
+    /// the change is checked before reporting success, so a service call that
+    /// silently no-ops is reported as a failure rather than as "Done".
+    private const LOAD_OPERATIONAL_ACTIONS = [
+        'accept_load',
+        'reassign_load',
+        'update_load_status',
+        'cancel_load',
+        'review_load',
+        'accept_load_bid',
+        'reject_load_bid',
+        'get_load_board_stats',
+    ];
+
+    public function executeLoadBoardOperation(array $params): array
+    {
+        $action = $params['_routed_action'] ?? null;
+        $service = app(\App\Services\UrbanGoodz\UrbanGoodzLoadBoardService::class);
+        $actorId = $params['customer_id'] ?? null;
+        $loadId = (int) ($params['load_id'] ?? 0);
+
+        try {
+            if ($action === 'get_load_board_stats') {
+                return $this->buildResult(true, array_merge(
+                    ['message' => 'Load board statistics retrieved.'],
+                    ['stats' => $service->getStats()]
+                ));
+            }
+
+            if ($action === 'accept_load_bid' || $action === 'reject_load_bid') {
+                $bidId = (int) ($params['bid_id'] ?? 0);
+                if ($bidId <= 0 || !$actorId) {
+                    return $this->failedAction($action, 'A bid id and an authenticated actor are required.');
+                }
+                if ($action === 'accept_load_bid') {
+                    $load = $service->acceptBid($bidId, $actorId);
+                    return $load
+                        ? $this->buildResult(true, [
+                            'message' => "Bid {$bidId} accepted. Load {$load->load_number} is now {$load->status}.",
+                            'action' => $action,
+                            'load_id' => $load->id,
+                            'new_state' => $load->status,
+                        ])
+                        : $this->failedAction($action, "Bid {$bidId} could not be accepted.");
+                }
+                return $service->rejectBid($bidId, $actorId)
+                    ? $this->buildResult(true, ['message' => "Bid {$bidId} rejected.", 'action' => $action])
+                    : $this->failedAction($action, "Bid {$bidId} could not be rejected.");
+            }
+
+            if ($loadId <= 0) {
+                return $this->failedAction((string) $action, 'A load id is required for this action.');
+            }
+
+            $before = UrbanGoodzLoadBoardLoad::find($loadId);
+            if (!$before) {
+                return $this->failedAction((string) $action, "Load {$loadId} was not found.");
+            }
+            $previousStatus = $before->status;
+            $previousDriver = $before->assigned_driver_id ?? null;
+
+            $result = match ($action) {
+                'accept_load' => (function () use ($service, $loadId, $params, $actorId) {
+                    $driverId = (int) ($params['driver_id'] ?? 0);
+                    return $driverId > 0 ? $service->acceptLoad($loadId, $driverId, $actorId) : null;
+                })(),
+                'reassign_load' => (function () use ($service, $loadId, $params, $actorId) {
+                    $driverId = (int) ($params['driver_id'] ?? 0);
+                    return $driverId > 0
+                        ? $service->reassignLoad($loadId, $driverId, $actorId, $params['reason'] ?? null)
+                        : null;
+                })(),
+                'update_load_status' => (function () use ($service, $loadId, $params, $actorId, $previousStatus) {
+                    $status = $params['status'] ?? null;
+                    if (!$status || !$service->canTransition($previousStatus, $status)) {
+                        return null;
+                    }
+                    return $service->updateStatus($loadId, $status, $actorId, 'admin', $params['notes'] ?? null);
+                })(),
+                'cancel_load' => $service->updateStatus($loadId, 'cancelled', $actorId, 'admin', $params['reason'] ?? null),
+                'review_load' => (function () use ($service, $loadId, $params, $actorId) {
+                    $decision = $params['decision'] ?? null;
+                    return $decision
+                        ? $service->reviewLoad($loadId, $decision, $actorId, $params['notes'] ?? null)
+                        : null;
+                })(),
+                default => null,
+            };
+
+            if ($result === null) {
+                return $this->failedAction(
+                    (string) $action,
+                    "The load board service did not apply '{$action}' to load {$loadId}. "
+                    . 'Required details may be missing, or the status transition is not permitted.'
+                );
+            }
+
+            // Verification (§20): re-read rather than trusting the return value.
+            $after = UrbanGoodzLoadBoardLoad::find($loadId);
+            if (!$after) {
+                return $this->failedAction((string) $action, "Load {$loadId} could not be re-read to verify the change.");
+            }
+
+            $changed = $after->status !== $previousStatus
+                || ($after->assigned_driver_id ?? null) !== $previousDriver;
+
+            if (!$changed) {
+                return $this->failedAction(
+                    (string) $action,
+                    "No change was recorded on load {$loadId}; it is still '{$after->status}'. Not reporting this as completed."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Load {$after->load_number}: {$previousStatus} -> {$after->status}.",
+                'action' => $action,
+                'load_id' => $after->id,
+                'load_number' => $after->load_number,
+                'previous_state' => $previousStatus,
+                'new_state' => $after->status,
+                'previous_driver_id' => $previousDriver,
+                'new_driver_id' => $after->assigned_driver_id ?? null,
+                'verified' => true,
+            ], [], ['show_load_details' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: load board operation failed', [
+                'action' => $action,
+                'load_id' => $loadId,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction((string) $action, 'The load board service returned an error, so nothing was confirmed.');
+        }
+    }
+
+    /// A failed action result. Kept separate so no operational branch can
+    /// accidentally return success:true with an error message attached.
+    private function failedAction(string $action, string $message): array
+    {
+        return $this->buildResult(false, [
+            'message' => $message,
+            'action' => $action,
+            'verified' => false,
+        ]);
+    }
+
     public function executeLoadBoard(array $params): array
     {
+        // Operational verbs are handled by the delegating executor above;
+        // everything below remains the discovery/search path.
+        if (in_array($params['_routed_action'] ?? '', self::LOAD_OPERATIONAL_ACTIONS, true)) {
+            return $this->executeLoadBoardOperation($params);
+        }
+
         try {
             $nlpService = app(LoadBoardNLPService::class);
             $actionType = $this->determineActionType($params);
@@ -977,8 +1135,362 @@ class UrbanGoodzAIExecutionService
 
     // ─── DELIVERY ─────────────────────────────────────────────────────
 
+    /// Cancels a customer's own order — Skylar's customer-scoped action.
+    ///
+    /// Delegates to Api\V1\OrderController::cancel_order, which owns the rules
+    /// that make a cancellation legitimate: the order must belong to this
+    /// customer, only certain statuses are cancellable, parcel orders go
+    /// through OrderLogic::cancelParcelOrder, and stock is restored. Ownership
+    /// is therefore enforced by the backend against the authenticated user,
+    /// not by anything the AI decides.
+    public function executeOrderCancellation(array $params): array
+    {
+        $orderId = (int) ($params['order_id'] ?? 0);
+        $customerId = $params['customer_id'] ?? null;
+        $reason = $params['reason'] ?? $params['note'] ?? null;
+
+        if ($orderId <= 0 || !$customerId) {
+            return $this->failedAction('cancel_order', 'An order id and an authenticated customer are required.');
+        }
+        if (!$reason) {
+            // The controller rejects a cancellation with neither note nor
+            // reason, so ask rather than invent one.
+            return $this->failedAction('cancel_order', 'A cancellation reason is required before I can cancel this order.');
+        }
+
+        try {
+            $before = Order::withoutGlobalScopes()->where('id', $orderId)->where('user_id', $customerId)->first();
+            if (!$before) {
+                return $this->failedAction('cancel_order', "Order {$orderId} was not found on this account.");
+            }
+            $previousStatus = $before->order_status;
+
+            $request = new \Illuminate\Http\Request();
+            $request->merge(['order_id' => $orderId, 'reason' => $reason]);
+            $user = User::find($customerId);
+            $request->user = $user;
+            $request->setUserResolver(fn () => $user);
+
+            $response = app(\App\Http\Controllers\Api\V1\OrderController::class)->cancel_order($request);
+            $status = method_exists($response, 'getStatusCode') ? $response->getStatusCode() : 500;
+
+            if ($status !== 200) {
+                $payload = method_exists($response, 'getData') ? $response->getData(true) : [];
+                $msg = $payload['errors'][0]['message'] ?? "Order {$orderId} could not be cancelled.";
+                return $this->failedAction('cancel_order', $msg);
+            }
+
+            // Verification (§20).
+            $after = Order::withoutGlobalScopes()->find($orderId);
+            if (!$after || $after->order_status === $previousStatus) {
+                return $this->failedAction(
+                    'cancel_order',
+                    "Order {$orderId} is still '{$previousStatus}', so I am not reporting it as cancelled."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Order {$orderId} was cancelled.",
+                'action' => 'cancel_order',
+                'order_id' => $orderId,
+                'previous_state' => $previousStatus,
+                'new_state' => $after->order_status,
+                'verified' => true,
+            ], [], ['show_order_details' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: order cancellation failed', [
+                'order_id' => $orderId,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('cancel_order', 'The order service returned an error, so nothing was confirmed.');
+        }
+    }
+
+    /// Executes a plan produced by UrbanGoodzOperationalPlanner.
+    ///
+    /// Each step runs through the same authorization the registry applies to a
+    /// single action - planning a step never grants it - and each result keeps
+    /// whatever the individual executor verified. A step that fails does not
+    /// abort the batch: the remaining work is still attempted and the caller
+    /// gets an exact per-step tally, because "2 of 3 completed, 1 failed" is
+    /// the truthful answer and "done" would not be.
+    ///
+    /// @param array<int,array<string,mixed>> $steps
+    public function executePlan(array $steps, ?int $actorId, string $actorRole = 'admin'): array
+    {
+        $executed = [];
+        $failed = [];
+
+        foreach ($steps as $step) {
+            $action = $step['action'] ?? null;
+            $module = $step['module'] ?? null;
+            $params = $step['params'] ?? [];
+
+            if (!$action || !$module) {
+                $failed[] = ['label' => $step['label'] ?? 'unknown step', 'reason' => 'Malformed plan step.'];
+                continue;
+            }
+
+            $validation = $this->actionRegistry->validateUserCanExecute($module, $action, $actorId, $actorRole);
+            if (!($validation['allowed'] ?? false)) {
+                $failed[] = [
+                    'label' => $step['label'] ?? $action,
+                    'action' => $action,
+                    'reason' => $validation['reason'] ?? 'Not authorized.',
+                ];
+                continue;
+            }
+
+            $params['customer_id'] = $actorId;
+            $params['_actor_role'] = $actorRole;
+
+            $result = match ($module) {
+                'delivery' => $this->executeDelivery($params),
+                'operations' => $this->executeOperations($params),
+                'loadBoard' => $this->executeLoadBoard($params),
+                default => $this->failedAction($action, "No executor for module '{$module}'."),
+            };
+
+            if ($result['success'] ?? false) {
+                $executed[] = [
+                    'label' => $step['label'] ?? $action,
+                    'action' => $action,
+                    'outcome' => $result['message'] ?? null,
+                    'verified' => $result['verified'] ?? false,
+                ];
+            } else {
+                $failed[] = [
+                    'label' => $step['label'] ?? $action,
+                    'action' => $action,
+                    'reason' => $result['message'] ?? 'Failed.',
+                ];
+            }
+        }
+
+        $total = count($executed) + count($failed);
+
+        return $this->buildResult(count($failed) === 0 && $total > 0, [
+            'message' => $this->planSummaryMessage(count($executed), count($failed), $total),
+            'action' => 'execute_plan',
+            'executed' => $executed,
+            'failed' => $failed,
+            'executed_count' => count($executed),
+            'failed_count' => count($failed),
+            'verified' => count($executed) > 0 && !array_filter($executed, fn ($e) => !$e['verified']),
+        ]);
+    }
+
+    private function planSummaryMessage(int $executed, int $failed, int $total): string
+    {
+        if ($total === 0) {
+            return 'There was nothing to do.';
+        }
+        if ($failed === 0) {
+            return "{$executed} of {$total} actions completed.";
+        }
+        return "{$executed} of {$total} actions completed; {$failed} failed.";
+    }
+
+    /// Operations module dispatcher.
+    public function executeOperations(array $params): array
+    {
+        return match ($params['_routed_action'] ?? null) {
+            'get_out_of_stock_by_store' => $this->executeOutOfStockByStore($params),
+            default => $this->executeQueueRetry($params),
+        };
+    }
+
+    /// Breaks the out-of-stock count down by store.
+    ///
+    /// The executive brief reports "N active items currently out of stock"
+    /// from `DB::table('items')->where('status',1)->where('stock','<=',0)`.
+    /// Monique used to answer the obvious follow-up - which stores? - with
+    /// "the current application data does not include store-level details",
+    /// which was simply untrue: `items.store_id` exists and is indexed. This
+    /// groups the same rows behind the same aggregate, so the totals reconcile
+    /// with the brief by construction.
+    public function executeOutOfStockByStore(array $params): array
+    {
+        try {
+            $limit = (int) ($params['limit'] ?? 20);
+            $limit = $limit > 0 && $limit <= 100 ? $limit : 20;
+
+            $total = DB::table('items')->where('status', 1)->where('stock', '<=', 0)->count();
+
+            $rows = DB::table('items')
+                ->leftJoin('stores', 'stores.id', '=', 'items.store_id')
+                ->where('items.status', 1)
+                ->where('items.stock', '<=', 0)
+                ->groupBy('items.store_id', 'stores.name')
+                ->orderByDesc(DB::raw('COUNT(items.id)'))
+                ->limit($limit)
+                ->get([
+                    'items.store_id',
+                    'stores.name as store_name',
+                    DB::raw('COUNT(items.id) as out_of_stock_count'),
+                ]);
+
+            $stores = $rows->map(fn ($r) => [
+                'store_id' => $r->store_id,
+                'store_name' => $r->store_name ?? "Store #{$r->store_id}",
+                'out_of_stock_count' => (int) $r->out_of_stock_count,
+            ])->all();
+
+            $distinctStores = DB::table('items')
+                ->where('status', 1)->where('stock', '<=', 0)
+                ->distinct()->count('store_id');
+
+            return $this->buildResult(true, [
+                'message' => $total === 0
+                    ? 'No active items are currently out of stock.'
+                    : "{$total} out-of-stock items across {$distinctStores} stores.",
+                'action' => 'get_out_of_stock_by_store',
+                'total_out_of_stock' => $total,
+                'store_count' => $distinctStores,
+                'stores' => $stores,
+                'verified' => true,
+            ], [], ['show_inventory_breakdown' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: out-of-stock breakdown failed', [
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('get_out_of_stock_by_store', 'The inventory query failed, so no breakdown is available.');
+        }
+    }
+
+    /// Retries a failed queue job.
+    ///
+    /// Uses Laravel's own `queue:retry`, which is the authoritative mechanism -
+    /// it re-pushes the payload onto the original queue and removes the
+    /// failed_jobs row. Deleting the row directly would clear the alert
+    /// without the work ever being retried, which is exactly the kind of
+    /// false completion this layer exists to prevent.
+    public function executeQueueRetry(array $params): array
+    {
+        $uuid = $params['job_uuid'] ?? null;
+
+        if (!$uuid) {
+            return $this->failedAction('retry_queue_job', 'A failed job id is required.');
+        }
+
+        try {
+            $existed = DB::table('failed_jobs')->where('uuid', $uuid)->exists();
+            if (!$existed) {
+                return $this->failedAction('retry_queue_job', "Failed job {$uuid} was not found; it may already have been retried.");
+            }
+
+            \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => [$uuid]]);
+
+            // Verification (§20): queue:retry removes the row on success.
+            $stillFailed = DB::table('failed_jobs')->where('uuid', $uuid)->exists();
+            if ($stillFailed) {
+                return $this->failedAction(
+                    'retry_queue_job',
+                    "Job {$uuid} is still in the failed queue, so it has not been retried."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Failed job {$uuid} was re-queued.",
+                'action' => 'retry_queue_job',
+                'job_uuid' => $uuid,
+                'previous_state' => 'failed',
+                'new_state' => 'queued',
+                'verified' => true,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: queue retry failed', [
+                'job_uuid' => $uuid,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('retry_queue_job', 'The queue service returned an error, so nothing was confirmed.');
+        }
+    }
+
+    /// Assigns a courier to an order.
+    ///
+    /// Delegates to OrderController::add_delivery_man rather than writing
+    /// delivery_man_id directly. That method owns the rules that matter -
+    /// the driver must be available and active, the max-orders cap is
+    /// enforced, pending/confirmed transitions to accepted, the driver's
+    /// current_orders and assigned_order_count are incremented, and the
+    /// customer is notified. Setting the column here would skip all of it.
+    public function executeOrderAssignment(array $params): array
+    {
+        $orderId = (int) ($params['order_id'] ?? 0);
+        $driverId = (int) ($params['driver_id'] ?? 0);
+
+        if ($orderId <= 0 || $driverId <= 0) {
+            return $this->failedAction('assign_order', 'Both an order id and a courier id are required.');
+        }
+
+        try {
+            $before = Order::withoutGlobalScopes()->find($orderId);
+            if (!$before) {
+                return $this->failedAction('assign_order', "Order {$orderId} was not found.");
+            }
+            $previousDriver = $before->delivery_man_id;
+            $previousStatus = $before->order_status;
+
+            /** @var \Illuminate\Http\JsonResponse $response */
+            $response = app(\App\Http\Controllers\Admin\OrderController::class)
+                ->add_delivery_man($orderId, $driverId);
+
+            $status = method_exists($response, 'getStatusCode') ? $response->getStatusCode() : 500;
+
+            if ($status !== 200) {
+                $payload = method_exists($response, 'getData') ? $response->getData(true) : [];
+                return $this->failedAction(
+                    'assign_order',
+                    $payload['message'] ?? "The assignment was rejected for order {$orderId}."
+                );
+            }
+
+            // Verification (§20): confirm against the database.
+            $after = Order::withoutGlobalScopes()->find($orderId);
+            if (!$after || (int) $after->delivery_man_id !== $driverId) {
+                return $this->failedAction(
+                    'assign_order',
+                    "Order {$orderId} does not show courier {$driverId} assigned after the call, so this is not being reported as completed."
+                );
+            }
+
+            return $this->buildResult(true, [
+                'message' => "Order {$orderId} assigned to courier {$driverId}.",
+                'action' => 'assign_order',
+                'order_id' => $orderId,
+                'previous_driver_id' => $previousDriver,
+                'new_driver_id' => (int) $after->delivery_man_id,
+                'previous_state' => $previousStatus,
+                'new_state' => $after->order_status,
+                'verified' => true,
+            ], [], ['show_order_details' => true]);
+
+        } catch (\Throwable $e) {
+            Log::error('UrbanGoodzAIExecutionService: order assignment failed', [
+                'order_id' => $orderId,
+                'driver_id' => $driverId,
+                'exception' => $e::class,
+            ]);
+            return $this->failedAction('assign_order', 'The assignment service returned an error, so nothing was confirmed.');
+        }
+    }
+
     public function executeDelivery(array $params): array
     {
+        return match ($params['_routed_action'] ?? null) {
+            'assign_order' => $this->executeOrderAssignment($params),
+            'cancel_order' => $this->executeOrderCancellation($params),
+            default => $this->executeDeliveryLookup($params),
+        };
+    }
+
+    private function executeDeliveryLookup(array $params): array
+    {
+
         try {
             $orderId = $params['order_id'] ?? $params['request_id'] ?? null;
             $orderNumber = $params['order_number'] ?? null;

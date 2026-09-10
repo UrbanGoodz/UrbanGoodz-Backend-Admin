@@ -198,6 +198,133 @@ class AllowedActionRegistry
             'max_retries' => 3,
             'timeout_seconds' => 30,
         ],
+
+        // ── Load board OPERATIONAL actions ────────────────────────────
+        // Everything below delegates to UrbanGoodzLoadBoardService, which
+        // already owns the business logic and the status state machine
+        // (canTransition). Nothing here reimplements it. Before these were
+        // registered the load board was read-only to the Digital Humans:
+        // they could search, view, post and bid, but could not accept,
+        // assign, dispatch or cancel — which is why Monique could brief on
+        // operational problems but never resolve them.
+        //
+        // All of them commit the business to work, so every one requires
+        // confirmation; cancellation additionally requires human review.
+        'accept_load' => [
+            'roles' => ['admin', 'dispatcher', 'driver'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'reassign_load' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'update_load_status' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'cancel_load' => [
+            'roles' => ['admin'],
+            'requires_confirmation' => true,
+            'requires_human_review' => true,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'review_load' => [
+            'roles' => ['admin'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'accept_load_bid' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'reject_load_bid' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'get_load_board_stats' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => false,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 3,
+            'timeout_seconds' => 15,
+        ],
+
+        // ── Order operations ─────────────────────────────────────────
+        // Assigning a courier commits a driver to work and notifies the
+        // customer, so it is confirmation-gated. Execution delegates to
+        // OrderController::add_delivery_man rather than setting
+        // delivery_man_id directly, so the availability check, the
+        // max-orders cap, the status transition, the driver counters and
+        // the push notification all still happen.
+        'cancel_order' => [
+            'roles' => ['customer', 'admin'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+        'assign_order' => [
+            'roles' => ['admin', 'dispatcher'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 30,
+        ],
+
+        // ── Queue operations ─────────────────────────────────────────
+        // Retrying a failed job re-runs whatever side effects that job has,
+        // so it is admin-only and confirmation-gated.
+        'retry_queue_job' => [
+            'roles' => ['admin'],
+            'requires_confirmation' => true,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 1,
+            'timeout_seconds' => 60,
+        ],
+
+        // ── Inventory reads ──────────────────────────────────────────
+        // A read, so no confirmation. Vendors are included because a vendor
+        // asking which of their own items are out of stock is legitimate;
+        // scoping to their own store is the executor's job, not the
+        // registry's.
+        'get_out_of_stock_by_store' => [
+            'roles' => ['admin', 'dispatcher', 'vendor'],
+            'requires_confirmation' => false,
+            'requires_human_review' => false,
+            'idempotent' => true,
+            'max_retries' => 3,
+            'timeout_seconds' => 20,
+        ],
+
         'track_delivery' => [
             'roles' => ['customer', 'driver', 'admin', 'vendor', 'business_client'],
             'requires_confirmation' => false,
@@ -468,6 +595,18 @@ class AllowedActionRegistry
             'vendor' => Vendor::whereKey($userId)->exists(),
             'business_client' => UrbanGoodzBusinessClientUser::whereKey($userId)->exists(),
             'customer' => User::whereKey($userId)->exists(),
+            // A dispatcher is not its own identity table. The dispatcher
+            // portal authenticates on the `business` guard
+            // (UrbanGoodzBusinessClientUser, see DispatcherPortalController's
+            // ['business','dispatcher'] middleware) while the dispatcher AI
+            // API routes authenticate on `auth:admin`. Accept either.
+            //
+            // Without this arm the match fell through to `default => false`,
+            // so passing actorRole='dispatcher' was rejected with
+            // "Authenticated dispatcher record was not found" and every one of
+            // the dispatcher-gated actions was permanently unreachable.
+            'dispatcher' => Admin::whereKey($userId)->exists()
+                || UrbanGoodzBusinessClientUser::whereKey($userId)->exists(),
             default => false,
         };
     }
@@ -510,6 +649,18 @@ class AllowedActionRegistry
             'get_load_board_load' => ['load-board'],
             'post_load_to_board' => ['load-board'],
             'bid_on_load' => ['load-board'],
+            'accept_load' => ['load-board'],
+            'reassign_load' => ['load-board'],
+            'update_load_status' => ['load-board'],
+            'cancel_load' => ['load-board'],
+            'review_load' => ['load-board'],
+            'accept_load_bid' => ['load-board'],
+            'reject_load_bid' => ['load-board'],
+            'get_load_board_stats' => ['load-board'],
+            'assign_order' => ['delivery'],
+            'cancel_order' => ['delivery'],
+            'retry_queue_job' => ['operations'],
+            'get_out_of_stock_by_store' => ['operations'],
             'track_delivery' => ['delivery'],
             'get_delivery_status' => ['delivery'],
             'create_delivery_request' => ['delivery'],

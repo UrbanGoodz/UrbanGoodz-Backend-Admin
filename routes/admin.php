@@ -1177,10 +1177,10 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('mail-config', 'BusinessSettingsController@mail_config');
                 Route::post('mail-config-status', 'BusinessSettingsController@mail_config_status')->name('mail-config-status');
                 Route::post('send-mail', 'BusinessSettingsController@send_mail')
-                    ->middleware('throttle:3,1')
+                    ->middleware('throttle:3,1,admin-mail-send')
                     ->name('mail.send');
                 Route::get('mail-diagnostics', 'BusinessSettingsController@mail_diagnostics')
-                    ->middleware('throttle:12,1')
+                    ->middleware('throttle:12,1,admin-mail-diagnostics')
                     ->name('mail.diagnostics');
                 // social media login
                 Route::group(['prefix' => 'social-login', 'as' => 'social-login.'], function () {

@@ -20,7 +20,7 @@ class SupportAIRoleIsolationTest extends TestCase
             $this->assertTrue(class_exists($class), "Missing controller {$class}");
             $this->assertTrue(method_exists($class, $method), "Missing action {$class}@{$method}");
             $this->assertContains('auth:api', $route->gatherMiddleware());
-            $this->assertContains('throttle:60,1', $route->gatherMiddleware());
+            $this->assertContains('throttle:60,1,ug-support-ai', $route->gatherMiddleware());
         }
     }
 

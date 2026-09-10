@@ -62,16 +62,23 @@ class BusinessAiLogisticsController extends Controller
         }
     }
 
+    // ai_action_logs is the copilot-recommendation audit trail (columns:
+    // action_taken, module, affected_user_type/id, reason, before/after
+    // value), not a generic action-type/description/metadata log. Mapped
+    // onto its real columns rather than the shape this method used to
+    // assume; recommendation_id stays null for actions not tied to one.
     protected function logAction(string $actionType, string $description, array $metadata = []): void
     {
         try {
             DB::table('ai_action_logs')->insert([
-                'action_type' => $actionType,
-                'description' => $description,
-                'admin_id' => null,
+                'action_taken' => $actionType,
+                'module' => 'business_ai_logistics',
+                'affected_user_type' => 'business_client_user',
+                'affected_user_id' => auth('business')->id(),
+                'reason' => $description,
+                'after_value' => json_encode($metadata),
+                'automation_mode' => 'manual',
                 'business_client_id' => $this->getClientId(),
-                'business_user_id' => auth('business')->id(),
-                'metadata' => json_encode($metadata),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -95,14 +102,14 @@ class BusinessAiLogisticsController extends Controller
             // KPIs
             'total_loads' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)->count(),
             'active_loads' => UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
-                ->whereIn('status', ['open', 'assigned', 'in_transit'])->count(),
+                ->whereIn('status', ['available', 'assigned', 'in_transit'])->count(),
             'pool_packages' => UrbanGoodzRoutePackage::where('business_client_id', $clientId)
                 ->whereIn('status', ['pending', 'queued', 'awaiting_assignment'])->count(),
             'active_routes' => UrbanGoodzDedicatedRoute::where('business_client_id', $clientId)
                 ->whereIn('status', ['active', 'in_progress'])->count(),
             'available_drivers' => DeliveryMan::where('business_client_id', $clientId)
                 ->where('active', 1)->where('application_status', 'approved')->count(),
-            'pending_dispatches' => AiDispatch::forClient($clientId)->pending()->count(),
+            'pending_dispatches' => AiDispatch::forBusinessClient($clientId)->pendingOffers()->count(),
             'pending_exceptions' => UrbanGoodzRoutePackage::where('business_client_id', $clientId)
                 ->where('status', 'exception')->count(),
             'unpaid_invoices' => UrbanGoodzClientInvoice::where('business_client_id', $clientId)
@@ -116,7 +123,7 @@ class BusinessAiLogisticsController extends Controller
                 ->get(),
 
             // Recent dispatches
-            'recent_dispatches' => AiDispatch::forClient($clientId)
+            'recent_dispatches' => AiDispatch::forBusinessClient($clientId)
                 ->with(['driver', 'load'])
                 ->latest()
                 ->take(5)
@@ -149,7 +156,7 @@ class BusinessAiLogisticsController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('reference_number', 'like', "%{$search}%")
+                $q->where('load_number', 'like', "%{$search}%")
                   ->orWhere('origin_city', 'like', "%{$search}%")
                   ->orWhere('destination_city', 'like', "%{$search}%");
             });
@@ -179,31 +186,29 @@ class BusinessAiLogisticsController extends Controller
         $clientId = $this->getClientId();
 
         $data = $request->validate([
-            'origin_address' => 'required|string|max:255',
+            'origin_name' => 'required|string|max:255',
             'origin_city' => 'required|string|max:100',
             'origin_state' => 'required|string|max:2',
-            'destination_address' => 'required|string|max:255',
+            'destination_name' => 'required|string|max:255',
             'destination_city' => 'required|string|max:100',
             'destination_state' => 'required|string|max:2',
-            'pickup_date' => 'required|date',
-            'delivery_date' => 'required|date|after_or_equal:pickup_date',
-            'vehicle_type' => 'required|string',
+            'origin_ready_at' => 'required|date',
+            'destination_due_at' => 'required|date|after_or_equal:origin_ready_at',
+            'equipment_type' => 'required|string',
             'weight_lbs' => 'nullable|numeric|min:0',
             'distance_miles' => 'nullable|numeric|min:0',
-            'rate' => 'nullable|numeric|min:0',
-            'description' => 'nullable|string|max:1000',
-            'special_instructions' => 'nullable|string|max:1000',
+            'payout_amount' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string|max:1000',
+            'special_requirements' => 'nullable|string|max:1000',
         ]);
 
         $load = UrbanGoodzLoadBoardLoad::create(array_merge($data, [
             'business_client_id' => $clientId,
-            'reference_number' => 'LB-' . strtoupper(substr(md5(uniqid()), 0, 8)),
-            'status' => 'open',
-            'posted_by' => auth('business')->id(),
-            'posted_at' => now(),
+            'load_number' => 'LB-' . strtoupper(substr(md5(uniqid()), 0, 8)),
+            'status' => 'available',
         ]));
 
-        $this->logAction('load_board_create', "Created load board posting {$load->reference_number}", [
+        $this->logAction('load_board_create', "Created load board posting {$load->load_number}", [
             'load_id' => $load->id,
         ]);
 
@@ -224,7 +229,7 @@ class BusinessAiLogisticsController extends Controller
             ->where('active', 1)->where('application_status', 'approved')->get();
 
         $dispatches = AiDispatch::where('load_id', $id)
-            ->forClient($clientId)
+            ->forBusinessClient($clientId)
             ->with('driver')
             ->latest()
             ->get();
@@ -241,10 +246,7 @@ class BusinessAiLogisticsController extends Controller
         $this->requirePermission('ai_logistics');
         $clientId = $this->getClientId();
 
-        $sources = DB::table('load_sourcing_sources')
-            ->where('business_client_id', $clientId)
-            ->orWhereNull('business_client_id')
-            ->get();
+        $sources = DB::table('load_sources')->where('enabled', 1)->get();
 
         $externalLoads = DB::table('external_loads')
             ->where('business_client_id', $clientId)
@@ -256,14 +258,14 @@ class BusinessAiLogisticsController extends Controller
             ->where('status', 'available')
             ->count();
 
-        $fleetMatchCount = DB::table('external_loads')
-            ->where('business_client_id', $clientId)
-            ->where('fleet_match', true)
-            ->count();
+        // No fleet-matching logic exists anywhere in this codebase — no
+        // stored column, no computed comparison against the client's own
+        // vehicle types. Reporting 0 rather than fabricating a match.
+        $fleetMatchCount = 0;
 
         $savedSearchCount = \App\Models\DispatcherSavedSearch::where('dispatch_company_id', $clientId)->count();
 
-        $activeDispatchCount = \App\Models\AiDispatch::forClient($clientId)
+        $activeDispatchCount = \App\Models\AiDispatch::forBusinessClient($clientId)
             ->whereIn('status', ['pending', 'accepted', 'in_progress'])
             ->count();
 
@@ -313,7 +315,7 @@ class BusinessAiLogisticsController extends Controller
         $clientId = $this->getClientId();
 
         $recentLoads = UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
-            ->whereNotNull('rate')
+            ->whereNotNull('payout_amount')
             ->latest()
             ->take(50)
             ->get();
@@ -323,7 +325,7 @@ class BusinessAiLogisticsController extends Controller
             return ($load->origin_state ?? '?') . ' → ' . ($load->destination_state ?? '?');
         });
         foreach ($grouped as $lane => $loads) {
-            $rates = $loads->pluck('rate')->filter();
+            $rates = $loads->pluck('payout_amount')->filter();
             $laneAnalysis[] = [
                 'lane' => $lane,
                 'count' => $loads->count(),
@@ -353,14 +355,14 @@ class BusinessAiLogisticsController extends Controller
         $historicalLoads = UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
             ->where('origin_state', $data['origin_state'])
             ->where('destination_state', $data['destination_state'])
-            ->whereNotNull('rate')
+            ->whereNotNull('payout_amount')
             ->latest()
             ->take(20)
             ->get();
 
-        $avgRate = $historicalLoads->pluck('rate')->avg() ?: 0;
+        $avgRate = $historicalLoads->pluck('payout_amount')->avg() ?: 0;
         $avgRatePerMile = $data['distance_miles'] > 0 && $historicalLoads->count() > 0
-            ? $historicalLoads->avg(function ($l) { return $l->distance_miles > 0 ? $l->rate / $l->distance_miles : 0; })
+            ? $historicalLoads->avg(function ($l) { return $l->distance_miles > 0 ? $l->payout_amount / $l->distance_miles : 0; })
             : 2.50;
 
         $recommended = round($avgRatePerMile * $data['distance_miles'], 2);
@@ -411,7 +413,7 @@ class BusinessAiLogisticsController extends Controller
             });
 
         $openLoads = UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
-            ->where('status', 'open')
+            ->where('status', 'available')
             ->latest()
             ->get();
 
@@ -447,7 +449,7 @@ class BusinessAiLogisticsController extends Controller
             ])->toArray()
         );
 
-        $this->logAction('driver_match', "AI driver matching for load {$load->reference_number}", [
+        $this->logAction('driver_match', "AI driver matching for load {$load->load_number}", [
             'load_id' => $load->id,
             'result' => $matchResult,
         ]);
@@ -471,7 +473,7 @@ class BusinessAiLogisticsController extends Controller
             ->get();
 
         $loads = UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
-            ->where('status', 'open')
+            ->where('status', 'available')
             ->latest()
             ->get();
 
@@ -517,7 +519,7 @@ class BusinessAiLogisticsController extends Controller
 
         $dispatch = app(\App\Services\UrbanGoodzAiDispatchService::class)->createAndSend($payload);
 
-        $this->logAction('driver_dispatch', "Dispatched driver {$driver->f_name} {$driver->l_name} to load {$load->reference_number}", [
+        $this->logAction('driver_dispatch', "Dispatched driver {$driver->f_name} {$driver->l_name} to load {$load->load_number}", [
             'dispatch_id' => $dispatch->id,
             'driver_id' => $driver->id,
             'load_id' => $load->id,
@@ -656,11 +658,16 @@ class BusinessAiLogisticsController extends Controller
             ->latest()
             ->paginate(15);
 
-        $driverExceptions = DB::table('driver_exception_reports')
-            ->where('business_client_id', $clientId)
-            ->where('resolved', false)
-            ->latest()
-            ->get();
+        // driver_exception_reports has no migration anywhere in this codebase
+        // and no other consumer — driver-side exception reporting was never
+        // built. Degrade to empty rather than 500 until that feature exists.
+        $driverExceptions = \Illuminate\Support\Facades\Schema::hasTable('driver_exception_reports')
+            ? DB::table('driver_exception_reports')
+                ->where('business_client_id', $clientId)
+                ->where('resolved', false)
+                ->latest()
+                ->get()
+            : collect();
 
         return view('business.ai-logistics.exceptions.index', compact('exceptions', 'driverExceptions'));
     }
@@ -755,16 +762,16 @@ class BusinessAiLogisticsController extends Controller
 
         $loads = UrbanGoodzLoadBoardLoad::where('business_client_id', $clientId)
             ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('rate')
+            ->whereNotNull('payout_amount')
             ->get();
 
-        $totalRevenue = $loads->sum('rate');
-        $totalCost = $invoices->sum('total_amount');
+        $totalRevenue = $loads->sum('payout_amount');
+        $totalCost = $invoices->sum('total');
         $margin = $totalRevenue > 0 ? round(($totalRevenue - $totalCost) / $totalRevenue * 100, 1) : 0;
 
         $costByMonth = $invoices->groupBy(function ($inv) {
             return $inv->created_at->format('Y-m');
-        })->map(fn($group) => $group->sum('total_amount'));
+        })->map(fn($group) => $group->sum('total'));
 
         return view('business.ai-logistics.cost-analysis.index', compact(
             'invoices', 'loads', 'totalRevenue', 'totalCost', 'margin',
@@ -808,11 +815,11 @@ class BusinessAiLogisticsController extends Controller
 
         $unpaidTotal = UrbanGoodzClientInvoice::where('business_client_id', $clientId)
             ->where('status', 'unpaid')
-            ->sum('total_amount');
+            ->sum('total');
 
         $paidTotal = UrbanGoodzClientInvoice::where('business_client_id', $clientId)
             ->where('status', 'paid')
-            ->sum('total_amount');
+            ->sum('total');
 
         $overdueCount = UrbanGoodzClientInvoice::where('business_client_id', $clientId)
             ->where('status', 'unpaid')
@@ -960,7 +967,7 @@ class BusinessAiLogisticsController extends Controller
             ->where('business_client_id', $clientId);
 
         if ($request->filled('action_type')) {
-            $query->where('action_type', $request->action_type);
+            $query->where('action_taken', $request->action_type);
         }
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -974,7 +981,7 @@ class BusinessAiLogisticsController extends Controller
         $actionTypes = DB::table('ai_action_logs')
             ->where('business_client_id', $clientId)
             ->distinct()
-            ->pluck('action_type');
+            ->pluck('action_taken');
 
         return view('business.ai-logistics.audit-log.index', compact('logs', 'actionTypes'));
     }
@@ -1001,7 +1008,7 @@ class BusinessAiLogisticsController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('id', $s)
-                  ->orWhereHas('load', fn($l) => $l->where('reference_number', 'like', "%{$s}%"));
+                  ->orWhereHas('load', fn($l) => $l->where('load_number', 'like', "%{$s}%"));
             });
         }
 
@@ -1011,7 +1018,16 @@ class BusinessAiLogisticsController extends Controller
             ->where('active', 1)->where('application_status', 'approved')
             ->get(['id', 'f_name', 'l_name']);
 
-        return view('business.ai-logistics.dispatches.index', compact('dispatches', 'statuses', 'drivers'));
+        $statsBase = AiDispatch::where('business_client_id', $clientId);
+        $stats = [
+            'total' => (clone $statsBase)->count(),
+            'pending' => (clone $statsBase)->where('status', AiDispatch::STATUS_PENDING_DRIVER)->count(),
+            'sent' => (clone $statsBase)->where('status', AiDispatch::STATUS_SENT)->count(),
+            'accepted' => (clone $statsBase)->where('status', AiDispatch::STATUS_ACCEPTED)->count(),
+            'cancelled' => (clone $statsBase)->where('status', AiDispatch::STATUS_CANCELLED)->count(),
+        ];
+
+        return view('business.ai-logistics.dispatches.index', compact('dispatches', 'statuses', 'drivers', 'stats'));
     }
 
     public function dispatchShow($id)

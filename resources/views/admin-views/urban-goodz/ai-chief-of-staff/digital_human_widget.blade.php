@@ -178,6 +178,51 @@
     };
 })();
 
+/**
+ * On-device speech for Monique, via the browser's built-in synthesizer.
+ *
+ * No API key, no credits, no per-request cost and no network round trip. This
+ * is the web counterpart of the customer app's LocalTtsVoiceEngine, and it is
+ * what makes the cloud gateway optional rather than mandatory.
+ *
+ * Speech is synthesized from the live brief text at call time - nothing here
+ * plays prerecorded audio.
+ *
+ * Returns true when it took responsibility for speaking.
+ */
+function speakLocally(text, statusEl) {
+    if (!('speechSynthesis' in window) || !text) return false;
+
+    try {
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        // Monique is the executive voice: lower and measured, matching the
+        // pitch/rate split used for her in the customer app.
+        utterance.pitch = 0.92;
+        utterance.rate = 0.96;
+        utterance.lang = 'en-US';
+
+        // Prefer a female en-US voice when the platform exposes one, so she
+        // does not default to whatever the OS lists first.
+        const voices = window.speechSynthesis.getVoices() || [];
+        const preferred = voices.find(v =>
+            /en(-|_)US/i.test(v.lang) && /female|samantha|zira|aria|jenny/i.test(v.name)
+        ) || voices.find(v => /en(-|_)US/i.test(v.lang));
+        if (preferred) utterance.voice = preferred;
+
+        if (statusEl) statusEl.innerText = 'Speaking (on-device)...';
+        utterance.onend = () => { if (statusEl) statusEl.innerText = ''; };
+        utterance.onerror = () => { if (statusEl) statusEl.innerText = ''; };
+
+        window.speechSynthesis.speak(utterance);
+        return true;
+    } catch (e) {
+        console.error('On-device speech failed:', e);
+        return false;
+    }
+}
+
 function triggerSkylarSpeech(btn) {
     const statusEl = document.getElementById('skylar-chat-status');
     const text = (document.getElementById('skylar-narrative-text').innerText || '').trim();
@@ -212,7 +257,15 @@ function triggerSkylarSpeech(btn) {
         return audio.play();
     })
     .catch(err => {
-        console.error('Digital Human speak error:', err);
+        // The cloud gateway is an upgrade, not a requirement.
+        //
+        // When it fails - it was returning HTTP 502 in production, which left
+        // Monique completely mute - fall back to the browser's own speech
+        // synthesis. That is on-device, free, needs no API key and no network,
+        // and mirrors what the customer app does with the Android platform TTS
+        // engine (see core/voice_engine_selector.dart there).
+        console.warn('Digital Human cloud voice unavailable, using on-device speech:', err);
+        if (speakLocally(text, statusEl)) return;
         if (statusEl) statusEl.innerText = err.message || "Couldn't play the brief right now.";
     })
     .finally(() => {

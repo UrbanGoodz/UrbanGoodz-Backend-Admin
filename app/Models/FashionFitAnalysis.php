@@ -9,6 +9,9 @@ class FashionFitAnalysis extends Model
     protected $guarded = ['id'];
     protected $casts = [
         'retake_requirements' => 'array',
+        'quality_warnings' => 'array',
+        'unavailable_measurements' => 'array',
+        'source_files' => 'array',
         'overall_confidence' => 'decimal:4',
         'processing_started_at' => 'datetime',
         'completed_at' => 'datetime',

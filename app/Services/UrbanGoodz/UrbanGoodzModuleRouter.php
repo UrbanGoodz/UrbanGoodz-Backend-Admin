@@ -33,6 +33,11 @@ class UrbanGoodzModuleRouter
         'referral'             => 'earnMoney',
         'events'               => 'events',
         'event'                => 'events',
+        // Internal operations. Admin/dispatcher only - the registry enforces
+        // that, not this map.
+        'operations'           => 'operations',
+        'ops'                  => 'operations',
+        'queue'                => 'operations',
     ];
 
     private const ACTION_TEMPLATES = [
@@ -77,12 +82,38 @@ class UrbanGoodzModuleRouter
             'detail'  => 'get_load_board_load',
             'create'  => 'post_load_to_board',
             'bid'     => 'bid_on_load',
+            // Operational verbs. These resolve to registry actions that are
+            // confirmation-gated and delegate to UrbanGoodzLoadBoardService.
+            'accept'      => 'accept_load',
+            'assign'      => 'accept_load',
+            'reassign'    => 'reassign_load',
+            'dispatch'    => 'update_load_status',
+            'status_set'  => 'update_load_status',
+            'cancel'      => 'cancel_load',
+            'review'      => 'review_load',
+            'accept_bid'  => 'accept_load_bid',
+            'reject_bid'  => 'reject_load_bid',
+            'stats'       => 'get_load_board_stats',
             'default' => 'search_load_board',
+        ],
+        'operations' => [
+            'retry'   => 'retry_queue_job',
+            'out_of_stock' => 'get_out_of_stock_by_store',
+            'inventory'    => 'get_out_of_stock_by_store',
+            'requeue' => 'retry_queue_job',
+            'default' => 'retry_queue_job',
         ],
         'delivery' => [
             'track'   => 'track_delivery',
             'status'  => 'get_delivery_status',
             'create'  => 'create_delivery_request',
+            // Operational: assigning a courier to an order. Delegates to
+            // OrderController::add_delivery_man, which owns the availability
+            // and max-order rules, the status transition, the driver
+            // counters and the customer notification.
+            'assign'    => 'assign_order',
+            'cancel'    => 'cancel_order',
+            'reassign'  => 'assign_order',
             'default' => 'get_delivery_status',
         ],
         'creatorCommerce' => [
@@ -138,7 +169,13 @@ class UrbanGoodzModuleRouter
             'actions' => [
                 [
                     'action' => $actionName,
-                    'params' => $params,
+                    // The executor receives only params, so the resolved
+                    // action travels with them. Deliberately a separate key
+                    // rather than 'action_type': determineActionType() reads
+                    // 'action_type' first, so setting that would change how
+                    // every existing module resolves its action, which is a
+                    // regression risk this does not need to take.
+                    'params' => array_merge($params, ['_routed_action' => $actionName]),
                     'api_endpoint' => $this->resolveEndpoint($actionName),
                     'method' => $this->resolveMethod($actionName),
                 ],
@@ -256,6 +293,10 @@ class UrbanGoodzModuleRouter
             'marketplaceSearch'  => $this->buildMarketplaceParams($actionType, $entities, $base),
             'medicalCourier'     => $this->buildMedicalCourierParams($actionType, $entities, $base),
             'loadBoard'          => $this->buildLoadBoardParams($actionType, $entities, $base),
+            'operations'         => array_merge($base, [
+                'job_uuid' => $entities['job_uuid'] ?? $entities['job_id'] ?? null,
+                'all'      => $entities['all'] ?? false,
+            ]),
             'delivery'           => $this->buildDeliveryParams($actionType, $entities, $base),
             'creatorCommerce'    => $this->buildCreatorCommerceParams($actionType, $entities, $base),
             'community'          => $this->buildCommunityParams($actionType, $entities, $base),
@@ -372,6 +413,15 @@ class UrbanGoodzModuleRouter
             'load_id'          => $entities['load_id'] ?? null,
             'load_number'      => $entities['load_number'] ?? null,
             'bid_amount'       => $entities['bid_amount'] ?? null,
+            // Operational parameters. UrbanGoodzLoadBoardService needs the
+            // target driver for accept/reassign, the bid for bid decisions,
+            // and the status/decision for transitions and reviews.
+            'driver_id'        => $entities['driver_id'] ?? $entities['delivery_man_id'] ?? null,
+            'bid_id'           => $entities['bid_id'] ?? null,
+            'status'           => $entities['status'] ?? null,
+            'decision'         => $entities['decision'] ?? null,
+            'reason'           => $entities['reason'] ?? null,
+            'notes'            => $entities['notes'] ?? null,
         ]);
     }
 
@@ -385,6 +435,8 @@ class UrbanGoodzModuleRouter
             'item_description' => $entities['item_description'] ?? $entities['description'] ?? null,
             'preferred_time'   => $entities['preferred_time'] ?? $entities['time'] ?? null,
             'special_notes'    => $entities['special_notes'] ?? $entities['notes'] ?? null,
+            // Operational: the courier to assign.
+            'driver_id'        => $entities['driver_id'] ?? $entities['delivery_man_id'] ?? null,
         ]);
     }
 
