@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\LoadBoard\LoadBoardProviderInterface;
 use App\Contracts\LoadSource\LoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadBoard\DatAdapter;
+use App\Services\UrbanGoodz\LoadBoard\TrukTekAdapter;
 use App\Services\UrbanGoodz\LoadBoard\TruckstopAdapter;
 use App\Services\UrbanGoodz\LoadSource\DatLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\DirectFreightLoadSourceAdapter;
@@ -12,6 +13,7 @@ use App\Services\UrbanGoodz\LoadSource\EmailLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\ManualLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TruckSmarterLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TruckerPathLoadSourceAdapter;
+use App\Services\UrbanGoodz\LoadSource\TrukTekLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TruckstopLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TrulosLoadSourceAdapter;
 use App\Services\UrbanGoodz\LoadSource\TbLoadLoadSourceAdapter;
@@ -32,6 +34,11 @@ class LoadBoardServiceProvider extends ServiceProvider
 
             if (!empty($config['truckstop']['enabled'])) {
                 $providers['truckstop'] = new TruckstopAdapter($config['truckstop']);
+            }
+
+            // No credentials required, so this one is live by default.
+            if (!empty($config['truktek']['enabled'])) {
+                $providers['truktek'] = new TrukTekAdapter($config['truktek']);
             }
 
             return $providers;
@@ -57,6 +64,7 @@ class LoadBoardServiceProvider extends ServiceProvider
                 'manual_import' => new ManualLoadSourceAdapter($config),
                 'dat' => new DatLoadSourceAdapter($config),
                 'truckstop' => new TruckstopLoadSourceAdapter($config),
+                'truktek' => new TrukTekLoadSourceAdapter($config),
                 'trulos' => new TrulosLoadSourceAdapter($config),
                 'tb_load' => new TbLoadLoadSourceAdapter($config),
                 'direct_freight' => new DirectFreightLoadSourceAdapter($config),

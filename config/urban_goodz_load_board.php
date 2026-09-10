@@ -29,6 +29,20 @@ return [
             'default_filters' => ['equipment_type' => 'van'],
         ],
 
+        // The public TrukTek board needs no credentials, so this is the one
+        // source that runs out of the box. Only its `freight` parameter is
+        // honoured upstream; lane filtering happens locally in TrukTekAdapter.
+        'truktek' => [
+            'enabled' => env('TRUKTEK_ENABLED', true),
+            'base_url' => env('TRUKTEK_API_BASE_URL', 'https://www.truktek.com'),
+            'timeout' => env('TRUKTEK_API_TIMEOUT', 30),
+            'max_per_sync' => env('TRUKTEK_MAX_PER_SYNC', 100),
+            'sync_interval_minutes' => env('TRUKTEK_SYNC_INTERVAL', 30),
+            // The public endpoint allows 30 requests/minute/IP.
+            'rate_limit_per_minute' => 30,
+            'default_filters' => ['equipment_type' => 'van'],
+        ],
+
         'trulos' => [
             'enabled' => env('TRULOS_LOAD_BOARD_ENABLED', false),
             'api_key' => env('TRULOS_API_KEY', ''),
