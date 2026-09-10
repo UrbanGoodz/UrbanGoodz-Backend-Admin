@@ -100,3 +100,7 @@ database/baseline/raw_schema.sql
 
 # Claude Code worktrees/session state - never commit
 .claude/
+
+# Playwright run artefacts
+test-results/
+playwright-report/
