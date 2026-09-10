@@ -473,12 +473,42 @@ class UrbanGoodzPaymentService
             $vendorAmount = max($totalAmount - $platformFee - $serviceFee - $driverAmount - $dispatcherCommission - $processingReserve, 0);
         }
 
+        // ─── Merchant purchase funds (external-merchant Order Anywhere) ──
+        // Money the customer paid so the driver can BUY their goods. It is
+        // never Urban Goodz revenue and never driver earnings - it is customer
+        // funds passing through to a retailer we do not own.
+        //
+        // Resolution order, and why each step exists:
+        //   1. explicitly supplied (a reconciled receipt total, or an admin quote)
+        //   2. the value already persisted on the request
+        //   3. derived from the goods themselves: item_subtotal + tax
+        //
+        // Step 3 is the important one. quoteOrderAnywhere() sets item_subtotal
+        // and tax but does NOT pass merchant_purchase_amount, so this previously
+        // fell through to 0 while the persistence line below fell back to the
+        // stored value - the two disagreed. With merchantPurchase = 0 the
+        // formula treats the customer's entire grocery bill as platform
+        // revenue: on a $133 order carrying $108 of goods and $15 of driver pay
+        // it booked $118 of Urban Goodz revenue instead of $10.
+        $merchantPurchaseSource = 'supplied';
+        if (isset($data['merchant_purchase_amount']) && $data['merchant_purchase_amount'] !== null) {
+            $merchantPurchase = (float) $data['merchant_purchase_amount'];
+        } elseif ($request->merchant_purchase_amount !== null && (float) $request->merchant_purchase_amount > 0) {
+            $merchantPurchase = (float) $request->merchant_purchase_amount;
+            $merchantPurchaseSource = 'persisted';
+        } else {
+            $merchantPurchase = round((float) ($request->item_subtotal ?? 0) + (float) ($request->tax ?? 0), 2);
+            $merchantPurchaseSource = 'derived_item_subtotal_plus_tax';
+        }
+
         // ─── Urban Goodz revenue ────────────────────────────────────────
         $urbanGoodzRevenue = 0.0;
         if ($request->isParticipatingVendor()) {
+            // Participating vendor: goods are sold by a vendor we settle with,
+            // so the merchandise is covered by vendor_payout_amount, not by
+            // merchant purchase funds.
             $urbanGoodzRevenue = $platformFee + $serviceFee;
         } else {
-            $merchantPurchase = (float) ($data['merchant_purchase_amount'] ?? 0);
             $urbanGoodzRevenue = max($totalAmount - $merchantPurchase - $driverAmount - $dispatcherCommission - $processingReserve, 0);
         }
 
@@ -490,7 +520,11 @@ class UrbanGoodzPaymentService
             'dispatcher_commission' => $dispatcherCommission,
             'urban_goodz_revenue' => $urbanGoodzRevenue,
             'processing_reserve' => $processingReserve,
-            'merchant_purchase_amount' => $data['merchant_purchase_amount'] ?? $request->merchant_purchase_amount,
+            // Persist the value the revenue formula actually used, so the
+            // column and the arithmetic can never disagree again.
+            'merchant_purchase_amount' => $request->isParticipatingVendor()
+                ? ($data['merchant_purchase_amount'] ?? $request->merchant_purchase_amount)
+                : $merchantPurchase,
         ]);
 
         // ─── Financial rule snapshot ────────────────────────────────────
@@ -509,6 +543,8 @@ class UrbanGoodzPaymentService
             'urban_goodz_revenue_formula' => $request->isParticipatingVendor()
                 ? 'platformFee + serviceFee'
                 : 'total - merchantPurchase - driverPayout - dispatcherCommission - processingReserve',
+            'merchant_purchase_amount' => $merchantPurchase,
+            'merchant_purchase_source' => $merchantPurchaseSource,
             'reserve_percent' => 0,
             'fulfillment_type' => $request->fulfillment_type,
             'rule_source' => 'urban_goodz_payment_service_v2',

@@ -66,6 +66,18 @@ echo "[3/5] Migrating..."
 php artisan migrate --force >/dev/null
 echo "  $(php -r 'require "vendor/autoload.php"; $a=require "bootstrap/app.php"; $a->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo DB::select("SELECT COUNT(*) c FROM information_schema.tables WHERE table_schema=DATABASE()")[0]->c;') tables"
 
+# ---------- 3b. passport keys --------------------------------------------
+# Without these, anything touching an api-guard route dies inside
+# league/oauth2-server with "LogicException: Invalid key supplied", which reads
+# like a code fault rather than a missing setup step. Four Feature tests failed
+# this way on a fresh environment.
+if [ ! -f storage/oauth-private.key ]; then
+    echo "[3b/5] Generating Passport keys..."
+    php artisan passport:keys --force >/dev/null 2>&1 && echo "  generated" || echo "  WARNING: passport:keys failed"
+else
+    echo "[3b/5] Passport keys already present."
+fi
+
 # ---------- 4. seed -------------------------------------------------------
 # Order matters. StagingRoleFixtureSeeder replaces the admins table with its
 # own deterministic fixtures (ids 9001+), so any account the specs rely on must
