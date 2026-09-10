@@ -345,6 +345,15 @@ class OrderAnywhereRequest extends Model
         return $this->hasMany(UrbanGoodzOrderAnywhereCardRequest::class, 'order_anywhere_request_id');
     }
 
+    /**
+     * Item swaps made while shopping. Both sides of each swap are kept, so the
+     * original request stays intact and the money difference is explicit.
+     */
+    public function itemSubstitutions()
+    {
+        return $this->hasMany(UrbanGoodzOrderAnywhereItemSubstitution::class, 'order_anywhere_request_id');
+    }
+
     public function activeCardRequest()
     {
         return $this->hasOne(UrbanGoodzOrderAnywhereCardRequest::class, 'order_anywhere_request_id')

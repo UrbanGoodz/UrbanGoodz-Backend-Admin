@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Models\OrderAnywhereRequest;
+use App\Models\UrbanGoodzOrderAnywhereItemSubstitution;
 use App\Models\UrbanGoodzPaymentLedger;
 use App\Models\UrbanGoodzPaymentSplit;
 use App\Models\UrbanGoodzWebhookEvent;
@@ -1477,19 +1478,100 @@ class UrbanGoodzPaymentService
      * -$3.00 and auto-approved, while a perfectly correct $108 receipt
      * produced -$25.00 and was flagged for review.
      */
+    // === SUBSTITUTIONS ===================================================
+
+    /**
+     * Record an item swap without destroying the original request line.
+     *
+     * A substitution moves MERCHANDISE money only. It changes what the customer
+     * owes for goods; it never changes driver earnings and never changes Urban
+     * Goodz revenue - a driver must not profit by swapping to a pricier brand,
+     * nor be made to absorb the saving on a cheaper one.
+     */
+    public function recordSubstitution(OrderAnywhereRequest $request, array $data): UrbanGoodzOrderAnywhereItemSubstitution
+    {
+        return DB::transaction(function () use ($request, $data) {
+            $originalPrice = (float) ($data['original_estimated_price'] ?? 0);
+            $substitutedPrice = array_key_exists('substituted_actual_price', $data)
+                && $data['substituted_actual_price'] !== null
+                    ? (float) $data['substituted_actual_price']
+                    : null;
+
+            $delta = UrbanGoodzOrderAnywhereItemSubstitution::computeDelta($originalPrice, $substitutedPrice);
+
+            // Only an INCREASE needs the customer to agree. A cheaper swap or a
+            // removal reduces what they owe and is safe to auto-approve.
+            $tolerance = (float) ($request->overage_threshold ?? 5.00);
+            $needsApproval = $delta > $tolerance;
+
+            $status = $data['status'] ?? ($needsApproval
+                ? UrbanGoodzOrderAnywhereItemSubstitution::STATUS_PROPOSED
+                : UrbanGoodzOrderAnywhereItemSubstitution::STATUS_AUTO_APPROVED);
+
+            $substitution = UrbanGoodzOrderAnywhereItemSubstitution::create([
+                'order_anywhere_request_id' => $request->id,
+                'card_request_id' => $data['card_request_id'] ?? $request->card_request_id,
+                'line_reference' => $data['line_reference'] ?? null,
+                'original_item_name' => $data['original_item_name'],
+                'original_quantity' => $data['original_quantity'] ?? 1,
+                'original_estimated_price' => $originalPrice,
+                'substituted_item_name' => $data['substituted_item_name'] ?? null,
+                'substituted_quantity' => $data['substituted_quantity'] ?? null,
+                'substituted_actual_price' => $substitutedPrice,
+                'price_delta' => $delta,
+                'reason' => $data['reason'] ?? UrbanGoodzOrderAnywhereItemSubstitution::REASON_UNAVAILABLE,
+                'status' => $status,
+                'requires_customer_approval' => $needsApproval,
+                'proposed_by' => $data['proposed_by'] ?? 'driver',
+                'proposed_by_id' => $data['proposed_by_id'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            $request->logActivity(
+                'item_substitution_recorded',
+                sprintf(
+                    'Substitution recorded: %s -> %s (delta %s%.2f)',
+                    $substitution->original_item_name,
+                    $substitution->substituted_item_name ?? 'REMOVED',
+                    $delta >= 0 ? '+' : '-',
+                    abs($delta)
+                ),
+                [],
+                ['delta' => $delta, 'status' => $status, 'requires_customer_approval' => $needsApproval]
+            );
+
+            return $substitution;
+        });
+    }
+
+    /**
+     * Purchase authorisation after agreed substitutions.
+     *
+     * Only swaps the customer agreed to - or that were safe to auto-approve -
+     * move the number. A swap still sitting in 'proposed' has not been paid for
+     * and must not inflate what the driver may spend.
+     */
+    public function substitutionAdjustedPurchaseAuthorization(OrderAnywhereRequest $request): float
+    {
+        $base = (float) ($request->merchant_purchase_amount ?? 0);
+        if ($base <= 0) {
+            $base = round((float) ($request->item_subtotal ?? 0) + (float) ($request->tax ?? 0), 2);
+        }
+
+        $delta = (float) $request->itemSubstitutions()->effective()->sum('price_delta');
+
+        return round($base + $delta, 2);
+    }
+
     public function reconcileReceipt(OrderAnywhereRequest $request, array $data): OrderAnywhereRequest
     {
         return DB::transaction(function () use ($request, $data) {
             $receiptAmount = (float) ($data['receipt_amount'] ?? 0);
 
-            // Purchase authorisation: what the customer funded for goods.
-            $purchaseAuthorization = (float) ($request->merchant_purchase_amount ?? 0);
-            if ($purchaseAuthorization <= 0) {
-                $purchaseAuthorization = round(
-                    (float) ($request->item_subtotal ?? 0) + (float) ($request->tax ?? 0),
-                    2
-                );
-            }
+            // Purchase authorisation: what the customer funded for goods,
+            // adjusted for substitutions they agreed to. Without the adjustment
+            // an approved swap would read as driver overspend.
+            $purchaseAuthorization = $this->substitutionAdjustedPurchaseAuthorization($request);
             // Positive difference = driver spent MORE than was authorised.
             $difference = round($receiptAmount - $purchaseAuthorization, 2);
 
