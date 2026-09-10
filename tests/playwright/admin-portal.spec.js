@@ -67,14 +67,14 @@ test.describe('Admin Portal — Markets, Zones, Vendors & Drivers', () => {
         await loginAsAdmin(page);
         const response = await page.goto('/admin/store/list');
         expect(response.status()).toBe(200);
-        await expect(page.locator('table')).toBeVisible();
+        await expect(page.locator('#columnSearchDatatable')).toBeVisible();
     });
 
     test('Admin Drivers — List loads with real data, no 500', async ({ page }) => {
         await loginAsAdmin(page);
         const response = await page.goto('/admin/users/delivery-man');
         expect(response.status()).toBe(200);
-        await expect(page.locator('table')).toBeVisible();
+        await expect(page.locator('#columnSearchDatatable')).toBeVisible();
     });
 });
 
@@ -83,7 +83,7 @@ test.describe('Admin Portal — Customer & Order Management', () => {
         await loginAsAdmin(page);
         const response = await page.goto('/admin/customer/list');
         expect(response.status()).toBe(200);
-        await expect(page.locator('table')).toBeVisible();
+        await expect(page.locator('#datatable')).toBeVisible();
     });
 
     test('Admin Orders — List loads for every status filter, no 500', async ({ page }) => {

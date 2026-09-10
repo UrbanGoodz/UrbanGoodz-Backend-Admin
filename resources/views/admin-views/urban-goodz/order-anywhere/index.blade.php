@@ -74,7 +74,7 @@
                                 </td>
                                 <td>
                                     @if($r->payment_status)
-                                        <span class="badge badge-soft-{{ $r->payment_status === 'paid' ? 'success' : 'warning' }}">
+                                        <span class="badge badge-soft-{{ in_array($r->payment_status, ['captured', 'authorized', 'partially_captured']) ? 'success' : (in_array($r->payment_status, ['unpaid', 'awaiting_quote', 'quoted', 'awaiting_payment', 'payment_session_created', 'capture_pending']) ? 'warning' : 'danger') }}">
                                             {{ $r->payment_status }}
                                         </span>
                                     @else

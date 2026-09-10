@@ -129,6 +129,35 @@ foreach ([
     DB::table("urban_goodz_business_client_users")->updateOrInsert(["email"=>$email], $data);
     printf("  %-34s role=%s\n", $email, $data["role"]);
 }
+
+// --- client split self-heal ------------------------------------------
+// The dispatcher portal routes on client.account_type == dispatch_company
+// AND user role being a dispatch role, so the dispatcher fixture must
+// belong to a dispatch company, not the regular business one. Recreating
+// the two companies and re-pointing both the spec accounts and their
+// seeder source rows keeps a re-run of this script sufficient even if the
+// seeder itself was never re-run.
+DB::table("urban_goodz_business_clients")->updateOrInsert(
+  ["id"=>9001],
+  ["company_name"=>"Smoke Test Company","account_type"=>"business",
+   "email"=>"staging.business@fixture.invalid","phone"=>"+15550009401",
+   "status"=>"approved","updated_at"=>now()]
+);
+DB::table("urban_goodz_business_clients")->updateOrInsert(
+  ["id"=>9002],
+  ["company_name"=>"Dispatch Test Co","account_type"=>"dispatch_company",
+   "email"=>"staging.dispatch@fixture.invalid","phone"=>"+15550009402",
+   "status"=>"approved"]
+);
+foreach (["staging.business.owner@fixture.invalid","business_test@urbangoodz.test"] as $e) {
+    DB::table("urban_goodz_business_client_users")
+        ->where("email",$e)->update(["business_client_id"=>9001,"role"=>"owner","updated_at"=>now()]);
+}
+foreach (["staging.dispatcher@fixture.invalid","dispatcher_test@urbangoodz.test"] as $e) {
+    DB::table("urban_goodz_business_client_users")
+        ->where("email",$e)->update(["business_client_id"=>9002,"role"=>"dispatch_owner","portal_role"=>"dispatcher","updated_at"=>now()]);
+}
+echo "  clients split -> Smoke Test Company (business) / Dispatch Test Co (dispatch_company)\n";
 '
 
 echo ""

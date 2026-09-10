@@ -27,27 +27,56 @@ use Illuminate\Support\Facades\Hash;
  */
 class StagingRoleFixtureSeeder extends Seeder
 {
-    /** Reserved deterministic id block. */
+    /**
+     * Reserved deterministic id block.
+     *
+     * The id-1 primary role is created deliberately: the admin dashboard and
+     * Helpers::module_permission_check() both hardcode role_id == 1 as the
+     * full-access primary administrator, and the Playwright specs authenticate
+     * as exactly that kind of account.
+     */
     private const ID = [
-        'role_super'      => 9001,
-        'role_restricted' => 9002,
-        'admin_full'      => 9001,
-        'admin_limited'   => 9002,
-        'shopper'         => 9001,
-        'vendor_approved' => 9001,
-        'vendor_pending'  => 9002,
-        'vendor_rejected' => 9003,
-        'store_approved'  => 9001,
-        'store_pending'   => 9002,
-        'store_rejected'  => 9003,
-        'driver_online'   => 9001,
-        'driver_offline'  => 9002,
-        'driver_pending'  => 9003,
-        'zone'            => 9001,
-        'module'          => 9001,
-        'biz_client'      => 9001,
-        'biz_owner'       => 9001,
-        'dispatcher'      => 9002,
+        'role_primary'     => 1,
+        'role_super'       => 9001,
+        'role_restricted'  => 9002,
+        'admin_full'       => 9001,
+        'admin_limited'    => 9002,
+        'shopper'          => 9001,
+        'vendor_approved'  => 9001,
+        'vendor_pending'   => 9002,
+        'vendor_rejected'  => 9003,
+        'store_approved'   => 9001,
+        'store_pending'    => 9002,
+        'store_rejected'   => 9003,
+        'driver_online'    => 9001,
+        'driver_offline'   => 9002,
+        'driver_pending'   => 9003,
+        'zone'             => 9001,
+        'module'           => 9001,
+        'biz_client'       => 9001,
+        'biz_owner'        => 9001,
+        'biz_dispatch'     => 9002,
+        'dispatcher'       => 9002,
+    ];
+
+    /**
+     * Every literal module name referenced by routes' `module:` middleware,
+     * so a full-access fixture role matches Helpers::module_permission_check()
+     * exactly (that check compares names, it does not understand 'all').
+     */
+    private const MODULES = [
+        'account', 'addon', 'advertisement', 'advertisement_list', 'attribute',
+        'banner', 'business_plan', 'business_settings', 'campaign', 'cashback',
+        'category', 'chat', 'collect_cash', 'coupon', 'custom_role',
+        'customer_management', 'customer_wallet', 'deliveryman',
+        'deliveryman_list', 'disbursement_report', 'employee', 'expense_report',
+        'item', 'module', 'my_shop', 'notification', 'notification_setup',
+        'order', 'parcel', 'pos', 'profile', 'provide_dm_earning', 'report',
+        'reviews', 'role', 'settings', 'store', 'store_setup', 'subscription',
+        'unit', 'urban_goodz_ai_copilot_use', 'urban_goodz_ai_settings_manage',
+        'urban_goodz_ai_settings_view', 'urban_goodz_ai_usage_view',
+        'urban_goodz_view', 'user_management', 'vat_report', 'wallet',
+        'wallet_method', 'withdraw_list', 'zone',
     ];
 
     private string $hash;
@@ -134,9 +163,18 @@ class StagingRoleFixtureSeeder extends Seeder
             'status'      => 1,
         ]);
 
+        // Primary administrator role (id 1): the dashboard and the module
+        // permission helper both treat role_id == 1 as full access, so the
+        // super-user the Playwright specs authenticate as must sit on it.
+        $this->put('admin_roles', self::ID['role_primary'], [
+            'name'    => 'System Super Admin',
+            'modules' => json_encode(self::MODULES),
+            'status'  => 1,
+        ]);
+
         $this->put('admin_roles', self::ID['role_super'], [
             'name'    => 'Staging Super Admin',
-            'modules' => json_encode(['all']),
+            'modules' => json_encode(self::MODULES),
             'status'  => 1,
         ]);
 
@@ -260,11 +298,27 @@ class StagingRoleFixtureSeeder extends Seeder
 
     private function seedBusinessAndDispatcher(): void
     {
+        // Regular corporate client (business accounting type) matching the name
+        // the Playwright business portal spec asserts on the dashboard.
         $this->put('urban_goodz_business_clients', self::ID['biz_client'], [
-            'company_name' => 'Staging Fixture Logistics LLC',
-            'email'        => 'staging.business@fixture.invalid',
-            'phone'        => '+15550009401',
-            'status'       => 'approved',
+            'company_name'  => 'Smoke Test Company',
+            'account_type'  => 'business',
+            'email'         => 'staging.business@fixture.invalid',
+            'phone'         => '+15550009401',
+            'status'        => 'approved',
+        ]);
+
+        // Separate dispatch company. The business login controller only sends
+        // a user to the dispatcher portal when the client is a
+        // dispatch_company AND the user holds a dispatch role, so the
+        // dispatcher fixture needs its own company rather than sharing the
+        // regular business one.
+        $this->put('urban_goodz_business_clients', self::ID['biz_dispatch'], [
+            'company_name'  => 'Dispatch Test Co',
+            'account_type'  => 'dispatch_company',
+            'email'         => 'staging.dispatch@fixture.invalid',
+            'phone'         => '+15550009402',
+            'status'        => 'approved',
         ]);
 
         $this->put('urban_goodz_business_client_users', self::ID['biz_owner'], [
@@ -279,12 +333,12 @@ class StagingRoleFixtureSeeder extends Seeder
         ]);
 
         $this->put('urban_goodz_business_client_users', self::ID['dispatcher'], [
-            'business_client_id' => self::ID['biz_client'],
+            'business_client_id' => self::ID['biz_dispatch'],
             'first_name'         => 'Staging',
             'last_name'          => 'Dispatcher',
             'email'              => 'staging.dispatcher@fixture.invalid',
             'password'           => $this->hash,
-            'role'               => 'dispatcher',
+            'role'               => 'dispatch_owner',
             'is_active'          => 1,
             'status'             => 'active',
         ]);

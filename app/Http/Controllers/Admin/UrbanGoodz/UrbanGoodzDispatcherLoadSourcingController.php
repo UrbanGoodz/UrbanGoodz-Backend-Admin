@@ -88,8 +88,10 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
 
     public function savedSearchesBlade(Request $request): View
     {
+        $user = auth('business')->user();
+        abort_unless($user, 403, 'Business user not authenticated.');
+
         if ($request->isMethod('POST')) {
-            $user = auth('business')->user();
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'criteria' => 'sometimes|array',
@@ -112,7 +114,6 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
                 ->with('success', translate('Search saved successfully'));
         }
 
-        $user = auth('business')->user();
         $savedSearches = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)
             ->latest()
             ->get();
@@ -348,6 +349,10 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
     public function savedSearches(): JsonResponse
     {
         $user = auth('business')->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Business user not authenticated.'], 403);
+        }
+
         $searches = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)
             ->latest()
             ->get();
@@ -358,6 +363,10 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
     public function deleteSavedSearch(int $id): JsonResponse
     {
         $user = auth('business')->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Business user not authenticated.'], 403);
+        }
+
         $search = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)->findOrFail($id);
         $search->delete();
 
@@ -367,6 +376,10 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
     public function runSavedSearch(int $id): JsonResponse
     {
         $user = auth('business')->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Business user not authenticated.'], 403);
+        }
+
         $search = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)->findOrFail($id);
 
         $service = new LoadSourcingService();

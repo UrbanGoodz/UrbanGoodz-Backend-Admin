@@ -55,7 +55,7 @@ test.describe('Cross-Role End-to-End Platform Workflows', () => {
     test('E2E Flow 5 — Vendor/store approval surface reachable for provider onboarding', async ({ page }) => {
         const response = await page.goto('/admin/store/list');
         expect(response.status()).toBe(200);
-        await expect(page.locator('table')).toBeVisible();
+        await expect(page.locator('#columnSearchDatatable')).toBeVisible();
     });
 
     test('E2E Flow 6 — AI Chief of Staff operational event surface reachable', async ({ page }) => {

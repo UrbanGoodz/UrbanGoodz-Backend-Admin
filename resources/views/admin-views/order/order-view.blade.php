@@ -824,7 +824,7 @@
                                         $del_c = 0;
                                     }
 
-                                    $free_delivery_over = \App\Models\BusinessSetting::where('key', 'free_delivery_over')->first()->value;
+                                    $free_delivery_over = \App\Models\BusinessSetting::where('key', 'free_delivery_over')->first()?->value;
                                     if (isset($free_delivery_over)) {
                                         if ($free_delivery_over <= $product_price + $total_addon_price - $coupon_discount_amount - $store_discount_amount) {
                                             $del_c = 0;
@@ -1277,7 +1277,7 @@
                                                             ?>
                                                         {{ $message }}
                                                     </button>
-                                                    @php($order_delivery_verification = (bool) \App\Models\BusinessSetting::where(['key' => 'order_delivery_verification'])->first()->value)
+                                                    @php($order_delivery_verification = (bool) \App\Models\BusinessSetting::where(['key' => 'order_delivery_verification'])->first()?->value)
                                                     <div class="dropdown-menu text-capitalize" aria-labelledby="dropdownMenuButton">
                                                         <a class="dropdown-item {{ $order['order_status'] == 'pending' ? 'active' : '' }} route-alert"
                                                         data-url="{{ route('admin.order.status', ['id' => $order['id'], 'order_status' => 'pending']) }}" data-message="{{ translate('Change status to pending ?') }}"
@@ -2568,7 +2568,7 @@
     </script>
 
     <script
-        src="https://maps.googleapis.com/maps/api/js?key={{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()->value }}&libraries=places,marker&v=3.61">
+        src="https://maps.googleapis.com/maps/api/js?key={{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()?->value }}&libraries=places,marker&v=3.61">
     </script>
     <script>
         // INITIALIZATION OF SELECT2
@@ -2661,7 +2661,7 @@
     <script>
         var deliveryMan = <?php echo json_encode($deliveryMen); ?>;
         var map = null;
-        const mapId = "{{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()->value }}"
+        const mapId = "{{ \App\Models\BusinessSetting::where('key', 'map_api_key')->first()?->value }}"
         @if ($order->order_type == 'parcel')
         var myLatlng = new google.maps.LatLng({{ $address['latitude'] }}, {{ $address['longitude'] }});
         @else

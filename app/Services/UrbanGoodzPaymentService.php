@@ -1302,6 +1302,23 @@ class UrbanGoodzPaymentService
             $currentRefunded = (float) $fresh->refunded_amount;
             $amount = (float) ($data['refund_amount'] ?? $capturedAmount - $currentRefunded);
 
+            // Provider-correct refund: use the same provider that authorized/captured
+            $gateway = $this->gatewayForRequest($fresh);
+            $provider = $gateway->providerName();
+            $idempotencyKey = $data['refund_idempotency_key']
+                ?? "refund:{$provider}:{$fresh->id}:" . hash('sha256', $amount . '|' . ($data['refund_reference'] ?? ''));
+            $refundReference = (string) ($data['refund_reference']
+                ?? $fresh->refund_reference
+                ?? ('refund-' . $fresh->id . '-' . Str::uuid()));
+
+            // Idempotency before the state guards: a redelivered refund confirmation
+            // (new provider event id, same refund reference) must replay cleanly even
+            // after the payment moved to refunded.
+            $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
+                return $fresh->fresh();
+            }
+
             if (! in_array($fresh->payment_status, ['captured', 'partially_captured', 'partially_refunded'], true)) {
                 throw new \InvalidArgumentException('Cannot refund: payment status is ' . $fresh->payment_status . '. Must be captured.');
             }
@@ -1315,20 +1332,6 @@ class UrbanGoodzPaymentService
             if ($currentRefunded + $amount > $capturedAmount) {
                 $remaining = $capturedAmount - $currentRefunded;
                 throw new \InvalidArgumentException("Refund amount \${$amount} exceeds remaining capturable amount of \${$remaining}.");
-            }
-            // Provider-correct refund: use the same provider that authorized/captured
-            $gateway = $this->gatewayForRequest($fresh);
-            $provider = $gateway->providerName();
-            $idempotencyKey = $data['refund_idempotency_key']
-                ?? "refund:{$provider}:{$fresh->id}:" . hash('sha256', $amount . '|' . ($data['refund_reference'] ?? ''));
-            $refundReference = (string) ($data['refund_reference']
-                ?? $fresh->refund_reference
-                ?? ('refund-' . $fresh->id . '-' . Str::uuid()));
-
-            // Idempotency check
-            $existing = UrbanGoodzPaymentLedger::where('idempotency_key', $idempotencyKey)->first();
-            if ($existing) {
-                return $fresh->fresh();
             }
 
             // Call gateway

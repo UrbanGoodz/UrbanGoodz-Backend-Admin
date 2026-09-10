@@ -20,7 +20,7 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
         }
 
         $mode = config('urban_goodz_payments.mode', 'disabled');
-        if ($mode !== 'sandbox' && $mode !== 'test') {
+        if ($mode !== 'sandbox' && $mode !== 'test' && $mode !== 'staged_test') {
             return false;
         }
 

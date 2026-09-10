@@ -123,6 +123,272 @@
                         @endif
                     </div>
                 </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>{{ translate('Revenue Breakdown') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>{{ translate('Merchant Purchase') }}</th>
+                                        <th>{{ translate('Platform Fee') }}</th>
+                                        <th>{{ translate('Vendor Payout') }}</th>
+                                        <th>{{ translate('Driver Payout') }}</th>
+                                        <th>{{ translate('Dispatcher Commission') }}</th>
+                                        <th>{{ translate('UG Revenue') }}</th>
+                                        <th>{{ translate('Processing Reserve') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>${{ number_format($request->merchant_purchase_amount ?? 0, 2) }}</td>
+                                        <td>${{ number_format($request->platform_fee ?? 0, 2) }}</td>
+                                        <td>${{ number_format($request->vendor_payout_amount ?? 0, 2) }}</td>
+                                        <td>${{ number_format($request->driver_payout_amount ?? 0, 2) }}</td>
+                                        <td>${{ number_format($request->dispatcher_commission ?? 0, 2) }}</td>
+                                        <td class="font-weight-bold">${{ number_format($request->urban_goodz_revenue ?? 0, 2) }}</td>
+                                        <td>${{ number_format($request->processing_reserve ?? 0, 2) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        @if($request->tax_amount)
+                            <div class="mt-2">
+                                <span class="text-muted">{{ translate('Tax Amount') }}: ${{ number_format($request->tax_amount, 2) }}</span>
+                            </div>
+                        @endif
+                        @if($request->vendor_quote_amount)
+                            <div class="mt-1">
+                                <span class="text-muted">{{ translate('Vendor Quote') }}: ${{ number_format($request->vendor_quote_amount, 2) }}</span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                @if($request->payment_status)
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>{{ translate('Payment Timeline') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Payment Status') }}</label>
+                                <p>
+                                    <span class="badge badge-soft-{{ in_array($request->payment_status, ['captured','authorized','partially_captured']) ? 'success' : (in_array($request->payment_status, ['refunded','partially_refunded']) ? 'warning' : 'danger') }}">
+                                        {{ $request->payment_status }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Payment Method') }}</label>
+                                <p>{{ $request->payment_method ?? translate('N/A') }}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Payment Provider') }}</label>
+                                <p>{{ $request->payment_provider ?? translate('N/A') }}</p>
+                            </div>
+                            @if($request->provider_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Provider Reference') }}</label>
+                                <p class="text-break">{{ $request->provider_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->provider_payment_id)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Provider Payment ID') }}</label>
+                                <p class="text-break">{{ $request->provider_payment_id }}</p>
+                            </div>
+                            @endif
+                            @if($request->authorization_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Authorization Reference') }}</label>
+                                <p class="text-break">{{ $request->authorization_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->capture_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Capture Reference') }}</label>
+                                <p class="text-break">{{ $request->capture_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->refund_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Refund Reference') }}</label>
+                                <p class="text-break">{{ $request->refund_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->payment_authorized_at)
+                            <div class="col-md-3">
+                                <label class="font-weight-bold small">{{ translate('Authorized At') }}</label>
+                                <p>{{ $request->payment_authorized_at->format('M d, Y H:i:s') }}</p>
+                            </div>
+                            @endif
+                            @if($request->payment_captured_at)
+                            <div class="col-md-3">
+                                <label class="font-weight-bold small">{{ translate('Captured At') }}</label>
+                                <p>{{ $request->payment_captured_at->format('M d, Y H:i:s') }}</p>
+                            </div>
+                            @endif
+                            @if($request->payment_refunded_at)
+                            <div class="col-md-3">
+                                <label class="font-weight-bold small">{{ translate('Refunded At') }}</label>
+                                <p>{{ $request->payment_refunded_at->format('M d, Y H:i:s') }}</p>
+                            </div>
+                            @endif
+                            @if($request->authorization_expires_at)
+                            <div class="col-md-3">
+                                <label class="font-weight-bold small">{{ translate('Authorization Expires') }}</label>
+                                <p>{{ $request->authorization_expires_at->format('M d, Y H:i:s') }}</p>
+                            </div>
+                            @endif
+                            @if($request->refunded_amount)
+                            <div class="col-md-3">
+                                <label class="font-weight-bold small text-warning">{{ translate('Refunded Amount') }}</label>
+                                <p class="text-warning">${{ number_format($request->refunded_amount, 2) }}</p>
+                            </div>
+                            @endif
+                            @if($request->psp_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('PSP Reference') }}</label>
+                                <p class="text-break">{{ $request->psp_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->merchant_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Merchant Reference') }}</label>
+                                <p class="text-break">{{ $request->merchant_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->payment_link_id)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Payment Link ID') }}</label>
+                                <p class="text-break">{{ $request->payment_link_id }}</p>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if($request->payout_status || $request->transfer_status)
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>{{ translate('Payout & Transfer') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            @if($request->payout_status)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Payout Status') }}</label>
+                                <p>
+                                    <span class="badge badge-soft-{{ $request->payout_status === 'completed' ? 'success' : ($request->payout_status === 'failed' ? 'danger' : 'info') }}">
+                                        {{ $request->payout_status }}
+                                    </span>
+                                </p>
+                            </div>
+                            @endif
+                            @if($request->transfer_status)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Transfer Status') }}</label>
+                                <p>
+                                    <span class="badge badge-soft-{{ $request->transfer_status === 'completed' ? 'success' : ($request->transfer_status === 'failed' ? 'danger' : 'info') }}">
+                                        {{ $request->transfer_status }}
+                                    </span>
+                                </p>
+                            </div>
+                            @endif
+                            @if($request->transfer_reference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Transfer Reference') }}</label>
+                                <p class="text-break">{{ $request->transfer_reference }}</p>
+                            </div>
+                            @endif
+                            @if($request->connect_account_id)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Connect Account ID') }}</label>
+                                <p class="text-break">{{ $request->connect_account_id }}</p>
+                            </div>
+                            @endif
+                            @if($request->payment_mode)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Payment Mode') }}</label>
+                                <p>{{ $request->payment_mode }}</p>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if($request->reconciliation_status || $request->receipt_amount)
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>{{ translate('Reconciliation & Receipt') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            @if($request->reconciliation_status)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Reconciliation Status') }}</label>
+                                <p>
+                                    <span class="badge badge-soft-{{ $request->reconciliation_status === 'reconciled' ? 'success' : ($request->reconciliation_status === 'discrepancy' ? 'danger' : 'info') }}">
+                                        {{ $request->reconciliation_status }}
+                                    </span>
+                                </p>
+                            </div>
+                            @endif
+                            @if($request->reconciled_at)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Reconciled At') }}</label>
+                                <p>{{ $request->reconciled_at->format('M d, Y H:i:s') }}</p>
+                            </div>
+                            @endif
+                            @if($request->receipt_amount)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Receipt Amount') }}</label>
+                                <p>${{ number_format($request->receipt_amount, 2) }}</p>
+                            </div>
+                            @endif
+                            @if($request->receipt_difference)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small {{ $request->receipt_difference > 0 ? 'text-danger' : '' }}">{{ translate('Receipt Difference') }}</label>
+                                <p class="{{ $request->receipt_difference > 0 ? 'text-danger' : '' }}">
+                                    {{ $request->receipt_difference > 0 ? '+' : '' }}${{ number_format($request->receipt_difference, 2) }}
+                                </p>
+                            </div>
+                            @endif
+                            @if($request->receipt_notes)
+                            <div class="col-md-12">
+                                <label class="font-weight-bold small">{{ translate('Receipt Notes') }}</label>
+                                <p class="text-wrap">{{ $request->receipt_notes }}</p>
+                            </div>
+                            @endif
+                            @if($request->receipt_image_path)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Receipt Image') }}</label>
+                                <p><a href="{{ asset('storage/' . $request->receipt_image_path) }}" target="_blank">{{ translate('View Receipt') }}</a></p>
+                            </div>
+                            @endif
+                            @if(!is_null($request->overage_approved))
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Overage Approved') }}</label>
+                                <p>{{ $request->overage_approved ? translate('Yes') : translate('No') }}</p>
+                            </div>
+                            @endif
+                            @if($request->overage_threshold)
+                            <div class="col-md-4">
+                                <label class="font-weight-bold small">{{ translate('Overage Threshold') }}</label>
+                                <p>${{ number_format($request->overage_threshold, 2) }}</p>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
 
             <div class="col-lg-4">
@@ -504,7 +770,27 @@
                             @csrf @method('PUT')
                             <div class="form-group">
                                 <label>{{ translate('Capture Amount') }}</label>
-                                <input type="number" step="0.01" name="captured_amount" class="form-control">
+                                <input type="number" step="0.01" name="captured_amount" class="form-control" value="{{ $request->quote_amount ?? $request->final_amount ?? '' }}">
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="small">{{ translate('Platform Fee') }}</label>
+                                        <input type="number" step="0.01" name="platform_fee" class="form-control" value="{{ $request->platform_fee ?? '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="small">{{ translate('Vendor Amount') }}</label>
+                                        <input type="number" step="0.01" name="vendor_amount" class="form-control" value="{{ $request->vendor_payout_amount ?? '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="small">{{ translate('Driver Amount') }}</label>
+                                        <input type="number" step="0.01" name="driver_amount" class="form-control" value="{{ $request->driver_payout_amount ?? '' }}">
+                                    </div>
+                                </div>
                             </div>
                             <button type="submit" class="btn btn-success btn-block">{{ translate('Capture Payment') }}</button>
                         </form>
@@ -550,6 +836,33 @@
                                         <td>{{ $l->payment_status }}</td>
                                         <td>{{ $l->created_at->format('M d, Y H:i') }}</td>
                                     </tr>
+                                    @if($l->splits && count($l->splits) > 0)
+                                        <tr class="table-active">
+                                            <td colspan="6">
+                                                <div class="mb-1"><strong>{{ translate('Splits') }} — {{ $l->ledger_number }}</strong></div>
+                                                <table class="table table-sm table-bordered mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>{{ translate('Recipient') }}</th>
+                                                            <th>{{ translate('Split Type') }}</th>
+                                                            <th>{{ translate('Amount') }}</th>
+                                                            <th>{{ translate('Status') }}</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($l->splits as $split)
+                                                            <tr>
+                                                                <td>{{ str_replace('_', ' ', $split->recipient_type) }} {{ $split->recipient_id ? '#' . $split->recipient_id : '' }}</td>
+                                                                <td>{{ str_replace('_', ' ', $split->split_type) }}</td>
+                                                                <td>${{ number_format($split->amount, 2) }}</td>
+                                                                <td>{{ $split->status }}</td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    @endif
                                 @endforeach
                             </tbody>
                         </table>

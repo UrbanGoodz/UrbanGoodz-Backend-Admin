@@ -296,6 +296,52 @@ class OrderAnywhereController extends Controller
         });
     }
 
+    /**
+     * Test-payment endpoint used by development clients (vendor app / QA harness)
+     * to exercise the full authorize → capture → split path without a real PSP.
+     * Only available outside production, mirroring the staged_test gateway.
+     */
+    public function testPayment(Request $request, $record, UrbanGoodzPaymentService $payments)
+    {
+        abort_if(app()->environment('production'), 403, 'Test payments are disabled in production.');
+
+        $data = $request->validate([
+            'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'capture_reference' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $model = $this->findCustomerRecord($request, $record);
+
+        return $this->guarded(function () use ($model, $payments, $data) {
+            if (in_array($model->status, ['completed', 'cancelled', 'rejected'])) {
+                throw new \InvalidArgumentException('Cannot test-pay a request that is already in a terminal state.');
+            }
+
+            $amount = (float) ($data['amount'] ?? $model->quote_amount ?? $model->final_amount ?? $model->item_subtotal);
+
+            $payments->authorizeCustomerPayment($model, [
+                'authorized_amount' => $amount,
+                'payment_method' => 'test_payment',
+                'authorization_reference' => 'test_payment_' . now()->format('YmdHis'),
+                'provider' => 'staged_test',
+                'source' => 'test_payment',
+            ]);
+
+            $payments->captureCustomerPayment($model->fresh(), [
+                'captured_amount' => $amount,
+                'capture_reference' => $data['capture_reference'] ?? 'test_payment_' . now()->timestamp,
+                'provider' => 'staged_test',
+                'source' => 'test_payment',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test payment completed.',
+                'data' => $model->fresh(),
+            ]);
+        });
+    }
+
     public function addNotes(Request $request, $record)
     {
         $data = $request->validate([
