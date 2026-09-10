@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Contracts\Payments\PayableRequest;
 use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Models\OrderAnywhereRequest;
 use Illuminate\Support\Str;
@@ -27,14 +28,14 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
         return (bool) config('urban_goodz_payments.staged_test.enabled', false);
     }
 
-    public function createPaymentLink(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array
+    public function createPaymentLink(PayableRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array
     {
         $uniqueId = Str::uuid()->toString();
 
         return [
             'success' => true,
             'provider' => $this->providerName(),
-            'provider_reference' => "staged_test_oa_{$request->id}_link_{$uniqueId}",
+            'provider_reference' => "staged_test_oa_{$request->getPayableId()}_link_{$uniqueId}",
             'merchant_reference' => $reference,
             'payment_link_id' => "STG_LINK_" . bin2hex(random_bytes(16)),
             'payment_url' => "/admin/urban-goodz/order-anywhere?staged_test=1&ref=" . urlencode($reference),
@@ -45,14 +46,14 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
         ];
     }
 
-    public function authorize(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array
+    public function authorize(PayableRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array
     {
         $uniqueId = Str::uuid()->toString();
 
         return [
             'success' => true,
             'provider' => $this->providerName(),
-            'provider_reference' => "staged_test_oa_{$request->id}_auth_{$uniqueId}",
+            'provider_reference' => "staged_test_oa_{$request->getPayableId()}_auth_{$uniqueId}",
             'merchant_reference' => $reference,
             'status' => 'authorized',
             'amount' => $amount,
@@ -61,14 +62,14 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
         ];
     }
 
-    public function capture(OrderAnywhereRequest $request, float $amount, string $currency, string $reference): array
+    public function capture(PayableRequest $request, float $amount, string $currency, string $reference): array
     {
         $uniqueId = Str::uuid()->toString();
 
         return [
             'success' => true,
             'provider' => $this->providerName(),
-            'provider_reference' => "staged_test_oa_{$request->id}_capture_{$uniqueId}",
+            'provider_reference' => "staged_test_oa_{$request->getPayableId()}_capture_{$uniqueId}",
             'merchant_reference' => $reference,
             'status' => 'captured',
             'amount' => $amount,
@@ -77,14 +78,14 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
         ];
     }
 
-    public function refund(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array
+    public function refund(PayableRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array
     {
         $uniqueId = Str::uuid()->toString();
 
         return [
             'success' => true,
             'provider' => $this->providerName(),
-            'provider_reference' => "staged_test_oa_{$request->id}_refund_{$uniqueId}",
+            'provider_reference' => "staged_test_oa_{$request->getPayableId()}_refund_{$uniqueId}",
             'merchant_reference' => $reference,
             'status' => 'refunded',
             'amount' => $amount,
@@ -94,15 +95,15 @@ class StagedTestPaymentGateway implements PaymentGatewayInterface
         ];
     }
 
-    public function cancel(OrderAnywhereRequest $request, ?string $reference = null): array
+    public function cancel(PayableRequest $request, ?string $reference = null): array
     {
         $uniqueId = Str::uuid()->toString();
 
         return [
             'success' => true,
             'provider' => $this->providerName(),
-            'provider_reference' => "staged_test_oa_{$request->id}_cancel_{$uniqueId}",
-            'merchant_reference' => $reference ?? $request->request_number,
+            'provider_reference' => "staged_test_oa_{$request->getPayableId()}_cancel_{$uniqueId}",
+            'merchant_reference' => $reference ?? $request->getPayableReference(),
             'status' => 'canceled',
             'staged_test' => true,
         ];

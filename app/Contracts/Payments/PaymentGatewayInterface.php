@@ -2,6 +2,7 @@
 
 namespace App\Contracts\Payments;
 
+use App\Contracts\Payments\PayableRequest;
 use App\Models\OrderAnywhereRequest;
 
 interface PaymentGatewayInterface
@@ -10,15 +11,15 @@ interface PaymentGatewayInterface
 
     public function isEnabled(): bool;
 
-    public function createPaymentLink(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array;
+    public function createPaymentLink(PayableRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array;
 
-    public function authorize(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array;
+    public function authorize(PayableRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array;
 
-    public function capture(OrderAnywhereRequest $request, float $amount, string $currency, string $reference): array;
+    public function capture(PayableRequest $request, float $amount, string $currency, string $reference): array;
 
-    public function refund(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array;
+    public function refund(PayableRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array;
 
-    public function cancel(OrderAnywhereRequest $request, ?string $reference = null): array;
+    public function cancel(PayableRequest $request, ?string $reference = null): array;
 
     public function validateWebhook(array|string $payload, array $headers = []): bool;
 

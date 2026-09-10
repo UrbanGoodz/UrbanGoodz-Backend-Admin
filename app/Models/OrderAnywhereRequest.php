@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Contracts\Payments\PayableRequest;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 
-class OrderAnywhereRequest extends Model
+class OrderAnywhereRequest extends Model implements PayableRequest
 {
     use LogsActivity;
 
@@ -469,5 +470,40 @@ class OrderAnywhereRequest extends Model
         $remaining = now()->diffInSeconds($this->authorization_expires_at, false);
 
         return $remaining > 0 ? $remaining : 0;
+    }
+
+    // ---------------------------------------------- PayableRequest
+    // Order Anywhere was the only vertical that could take a payment; these
+    // expose the same fields the gateways always read, now behind a contract
+    // other verticals can implement too.
+
+    public function getPayableId(): int
+    {
+        return (int) $this->id;
+    }
+
+    public function getPayableReference(): string
+    {
+        return (string) ($this->request_number ?? ('OA-' . $this->id));
+    }
+
+    public function getPayableCustomerId(): ?int
+    {
+        return $this->customer_id === null ? null : (int) $this->customer_id;
+    }
+
+    public function getCaptureReference(): ?string
+    {
+        return $this->capture_reference;
+    }
+
+    public function getProviderReference(): ?string
+    {
+        return $this->provider_reference;
+    }
+
+    public function getPayableFeature(): string
+    {
+        return 'order_anywhere';
     }
 }

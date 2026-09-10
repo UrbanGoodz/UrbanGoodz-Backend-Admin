@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Contracts\Payments\PayableRequest;
 use App\Contracts\Payments\PaymentGatewayInterface;
 use App\Models\OrderAnywhereRequest;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +57,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
         return $this->enabled && ! empty($this->secretKey);
     }
 
-    public function createPaymentLink(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array
+    public function createPaymentLink(PayableRequest $request, float $amount, string $currency, string $reference, ?string $returnUrl = null, ?string $description = null): array
     {
         $this->assertConfigured();
 
@@ -68,9 +69,9 @@ class StripePaymentGateway implements PaymentGatewayInterface
                 'success_url' => ($returnUrl ?? $this->successUrl) . '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $this->cancelUrl,
                 'metadata' => [
-                    'urban_goodz_order_anywhere_request_id' => $request->id,
+                    'urban_goodz_order_anywhere_request_id' => $request->getPayableId(),
                     'merchant_reference' => $reference,
-                    'customer_id' => $request->customer_id,
+                    'customer_id' => $request->getPayableCustomerId(),
                     'quoted_amount_minor' => $amountMinor,
                     'environment' => config('urban_goodz_payments.mode') === 'live_controlled' ? 'live' : 'test',
                     'payment_mode' => config('urban_goodz_payments.mode', 'sandbox'),
@@ -132,12 +133,12 @@ class StripePaymentGateway implements PaymentGatewayInterface
         }
     }
 
-    public function authorize(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array
+    public function authorize(PayableRequest $request, float $amount, string $currency, string $reference, ?string $context = null): array
     {
         $this->assertConfigured();
 
         try {
-            $sessionId = $context ?? $request->psp_reference ?? $reference;
+            $sessionId = $context ?? $request->getProviderReference() ?? $reference;
             $session = CheckoutSession::retrieve([
                 'id' => $sessionId,
                 'expand' => ['payment_intent'],
@@ -176,12 +177,12 @@ class StripePaymentGateway implements PaymentGatewayInterface
         }
     }
 
-    public function capture(OrderAnywhereRequest $request, float $amount, string $currency, string $reference): array
+    public function capture(PayableRequest $request, float $amount, string $currency, string $reference): array
     {
         $this->assertConfigured();
 
         try {
-            $paymentIntentId = $request->psp_reference ?? $reference;
+            $paymentIntentId = $request->getProviderReference() ?? $reference;
 
             if ($this->captureMethod === 'automatic') {
                 $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
@@ -224,12 +225,12 @@ class StripePaymentGateway implements PaymentGatewayInterface
         }
     }
 
-    public function refund(OrderAnywhereRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array
+    public function refund(PayableRequest $request, float $amount, string $currency, string $reference, ?string $reason = null): array
     {
         $this->assertConfigured();
 
         try {
-            $paymentIntentId = $request->psp_reference ?? $request->capture_reference ?? $reference;
+            $paymentIntentId = $request->getProviderReference() ?? $request->getCaptureReference() ?? $reference;
             $amountMinor = $this->toMinorUnits($amount, $currency);
 
             $params = [
@@ -267,12 +268,12 @@ class StripePaymentGateway implements PaymentGatewayInterface
         }
     }
 
-    public function cancel(OrderAnywhereRequest $request, ?string $reference = null): array
+    public function cancel(PayableRequest $request, ?string $reference = null): array
     {
         $this->assertConfigured();
 
         try {
-            $paymentIntentId = $request->psp_reference ?? $reference;
+            $paymentIntentId = $request->getProviderReference() ?? $reference;
 
             if ($paymentIntentId) {
                 $paymentIntent = \Stripe\PaymentIntent::cancel($paymentIntentId);
@@ -281,7 +282,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
                     'success' => true,
                     'provider' => $this->providerName(),
                     'provider_reference' => $paymentIntent->id,
-                    'merchant_reference' => $reference ?? $request->request_number,
+                    'merchant_reference' => $reference ?? $request->getPayableReference(),
                     'status' => 'canceled',
                     'staged_test' => false,
                 ];
@@ -291,7 +292,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
                 'success' => true,
                 'provider' => $this->providerName(),
                 'provider_reference' => null,
-                'merchant_reference' => $reference ?? $request->request_number,
+                'merchant_reference' => $reference ?? $request->getPayableReference(),
                 'status' => 'canceled',
                 'staged_test' => false,
             ];
