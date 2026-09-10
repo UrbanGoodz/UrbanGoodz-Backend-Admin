@@ -7,6 +7,7 @@ use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;
 use App\Models\UrbanGoodzStrandedVerification;
+use App\Services\UrbanGoodz\UrbanGoodzStrandedPayoutAccounts;
 use App\Services\UrbanGoodzStrandedNotifier;
 use App\Services\UrbanGoodzStrandedSafety;
 use Illuminate\Http\JsonResponse;
@@ -365,5 +366,101 @@ class UrbanGoodzStrandedResponderController extends Controller
             ->increment('declined_jobs');
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Where this responder stands on being able to receive money.
+     *
+     * Exposed so the app can tell someone they have unpaid earnings waiting
+     * on their own onboarding, rather than leaving them to wonder why a
+     * completed rescue never arrived in their bank.
+     */
+    public function payoutStatus(Request $request, UrbanGoodzStrandedPayoutAccounts $accounts): JsonResponse
+    {
+        $responder = UrbanGoodzStrandedResponder::where('user_id', (int) $request->user()->id)->first();
+
+        if (!$responder) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'onboarding_status' => 'not_started',
+                    'payouts_enabled' => false,
+                    'pending_payout_minor' => 0,
+                ],
+            ]);
+        }
+
+        // Refresh from Stripe only when we believe they are mid-onboarding.
+        // A verified responder's state does not change often enough to justify
+        // an API call on every poll of this endpoint.
+        $state = in_array($responder->onboarding_status, ['pending', 'restricted'], true)
+            ? $accounts->syncStatus($responder)
+            : [
+                'onboarding_status' => $responder->onboarding_status,
+                'payouts_enabled' => (bool) $responder->payouts_enabled,
+            ];
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $state + [
+                'payout_hold' => (bool) $responder->payout_hold,
+                'pending_payout_minor' => $this->pendingPayoutMinor($responder),
+            ],
+        ]);
+    }
+
+    /**
+     * Start or resume Stripe onboarding and hand back the link to open.
+     *
+     * The URLs are supplied by the caller because the app and the web portal
+     * need to come back to different places.
+     */
+    public function payoutOnboarding(Request $request, UrbanGoodzStrandedPayoutAccounts $accounts): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'return_url' => 'required|url|max:2048',
+            'refresh_url' => 'required|url|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()->all()], 422);
+        }
+
+        $responder = UrbanGoodzStrandedResponder::firstOrCreate(
+            ['user_id' => (int) $request->user()->id, 'responder_type' => 'samaritan']
+        );
+
+        if ($responder->payout_hold) {
+            return response()->json([
+                'errors' => [['message' => 'Payouts are on hold for this account. Contact support.']],
+            ], 403);
+        }
+
+        try {
+            $link = $accounts->onboardingLink(
+                $responder,
+                $request->input('return_url'),
+                $request->input('refresh_url')
+            );
+        } catch (\Throwable $e) {
+            return response()->json(['errors' => [['message' => $e->getMessage()]]], 502);
+        }
+
+        return response()->json(['status' => 'success', 'data' => $link]);
+    }
+
+    /** Money this responder has earned that has not been sent yet. */
+    private function pendingPayoutMinor(UrbanGoodzStrandedResponder $responder): int
+    {
+        return (int) \App\Models\UrbanGoodzPaymentTransaction::query()
+            ->where('transaction_type', 'responder_payout')
+            ->where('internal_status', 'pending')
+            ->whereIn('payable_id', function ($q) use ($responder) {
+                $q->select('request_id')
+                    ->from('urban_goodz_stranded_offers')
+                    ->where('responder_id', $responder->id);
+            })
+            ->where('payable_type', UrbanGoodzStrandedRequest::class)
+            ->sum('amount_minor');
     }
 }

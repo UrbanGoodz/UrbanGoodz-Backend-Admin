@@ -5,6 +5,7 @@ namespace App\Services\UrbanGoodz;
 use App\Models\UrbanGoodzPaymentTransaction;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
+use App\Models\UrbanGoodzStrandedResponder;
 // Lives in App\Services, not App\Services\UrbanGoodz. Without this import PHP
 // resolves it relative to this namespace and the container fails at runtime --
 // which php -l cannot catch.
@@ -143,7 +144,180 @@ class UrbanGoodzStrandedPaymentService
             }
         });
 
-        return ['released' => true, 'reason' => null, 'amount_minor' => $amountMinor];
+        // Releasing escrow only unlocks the money; it does not move it. The
+        // transfer is deliberately OUTSIDE the transaction above: a Stripe
+        // call inside a DB transaction holds row locks for the length of a
+        // network round trip, and a timeout would roll back the release while
+        // Stripe may still have sent the money.
+        $payout = $this->payoutResponder($request, $offer, $amountMinor);
+
+        return [
+            'released' => true,
+            'reason' => null,
+            'amount_minor' => $amountMinor,
+            'payout' => $payout,
+        ];
+    }
+
+    /**
+     * Pay the responder for real.
+     *
+     * This is the step that used to be done by hand. Escrow release wrote a
+     * ledger row saying the money had moved; nothing had actually left the
+     * platform balance, and someone reconciled it manually afterwards.
+     *
+     * A responder can only be paid into a Stripe connected account, and that
+     * account only accepts transfers once Stripe has cleared their identity
+     * and bank details. Neither is something the platform can do on their
+     * behalf, so "not payable yet" is an expected state, not an error: the
+     * payout is recorded as pending and retried later by
+     * `urbangoodz:stranded-payouts-retry`.
+     *
+     * Returns a status array; never throws, because a failed payout must not
+     * roll back a completed rescue.
+     */
+    public function payoutResponder(
+        UrbanGoodzStrandedRequest $request,
+        ?UrbanGoodzStrandedOffer $offer = null,
+        ?int $amountMinor = null
+    ): array {
+        $offer ??= $request->selected_offer_id
+            ? UrbanGoodzStrandedOffer::find($request->selected_offer_id)
+            : null;
+
+        $amountMinor ??= $offer ? $offer->payableAmountMinor() : 0;
+
+        if (!$offer || $amountMinor <= 0) {
+            return ['paid' => false, 'reason' => 'nothing_owed', 'amount_minor' => 0];
+        }
+
+        $key = 'stranded_responder_payout_' . $request->id;
+
+        // The ledger, not a status column, is the source of truth for whether
+        // this responder has already been paid.
+        $existing = UrbanGoodzPaymentTransaction::where('idempotency_key', $key)->first();
+
+        if ($existing && $existing->internal_status === 'completed') {
+            return ['paid' => false, 'reason' => 'already_paid', 'amount_minor' => 0];
+        }
+
+        $responder = UrbanGoodzStrandedResponder::find($offer->responder_id);
+
+        if (!$responder) {
+            return $this->recordPayout($request, $key, $amountMinor, 'failed', 'responder_missing', null)
+                + ['paid' => false, 'reason' => 'responder_missing'];
+        }
+
+        $blocker = $this->payoutBlocker($responder);
+
+        if ($blocker !== null) {
+            $this->recordPayout($request, $key, $amountMinor, 'pending', $blocker, null);
+
+            return ['paid' => false, 'reason' => $blocker, 'amount_minor' => $amountMinor];
+        }
+
+        try {
+            $transfer = $this->stripe('POST', '/transfers', [
+                'amount' => $amountMinor,
+                'currency' => strtolower($request->currency ?: 'USD'),
+                'destination' => $responder->stripe_account_id,
+                'transfer_group' => $request->request_number,
+                'metadata[request_number]' => $request->request_number,
+                'metadata[responder_id]' => (string) $responder->id,
+            ], $key);
+        } catch (\Throwable $e) {
+            // Unreachable provider is retryable, so this stays pending rather
+            // than failing permanently.
+            Log::error('Stranded responder payout could not reach Stripe', [
+                'request' => $request->request_number,
+                'responder' => $responder->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->recordPayout($request, $key, $amountMinor, 'pending', 'provider_unreachable', null);
+
+            return ['paid' => false, 'reason' => 'provider_unreachable', 'amount_minor' => $amountMinor];
+        }
+
+        if (isset($transfer['error']) || empty($transfer['id'])) {
+            $message = $transfer['error']['message'] ?? 'unknown_error';
+
+            Log::error('Stranded responder payout rejected by Stripe', [
+                'request' => $request->request_number,
+                'responder' => $responder->id,
+                'stripe_error' => $message,
+            ]);
+
+            $this->recordPayout($request, $key, $amountMinor, 'pending', 'provider_rejected', null);
+
+            return ['paid' => false, 'reason' => 'provider_rejected', 'amount_minor' => $amountMinor];
+        }
+
+        $this->recordPayout($request, $key, $amountMinor, 'completed', 'paid', $transfer['id']);
+
+        return [
+            'paid' => true,
+            'reason' => null,
+            'amount_minor' => $amountMinor,
+            'transfer_id' => $transfer['id'],
+        ];
+    }
+
+    /**
+     * Why this responder cannot be paid right now, or null if they can be.
+     *
+     * `payouts_enabled` is checked separately from the account id existing
+     * because Stripe issues the account immediately but withholds payouts
+     * until verification clears -- transferring in that window just fails.
+     */
+    private function payoutBlocker(UrbanGoodzStrandedResponder $responder): ?string
+    {
+        if ($responder->payout_hold) {
+            return 'payout_held';
+        }
+
+        if (empty($responder->stripe_account_id)) {
+            return 'no_connected_account';
+        }
+
+        if (!$responder->payouts_enabled) {
+            return 'onboarding_incomplete';
+        }
+
+        return null;
+    }
+
+    /**
+     * One ledger row per request, updated in place as the payout progresses
+     * from pending to completed. Creating a second row on retry would both
+     * violate the unique idempotency key and overstate what was paid out.
+     */
+    private function recordPayout(
+        UrbanGoodzStrandedRequest $request,
+        string $key,
+        int $amountMinor,
+        string $status,
+        string $providerStatus,
+        ?string $transferId
+    ): array {
+        UrbanGoodzPaymentTransaction::updateOrCreate(
+            ['idempotency_key' => $key],
+            [
+                'payable_type' => UrbanGoodzStrandedRequest::class,
+                'payable_id' => $request->id,
+                'provider' => 'stripe',
+                'environment' => config('app.env') === 'production' ? 'live' : 'test',
+                'transaction_type' => 'responder_payout',
+                'internal_status' => $status,
+                'provider_status' => $providerStatus,
+                'amount_minor' => $amountMinor,
+                'currency' => strtoupper($request->currency ?: 'USD'),
+                'merchant_reference' => $request->request_number,
+                'provider_payment_id' => $transferId,
+            ]
+        );
+
+        return ['amount_minor' => $amountMinor];
     }
 
     /**
@@ -197,8 +371,16 @@ class UrbanGoodzStrandedPaymentService
         ]);
     }
 
-    /** Credentials are read per call and never held in a property or logged. */
-    private function stripe(string $method, string $path, array $fields = []): array
+    /**
+     * Credentials are read per call and never held in a property or logged.
+     *
+     * $idempotencyKey is passed to Stripe as a request header, not a field.
+     * For transfers this is the difference between a retry being free and a
+     * retry paying a responder twice: our own unique ledger key stops a second
+     * ROW being written, but only Stripe's header stops a second TRANSFER when
+     * the first response was lost in flight rather than never sent.
+     */
+    private function stripe(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
     {
         $row = DB::table('addon_settings')->where('key_name', 'stripe')->first();
 
@@ -219,6 +401,10 @@ class UrbanGoodzStrandedPaymentService
             CURLOPT_TIMEOUT => 30,
             CURLOPT_USERPWD => $key . ':',
         ];
+
+        if ($idempotencyKey !== null) {
+            $opts[CURLOPT_HTTPHEADER] = ['Idempotency-Key: ' . $idempotencyKey];
+        }
 
         if ($method === 'POST') {
             $opts[CURLOPT_POST] = true;

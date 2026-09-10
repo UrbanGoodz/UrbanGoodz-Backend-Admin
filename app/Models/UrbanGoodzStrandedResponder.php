@@ -22,6 +22,10 @@ class UrbanGoodzStrandedResponder extends Model
         'capabilities', 'safety_ack_at',
         'rating', 'trust_score', 'completed_jobs', 'declined_jobs', 'missed_jobs',
         'active_request_id',
+        // Payout destination. Without these a responder can be dispatched and
+        // rated but never actually paid without manual intervention.
+        'stripe_account_id', 'payouts_enabled', 'onboarding_status',
+        'onboarding_synced_at', 'payout_hold',
     ];
 
     protected $casts = [
@@ -35,6 +39,11 @@ class UrbanGoodzStrandedResponder extends Model
         'rating' => 'float',
         'trust_score' => 'integer',
         'completed_jobs' => 'integer',
+        // Booleans must cast, or a "0" string from the DB reads as truthy and
+        // a responder who has not finished onboarding looks payable.
+        'payouts_enabled' => 'boolean',
+        'payout_hold' => 'boolean',
+        'onboarding_synced_at' => 'datetime',
     ];
 
     /** Precise coordinates are never sent to customers -- only distance is. */

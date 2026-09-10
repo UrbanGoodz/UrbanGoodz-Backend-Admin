@@ -67,6 +67,20 @@ class Kernel extends ConsoleKernel
             ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground();
+
+        // Responders whose payout could not be sent the moment they earned it
+        // -- onboarding not finished, bank details not cleared, Stripe briefly
+        // unreachable. Without this the money sits in the platform balance
+        // until somebody reconciles it by hand, which is exactly how responder
+        // payouts came to be described as manual.
+        //
+        // Ten minutes, not every minute: nobody is waiting on this in real
+        // time the way they wait on dispatch, and the common blocker resolves
+        // on Stripe's schedule (hours), not ours.
+        $schedule->command('urbangoodz:stranded-payouts-retry')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

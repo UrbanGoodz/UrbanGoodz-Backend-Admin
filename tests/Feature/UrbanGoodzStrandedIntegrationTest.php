@@ -934,6 +934,142 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             ->count(), 'A second confirmation wrote a second payment row.');
     }
 
+    /**
+     * The regression this whole payout change exists to prevent: escrow used
+     * to release and report success while no money ever left the platform.
+     * Releasing must now always leave a responder_payout row behind, so an
+     * unpaid responder is visible in the ledger instead of invisible.
+     */
+    public function test_releasing_escrow_records_a_responder_payout(): void
+    {
+        $customer = $this->verified('payoutrow');
+        $request = $this->request($customer);
+        $this->responder('samaritan', 2.0);
+        $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 4200);
+
+        $this->actingAs($customer, 'api')
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
+            ->assertStatus(200);
+
+        $result = app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($request->fresh());
+
+        $this->assertTrue($result['released']);
+
+        $payout = UrbanGoodzPaymentTransaction::where('payable_id', $request->id)
+            ->where('transaction_type', 'responder_payout')
+            ->first();
+
+        $this->assertNotNull($payout, 'Escrow released without recording a responder payout.');
+        $this->assertSame(4200, (int) $payout->amount_minor);
+    }
+
+    /**
+     * A responder who has not finished Stripe onboarding cannot be paid, and
+     * that is an ordinary state rather than a failure -- it must stay pending
+     * so the retry command picks it up once they finish.
+     */
+    public function test_a_responder_without_a_connected_account_is_left_pending(): void
+    {
+        $customer = $this->verified('noacct');
+        $request = $this->request($customer);
+        $this->responder('samaritan', 2.0);
+        $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 3300);
+
+        $this->actingAs($customer, 'api')
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
+            ->assertStatus(200);
+
+        $result = app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($request->fresh());
+
+        $this->assertSame('no_connected_account', $result['payout']['reason']);
+
+        $payout = UrbanGoodzPaymentTransaction::where('payable_id', $request->id)
+            ->where('transaction_type', 'responder_payout')
+            ->firstOrFail();
+
+        $this->assertSame('pending', $payout->internal_status);
+    }
+
+    /** A responder under a payout hold is not paid, even once verified. */
+    public function test_a_payout_hold_stops_the_transfer(): void
+    {
+        $customer = $this->verified('held');
+        $request = $this->request($customer);
+        $responder = $this->responder('samaritan', 2.0, [
+            'stripe_account_id' => 'acct_test_held',
+            'payouts_enabled' => true,
+            'onboarding_status' => 'verified',
+            'payout_hold' => true,
+        ]);
+        $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 1500);
+        $offer->update(['responder_id' => $responder->id]);
+
+        $this->actingAs($customer, 'api')
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
+            ->assertStatus(200);
+
+        $result = app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($request->fresh());
+
+        $this->assertSame('payout_held', $result['payout']['reason']);
+    }
+
+    /** A volunteer rescue owes nothing, so no payout row should be written. */
+    public function test_a_volunteer_rescue_creates_no_responder_payout(): void
+    {
+        $customer = $this->verified('volpayout');
+        $request = $this->request($customer);
+        $this->responder('samaritan', 2.0);
+        $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_VOLUNTEER, 0);
+
+        app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($request->fresh());
+
+        $this->assertSame(0, UrbanGoodzPaymentTransaction::where('payable_id', $request->id)
+            ->where('transaction_type', 'responder_payout')
+            ->count());
+    }
+
+    /**
+     * Paying a responder twice for one rescue is not a recoverable mistake,
+     * so a completed payout must never be re-sent by the retry command.
+     */
+    public function test_a_completed_payout_is_never_sent_twice(): void
+    {
+        $customer = $this->verified('twice');
+        $request = $this->request($customer);
+        $responder = $this->responder('samaritan', 2.0, [
+            'stripe_account_id' => 'acct_test_twice',
+            'payouts_enabled' => true,
+            'onboarding_status' => 'verified',
+        ]);
+        $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 900);
+        $offer->update(['responder_id' => $responder->id]);
+
+        // Stand in for a transfer that already succeeded, so no network call
+        // is needed to prove the guard holds.
+        UrbanGoodzPaymentTransaction::create([
+            'payable_type' => UrbanGoodzStrandedRequest::class,
+            'payable_id' => $request->id,
+            'provider' => 'stripe',
+            'environment' => 'test',
+            'transaction_type' => 'responder_payout',
+            'internal_status' => 'completed',
+            'provider_status' => 'paid',
+            'amount_minor' => 900,
+            'currency' => 'USD',
+            'merchant_reference' => $request->request_number,
+            'provider_payment_id' => 'tr_already',
+            'idempotency_key' => 'stranded_responder_payout_' . $request->id,
+        ]);
+
+        $result = app(UrbanGoodzStrandedPaymentService::class)->payoutResponder($request->fresh());
+
+        $this->assertFalse($result['paid']);
+        $this->assertSame('already_paid', $result['reason']);
+        $this->assertSame(1, UrbanGoodzPaymentTransaction::where('payable_id', $request->id)
+            ->where('transaction_type', 'responder_payout')
+            ->count());
+    }
+
     public function test_releasing_escrow_when_nothing_is_held_is_a_no_op(): void
     {
         $request = $this->request($this->verified('nothingheld'), self::SAMARITAN_SERVICE, ['escrow_status' => 'none']);

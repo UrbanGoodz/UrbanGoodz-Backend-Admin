@@ -495,6 +495,14 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     // identifying detail -- withheld entirely until they are selected.
     Route::get('responder/assignment', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@activeAssignment');
 
+    // Getting paid. A responder cannot receive a transfer until Stripe holds
+    // a verified connected account for them, and only they can supply the
+    // identity and bank details that unlock it -- so this pair is the whole
+    // difference between earnings that land automatically and earnings that
+    // sit waiting for someone to pay them by hand.
+    Route::get('responder/payouts/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@payoutStatus');
+    Route::post('responder/payouts/onboarding', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@payoutOnboarding');
+
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
     // Sends the request to nearby responders. Once a payment provider exists
     // this belongs on the payment webhook rather than the client.
