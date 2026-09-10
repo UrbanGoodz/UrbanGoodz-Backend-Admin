@@ -153,8 +153,20 @@ class MoniqueProactiveAttentionService
                 $success = $assign['success'];
                 $verified = $assign['verified'];
             } elseif ($category === 'out_of_stock' || $category === 'low_inventory') {
-                // Generate stock breakdown report
-                $exec = $this->router->execute('get_out_of_stock_inventory', [], ['actor_role' => $notif->account_type]);
+                // Generate a stock breakdown. get_out_of_stock_inventory reports
+                // platform-wide, so a vendor gets the store-scoped alert tool
+                // instead - otherwise the router rejects the call as
+                // unauthorized and the vendor's notification is undismissable.
+                $isVendor = strtolower((string) $notif->account_type) === 'vendor';
+                $exec = $isVendor
+                    ? $this->router->execute('vendor_operational_alerts', [], [
+                        'actor_role' => 'vendor',
+                        'vendor_id' => $notif->account_id,
+                        'admin_id' => $notif->account_id,
+                    ])
+                    : $this->router->execute('get_out_of_stock_inventory', [], [
+                        'actor_role' => $notif->account_type,
+                    ]);
                 $resolutionSummary = $exec['message'] ?? 'Generated inventory breakdown.';
                 $success = (bool) ($exec['success'] ?? false);
                 $verified = (bool) ($exec['verified'] ?? false);
@@ -386,10 +398,18 @@ class MoniqueProactiveAttentionService
     {
         $delayMinutes = (int) config('urban_goodz_ai.monique_proactive.delayed_order_minutes', 30);
 
+        $isVendor = strtolower($actorRole) === 'vendor';
+        $vendorStoreIds = $isVendor
+            ? Store::where('vendor_id', $adminId)->pluck('id')->map(fn ($id) => (int) $id)->all()
+            : [];
+
+        // A vendor only ever sees and acts on its own stores' backlog; an admin
+        // keeps the platform-wide view.
         $order = Order::withoutGlobalScopes()
             ->where('order_status', 'pending')
             ->whereNull('delivery_man_id')
             ->where('created_at', '<=', now()->subMinutes($delayMinutes))
+            ->when($isVendor, fn ($q) => $q->whereIn('store_id', $vendorStoreIds))
             ->orderBy('created_at')
             ->first();
 
@@ -410,6 +430,10 @@ class MoniqueProactiveAttentionService
                 $q->whereNull('current_orders')
                     ->orWhere('current_orders', '<', (int) (config('dm_maximum_orders') ?: 1));
             })
+            ->when($isVendor, fn ($q) => $q->where(function ($inner) use ($adminId) {
+                $inner->where('vendor_id', $adminId)
+                    ->orWhere('available_for_marketplace', 1);
+            }))
             ->orderBy('current_orders')
             ->orderBy('id')
             ->first();
@@ -429,6 +453,7 @@ class MoniqueProactiveAttentionService
             'role_check' => true,
             'actor_role' => $actorRole,
             'admin_id' => $adminId,
+            'vendor_id' => $isVendor ? $adminId : null,
             'confirmed' => true,
         ]);
 

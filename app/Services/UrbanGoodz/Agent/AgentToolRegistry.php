@@ -82,7 +82,7 @@ class AgentToolRegistry
             'description' => 'Assign an active courier to a pending order. Requires confirmation.',
             'risk_level' => self::RISK_HIGH_WRITE,
             'requires_confirmation' => true,
-            'roles' => ['admin', 'dispatcher'],
+            'roles' => ['admin', 'dispatcher', 'vendor'],
             'parameters' => [
                 'order_id' => ['type' => 'integer', 'required' => true],
                 'driver_id' => ['type' => 'integer', 'required' => true],

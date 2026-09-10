@@ -332,6 +332,41 @@ class NativeToolAdapter implements ToolAdapterInterface
             ];
         }
 
+        // A vendor actor may only dispatch an order belonging to one of its own
+        // stores, and only to a courier it owns or one explicitly shared to the
+        // marketplace. Admin and dispatcher actors keep platform-wide reach.
+        $actorRole = strtolower((string) ($context['actor_role'] ?? 'admin'));
+        if ($actorRole === 'vendor') {
+            $vendorId = (int) ($context['vendor_id'] ?? $context['admin_id'] ?? 0);
+            $storeIds = Store::where('vendor_id', $vendorId)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if ($vendorId <= 0 || !in_array((int) $order->store_id, $storeIds, true)) {
+                return [
+                    'success' => false,
+                    'verified' => false,
+                    'tool' => 'assign_order_courier',
+                    'adapter' => $this->name(),
+                    'error_code' => 'forbidden_order',
+                    'message' => 'That order is not within your dispatch scope.',
+                ];
+            }
+
+            $ownsDriver = (int) ($driver->vendor_id ?? 0) === $vendorId;
+            if (!$ownsDriver && !(bool) ($driver->available_for_marketplace ?? false)) {
+                return [
+                    'success' => false,
+                    'verified' => false,
+                    'tool' => 'assign_order_courier',
+                    'adapter' => $this->name(),
+                    'error_code' => 'forbidden_driver',
+                    'message' => 'That courier is not one of your drivers and is not shared to the marketplace.',
+                ];
+            }
+        }
+
         $prevDriver = $order->delivery_man_id;
         $order->delivery_man_id = $driverId;
         if ($order->order_status === 'pending') {
