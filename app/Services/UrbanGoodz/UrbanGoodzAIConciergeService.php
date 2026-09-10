@@ -36,7 +36,12 @@ class UrbanGoodzAIConciergeService
 
     public function processQuery(string $queryText, ?int $customerId = null, string $source = 'customer_api', ?string $sessionId = null): UrbanGoodzAIConversation
     {
-        if (!$customerId && $source !== 'admin_test') {
+        // Skylar is the product's front door, so a logged-out visitor is allowed
+        // to talk to her: 'customer_guest' is the source the customer API sends
+        // when no bearer token resolved. Every other source still has to name a
+        // customer, so an internal caller cannot silently write orphaned rows.
+        $guestSources = ['admin_test', 'customer_guest'];
+        if (!$customerId && !in_array($source, $guestSources, true)) {
             throw new AuthenticationException('Customer authentication is required.');
         }
 
@@ -64,11 +69,18 @@ class UrbanGoodzAIConciergeService
      */
     private function recentHistory(?int $customerId, ?string $sessionId): array
     {
-        if (!$customerId || !$sessionId) {
+        // A guest has no customer id, so their turns are keyed on session alone.
+        // Scoped with whereNull('customer_id') so a guest session can never read
+        // back a signed-in customer's turns even if it reuses their session id.
+        if (!$sessionId) {
             return [];
         }
 
-        $rows = UrbanGoodzAIConversation::where('customer_id', $customerId)
+        $rows = UrbanGoodzAIConversation::when(
+                $customerId,
+                fn ($q) => $q->where('customer_id', $customerId),
+                fn ($q) => $q->whereNull('customer_id'),
+            )
             ->where('session_id', $sessionId)
             ->whereNotNull('response_text')
             ->latest()
@@ -139,6 +151,16 @@ class UrbanGoodzAIConciergeService
         if ($marketplaceResults !== null) {
             $groundingDelta['marketplace_results'] = $marketplaceResults;
         }
+        
+        $shouldDiscover = in_array($intentSlug, ['marketplace-search', 'marketplace_search', 'order_anywhere', 'order-anywhere'], true)
+            || isset($entities['search_query']) || isset($entities['items']);
+        $commerceOptions = [];
+        if ($shouldDiscover) {
+            $commerceOptions = app(\App\Services\UrbanGoodz\CommerceDiscoveryService::class)->discover($queryText, $entities, $groundingDelta);
+            if (!empty($commerceOptions)) {
+                $groundingDelta['discovered_commerce_options'] = $commerceOptions;
+            }
+        }
 
         // The customer context is already grounded into the persona system
         // prompt; only the classification delta (and any live search results)
@@ -166,6 +188,7 @@ class UrbanGoodzAIConciergeService
                 'provider_success' => $providerResult['success'],
                 'provider_error_code' => $providerResult['error_code'],
                 'marketplace_result_count' => $marketplaceResults !== null ? count($marketplaceResults) : null,
+                'discovered_options' => $commerceOptions,
             ],
         ]);
     }
@@ -313,7 +336,9 @@ the only real, currently-available items you may recommend — use their actual
 names, prices, and store names verbatim. Never invent a product, price, or
 store that is not in that list. If `marketplace_results` is absent or empty,
 say plainly that you couldn't find a matching item right now rather than
-guessing at one.";
+guessing at one.
+
+If `discovered_commerce_options` is present in application data, you have found real options for the customer across Urban Goodz and verified merchants. Speak to the customer in your genuine, confident, warm, savvy Southern concierge voice (e.g. 'Baby, I got you! I did some digging and found a couple solid options for you...'). Mention the merchant name, price, and delivery arrival time for the top 1-2 options. Emphasize that they can see the full transparent breakdown (price, delivery, service fee) on the cards below and select any option to authorize their order with one tap. Never hide prices or fees.";
 
         $grounding = [
             'customer_id' => $context['customer_id'],

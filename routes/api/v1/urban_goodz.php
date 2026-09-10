@@ -153,12 +153,22 @@ Route::group(['prefix' => 'urban-goodz/files', 'middleware' => ['auth:api', 'thr
     Route::post('upload/{category}', 'Api\V1\UrbanGoodz\UrbanGoodzFileUploadController@upload');
 });
 
-Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+// Talking to Skylar is open to logged-out visitors -- she is the front door of
+// the product, and a guest who has to sign up before she will say hello is a
+// guest we lose. The controller resolves the customer id optionally, so a
+// signed-in caller still gets personalisation and a guest simply gets none.
+// Unauthenticated requests cost real provider spend, so they get 15/min.
+Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['throttle:15,1,ug-ai-concierge-guest']], function () {
     Route::post('query', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
     Route::post('chat', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@query');
-    Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
     Route::get('video-avatar/status', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@videoAvatarStatus');
-    Route::post('video-avatar/start', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@startVideoAvatar')->middleware('throttle:10,1');
+});
+
+// history() filters on customer_id, which is null for every guest -- opening it
+// would show each guest all the others'. Tavus video sessions cost money.
+Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api', 'throttle:60,1,ug-ai-concierge']], function () {
+    Route::get('history', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@history');
+    Route::post('video-avatar/start', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@startVideoAvatar')->middleware('throttle:10,1,ug-ai-concierge-video-avatar-start');
     Route::post('video-avatar/{conversationId}/end', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@endVideoAvatar');
 });
 
@@ -402,6 +412,29 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
             Route::post('prep-time', 'Api\V1\UrbanGoodz\CrossAppAIController@vendorPrepTime');
         });
 
+        // Monique Chief of Staff for Vendor App
+        Route::group(['prefix' => 'vendor/monique', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
+            Route::post('chat', 'Api\V1\UrbanGoodz\VendorMoniqueController@chat');
+            Route::get('morning-brief', 'Api\V1\UrbanGoodz\VendorMoniqueController@morningBrief');
+            Route::get('notifications', 'Api\V1\UrbanGoodz\VendorMoniqueController@getNotifications');
+            Route::post('notifications/{id}/action', 'Api\V1\UrbanGoodz\VendorMoniqueController@handleNotificationAction');
+            Route::get('trial-dashboard', 'Api\V1\UrbanGoodz\VendorMoniqueController@trialDashboard');
+            Route::get('subscription', 'Api\V1\UrbanGoodz\VendorMoniqueController@getSubscription');
+            Route::post('subscription/cancel', 'Api\V1\UrbanGoodz\VendorMoniqueController@cancelSubscription');
+            Route::post('subscription/reactivate', 'Api\V1\UrbanGoodz\VendorMoniqueController@reactivateSubscription');
+            Route::post('subscription/auto-continue', 'Api\V1\UrbanGoodz\VendorMoniqueController@setAutoContinue');
+        });
+
+        // Vendor-Owned Drivers & Shared Network (My Drivers)
+        Route::group(['prefix' => 'vendor/drivers', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
+            Route::get('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@index');
+            Route::post('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@store');
+            Route::put('{id}/pay', 'Api\V1\UrbanGoodz\VendorDriverManagementController@updateCompensation');
+            Route::delete('{id}', 'Api\V1\UrbanGoodz\VendorDriverManagementController@destroy');
+            Route::post('{id}/assign', 'Api\V1\UrbanGoodz\VendorDriverManagementController@assignOrder');
+            Route::post('{id}/release', 'Api\V1\UrbanGoodz\VendorDriverManagementController@releaseDriver');
+        });
+
         Route::group(['prefix' => 'driver', 'middleware' => ['dm.api']], function () {
             Route::get('daily-summary', 'Api\V1\UrbanGoodz\CrossAppAIController@driverDailySummary');
             Route::post('route-optimization', 'Api\V1\UrbanGoodz\CrossAppAIController@driverRouteOptimization');
@@ -413,11 +446,16 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
         Route::post('digital-human/state', 'Api\V1\UrbanGoodz\DigitalHumanController@getState');
         Route::post('digital-human/visemes', 'Api\V1\UrbanGoodz\DigitalHumanController@getVisemes');
 
-        // Real, paid external TTS calls -- authenticated and separately
-        // throttled so an open text field can't run up the ElevenLabs bill.
-        Route::group(['middleware' => ['auth:api', 'throttle:20,1']], function () {
-            Route::post('digital-human/speak', 'Api\V1\UrbanGoodz\DigitalHumanController@speak');
-        });
+        // Real, paid external TTS calls (provider config lives in
+        // ElevenLabsVoiceService/config, swap freely). Open to guests to
+        // match the ai-concierge chat endpoint above -- a guest gets AI
+        // chat text but was silently falling back to the on-device
+        // robotic voice because this route 401'd for anyone without a
+        // token. Tightly throttled (named bucket, same pattern as
+        // ug-ai-concierge-guest) so an open text field still can't run
+        // up the provider bill, whichever provider is wired in.
+        Route::post('digital-human/speak', 'Api\V1\UrbanGoodz\DigitalHumanController@speak')
+            ->middleware('throttle:10,1,ug-digital-human-speak');
     });
 
 // Urban Goodz Stranded -- "Never Stay Stranded Again."

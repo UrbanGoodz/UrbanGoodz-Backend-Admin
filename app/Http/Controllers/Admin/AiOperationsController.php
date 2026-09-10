@@ -530,6 +530,21 @@ class AiOperationsController extends Controller
 
         $admin = auth('admin')->user();
         $adminName = $admin?->f_name ? "{$admin->f_name} {$admin->l_name}" : null;
+        $adminId = $admin?->id ?? 1;
+
+        // Entitlement verification (30-day trial or active subscription)
+        $entitlementService = app(\App\Services\UrbanGoodz\Agent\MoniqueEntitlementService::class);
+        $entitlement = $entitlementService->checkEntitlement('admin', $adminId);
+        if (!$entitlement['allowed']) {
+            return response()->json([
+                'success' => false,
+                'error_code' => 'entitlement_required',
+                'data' => [
+                    'response' => $entitlement['message'],
+                    'entitlement' => $entitlement,
+                ],
+            ], 403);
+        }
 
         try {
             $conversation = $chat->processQuery(
@@ -587,6 +602,83 @@ class AiOperationsController extends Controller
 
         return response($result['audio'], 200)
             ->header('Content-Type', $result['mime']);
+    }
+
+    public function chiefOfStaffNotifications(\App\Services\UrbanGoodz\Agent\MoniqueProactiveAttentionService $attention)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $attention->observeAndAct('admin', $adminId);
+
+        $notifications = \App\Models\AiMoniqueNotification::forAccount('admin', $adminId)
+            ->pending()
+            ->latest('id')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+        ]);
+    }
+
+    public function chiefOfStaffNotificationAction(int $id, Request $request, \App\Services\UrbanGoodz\Agent\MoniqueProactiveAttentionService $attention)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $action = $request->input('action', 'let_monique_handle_it');
+
+        $result = $attention->handleNotificationAction($id, $action, [
+            'admin_id' => $adminId,
+            'actor_role' => 'admin',
+        ]);
+
+        return response()->json($result);
+    }
+
+    public function chiefOfStaffTrialDashboard(\App\Services\UrbanGoodz\Agent\MoniqueTrialValueTracker $tracker)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $dashboard = $tracker->getTrialDashboard('admin', $adminId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $dashboard,
+        ]);
+    }
+
+    public function chiefOfStaffSubscription(\App\Services\UrbanGoodz\Agent\MoniqueEntitlementService $entitlementService)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $status = $entitlementService->checkEntitlement('admin', $adminId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $status,
+        ]);
+    }
+
+    public function chiefOfStaffSubscriptionCancel(Request $request, \App\Services\UrbanGoodz\Agent\MoniqueEntitlementService $entitlementService)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $reason = $request->input('reason', 'Cancelled from admin portal');
+
+        $result = $entitlementService->cancelSubscription('admin', $adminId, $reason);
+        return response()->json($result);
+    }
+
+    public function chiefOfStaffSubscriptionReactivate(\App\Services\UrbanGoodz\Agent\MoniqueEntitlementService $entitlementService)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $result = $entitlementService->reactivateSubscription('admin', $adminId);
+
+        return response()->json($result);
+    }
+
+    public function chiefOfStaffSubscriptionAutoContinue(Request $request, \App\Services\UrbanGoodz\Agent\MoniqueEntitlementService $entitlementService)
+    {
+        $adminId = auth('admin')->id() ?? 1;
+        $enable = (bool) $request->input('auto_continue', true);
+
+        $result = $entitlementService->setAutoContinue('admin', $adminId, $enable);
+        return response()->json($result);
     }
 
     private function maskUrl(string $url): string

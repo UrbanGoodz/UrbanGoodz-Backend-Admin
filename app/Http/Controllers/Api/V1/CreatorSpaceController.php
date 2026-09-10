@@ -15,6 +15,10 @@ class CreatorSpaceController extends Controller
 {
     public function register(Request $request)
     {
+        if (UrbanGoodzCreatorProfile::where('user_id', Auth::id())->exists()) {
+            return response()->json(['message' => 'A creator profile already exists for this account'], 422);
+        }
+
         $validated = $request->validate([
             'handle' => 'required|string|unique:urban_goodz_creator_profiles,handle',
             'display_name' => 'required|string',
