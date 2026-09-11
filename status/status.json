@@ -1,0 +1,138 @@
+{
+  "_comment": "Human-assessed readiness. Every row MUST carry evidence a reader can check independently - a file path, a command, a commit, or a URL. A row with no evidence is not allowed to claim a percentage; set verified=false and say what is unknown. Live counts (tests, routes, models) are computed by build.php at generation time and are never stored here, because stored counts are exactly how the previous board drifted into fiction.",
+  "generated_for": "Urban Goodz production readiness",
+  "assessed_on": "2026-09-10",
+  "assessed_by": "Claude session 2026-09-10, from direct filesystem and live-endpoint verification",
+
+  "areas": [
+    {
+      "key": "backend",
+      "name": "Backend / Admin panel",
+      "percent": 95,
+      "verified": true,
+      "state": "live",
+      "evidence": "https://admin.urbangoodzdelivery.com returns 302 to /login/admin; /api/v1/config returns HTTP 200 with 122 keys and maintenance_mode=false. Branch integration/production-reconcile-20260831.",
+      "owner": "engineering",
+      "blocker": null
+    },
+    {
+      "key": "payments_gateways",
+      "name": "Payment gateways (Stripe + PayPal)",
+      "percent": 90,
+      "verified": true,
+      "state": "live",
+      "evidence": "Live /api/v1/config reports active_payment_method_list = [paypal, stripe] and digital_payment=true.",
+      "owner": "D'Andre",
+      "blocker": "Public config cannot prove whether the configured Stripe secret is a LIVE key or a test key. Confirm the mode on the addon_settings 'stripe' row in production."
+    },
+    {
+      "key": "responder_payouts",
+      "name": "Stranded responder payouts",
+      "percent": 70,
+      "verified": true,
+      "state": "code complete, not yet deployed",
+      "evidence": "Automated 2026-09-10 in commit f4e1781. Before it, releaseEscrow() wrote a ledger row marked completed and made no Stripe call - money stayed in the platform balance. Now performs a real /v1/transfers, records not-yet-payable responders as pending, and retries via urbangoodz:stranded-payouts-retry every 10 min.",
+      "owner": "D'Andre + operations",
+      "blocker": "Three things gate the remaining 30%, none of them code: (1) run the migration adding Connect columns, (2) enable Stripe Connect on the platform account, (3) each responder completes their own Stripe onboarding - the platform cannot do this for them."
+    },
+    {
+      "key": "product_catalog",
+      "name": "Product catalog (home-based stores 110-131)",
+      "percent": 100,
+      "verified": true,
+      "state": "done",
+      "evidence": "docs/HANDOFF_110_131_IMPORT_AND_TAXONOMY_20260904.md records the upload completed 2026-09-04 and verified by direct DB query, including recovery from an over-delete incident. All 22 stores carry real, active, correctly-categorized items.",
+      "owner": "done",
+      "blocker": null
+    },
+    {
+      "key": "vendor_app",
+      "name": "Vendor app (Android)",
+      "percent": 80,
+      "verified": true,
+      "state": "building",
+      "evidence": "Authoritative source is UrbanGoodz_Vendor_App/vendor_app (56 dart files). Keystore verified: alias 'upload', SHA1 58:8E:35:8C:1C:18:61:05:85:CD:6F:18:34:54:D7:29:70:24:50:48, valid to 2053. google-services.json carries a matching com.urbangoodz.vendor client. API base points at admin.urbangoodzdelivery.com/api/v1.",
+      "owner": "engineering",
+      "blocker": "Release build in progress on this machine. Duplication resolved 2026-09-10: two stale copies removed (commits 8996933, 3d208eb)."
+    },
+    {
+      "key": "driver_app",
+      "name": "Driver app (Android)",
+      "percent": 60,
+      "verified": false,
+      "state": "unverified",
+      "evidence": "Real app is UrbanGoodz_Driver_App/driver_app (67 dart files); the repo ROOT is the customer template (sixam_mart), which has already caused at least one wrong-app build.",
+      "owner": "engineering",
+      "blocker": "No release APK verified on this machine. driver_app applicationId needs confirming against the com.urbangoodz.driver Firebase client before any upload."
+    },
+    {
+      "key": "customer_app",
+      "name": "Customer app (Android)",
+      "percent": 60,
+      "verified": false,
+      "state": "unverified",
+      "evidence": "UrbanGoodz2026-Revised, branch customer-tester-build-sprint, HEAD f4d4d5d (2026-09-05), 1051 dart files.",
+      "owner": "engineering",
+      "blocker": "No signed release APK found anywhere on this machine. The handoff claimed signed customer and driver APKs in a RELEASE_APKS/ directory; that directory does not exist and never did."
+    },
+    {
+      "key": "website",
+      "name": "Marketing website",
+      "percent": 85,
+      "verified": false,
+      "state": "deployed as static build",
+      "evidence": "C:/UG/urban-goodz-website, branch main, HEAD 82d56f5 (2026-08-13). Production is a static build, so server-side lead handling in src/server/lead/ never executes.",
+      "owner": "engineering",
+      "blocker": "Lead capture path unverified against the deployed static build."
+    },
+    {
+      "key": "ai_voice",
+      "name": "AI personas - voice (Skylar / Monique)",
+      "percent": 50,
+      "verified": true,
+      "state": "split verdict",
+      "evidence": "docs/DECISIONS_ANSWERED_20260910.md. D'Andre 2026-09-10: Monique APPROVED, Skylar REJECTED as choppy.",
+      "owner": "D'Andre + engineering",
+      "blocker": "Skylar needs regeneration - the same pipeline produced an acceptable Monique, so the variable is Skylar's reference audio or her per-voice params, not the pipeline. Separately, delivery mechanism (hosted inference vs. pre-generated phrase library) is still undecided and now blocks voice reaching production on its own."
+    },
+    {
+      "key": "taxonomy",
+      "name": "Platform taxonomy",
+      "percent": 15,
+      "verified": true,
+      "state": "approved, not started",
+      "evidence": "Plan approved by D'Andre 2026-09-10 (docs/DECISIONS_ANSWERED_20260910.md). Draft at docs/TAXONOMY_IMPLEMENTATION_PLAN_DRAFT_20260904.md.",
+      "owner": "engineering",
+      "blocker": "urban_goodz_business_types (the '18 business types' registry) has zero rows and zero usage anywhere in the app. The live system is modules/categories. Implementation must not build on the empty registry without migrating the live catalog first."
+    },
+    {
+      "key": "production_cron",
+      "name": "Production scheduler",
+      "percent": 0,
+      "verified": false,
+      "state": "unverified",
+      "evidence": "app/Console/Kernel.php schedules stranded:dispatch-tick (every minute), order-anywhere:recover-card-issuance (5 min), delivery-history:prune (nightly), and as of 2026-09-10 urbangoodz:stranded-payouts-retry (10 min).",
+      "owner": "D'Andre",
+      "blocker": "Nobody has confirmed Laravel's scheduler is actually invoked on the production host. Run 'crontab -l' there. Until then every scheduled job above - including responder payout retries - is dead code in production."
+    }
+  ],
+
+  "retired_claims": [
+    {
+      "claim": "Board regenerated via 'php status/build.php', in-repo board at status/status.json",
+      "finding": "status/ never existed in this repo's git history. First created 2026-09-10."
+    },
+    {
+      "claim": "APKs at urbangoodz/RELEASE_APKS/, customer + driver, V2-signed",
+      "finding": "No RELEASE_APKS directory existed anywhere on this machine. The only vendor release APK found (2026-09-02, 23.3 MB) was built from the STALEST of three vendor copies - 36 dart files against the real 56."
+    },
+    {
+      "claim": "Branch adminpanel-v39-backend-sprint, tree clean, 10 commits, payout engine landed",
+      "finding": "That branch's newest commit is 2026-08-25 and origin's is 2026-08-22, with no payout commits. Real work is on integration/production-reconcile-20260831. The payout engine specifically did not exist: releaseEscrow() made no Stripe call until 2026-09-10."
+    },
+    {
+      "claim": "Product catalog 0%, blocked on D'Andre behind a CAPTCHA",
+      "finding": "Completed 2026-09-04 and DB-verified. The board was reporting finished work as not started."
+    }
+  ]
+}

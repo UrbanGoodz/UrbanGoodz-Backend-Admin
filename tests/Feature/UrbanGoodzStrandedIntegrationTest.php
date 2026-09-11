@@ -1044,6 +1044,10 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 900);
         $offer->update(['responder_id' => $responder->id]);
 
+        $this->actingAs($customer, 'api')
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
+            ->assertStatus(200);
+
         // Stand in for a transfer that already succeeded, so no network call
         // is needed to prove the guard holds.
         UrbanGoodzPaymentTransaction::create([
@@ -1068,6 +1072,44 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $this->assertSame(1, UrbanGoodzPaymentTransaction::where('payable_id', $request->id)
             ->where('transaction_type', 'responder_payout')
             ->count());
+    }
+
+    /**
+     * "Already paid" must not depend on the offer still being resolvable.
+     *
+     * The first version of payoutResponder() answered "nothing owed" before
+     * it answered "already paid", so a request whose offer selection had been
+     * cleared reported as though no money was ever due -- losing the fact
+     * that a transfer had already gone out. The idempotency check runs first
+     * precisely so that cannot happen.
+     */
+    public function test_already_paid_wins_even_when_the_offer_is_unresolvable(): void
+    {
+        $customer = $this->verified('paidnooffer');
+        $request = $this->request($customer);
+
+        UrbanGoodzPaymentTransaction::create([
+            'payable_type' => UrbanGoodzStrandedRequest::class,
+            'payable_id' => $request->id,
+            'provider' => 'stripe',
+            'environment' => 'test',
+            'transaction_type' => 'responder_payout',
+            'internal_status' => 'completed',
+            'provider_status' => 'paid',
+            'amount_minor' => 750,
+            'currency' => 'USD',
+            'merchant_reference' => $request->request_number,
+            'provider_payment_id' => 'tr_orphan',
+            'idempotency_key' => 'stranded_responder_payout_' . $request->id,
+        ]);
+
+        // No selected offer at all -- the old ordering returned 'nothing_owed'
+        // here and silently forgot the completed transfer.
+        $request->update(['selected_offer_id' => null]);
+
+        $result = app(UrbanGoodzStrandedPaymentService::class)->payoutResponder($request->fresh());
+
+        $this->assertSame('already_paid', $result['reason']);
     }
 
     public function test_releasing_escrow_when_nothing_is_held_is_a_no_op(): void

@@ -181,6 +181,20 @@ class UrbanGoodzStrandedPaymentService
         ?UrbanGoodzStrandedOffer $offer = null,
         ?int $amountMinor = null
     ): array {
+        $key = 'stranded_responder_payout_' . $request->id;
+
+        // Deliberately the FIRST check, before working out whether anything is
+        // owed. "Already paid" is the strongest guarantee this method can
+        // give, and it must not depend on the offer still being resolvable --
+        // otherwise a request whose offer selection changed after payment
+        // would report 'nothing_owed' and lose the record that money already
+        // went out. The ledger, not a status column, is the source of truth.
+        $existing = UrbanGoodzPaymentTransaction::where('idempotency_key', $key)->first();
+
+        if ($existing && $existing->internal_status === 'completed') {
+            return ['paid' => false, 'reason' => 'already_paid', 'amount_minor' => 0];
+        }
+
         $offer ??= $request->selected_offer_id
             ? UrbanGoodzStrandedOffer::find($request->selected_offer_id)
             : null;
@@ -189,16 +203,6 @@ class UrbanGoodzStrandedPaymentService
 
         if (!$offer || $amountMinor <= 0) {
             return ['paid' => false, 'reason' => 'nothing_owed', 'amount_minor' => 0];
-        }
-
-        $key = 'stranded_responder_payout_' . $request->id;
-
-        // The ledger, not a status column, is the source of truth for whether
-        // this responder has already been paid.
-        $existing = UrbanGoodzPaymentTransaction::where('idempotency_key', $key)->first();
-
-        if ($existing && $existing->internal_status === 'completed') {
-            return ['paid' => false, 'reason' => 'already_paid', 'amount_minor' => 0];
         }
 
         $responder = UrbanGoodzStrandedResponder::find($offer->responder_id);

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urban Goodz — Production Readiness</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #fff; --ink: #1a1a18; --muted: #6b6b66;
+    --line: #e3e3de; --ok: #2e7d52; --warn: #b8860b; --low: #c25e00; --bad: #b3261e;
+    --accent: #1a1a18;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16161a; --card: #1e1e23; --ink: #ececea; --muted: #9a9a95;
+      --line: #32323a; --ok: #5fbf8b; --warn: #d9a92b; --low: #e08843; --bad: #e2685e;
+      --accent: #ececea;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16161a; --card: #1e1e23; --ink: #ececea; --muted: #9a9a95;
+    --line: #32323a; --ok: #5fbf8b; --warn: #d9a92b; --low: #e08843; --bad: #e2685e;
+    --accent: #ececea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-block: 32px;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 26px; }
+  .headline {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px; margin-bottom: 12px;
+  }
+  .big { font-size: 2.9rem; font-weight: 650; line-height: 1; letter-spacing: -0.02em; }
+  .big small { font-size: 1rem; font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .caveat {
+    margin-top: 12px; padding: 11px 13px; border-radius: 8px;
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+    font-size: 0.86rem;
+  }
+  .metrics {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px; margin-bottom: 26px;
+  }
+  .metric {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 9px; padding: 11px 13px;
+  }
+  .metric b { display: block; font-size: 1.3rem; font-weight: 600; }
+  .metric span { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .area {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 11px; padding: 16px 18px; margin-bottom: 10px;
+  }
+  .area-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .area-name { font-weight: 600; flex: 1; min-width: 200px; }
+  .pct { font-variant-numeric: tabular-nums; font-weight: 650; }
+  .track { height: 6px; background: var(--line); border-radius: 3px; margin: 10px 0 12px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 3px; }
+  .tag {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted);
+  }
+  .tag.unverified { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+  .ev { font-size: 0.85rem; color: var(--muted); }
+  .ev b { color: var(--ink); font-weight: 600; }
+  .blocker {
+    margin-top: 9px; font-size: 0.85rem; padding: 9px 11px; border-radius: 7px;
+    background: color-mix(in srgb, var(--bad) 9%, transparent);
+    border-left: 3px solid var(--bad);
+  }
+  h2 { font-size: 1.05rem; margin: 30px 0 10px; }
+  .retired { background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 4px 18px; }
+  .retired dl { margin: 0; }
+  .retired dt { font-weight: 600; margin-top: 14px; font-size: 0.9rem; }
+  .retired dd { margin: 4px 0 14px; color: var(--muted); font-size: 0.86rem; }
+  footer { margin-top: 30px; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--line); padding-top: 14px; }
+  code { background: color-mix(in srgb, var(--ink) 8%, transparent); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Urban Goodz — Production Readiness</h1>
+  <div class="sub">
+    Generated 2026-09-11 00:55 by <code>php status/build.php</code> ·
+    branch <code>integration/production-reconcile-20260831</code> ·
+    HEAD <code>f4e1781</code>
+  </div>
+
+  <div class="headline">
+    <div class="big">64%<small>overall, all 11 areas</small></div>
+    <div class="caveat">
+      <strong>71%</strong> across the 7 areas backed by evidence.
+      4 areas are unverified and should be
+      treated as unknown rather than as the number shown.
+    </div>
+  </div>
+
+  <div class="metrics">
+          <div class="metric"><b>1,169</b><span>Test methods</span></div>
+          <div class="metric"><b>130</b><span>Test files</span></div>
+          <div class="metric"><b>2,649</b><span>Route definitions</span></div>
+          <div class="metric"><b>318</b><span>Models</span></div>
+          <div class="metric"><b>303</b><span>Controllers</span></div>
+          <div class="metric"><b>427</b><span>Migrations</span></div>
+          <div class="metric"><b>1,098</b><span>Blade views</span></div>
+          <div class="metric"><b>27</b><span>Console commands</span></div>
+          <div class="metric"><b>179</b><span>Services</span></div>
+      </div>
+
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Backend / Admin panel</span>
+        <span class="tag">live</span>
+        <span class="pct" style="color:var(--ok)">95%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:95%;background:var(--ok)"></div></div>
+      <div class="ev"><b>Evidence:</b> https://admin.urbangoodzdelivery.com returns 302 to /login/admin; /api/v1/config returns HTTP 200 with 122 keys and maintenance_mode=false. Branch integration/production-reconcile-20260831.</div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Payment gateways (Stripe + PayPal)</span>
+        <span class="tag">live</span>
+        <span class="pct" style="color:var(--ok)">90%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:90%;background:var(--ok)"></div></div>
+      <div class="ev"><b>Evidence:</b> Live /api/v1/config reports active_payment_method_list = [paypal, stripe] and digital_payment=true.</div>
+              <div class="blocker"><b>Blocked:</b> Public config cannot prove whether the configured Stripe secret is a LIVE key or a test key. Confirm the mode on the addon_settings &#039;stripe&#039; row in production. <em>(D&#039;Andre)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Stranded responder payouts</span>
+        <span class="tag">code complete, not yet deployed</span>
+        <span class="pct" style="color:var(--warn)">70%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:70%;background:var(--warn)"></div></div>
+      <div class="ev"><b>Evidence:</b> Automated 2026-09-10 in commit f4e1781. Before it, releaseEscrow() wrote a ledger row marked completed and made no Stripe call - money stayed in the platform balance. Now performs a real /v1/transfers, records not-yet-payable responders as pending, and retries via urbangoodz:stranded-payouts-retry every 10 min.</div>
+              <div class="blocker"><b>Blocked:</b> Three things gate the remaining 30%, none of them code: (1) run the migration adding Connect columns, (2) enable Stripe Connect on the platform account, (3) each responder completes their own Stripe onboarding - the platform cannot do this for them. <em>(D&#039;Andre + operations)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Product catalog (home-based stores 110-131)</span>
+        <span class="tag">done</span>
+        <span class="pct" style="color:var(--ok)">100%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:100%;background:var(--ok)"></div></div>
+      <div class="ev"><b>Evidence:</b> docs/HANDOFF_110_131_IMPORT_AND_TAXONOMY_20260904.md records the upload completed 2026-09-04 and verified by direct DB query, including recovery from an over-delete incident. All 22 stores carry real, active, correctly-categorized items.</div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Vendor app (Android)</span>
+        <span class="tag">building</span>
+        <span class="pct" style="color:var(--warn)">80%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:80%;background:var(--warn)"></div></div>
+      <div class="ev"><b>Evidence:</b> Authoritative source is UrbanGoodz_Vendor_App/vendor_app (56 dart files). Keystore verified: alias &#039;upload&#039;, SHA1 58:8E:35:8C:1C:18:61:05:85:CD:6F:18:34:54:D7:29:70:24:50:48, valid to 2053. google-services.json carries a matching com.urbangoodz.vendor client. API base points at admin.urbangoodzdelivery.com/api/v1.</div>
+              <div class="blocker"><b>Blocked:</b> Release build in progress on this machine. Duplication resolved 2026-09-10: two stale copies removed (commits 8996933, 3d208eb). <em>(engineering)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Driver app (Android)</span>
+        <span class="tag unverified">unverified</span>
+        <span class="pct" style="color:var(--warn)">60%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:60%;background:var(--warn)"></div></div>
+      <div class="ev"><b>Evidence:</b> Real app is UrbanGoodz_Driver_App/driver_app (67 dart files); the repo ROOT is the customer template (sixam_mart), which has already caused at least one wrong-app build.</div>
+              <div class="blocker"><b>Blocked:</b> No release APK verified on this machine. driver_app applicationId needs confirming against the com.urbangoodz.driver Firebase client before any upload. <em>(engineering)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Customer app (Android)</span>
+        <span class="tag unverified">unverified</span>
+        <span class="pct" style="color:var(--warn)">60%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:60%;background:var(--warn)"></div></div>
+      <div class="ev"><b>Evidence:</b> UrbanGoodz2026-Revised, branch customer-tester-build-sprint, HEAD f4d4d5d (2026-09-05), 1051 dart files.</div>
+              <div class="blocker"><b>Blocked:</b> No signed release APK found anywhere on this machine. The handoff claimed signed customer and driver APKs in a RELEASE_APKS/ directory; that directory does not exist and never did. <em>(engineering)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Marketing website</span>
+        <span class="tag unverified">unverified</span>
+        <span class="pct" style="color:var(--warn)">85%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:85%;background:var(--warn)"></div></div>
+      <div class="ev"><b>Evidence:</b> C:/UG/urban-goodz-website, branch main, HEAD 82d56f5 (2026-08-13). Production is a static build, so server-side lead handling in src/server/lead/ never executes.</div>
+              <div class="blocker"><b>Blocked:</b> Lead capture path unverified against the deployed static build. <em>(engineering)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">AI personas - voice (Skylar / Monique)</span>
+        <span class="tag">split verdict</span>
+        <span class="pct" style="color:var(--low)">50%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:50%;background:var(--low)"></div></div>
+      <div class="ev"><b>Evidence:</b> docs/DECISIONS_ANSWERED_20260910.md. D&#039;Andre 2026-09-10: Monique APPROVED, Skylar REJECTED as choppy.</div>
+              <div class="blocker"><b>Blocked:</b> Skylar needs regeneration - the same pipeline produced an acceptable Monique, so the variable is Skylar&#039;s reference audio or her per-voice params, not the pipeline. Separately, delivery mechanism (hosted inference vs. pre-generated phrase library) is still undecided and now blocks voice reaching production on its own. <em>(D&#039;Andre + engineering)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Platform taxonomy</span>
+        <span class="tag">approved, not started</span>
+        <span class="pct" style="color:var(--bad)">15%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:15%;background:var(--bad)"></div></div>
+      <div class="ev"><b>Evidence:</b> Plan approved by D&#039;Andre 2026-09-10 (docs/DECISIONS_ANSWERED_20260910.md). Draft at docs/TAXONOMY_IMPLEMENTATION_PLAN_DRAFT_20260904.md.</div>
+              <div class="blocker"><b>Blocked:</b> urban_goodz_business_types (the &#039;18 business types&#039; registry) has zero rows and zero usage anywhere in the app. The live system is modules/categories. Implementation must not build on the empty registry without migrating the live catalog first. <em>(engineering)</em></div>
+          </div>
+      <div class="area">
+      <div class="area-top">
+        <span class="area-name">Production scheduler</span>
+        <span class="tag unverified">unverified</span>
+        <span class="pct" style="color:var(--bad)">0%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:0%;background:var(--bad)"></div></div>
+      <div class="ev"><b>Evidence:</b> app/Console/Kernel.php schedules stranded:dispatch-tick (every minute), order-anywhere:recover-card-issuance (5 min), delivery-history:prune (nightly), and as of 2026-09-10 urbangoodz:stranded-payouts-retry (10 min).</div>
+              <div class="blocker"><b>Blocked:</b> Nobody has confirmed Laravel&#039;s scheduler is actually invoked on the production host. Run &#039;crontab -l&#039; there. Until then every scheduled job above - including responder payout retries - is dead code in production. <em>(D&#039;Andre)</em></div>
+          </div>
+  
+      <h2>Retired claims</h2>
+    <div class="sub" style="margin-bottom:10px">
+      Statements from earlier status reports that did not survive verification. Kept so they
+      are not silently reintroduced.
+    </div>
+    <div class="retired"><dl>
+              <dt>Board regenerated via &#039;php status/build.php&#039;, in-repo board at status/status.json</dt>
+        <dd>status/ never existed in this repo&#039;s git history. First created 2026-09-10.</dd>
+              <dt>APKs at urbangoodz/RELEASE_APKS/, customer + driver, V2-signed</dt>
+        <dd>No RELEASE_APKS directory existed anywhere on this machine. The only vendor release APK found (2026-09-02, 23.3 MB) was built from the STALEST of three vendor copies - 36 dart files against the real 56.</dd>
+              <dt>Branch adminpanel-v39-backend-sprint, tree clean, 10 commits, payout engine landed</dt>
+        <dd>That branch&#039;s newest commit is 2026-08-25 and origin&#039;s is 2026-08-22, with no payout commits. Real work is on integration/production-reconcile-20260831. The payout engine specifically did not exist: releaseEscrow() made no Stripe call until 2026-09-10.</dd>
+              <dt>Product catalog 0%, blocked on D&#039;Andre behind a CAPTCHA</dt>
+        <dd>Completed 2026-09-04 and DB-verified. The board was reporting finished work as not started.</dd>
+          </dl></div>
+  
+  <footer>
+    Counts above are measured from the working tree at generation time, never stored.
+    Percentages come from <code>status/status.json</code> and each carries evidence.
+    Assessed 2026-09-10 — Claude session 2026-09-10, from direct filesystem and live-endpoint verification.
+  </footer>
+
+</div>
+</body>
+</html>
