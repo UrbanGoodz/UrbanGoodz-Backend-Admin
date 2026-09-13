@@ -375,12 +375,15 @@ test.describe('Admin login page', () => {
     await expect(page.locator('body')).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
 
     const response = await page.goto(PROTECTED_MODULE_ROUTE, { waitUntil: 'domcontentloaded' });
-    expect(response.status()).not.toBe(500);
 
-    // ModulePermissionMiddleware bounces denied requests away with
-    // Toastr::error + back() -- the protected route, its heading, and its
-    // record data must all be unreachable, regardless of where it lands.
-    expect(page.url()).not.toContain(PROTECTED_MODULE_ROUTE);
+    // ModulePermissionMiddleware answers a denied request with a real 403 -
+    // deliberately, so the refusal is visible to callers instead of being
+    // swallowed by a back() redirect. A 403 leaves the browser on the same
+    // URL, so asserting the URL changed (as this test used to) would fail
+    // against correct behaviour and pass against a silent bounce.
+    expect(response.status()).toBe(403);
+
+    // And the refusal must be real: none of the page's content may leak.
     await expect(page.locator('h1,h3', { hasText: PROTECTED_MODULE_HEADING })).toHaveCount(0);
     await expect(page.locator('table tbody tr')).toHaveCount(0);
   });

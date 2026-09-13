@@ -95,9 +95,21 @@ function upsertAdmin(string $email, string $first, int $roleId): int
     return (int) DB::table('admins')->insertGetId($data);
 }
 
-$all        = sidebarModules();
-$authorized = $all;
-$restricted = array_values(array_diff($all, [DIFFERENTIATOR]));
+$all = sidebarModules();
+
+// Grant every NON urban_goodz_* module to both roles, so the fixture can see
+// the ordinary admin navigation the feature specs click through, and hand only
+// the authorized role the differentiator.
+//
+// The other urban_goodz_* gates are deliberately withheld from BOTH. Granting
+// them to both looks harmless and is not: the sub-items they gate render Urban
+// Goodz paths for the restricted account too, so the two accounts expose an
+// identical path set and the preflight's "authorized sees something restricted
+// does not" check drops to zero - the boundary test silently stops proving
+// anything, which is the exact failure this fixture exists to rule out.
+$common     = array_values(array_filter($all, fn ($m) => !str_starts_with($m, 'urban_goodz')));
+$authorized = array_values(array_merge($common, [DIFFERENTIATOR]));
+$restricted = $common;
 
 if (count($authorized) === count($restricted)) {
     fwrite(STDERR, "REFUSING: '" . DIFFERENTIATOR . "' is not gated by any sidebar partial, so the pair would be identical.\n");
