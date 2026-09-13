@@ -381,6 +381,7 @@ class UrbanGoodzDriverApiController extends Controller
             'longitude' => ['nullable', 'numeric'],
             'photo' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
+            'input_method' => ['nullable', 'in:barcode,qr_code,manual'],
         ]);
 
         if ($validator->fails()) {
@@ -437,6 +438,7 @@ class UrbanGoodzDriverApiController extends Controller
                 'scanner_type' => 'driver',
                 'identifier_type' => $identifierType,
                 'identifier_value' => $identifierValue,
+                'input_method' => $request->input('input_method'),
                 'status_before' => $statusBefore,
                 'status_after' => $package->status,
                 'latitude' => $request->latitude,
