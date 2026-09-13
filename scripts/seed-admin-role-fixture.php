@@ -38,6 +38,7 @@ const DIFFERENTIATOR = 'urban_goodz_view';
 const PASSWORD       = 'PwFixture!2026';
 const AUTHORIZED     = 'pw.authorized@urbangoodz.test';
 const RESTRICTED     = 'pw.restricted@urbangoodz.test';
+const FULL           = 'pw.full@urbangoodz.test';
 
 $db = DB::connection()->getDatabaseName();
 if (!str_contains($db, 'local') && !str_contains($db, 'test')) {
@@ -52,6 +53,31 @@ function sidebarModules(): array
     $modules = [];
     foreach (glob(__DIR__ . '/../resources/views/layouts/admin/partials/_sidebar*.blade.php') as $file) {
         if (preg_match_all("/module_permission_check\('([a-z0-9_]+)'\)/", (string) file_get_contents($file), $m)) {
+            $modules = array_merge($modules, $m[1]);
+        }
+    }
+    $modules = array_values(array_unique($modules));
+    sort($modules);
+    return $modules;
+}
+
+/**
+ * Every module the ADMIN ROUTES gate on, read from the `module:` middleware.
+ *
+ * This is a different set from the sidebar's module_permission_check() names and
+ * neither contains the other. The feature specs fail on a route gate, not a
+ * sidebar gate, so a fixture derived from the sidebar alone silently lacks
+ * modules like `urban_goodz_ai_settings_view` and every page behind them 403s.
+ */
+function routeModules(): array
+{
+    $modules = [];
+    $dir = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__ . '/../routes'));
+    foreach ($dir as $file) {
+        if ($file->isDir() || $file->getExtension() !== 'php') {
+            continue;
+        }
+        if (preg_match_all("/module:([a-z0-9_]+)/", (string) file_get_contents($file->getPathname()), $m)) {
             $modules = array_merge($modules, $m[1]);
         }
     }
@@ -127,6 +153,31 @@ if ($authRole === 1 || $restRole === 1) {
 $authAdmin = upsertAdmin(AUTHORIZED, 'PwAuthorized', $authRole);
 $restAdmin = upsertAdmin(RESTRICTED, 'PwRestricted', $restRole);
 
+// The third account. The pair above must stay narrow - the browser preflight
+// requires the authorized account to expose Urban Goodz paths the restricted one
+// does not, so granting the other urban_goodz_* modules to both would drive that
+// difference to zero and quietly stop the boundary test proving anything.
+//
+// The feature specs are not testing that boundary; they are testing pages. They
+// need an account that simply holds everything, so it gets one - the union of
+// the sidebar gates and the route gates.
+$everything = array_values(array_unique(array_merge($all, routeModules())));
+sort($everything);
+$fullRole  = upsertRole('PW Fixture Full', $everything);
+if ($fullRole === 1) {
+    fwrite(STDERR, "REFUSING: the full fixture role resolved to the primary Admin role.
+");
+    exit(5);
+}
+$fullAdmin = upsertAdmin(FULL, 'PwFull', $fullRole);
+
+$missingFromFull = array_values(array_diff(routeModules(), $everything));
+if ($missingFromFull !== []) {
+    fwrite(STDERR, "REFUSING: full role is missing route-gated modules: " . implode(',', $missingFromFull) . "
+");
+    exit(6);
+}
+
 $difference = array_values(array_merge(
     array_diff($authorized, $restricted),
     array_diff($restricted, $authorized)
@@ -134,6 +185,8 @@ $difference = array_values(array_merge(
 
 printf("authorized  role_id=%d admin_id=%d modules=%d  %s\n", $authRole, $authAdmin, count($authorized), AUTHORIZED);
 printf("restricted  role_id=%d admin_id=%d modules=%d  %s\n", $restRole, $restAdmin, count($restricted), RESTRICTED);
+printf("full        role_id=%d admin_id=%d modules=%d  %s
+", $fullRole, $fullAdmin, count($everything), FULL);
 printf("symmetric difference: %s\n", implode(',', $difference));
 printf("password: %s\n", PASSWORD);
 
@@ -141,6 +194,8 @@ echo "\nRun the browser suite with:\n";
 echo "  BASE_URL=http://127.0.0.1:8000 \\\n";
 echo "  ADMIN_TEST_EMAIL=" . AUTHORIZED . " ADMIN_TEST_PASSWORD='" . PASSWORD . "' \\\n";
 echo "  ADMIN_RESTRICTED_TEST_EMAIL=" . RESTRICTED . " ADMIN_RESTRICTED_TEST_PASSWORD='" . PASSWORD . "' \\\n";
+echo "  ADMIN_FULL_TEST_EMAIL=" . FULL . " ADMIN_FULL_TEST_PASSWORD='" . PASSWORD . "' \
+";
 echo "  npx playwright test --config=tests/Browser/playwright.config.js\n";
 echo "\nThe target server must run APP_MODE=dev - the suite relies on the\n";
 echo "custom CAPTCHA being pre-filled server-side. Production runs APP_MODE=live.\n";

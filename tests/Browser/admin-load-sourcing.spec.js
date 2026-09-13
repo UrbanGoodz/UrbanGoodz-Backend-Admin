@@ -6,8 +6,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const ADMIN_EMAIL = process.env.ADMIN_TEST_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_TEST_PASSWORD;
+// These specs exercise features, not the permission boundary, so they need an
+// account that holds every module the routes gate on - including the
+// urban_goodz_* modules that the AdminLoginTest fixture pair deliberately
+// withholds from BOTH its accounts to keep that boundary provable.
+// Falls back to the boundary-pair account so an unseeded environment still runs.
+const ADMIN_EMAIL = process.env.ADMIN_FULL_TEST_EMAIL || process.env.ADMIN_TEST_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_FULL_TEST_PASSWORD || process.env.ADMIN_TEST_PASSWORD;
 const EVIDENCE_ROOT = process.env.E2E_EVIDENCE_DIR
   || path.join(os.tmpdir(), 'urban-goodz-admin-load-sourcing');
 
