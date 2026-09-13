@@ -128,7 +128,7 @@
   'Send_Mail_to_Your_Email' => 'Send Mail to Your Email',
   'A mail will be send to your registered email with a  link to change passowrd' => 'A mail will be send to your registered email with a  link to change passowrd',
   'Send Mail' => 'Send Mail',
-  'plesae_enter_your_registerd_email' => 'Plesae enter your registerd email',
+  'plesae_enter_your_registerd_email' => 'Please enter your registered email',
   'A mail has been sent to your registered email' => 'A mail has been sent to your registered email',
   'Click the link in the mail description to change password' => 'Click the link in the mail description to change password',
   'Credentials does not match.' => 'Credentials does not match.',

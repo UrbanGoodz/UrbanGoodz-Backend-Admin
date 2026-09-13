@@ -196,8 +196,11 @@ test.describe('Admin login page', () => {
     const response = await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
     expect(response.status()).toBe(200);
 
-    await expect(page.locator('input[name="email"]')).toBeVisible();
-    await expect(page.locator('input[name="password"]')).toBeVisible();
+    // The page carries two name="email" inputs - the sign-in form and the
+    // forgot-password form - so an unscoped locator is a strict-mode
+    // violation. Assert against the sign-in field specifically.
+    await expect(page.locator('#signinSrEmail')).toBeVisible();
+    await expect(page.locator('input[name="password"]').first()).toBeVisible();
     await expect(page.locator('#custome_recaptcha')).toBeVisible();
     await expect(page.locator('#signInBtn')).toBeVisible();
 
@@ -209,8 +212,8 @@ test.describe('Admin login page', () => {
   test('required fields are enforced', async ({ page }) => {
     await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
 
-    const emailInput = page.locator('input[name="email"]');
-    const passwordInput = page.locator('input[name="password"]');
+    const emailInput = page.locator('#signinSrEmail');
+    const passwordInput = page.locator('input[name="password"]').first();
 
     // Assert the fields actually declare themselves required, rather than
     // inferring it from a post-submit URL check.

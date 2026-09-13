@@ -3382,7 +3382,7 @@ return array (
   'Banner Section' => 'قسم لافتة',
   'banner Image' => 'صورة بانر',
   'is_organic' => 'عضوي',
-  'plesae_enter_your_registerd_email' => 'PLESAE أدخل بريدك الإلكتروني registerd',
+  'plesae_enter_your_registerd_email' => 'يرجى إدخال بريدك الإلكتروني المسجل',
   'Email_does_not_exists' => 'البريد الإلكتروني لا يوجد',
   'company' => 'شركة',
   'new_company' => 'شركة جديدة',
