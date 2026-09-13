@@ -277,9 +277,13 @@
     <script>
         "use strict";
         @foreach($errors->all() as $error)
-        toastr.error('{{translate($error)}}', Error, {
-            CloseButton: true,
-            ProgressBar: true
+        {{-- 'Error' is the toast title and must be a string. Unquoted, this
+             passed the JavaScript global Error constructor, and toastr's
+             option keys are closeButton/progressBar - the capitalised ones
+             were silently ignored. --}}
+        toastr.error('{{translate($error)}}', '{{ translate('Error') }}', {
+            closeButton: true,
+            progressBar: true
         });
         @endforeach
     </script>
