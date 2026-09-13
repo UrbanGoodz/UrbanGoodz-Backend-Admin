@@ -72,8 +72,7 @@ class DeliveryManController extends Controller
                     },
                 ],
             ]);
-        } else if(session('six_captcha') != $request->custome_recaptcha)
-        {
+        } else if (!$this->captchaMatches($request->custome_recaptcha)) {
             Toastr::error(translate('messages.ReCAPTCHA Failed'));
             return back()->withInput();
         }
@@ -146,4 +145,31 @@ class DeliveryManController extends Controller
         Toastr::success(translate('messages.application_placed_successfully'));
         return redirect()->route('home');
     }
+
+    /**
+     * Check the typed captcha against the issued phrase, and consume it.
+     *
+     * Two things this fixes. The comparison was `!=`, and PHP compares two
+     * numeric-looking strings as numbers - so whenever the generated phrase
+     * came out all digits, "0123" or "1e2" satisfied a phrase of "123".
+     * Second, the phrase used to survive its own use, so one solved captcha
+     * covered every later submit in the same session.
+     */
+    private function captchaMatches(?string $typed): bool
+    {
+        $phrase = session('six_captcha');
+
+        if ($typed === null || $typed === '' || empty($phrase)) {
+            return false;
+        }
+
+        $ok = hash_equals(strtolower((string) $phrase), strtolower($typed));
+
+        if ($ok) {
+            session()->forget('six_captcha');
+        }
+
+        return $ok;
+    }
+
 }
