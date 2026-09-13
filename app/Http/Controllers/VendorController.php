@@ -77,10 +77,9 @@ class VendorController extends Controller
                     },
                 ],
             ]);
-        } else if(strtolower(session('six_captcha')) != strtolower($request->custome_recaptcha))
-        {
-              $validator->getMessageBag()->add('ReCAPTCHA', translate('ReCAPTCHA Failed'));
-                 return response()->json(['errors' => Helpers::error_processor($validator)]);
+        } else if (!$this->captchaMatches($request->custome_recaptcha)) {
+            $validator->getMessageBag()->add('ReCAPTCHA', translate('ReCAPTCHA Failed'));
+            return response()->json(['errors' => Helpers::error_processor($validator)]);
         }
 
         $validator = Validator::make($request->all(), [
@@ -393,5 +392,34 @@ public function final_step(Request $request){
 
     return view('vendor-views.auth.register-complete',['store_id' =>$store_id,'payment_status'=> $payment_status]);
 }
+
+
+    /**
+     * Check the typed captcha against the issued phrase, and consume it.
+     *
+     * The comparison was `!=`, and PHP compares two numeric-looking strings as
+     * numbers - so an all-digit phrase of "123" was satisfied by "0123" or
+     * "1e2". The phrase also used to outlive its own use, which let one solved
+     * captcha cover every later submit in the session.
+     *
+     * This form posts over AJAX and does not re-render, so the page refreshes
+     * the captcha itself whenever the request comes back with errors.
+     */
+    private function captchaMatches(?string $typed): bool
+    {
+        $phrase = session('six_captcha');
+
+        if ($typed === null || $typed === '' || empty($phrase)) {
+            return false;
+        }
+
+        $ok = hash_equals(strtolower((string) $phrase), strtolower($typed));
+
+        if ($ok) {
+            session()->forget('six_captcha');
+        }
+
+        return $ok;
+    }
 
 }

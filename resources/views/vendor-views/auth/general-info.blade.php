@@ -839,6 +839,11 @@ function submitForm() {
             if (data.errors) {
                 $('.btn-disable').prop('disabled', false);
                 if (!$('#businessTerms').is(':checked')) $('#generalSubmitBtn').prop('disabled', true);
+                // A correct captcha is consumed server-side, so a submit that
+                // fails for any other reason leaves a stale image behind. This
+                // form never re-renders, so fetch a fresh one here rather than
+                // making the vendor notice and click the reload icon.
+                $('.reloadCaptcha').first().trigger('click');
                 for (let i = 0; i < data.errors.length; i++) {
                     toastr.error(data.errors[i].message, {
                         CloseButton: true,
