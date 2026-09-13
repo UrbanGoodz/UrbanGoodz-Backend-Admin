@@ -89,8 +89,16 @@ $countryCode = strtolower($country ? $country : 'auto');
 
     @if(in_array($module_type, ['rental', 'ride-share']))
         @include("{$module_type}::admin.partials._sidebar_{$module_type}")
-    @else
+    @elseif(View::exists("layouts.admin.partials._sidebar_{$module_type}"))
         @include("layouts.admin.partials._sidebar_{$module_type}")
+    @else
+        {{-- $module_type is derived from the request path by CurrentModule
+             middleware. A path it does not recognise leaves it empty, which
+             asked for "_sidebar_" and took the whole page down with a
+             View not found - so any admin route outside the known module
+             prefixes 500'd on its layout rather than on its own content.
+             Fall back to the default sidebar instead. --}}
+        @include('layouts.admin.partials._sidebar')
     @endif
 
     <!-- END ONLY DEV -->

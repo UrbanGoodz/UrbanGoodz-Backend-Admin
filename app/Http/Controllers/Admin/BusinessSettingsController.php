@@ -1154,7 +1154,11 @@ class BusinessSettingsController extends Controller
 
     public function currency_index()
     {
-        return view('admin-views.business-settings.currency-index');
+        // The view lists what already exists alongside the add form, so the
+        // rows have to come from here rather than a query inside the Blade.
+        $currencies = Currency::orderBy('country')->get();
+
+        return view('admin-views.business-settings.currency-index', compact('currencies'));
     }
 
     private function syncCentralizedAppDownloadLinks(): void
