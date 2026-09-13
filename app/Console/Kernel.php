@@ -31,6 +31,17 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+        // DEAD CODE - nothing binds this Kernel. This application configures
+        // itself through bootstrap/app.php (Application::configure()), and the
+        // schedule the framework actually reads is the ->withSchedule() block
+        // there. `php artisan schedule:list` is the authority; if a command is
+        // not in that output it does not run, however convincing this method
+        // looks.
+        //
+        // Four commands sat here and only here until 2026-09-13, so they had
+        // never executed once: run-scheduled-sourcing, stranded:dispatch-tick,
+        // delivery-history:prune and order-anywhere:recover-card-issuance.
+        // They now live in bootstrap/app.php. Edit them there, not here.
         $schedule->command('ai-copilot:generate', ['--notify'])
             ->everyFifteenMinutes()
             ->withoutOverlapping()

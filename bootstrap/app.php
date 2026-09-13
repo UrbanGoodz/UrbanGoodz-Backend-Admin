@@ -128,6 +128,40 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyMinute()
             ->withoutOverlapping(5)
             ->runInBackground();
+
+        // The four below were declared in app/Console/Kernel.php, which this
+        // Laravel binds nowhere - `schedule:list` never showed them, so none of
+        // them had ever run. Moved here, which is the only schedule the
+        // framework reads.
+
+        $schedule->command('run-scheduled-sourcing')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn () => config('urban_goodz_load_board.sourcing.enabled', true));
+
+        // Stranded is the one schedule here that somebody is waiting on in real
+        // time. The responder answer window is measured in seconds, so this
+        // runs every minute rather than on the usual cadence.
+        $schedule->command('stranded:dispatch-tick')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Reissues cards for Order Anywhere requests that are paid, assigned and
+        // somehow have no live card, and closes cards whose window lapsed. Every
+        // condition is a stuck state, so on a healthy system this does nothing.
+        $schedule->command('order-anywhere:recover-card-issuance')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Driver breadcrumbs are unbounded by nature. Prune nightly, keeping
+        // each driver's most recent point so the live map never goes blank.
+        $schedule->command('delivery-history:prune')
+            ->dailyAt('03:20')
+            ->withoutOverlapping()
+            ->runInBackground();
     })
 
     ->withExceptions(function (Exceptions $exceptions) {
