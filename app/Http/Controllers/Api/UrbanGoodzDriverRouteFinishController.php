@@ -7,6 +7,7 @@ use App\Models\UrbanGoodzDedicatedRoute;
 use App\Models\UrbanGoodzIntakeBatch;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Services\UrbanGoodz\DedicatedRouteOptimizationService;
+use App\Services\UrbanGoodz\Routing\Services\AddressGeocoder;
 use App\Services\UrbanGoodz\Routing\Services\BatchToRouteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -118,11 +119,16 @@ class UrbanGoodzDriverRouteFinishController extends Controller
      * Set the finish point and sort the run.
      *
      *   mode=hub      finish back where the route started
-     *   mode=address  finish at a coordinate the driver supplies
+     *   mode=address  finish at an address the driver types, or a coordinate
+     *                 they pick on the map
      *   mode=open     finish wherever the last stop falls
      */
-    public function finish(Request $request, int $route, DedicatedRouteOptimizationService $optimizer): JsonResponse
-    {
+    public function finish(
+        Request $request,
+        int $route,
+        DedicatedRouteOptimizationService $optimizer,
+        AddressGeocoder $geocoder
+    ): JsonResponse {
         $driver = $this->driver($request);
 
         if (!$driver) {
@@ -131,13 +137,28 @@ class UrbanGoodzDriverRouteFinishController extends Controller
 
         $validator = Validator::make($request->all(), [
             'mode' => 'required|in:hub,address,open',
-            'end_lat' => 'required_if:mode,address|nullable|numeric|between:-90,90',
-            'end_lng' => 'required_if:mode,address|nullable|numeric|between:-180,180',
+            'end_lat' => 'nullable|numeric|between:-90,90',
+            'end_lng' => 'nullable|numeric|between:-180,180',
+            'end_address' => 'nullable|string|max:255',
             'end_label' => 'nullable|string|max:255',
-        ], [
-            'end_lat.required_if' => 'Choose a finish location on the map.',
-            'end_lng.required_if' => 'Choose a finish location on the map.',
         ]);
+
+        // A finish address can arrive as typed text or as a point picked on
+        // the map. Either is enough; neither is not.
+        $validator->after(function ($v) use ($request): void {
+            if ($request->input('mode') !== 'address') {
+                return;
+            }
+
+            $hasPoint = $request->filled('end_lat') && $request->filled('end_lng');
+
+            if (!$hasPoint && !$request->filled('end_address')) {
+                $v->errors()->add(
+                    'end_address',
+                    'Enter the address you want to finish at, or choose a point on the map.'
+                );
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
@@ -153,6 +174,21 @@ class UrbanGoodzDriverRouteFinishController extends Controller
         }
 
         $mode = $request->input('mode');
+        $finishPoint = null;
+
+        if ($mode === 'address') {
+            $finishPoint = $this->resolveFinishPoint($request, $model, $geocoder);
+
+            // Resolve before writing: a route left pointing at a finish that
+            // could not be located is worse than one the driver retries.
+            if ($finishPoint === null) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 'geocode_failed',
+                    'message' => $this->geocodeMessage($geocoder),
+                ], 422);
+            }
+        }
 
         $model->update(match ($mode) {
             'hub' => [
@@ -163,9 +199,9 @@ class UrbanGoodzDriverRouteFinishController extends Controller
             ],
             'address' => [
                 'return_to_origin' => false,
-                'end_lat' => $request->input('end_lat'),
-                'end_lng' => $request->input('end_lng'),
-                'end_location' => $request->input('end_label') ?: 'Driver chosen finish',
+                'end_lat' => $finishPoint['lat'],
+                'end_lng' => $finishPoint['lng'],
+                'end_location' => $finishPoint['label'],
             ],
             'open' => [
                 'return_to_origin' => false,
@@ -193,6 +229,62 @@ class UrbanGoodzDriverRouteFinishController extends Controller
             'changed' => (bool) ($result['changed'] ?? false),
             'route' => $this->runSheet($model->fresh()),
         ]);
+    }
+
+    /**
+     * Where the driver wants to finish, as a point.
+     *
+     * @return array{lat: float, lng: float, label: string}|null null when a
+     *         typed address could not be resolved
+     */
+    private function resolveFinishPoint(
+        Request $request,
+        UrbanGoodzDedicatedRoute $route,
+        AddressGeocoder $geocoder
+    ): ?array {
+        // A point picked on the map is already exact. Typed text is not, and
+        // is only trusted once the geocoder agrees.
+        if ($request->filled('end_lat') && $request->filled('end_lng')) {
+            return [
+                'lat' => (float) $request->input('end_lat'),
+                'lng' => (float) $request->input('end_lng'),
+                'label' => $request->input('end_label')
+                    ?: ($request->input('end_address') ?: 'Driver chosen finish'),
+            ];
+        }
+
+        // The pickup anchors the search, so "Main St" means the one in the
+        // city the driver is actually working in - and nothing outside the
+        // operating region can come back at all.
+        $anchor = ($route->pickup_lat !== null && $route->pickup_lng !== null)
+            ? ['lat' => (float) $route->pickup_lat, 'lng' => (float) $route->pickup_lng]
+            : null;
+
+        $hit = $geocoder->geocode((string) $request->input('end_address'), $anchor);
+
+        if ($hit === null) {
+            return null;
+        }
+
+        return [
+            'lat' => $hit['lat'],
+            'lng' => $hit['lng'],
+            // The geocoder's normalised label is stored, not the raw typing,
+            // so the run sheet shows what was actually matched.
+            'label' => $request->input('end_label') ?: $hit['label'],
+        ];
+    }
+
+    /** Why the address did not resolve, phrased for the driver holding the phone. */
+    private function geocodeMessage(AddressGeocoder $geocoder): string
+    {
+        return match ($geocoder->lastFailureReason()) {
+            'not_configured' => 'Address lookup is unavailable right now. Choose a point on the map instead.',
+            'no_anchor' => 'This route has no pickup location set, so an address cannot be checked against it. Choose a point on the map instead.',
+            'outside_service_area' => 'That address is too far from this route to be the finish. Choose somewhere closer, or pick a point on the map.',
+            'no_match', 'no_coordinates' => 'That address could not be found near this route. Add the city and ZIP, or choose a point on the map.',
+            default => 'Address lookup failed. Try again, or choose a point on the map.',
+        };
     }
 
     /** The sorted run, in the order the driver should actually drive it. */

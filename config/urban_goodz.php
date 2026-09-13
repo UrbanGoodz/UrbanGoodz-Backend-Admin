@@ -30,6 +30,10 @@ return [
         'max_retry_after_seconds' => env('ORS_MAX_RETRY_AFTER_SECONDS', 5),
         'cache_ttl_hours' => env('ORS_CACHE_TTL_HOURS', 24),
         'max_locations' => env('ORS_MAX_LOCATIONS', 50),
+        // How far from a route's pickup a typed finish address may resolve.
+        // This bound is what stops an unrecognised address matching a venue on
+        // another continent - see AddressGeocoder.
+        'geocode_radius_km' => env('ORS_GEOCODE_RADIUS_KM', 150),
     ],
 
     'clustering' => [
