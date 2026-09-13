@@ -45,6 +45,7 @@
                 </form>
 
                 <ul class="navbar-nav navbar-nav-lg nav-tabs">
+                    @include('layouts.admin.partials._sidebar_urban_goodz')
                     <!-- Dashboards -->
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin') ? 'show active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.dashboard') }}?module_id={{Config::get('module.current_module_id')}}" title="{{ translate('messages.dashboard') }}">

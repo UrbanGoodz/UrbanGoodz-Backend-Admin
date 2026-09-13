@@ -49,6 +49,7 @@
                     </div>
                 </form>
                 <ul class="navbar-nav navbar-nav-lg nav-tabs">
+                    @include('layouts.admin.partials._sidebar_urban_goodz')
                     <!-- Business Section-->
                     <li class="nav-item">
                         <small class="nav-subtitle"

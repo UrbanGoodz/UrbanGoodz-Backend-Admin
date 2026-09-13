@@ -130,7 +130,14 @@ for (const device of [
       storageState,
       recordVideo: { dir: evidenceDir },
     });
-    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    // The config sets trace: 'on-first-retry', so on a retry Playwright has
+    // already started tracing on this context and a second start throws
+    // "Tracing has been already started" - which failed every retry of this
+    // spec instantly, before any assertion ran, and hid the real result.
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true })
+      .catch((error) => {
+        if (!/already started/i.test(String(error))) throw error;
+      });
 
     const page = await context.newPage();
     const consoleMessages = [];
@@ -157,7 +164,7 @@ for (const device of [
     } finally {
       fs.writeFileSync(path.join(evidenceDir, 'console.json'), JSON.stringify(consoleMessages, null, 2));
       fs.writeFileSync(path.join(evidenceDir, 'network-failures.json'), JSON.stringify(networkFailures, null, 2));
-      await context.tracing.stop({ path: path.join(evidenceDir, 'trace.zip') });
+      await context.tracing.stop({ path: path.join(evidenceDir, 'trace.zip') }).catch(() => {});
       await context.close();
       testInfo.annotations.push({ type: 'evidence', description: evidenceDir });
     }
