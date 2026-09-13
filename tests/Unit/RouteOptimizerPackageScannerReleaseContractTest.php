@@ -48,14 +48,21 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
         }
     }
 
-    public function test_driver_receives_authoritative_sequence_and_cannot_silently_resequence_it(): void
+    public function test_driver_receives_authoritative_sequence_and_resequencing_is_guarded(): void
     {
         $source = $this->source('app/Http/Controllers/Api/UrbanGoodzDriverApiController.php');
 
         self::assertStringContainsString("->orderBy('stop_order')", $source);
         self::assertStringContainsString("'sequence_number' => (int) \$groupOrder", $source);
         self::assertStringContainsString("'package_count' => \$packages->count()", $source);
-        self::assertStringContainsString('persisted Business/dispatcher sequence is authoritative', $source);
+        // Drivers may choose their own ending point, so the sequence is no longer
+        // frozen. The safety property is now that a driver-chosen detour cannot be
+        // applied silently: it must clear time windows and the variance guard, and
+        // otherwise park in pending_approval for a dispatcher.
+        self::assertStringContainsString('checkTimeWindowFeasibility', $source);
+        self::assertStringContainsString('$isExcessive = ($variancePercent > 20.0 || $varianceMiles > 15.0);', $source);
+        self::assertStringContainsString("'status' => \$isExcessive ? 'pending_approval' : 'active',", $source);
+        self::assertStringContainsString('Resequencing requires dispatcher approval due to excessive variance.', $source);
         self::assertStringContainsString("'optimization_distance_mode'", $source);
         self::assertStringContainsString("'optimization_constraints'", $source);
     }

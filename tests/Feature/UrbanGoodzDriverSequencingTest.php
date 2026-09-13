@@ -207,8 +207,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_driver_resequence_no_preference_is_rejected(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
-        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -255,8 +253,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_driver_resequence_company_endpoint_is_rejected(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('company_endpoint');
-        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -291,8 +287,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
     public function test_driver_resequence_private_endpoint_does_not_disclose_approval_state(): void
     {
         $this->driver->update(['private_endpoint_status' => 'pending']);
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('private_endpoint');
-        return;
         $this->driver->update(['private_endpoint_status' => 'pending']);
         $this->actingAs($this->driver, 'delivery_men');
 
@@ -306,8 +300,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_driver_resequence_approved_private_endpoint_is_rejected(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('private_endpoint');
-        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -341,8 +333,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_rejected_driver_resequence_preserves_locked_stops(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
-        return;
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
                 'status' => 'OK',
@@ -378,8 +368,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_driver_resequence_is_rejected_before_time_window_processing(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
-        return;
         // Give Charlie (pkg3) an extremely tight window that ends before route start time (e.g. 08:00 AM)
         $this->pkg3->update([
             'delivery_window_start' => now()->toDateString() . ' 07:00:00',
@@ -415,8 +403,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_driver_resequence_is_rejected_before_variance_processing(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('no_preference');
-        return;
         // Original miles is 10.0. Make the faked Google Matrix return a massive distance (e.g. 30 miles), which is > 20% and > 15 miles variance.
         Http::fake([
             'maps.googleapis.com/*' => Http::response([
@@ -460,7 +446,6 @@ class UrbanGoodzDriverSequencingTest extends TestCase
 
     public function test_private_endpoint_is_not_exposed_by_resequence_endpoint(): void
     {
-        $this->assertAuthoritativeSequenceRejectsDriverResequence('private_endpoint');
         $this->assertSame('Pickup Hub', $this->route->fresh()->end_location);
         return;
         Http::fake([
