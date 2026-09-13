@@ -198,11 +198,16 @@ class LoginController extends Controller
             $sessionPhrase = session('six_captcha');
 
             if (empty($customCaptchaInput) || empty($sessionPhrase) || strtolower($sessionPhrase) !== strtolower($customCaptchaInput)) {
-                if ($customCaptchaInput !== '9999' || $request->input('email') !== 'eaturban2020@gmail.com') {
-                    return redirect()->back()->withInput($request->only('email', 'remember'))
-                        ->withErrors(['ReCAPTCHA Failed']);
-                }
+                return redirect()->back()->withInput($request->only('email', 'remember'))
+                    ->withErrors(['ReCAPTCHA Failed']);
             }
+
+            // Burn the phrase. It used to survive in the session until the
+            // login page was rendered again, and a script posting straight to
+            // this route never renders it - so one solved captcha covered an
+            // unlimited run of password guesses. Consuming it means every
+            // attempt needs a freshly issued phrase.
+            Session::forget('six_captcha');
         }
 
         $ip = $request->ip();
