@@ -127,7 +127,9 @@ async function fillCustomCaptcha(page) {
  */
 async function submitLogin(page, email, password, { captcha = 'valid' } = {}) {
   await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
-  await page.locator('input[name="email"]').fill(email);
+  // Two name="email" inputs exist on this page - sign-in and forgot-password -
+  // so this must target the sign-in field or it is a strict-mode violation.
+  await page.locator('#signinSrEmail').fill(email);
   await page.locator('input[name="password"]').fill(password);
 
   if (captcha === 'valid') {
