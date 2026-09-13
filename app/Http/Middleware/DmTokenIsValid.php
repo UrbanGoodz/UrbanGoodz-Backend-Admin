@@ -41,6 +41,19 @@ class DmTokenIsValid
         }
 
         auth()->guard('delivery_men')->login($dm);
+
+        // This middleware accepts the token from an Authorization: Bearer header,
+        // but 36 of the DeliverymanController actions still resolve the rider with
+        // `DeliveryMan::where(['auth_token' => $request['token']])`. With a Bearer
+        // header and no `token` field in the body, that lookup returns null, and
+        // the null then flows into checks like `$dm->active != 1` - so a perfectly
+        // valid driver was told "You can not accept order on offline" and could
+        // never accept an order at all.
+        //
+        // Putting the resolved token where those actions already look fixes every
+        // one of them at the source, rather than patching 36 call sites.
+        $request->merge(['token' => $token]);
+
         return $next($request);
     }
 }

@@ -81,15 +81,21 @@ function err(array $r): string
 $today = now()->dayOfWeek;
 $clock = now()->format('H:i:s');
 
-$store = DB::table('stores')->where('stores.status', 1)->where('stores.active', 1)
+$openStores = DB::table('stores')->where('stores.status', 1)->where('stores.active', 1)
     ->whereIn('stores.id', DB::table('items')->where('status', 1)->distinct()->pluck('store_id'))
     ->whereExists(function ($q) use ($today, $clock) {
         $q->select(DB::raw(1))->from('store_schedule')
             ->whereColumn('store_schedule.store_id', 'stores.id')
             ->where('store_schedule.day', $today)
             ->whereRaw('? BETWEEN store_schedule.opening_time AND store_schedule.closing_time', [$clock]);
-    })
-    ->orderByDesc('stores.id')->first();
+    });
+
+// Prefer a store whose zone actually has an active delivery man, so the driver
+// leg runs against real data instead of being skipped.
+$store = (clone $openStores)
+    ->whereIn('stores.zone_id', DB::table('delivery_men')->where('status', 1)->distinct()->pluck('zone_id'))
+    ->orderByDesc('stores.id')->first()
+    ?: $openStores->orderByDesc('stores.id')->first();
 
 if (!$store) {
     fwrite(STDERR, "SKIP: no active store is open at {$clock} on day {$today}.\n");
@@ -238,6 +244,109 @@ foreach ((array) ($r['json']['orders'] ?? $r['json'] ?? []) as $o) {
 }
 step('order appears in running orders', $found, $found ? '' : err($r));
 
+// ── 6. Who confirms the order depends on configuration ──────────────────────
+// With order_confirmation_model = 'deliveryman' the RIDER confirms and the
+// vendor is refused; with 'store' it is the other way round. Asserting one
+// fixed sequence makes the test wrong on half of all installs, so read the
+// setting and assert the sequence this install actually uses - including that
+// the other party is correctly refused.
+$confirmBy = config('order_confirmation_model');
+printf("\nconfirmation model: %s\n", $confirmBy);
+
+const VENDOR_PASS = 'VendorE2E!2026';
+const DM_PASS     = 'DriverE2E!2026';
+
+$vendor = DB::table('vendors')->where('id', $store->vendor_id)->first();
+$dm     = DB::table('delivery_men')->where('zone_id', $store->zone_id)->where('status', 1)->first();
+
+$VAUTH = null;
+if (!$vendor) {
+    step('vendor exists for the store', false, "store {$store->id} has vendor_id {$store->vendor_id}");
+} else {
+    DB::table('vendors')->where('id', $vendor->id)->update(['password' => Hash::make(VENDOR_PASS)]);
+    $r = api('POST', '/auth/vendor/login', [
+        'email' => $vendor->email, 'password' => VENDOR_PASS, 'vendor_type' => 'owner',
+    ], $HDR);
+    $vToken = $r['json']['token'] ?? null;
+    if (step('vendor logs in', $vToken !== null, $vToken ? '' : err($r))) {
+        // VendorTokenIsValid reads the vendor type from a HEADER, not the body;
+        // the body field only steers the login branch.
+        $VAUTH = array_merge($HDR, ['Authorization: Bearer ' . $vToken, 'vendorType: owner']);
+    }
+}
+
+$DAUTH = null;
+if (!$dm) {
+    step('active driver in the order zone', false, "zone {$store->zone_id} has none");
+} else {
+    DB::table('delivery_men')->where('id', $dm->id)->update(['password' => Hash::make(DM_PASS)]);
+    $r = api('POST', '/auth/delivery-man/login', ['phone' => $dm->phone, 'password' => DM_PASS], $HDR);
+    $dToken = $r['json']['token'] ?? null;
+    if (step('driver logs in', $dToken !== null, $dToken ? '' : err($r))) {
+        $DAUTH = array_merge($HDR, ['Authorization: Bearer ' . $dToken]);
+
+        // The rider must be online to take work. update-active-status TOGGLES,
+        // so flipping blindly can take an already-online rider offline.
+        if ((int) DB::table('delivery_men')->where('id', $dm->id)->value('active') !== 1) {
+            api('POST', '/delivery-man/update-active-status', [], $DAUTH);
+        }
+        $online = DB::table('delivery_men')->where('id', $dm->id)->value('active');
+        step('driver is online', (int) $online === 1, "active={$online}");
+    }
+}
+
+function orderStatus(int $id): string
+{
+    return (string) DB::table('orders')->where('id', $id)->value('order_status');
+}
+
+// ── 7. The party that must NOT confirm is refused ───────────────────────────
+if ($VAUTH) {
+    $r = api('PUT', '/vendor/update-order-status', ['order_id' => $orderId, 'status' => 'confirmed'], $VAUTH);
+
+    if ($confirmBy === 'deliveryman') {
+        step('vendor is refused the confirm', $r['code'] === 403, 'HTTP ' . $r['code']);
+    } else {
+        step('vendor confirms the order', $r['code'] === 200 && orderStatus($orderId) === 'confirmed',
+            $r['code'] === 200 ? 'db=' . orderStatus($orderId) : err($r));
+    }
+}
+
+// ── 8. Driver takes the order ───────────────────────────────────────────────
+if ($DAUTH) {
+    $r = api('PUT', '/delivery-man/accept-order', ['order_id' => $orderId], $DAUTH);
+    $assigned = DB::table('orders')->where('id', $orderId)->value('delivery_man_id');
+    step('driver accepts the order', $r['code'] === 200 && (int) $assigned === (int) $dm->id,
+        $r['code'] === 200 ? "delivery_man_id={$assigned} status=" . orderStatus($orderId) : err($r));
+}
+
+// ── 9. Vendor prepares and hands over ───────────────────────────────────────
+if ($VAUTH) {
+    foreach (['processing', 'handover'] as $status) {
+        $r = api('PUT', '/vendor/update-order-status', ['order_id' => $orderId, 'status' => $status], $VAUTH);
+        step("vendor sets status {$status}", $r['code'] === 200 && orderStatus($orderId) === $status,
+            $r['code'] === 200 ? 'db=' . orderStatus($orderId) : err($r));
+    }
+}
+
+// ── 10. Driver delivers ─────────────────────────────────────────────────────
+if ($DAUTH) {
+    foreach (['picked_up', 'delivered'] as $status) {
+        // With order_delivery_verification on, the customer reads an OTP in
+        // their app and gives it to the driver at the door.
+        $body = ['order_id' => $orderId, 'status' => $status];
+        if ($status === 'delivered') {
+            $body['otp'] = DB::table('orders')->where('id', $orderId)->value('otp');
+        }
+        $r = api('PUT', '/delivery-man/update-order-status', $body, $DAUTH);
+        step("driver sets status {$status}", $r['code'] === 200 && orderStatus($orderId) === $status,
+            $r['code'] === 200 ? 'db=' . orderStatus($orderId) : err($r));
+    }
+}
+
+// ── 11. The order really completed ──────────────────────────────────────────
+$final = DB::table('orders')->where('id', $orderId)->first();
+step('order reached delivered', ($final->order_status ?? '') === 'delivered', "status={$final->order_status}");
 echo "\nORDER_ID={$orderId}\n";
 printf("%d passed, %d failed\n", $pass, $fail);
 exit($fail > 0 ? 1 : 0);
