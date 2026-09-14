@@ -60,8 +60,10 @@ supplied — it is the one item no amount of code work closes.
 
 ## Still open
 
-- `urban_goodz_driver_payouts_view` still lives only in the default sidebar; the
-  module sidebars do not carry it. Smaller version of defect 5.
+- ~~`urban_goodz_driver_payouts_view` only in the default sidebar~~ — checked and
+  withdrawn: Driver Pricing & Payouts is reachable from the header's Dispatch
+  Management entry, which renders `_sidebar_dispatch`, where the link is present
+  and correctly gated. Normal information architecture, not a gap.
 - Vendor APK has not been rebuilt since 2026-09-02.
 - Customer app: APK built and signed by the other lane; on-device order run
   still outstanding.
@@ -143,7 +145,46 @@ metaspace setting that previously OOM-looped builds for 40 minutes.
 
 ## What still cannot be closed here
 
-1. **`STRIPE_LIVE_SECRET_KEY`** — not present on production. Nothing else blocks
-   real payments, and no code change substitutes for it.
-2. **No device is attached** (`adb devices` is empty), so the on-device order
-   run cannot be performed in this session no matter which APKs exist.
+### 1. Going live on payments — exactly what is missing
+
+Audited directly against the production `.env` (values never printed, only
+presence). Correcting an earlier, vaguer statement in this document: the live
+**publishable** key is already in place, and the gate needs **both** halves of
+the pair plus a mode change.
+
+| Setting | Production now | Needed for live |
+|---|---|---|
+| `URBAN_GOODZ_PAYMENT_PROVIDER` | `stripe` | ✅ already correct |
+| `STRIPE_ENABLED` | `true` | ✅ already correct |
+| `STRIPE_LIVE_PUBLISHABLE_KEY` | set (`pk_live…`, 107 chars) | ✅ already present |
+| **`STRIPE_LIVE_SECRET_KEY`** | **ABSENT** | **the one value only the owner can supply** |
+| `URBAN_GOODZ_PAYMENT_MODE` | `sandbox` | must become `live_controlled` |
+
+`PaymentProviderManager::stripeLiveKeysAvailable()` requires `live_secret_key`
+**and** `live_publishable_key` to be non-empty, and `isLiveMode()` requires the
+mode string to be exactly `live_controlled` — not `live`.
+
+**Order matters.** Add the secret key first, then flip the mode. Flipping the
+mode while the secret is absent leaves `stripeLiveKeysAvailable()` false and
+breaks capture instead of enabling it.
+
+The `live_controlled` safeguards are all absent from `.env`, so their defaults
+apply: payments enabled flag `false`, a **$50.00** per-order cap, and no
+customer/admin allow-lists. Decide those deliberately before the first real
+charge:
+
+```
+ORDER_ANYWHERE_LIVE_PAYMENTS_ENABLED    (default false)
+ORDER_ANYWHERE_MAX_LIVE_TEST_AMOUNT     (default 50.00)
+ORDER_ANYWHERE_ALLOWED_TEST_CUSTOMERS   (default: none)
+ORDER_ANYWHERE_ALLOWED_ADMIN_USERS      (default: none)
+```
+
+No code change is required for any of this — the live path is fully built and
+wired; it is configuration only.
+
+### 2. On-device verification
+
+`adb devices` is empty, so the on-device order run cannot be performed no matter
+which APKs exist. All three APKs are built, signed and verified and are ready to
+install the moment a device is attached.
