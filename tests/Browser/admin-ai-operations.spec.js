@@ -74,6 +74,22 @@ for (const device of [
     fs.mkdirSync(evidenceDir, { recursive: true });
 
     const context = await browser.newContext({ viewport: device.viewport, recordVideo: { dir: evidenceDir } });
+    // The admin sidebar is an off-canvas drawer at mobile widths with a CSS
+    // slide transition, so Playwright's actionability check keeps reporting
+    // "element is not stable" and the click never lands - something a person
+    // tapping the link never experiences. Disable animation for the run rather
+    // than force-clicking, which would skip the very actionability checks this
+    // suite is here to make.
+    await context.addInitScript(() => {
+      const apply = () => {
+        const style = document.createElement('style');
+        style.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}';
+        document.head.appendChild(style);
+      };
+      if (document.head) apply();
+      else document.addEventListener('DOMContentLoaded', apply, { once: true });
+    });
+
     // The config sets trace: 'on-first-retry', so on a retry Playwright has
     // already started tracing on this context and a second start throws
     // "Tracing has been already started" - which failed every retry of this

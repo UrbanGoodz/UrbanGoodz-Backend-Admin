@@ -144,6 +144,22 @@ for (const device of [
       storageState,
       recordVideo: { dir: evidenceDir },
     });
+    // The admin sidebar is an off-canvas drawer at mobile widths with a CSS
+    // slide transition, so Playwright's actionability check keeps reporting
+    // "element is not stable" and the click never lands - something a person
+    // tapping the link never experiences. Disable animation for the run rather
+    // than force-clicking, which would skip the very actionability checks this
+    // suite is here to make.
+    await context.addInitScript(() => {
+      const apply = () => {
+        const style = document.createElement('style');
+        style.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}';
+        document.head.appendChild(style);
+      };
+      if (document.head) apply();
+      else document.addEventListener('DOMContentLoaded', apply, { once: true });
+    });
+
     // The config sets trace: 'on-first-retry', so on a retry Playwright has
     // already started tracing on this context and a second start throws
     // "Tracing has been already started" - which failed every retry of this
@@ -173,11 +189,11 @@ for (const device of [
 
     try {
       await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-      await clickUiLink(
-        page,
-        '/admin/urban-goodz/load-sourcing',
-        '/admin/urban-goodz/load-sourcing/overview'
-      );
+      // "Load Sourcing" in the sidebar is an accordion toggle (href="javascript:"),
+      // not a link - there is no anchor ending in /admin/urban-goodz/load-sourcing
+      // for a user to click. Overview is the first real destination under it, and
+      // clickUiLink already clicks links inside a collapsed submenu.
+      await clickUiLink(page, '/admin/urban-goodz/load-sourcing/overview');
       actionLog.push({ action: 'open-load-sourcing-through-admin-ui', url: page.url() });
 
       for (const pathName of PAGE_PATHS) {

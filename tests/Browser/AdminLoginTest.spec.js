@@ -333,8 +333,23 @@ test.describe('Admin login page', () => {
       const onlyAuthorized = authorizedPaths.filter((p) => !restrictedPaths.includes(p));
       const onlyRestricted = restrictedPaths.filter((p) => !authorizedPaths.includes(p));
 
+      // "Does the path contain urban-goodz" is an approximation of "is this
+      // link gated by urban_goodz_view", and two links in the Urban Goodz
+      // sidebar section break it: Mobile In-App Updates points at
+      // /admin/mobile-releases, and the Business Vendor Portal launcher points
+      // at /business/login. Both sit inside the
+      // module_permission_check('urban_goodz_view') block in
+      // _sidebar_urban_goodz.blade.php, so they are exactly the difference this
+      // test exists to see - they just do not say so in their URL.
+      //
+      // Naming them keeps the check strict: any OTHER non-urban-goodz path
+      // appearing for one account and not the other still fails, which is the
+      // signal that the roles differ by more than the one module.
+      const UG_GATED_NON_UG_PATHS = ['/admin/mobile-releases', '/business/login'];
+      const isUrbanGoodzGated = (p) => p.includes('urban-goodz') || UG_GATED_NON_UG_PATHS.includes(p);
+
       expect(
-        onlyAuthorized.every((p) => p.includes('urban-goodz')),
+        onlyAuthorized.every(isUrbanGoodzGated),
         `Authorized-only paths outside urban-goodz (roles differ by more than urban_goodz_view): ${JSON.stringify(onlyAuthorized)}`
       ).toBe(true);
       expect(

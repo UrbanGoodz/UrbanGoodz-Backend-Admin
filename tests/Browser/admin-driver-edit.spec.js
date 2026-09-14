@@ -85,6 +85,22 @@ for (const device of [
       storageState,
       recordVideo: { dir: evidenceDir },
     });
+    // The admin sidebar is an off-canvas drawer at mobile widths with a CSS
+    // slide transition, so Playwright's actionability check keeps reporting
+    // "element is not stable" and the click never lands - something a person
+    // tapping the link never experiences. Disable animation for the run rather
+    // than force-clicking, which would skip the very actionability checks this
+    // suite is here to make.
+    await context.addInitScript(() => {
+      const apply = () => {
+        const style = document.createElement('style');
+        style.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}';
+        document.head.appendChild(style);
+      };
+      if (document.head) apply();
+      else document.addEventListener('DOMContentLoaded', apply, { once: true });
+    });
+
     // The config sets trace: 'on-first-retry', so on a retry Playwright has
     // already started tracing on this context and a second start throws
     // "Tracing has been already started" - which failed every retry of this
@@ -114,6 +130,17 @@ for (const device of [
 
     try {
       await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+
+      // Driver management lives in the Users section, not on the module
+      // dashboard - a fresh login lands on a module (the header reads "Demo
+      // Module") and that sidebar carries no delivery-man link. The header's
+      // Users entry is how an admin actually gets there, so go the same way
+      // rather than expecting the link on the dashboard.
+      const usersLink = page.locator('a[href$="/admin/users"]').first();
+      await expect(usersLink, 'Users section link is missing from the admin header').toHaveCount(1);
+      await usersLink.click();
+      await page.waitForLoadState('domcontentloaded');
+
       const listLink = page.locator('a[href$="/admin/users/delivery-man"]').first();
       await expect(listLink).toHaveCount(1);
       const listResponsePromise = page.waitForResponse((candidate) =>
