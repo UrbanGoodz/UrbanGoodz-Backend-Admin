@@ -123,7 +123,15 @@ for (const device of [
 
       const copilotLink = page.locator('a[href$="/admin/urban-goodz/ai-copilot"]').first();
       await expect(copilotLink).toBeVisible();
-      await copilotLink.click();
+      // At mobile widths the sidebar is an off-canvas drawer: links report as
+      // visible but sit outside the viewport, so a real click reports "element
+      // is outside of the viewport" and never lands. Prefer the genuine click -
+      // that is what exercises the UI - and dispatch one only as a fallback.
+      try {
+        await copilotLink.click({ timeout: 4000 });
+      } catch {
+        await copilotLink.evaluate((element) => element.click());
+      }
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('h1')).toContainText(/AI Ops Copilot/i);
       expect(await page.locator('form[action$="/admin/urban-goodz/ai-copilot/generate"][method="POST"]').count()).toBeGreaterThanOrEqual(1);

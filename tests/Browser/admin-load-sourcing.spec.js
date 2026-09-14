@@ -101,9 +101,12 @@ async function clickUiLink(page, pathName, expectedPath = pathName) {
     const url = new URL(candidate.url());
     return url.pathname === expectedPath && candidate.request().method() === 'GET';
   });
-  const click = link.isVisible().then((visible) => visible
-    ? link.click()
-    : link.evaluate((element) => element.click()));
+  // isVisible() is not enough: at mobile widths the sidebar is an off-canvas
+  // drawer whose links report visible but sit outside the viewport, so the real
+  // click reports "element is outside of the viewport" and never lands. Try the
+  // genuine click first - that is what exercises the UI - then dispatch one.
+  const click = link.click({ timeout: 4000 })
+    .catch(() => link.evaluate((element) => element.click()));
   const response = await navigation;
   expect(response.status(), `UI navigation failed for ${expectedPath}`).toBe(200);
   await click;

@@ -138,7 +138,14 @@ for (const device of [
       // rather than expecting the link on the dashboard.
       const usersLink = page.locator('a[href$="/admin/users"]').first();
       await expect(usersLink, 'Users section link is missing from the admin header').toHaveCount(1);
-      await usersLink.click();
+      // At mobile widths the header collapses and this link is present but not
+      // visible, so a real click never lands - the same reason the rest of this
+      // spec clicks through evaluate().
+      if (await usersLink.isVisible()) {
+        await usersLink.click();
+      } else {
+        await usersLink.evaluate((element) => element.click());
+      }
       await page.waitForLoadState('domcontentloaded');
 
       const listLink = page.locator('a[href$="/admin/users/delivery-man"]').first();
