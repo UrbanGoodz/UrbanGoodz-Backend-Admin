@@ -234,7 +234,11 @@ class UrbanGoodzCreatorController extends Controller
 
     public function campaignCreate()
     {
-        $vendors = Vendor::select('id', 'name')->orderBy('name')->get();
+        // `vendors` has no `name` column - it stores f_name/l_name, and the
+        // model declares no name accessor - so selecting/ordering by `name`
+        // threw "Unknown column 'name' in 'field list'" and this page was a 500.
+        $vendors = Vendor::select('id', 'f_name', 'l_name')
+            ->orderBy('f_name')->orderBy('l_name')->get();
 
         return view('admin-views.urban-goodz.creator.campaign-create', compact('vendors'));
     }

@@ -1363,9 +1363,11 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::group(['prefix' => 'apple-login', 'as' => 'apple-login.'], function () {
             Route::post('update/{service}', 'BusinessSettingsController@updateAppleLogin')->name('update');
         });
-        Route::get('store/report', function () {
-            return view('store_report');
-        });
+        // Removed: an unnamed closure returning view('store_report'), a Blade
+        // that has never existed anywhere in this repo. Nothing links to the
+        // path and no route name was ever assigned, so its only behaviour was
+        // to answer 500 to anyone who found it. The real store reporting lives
+        // under admin/transactions/report/* and admin/report/*.
 
         Route::group(['prefix' => 'dispatch', 'as' => 'dispatch.'], function () {
             Route::get('/', 'DashboardController@dispatch_dashboard')->name('dashboard');

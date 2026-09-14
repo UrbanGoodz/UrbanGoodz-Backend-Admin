@@ -1337,6 +1337,15 @@ class VendorController extends Controller
     {
         $withdraw = WithdrawRequest::with(['vendor.stores'])->where(['id' => $request->withdraw_id])->first();
 
+        // _side_view indexes into $withdraw, so a missing or unknown
+        // withdraw_id reached the view as null and threw "Trying to access
+        // array offset on null" - a 500 for what is a bad request.
+        if (!$withdraw) {
+            return response()->json([
+                'errors' => [['code' => 'withdraw_id', 'message' => translate('messages.withdraw_request_not_found')]],
+            ], 404);
+        }
+
         return response()->json([
             'view' => view('admin-views.wallet.partials._side_view', compact('withdraw'))->render(),
         ]);

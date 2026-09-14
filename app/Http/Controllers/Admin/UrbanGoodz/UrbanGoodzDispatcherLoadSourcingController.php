@@ -112,10 +112,10 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
                 ->with('success', translate('Search saved successfully'));
         }
 
-        $user = auth('business')->user();
-        $savedSearches = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)
-            ->latest()
-            ->get();
+        $companyId = $this->dispatchCompanyId();
+        $savedSearches = $companyId === null
+            ? collect()
+            : DispatcherSavedSearch::where('dispatch_company_id', $companyId)->latest()->get();
 
         return view('admin-views.urban-goodz.dispatcher-sourcing.saved-searches', compact('savedSearches'));
     }
@@ -345,10 +345,30 @@ class UrbanGoodzDispatcherLoadSourcingController extends Controller
         return response()->json(['success' => true, 'search' => $search]);
     }
 
+    /**
+     * These endpoints are registered under the ADMIN route group but resolve
+     * their caller with the `business` guard. For an admin that guard has no
+     * user, so `$user->business_client_id` threw "Attempt to read property
+     * business_client_id on null" and a plain GET answered 500. Resolve it
+     * defensively and let each caller decide what to do without a business
+     * context - which is a 403, not a crash.
+     */
+    private function dispatchCompanyId(): ?int
+    {
+        return auth('business')->user()?->business_client_id;
+    }
+
     public function savedSearches(): JsonResponse
     {
-        $user = auth('business')->user();
-        $searches = DispatcherSavedSearch::where('dispatch_company_id', $user->business_client_id)
+        $companyId = $this->dispatchCompanyId();
+
+        if ($companyId === null) {
+            return response()->json([
+                'errors' => [['code' => 'business_context', 'message' => translate('A dispatch business account is required for this view.')]],
+            ], 403);
+        }
+
+        $searches = DispatcherSavedSearch::where('dispatch_company_id', $companyId)
             ->latest()
             ->get();
 

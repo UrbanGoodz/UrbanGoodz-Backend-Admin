@@ -48,7 +48,7 @@
                                 <select name="vendor_id" class="form-control">
                                     <option value="">{{ translate('Select Vendor') }}</option>
                                     @foreach($vendors as $v)
-                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        <option value="{{ $v->id }}">{{ trim($v->f_name . ' ' . $v->l_name) }}</option>
                                     @endforeach
                                 </select>
                             </div>

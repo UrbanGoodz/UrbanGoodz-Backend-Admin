@@ -34,7 +34,7 @@
                         <select name="review_status" class="form-select">
                             <option value="">{{ translate('All') }}</option>
                             @foreach(['pending','approved','rejected','merge_required'] as $s)
-                                <option value="{{ $s }}" @selected(request('review_status')===$s)>{{ translate(ucfirst(str_replace('_',' ',$s)) }}</option>
+                                <option value="{{ $s }}" @selected(request('review_status')===$s)>{{ translate(ucfirst(str_replace('_',' ',$s))) }}</option>
                             @endforeach
                         </select></div>
                     <div><label class="form-label">{{ translate('Module') }}</label>
