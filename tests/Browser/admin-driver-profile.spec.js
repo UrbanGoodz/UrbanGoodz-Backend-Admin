@@ -212,7 +212,17 @@ for (const device of [
         consoleMessages.filter((message) =>
           /exception|error/i.test(message.text) && !BROWSER_ENV_NOISE.test(message.text))
       ).toEqual([]);
-      expect(networkFailures.filter((failure) => failure.url.startsWith(page.url().split('/admin/')[0]))).toEqual([]);
+      // The admin layout preloads alert sounds. A browser routinely cancels a
+      // media preload it decides it does not need, which surfaces as
+      // net::ERR_ABORTED even though the file itself serves 200 - verified:
+      // safety-alert.mp3 returns 200 and 321KB. Only that combination is
+      // excused; every other same-origin network failure still fails the test.
+      const ABORTED_MEDIA_PRELOAD = (failure) =>
+        /ERR_ABORTED/i.test(failure.error) && /\.(mp3|wav|ogg|mp4|webm)(\?|$)/i.test(failure.url);
+      expect(
+        networkFailures.filter((failure) =>
+          failure.url.startsWith(page.url().split('/admin/')[0]) && !ABORTED_MEDIA_PRELOAD(failure))
+      ).toEqual([]);
     } catch (error) {
       fs.writeFileSync(path.join(evidenceDir, 'driver-profile-failure.html'), await page.content());
       await page.screenshot({ path: path.join(evidenceDir, 'driver-profile-failure.png'), fullPage: true });
