@@ -103,7 +103,16 @@ switch ($role) {
         }
         [$c, $raw] = call($base . 'auth/login', $headers, 'POST',
             ['email_or_phone' => $phone, 'field_type' => 'phone', 'password' => PW, 'login_type' => 'manual']);
-        $prefix = 'api/v1/customer';
+        // The customer app does not only call api/v1/customer. It calls the
+        // shared catalogue and the Urban Goodz surface too - 201 further routes,
+        // urban-goodz alone being the largest - so sweep those as a signed-in
+        // customer rather than leaving the app's real surface untested.
+        $prefix = ['api/v1/customer', 'api/v1/urban-goodz', 'api/v1/items', 'api/v1/item',
+                   'api/v1/stores', 'api/v1/order-anywhere', 'api/v1/fashion-fit',
+                   'api/v1/categories', 'api/v1/config', 'api/v1/campaigns',
+                   'api/v1/coupon', 'api/v1/banners', 'api/v1/other-banners',
+                   'api/v1/flash-sales', 'api/v1/brand', 'api/v1/module',
+                   'api/v1/zone', 'api/v1/cashback', 'api/v1/advertisement'];
         $who = $phone;
 }
 
@@ -121,14 +130,18 @@ $targets = [];
 foreach (app('router')->getRoutes() as $route) {
     if (!in_array('GET', $route->methods(), true)) continue;
     $uri = $route->uri();
-    if (!str_starts_with($uri, $prefix)) continue;
+    $matched = false;
+    foreach ((array) $prefix as $candidate) {
+        if (str_starts_with($uri, $candidate)) { $matched = true; break; }
+    }
+    if (!$matched) continue;
     if (preg_match($skip, $uri)) continue;
     if (str_contains($uri, '{')) continue;   // needs an id we cannot invent safely
     $targets[$uri] = true;
 }
 $targets = array_keys($targets);
 sort($targets);
-printf("crawling : %d GET routes under '%s'\n\n", count($targets), $prefix);
+printf("crawling : %d GET routes under %s\n\n", count($targets), implode(', ', (array) $prefix));
 
 $counts = [];
 $fails = [];
