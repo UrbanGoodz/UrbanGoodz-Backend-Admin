@@ -821,6 +821,16 @@ class DeliveryManController extends BaseController
     public function getWithdrawDetails(Request $request)
     {
         $withdraw = WithdrawRequest::with(['deliveryman'])->where(['id' => $request->withdraw_id])->first();
+
+        // dm-partials/_side_view indexes into $withdraw, so a missing or
+        // unknown withdraw_id reached the view as null and threw a 500 for what
+        // is a bad request. Same fix as VendorController::getWithdrawDetails.
+        if (!$withdraw) {
+            return response()->json([
+                'errors' => [['code' => 'withdraw_id', 'message' => translate('messages.withdraw_request_not_found')]],
+            ], 404);
+        }
+
         return response()->json([
             'view' => view('admin-views.wallet.dm-partials._side_view', compact('withdraw'))->render(),
         ]);

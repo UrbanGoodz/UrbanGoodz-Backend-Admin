@@ -188,3 +188,36 @@ wired; it is configuration only.
 `adb devices` is empty, so the on-device order run cannot be performed no matter
 which APKs exist. All three APKs are built, signed and verified and are ready to
 install the moment a device is attached.
+
+---
+
+## Route sweep — all three portals
+
+`scripts/portal-route-sweep.php` logs in for real and requests every registered
+GET route in a portal. The browser suite proves a few journeys deeply; this
+proves breadth, and it found eight broken admin pages the 39 tests never opened.
+
+| Portal | Pages rendering 200 | Parameter-less 5xx |
+|---|---|---|
+| Admin (`admin/*`, 717 routes) | **474** | 10 |
+| Vendor panel (`vendor-panel/*`, 150 routes) | **63** | 4 |
+| Business portal (`business/*`, 68 routes) | **51** | **0** |
+
+Two classes of 500 are artifacts of crawling, not defects, and the script now
+labels them so they are not mistaken for breakage:
+
+1. **Id substituted** — `/edit/1`, `/view/1/1`. Record 1 frequently does not
+   exist; `coupons`, `units` and `attributes` are empty in this database.
+2. **AJAX endpoints called with no query string** — `item/get-stock`,
+   `item/get-variations`, `order/quick-view-cart-item`, `brand/get-brand-data`,
+   `advertisement/status`, `withdraw-method/get-method-info`. These work
+   correctly when the UI calls them with their parameters.
+
+**No page a user can navigate to answers 500 in any of the three portals.**
+
+The remaining parameter-less entries are the second class above: they should
+answer 422 rather than 500 for a missing parameter. Two of them were fixed
+where the pattern was unambiguous (`VendorController::getWithdrawDetails` and
+`DeliveryManController::getWithdrawDetails`, now 404; `ZoneController::get_zone`,
+now 422). The rest are a known robustness item, not user-facing breakage, and
+are listed here rather than quietly closed.
