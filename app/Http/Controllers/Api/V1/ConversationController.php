@@ -809,6 +809,12 @@ class ConversationController extends Controller
             $delivery_man->save();
         }
 
+        // messages() above initialises this for exactly this reason; dm_messages()
+        // did not. With none of conversation_id / admin_id / vendor_id / user_id
+        // supplied, no branch assigns $conversation and the `if($conversation)`
+        // below threw "Undefined variable $conversation" - a 500 on the driver
+        // app's message endpoint.
+        $conversation = null;
         if($request->conversation_id){
             $conversation = Conversation::with(['sender','receiver','last_message'])->find($request->conversation_id);
         }else if($request->has('admin_id')){

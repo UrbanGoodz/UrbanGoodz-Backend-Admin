@@ -296,6 +296,11 @@ class ConversationController extends Controller
             $vendor->save();
         }
 
+        // With none of conversation_id / delivery_man_id / user_id supplied, no
+        // branch assigns $conversation and the `if($conversation)` below threw
+        // "Undefined variable $conversation" - a 500 on the vendor app's message
+        // endpoint. The customer controller's messages() already guards this.
+        $conversation = null;
         if($request->conversation_id){
             $conversation = Conversation::with(['sender','receiver'])->find($request->conversation_id);
         }else if($request->delivery_man_id){
