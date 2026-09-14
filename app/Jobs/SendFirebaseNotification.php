@@ -53,17 +53,52 @@ class SendFirebaseNotification implements ShouldQueue
 
         if (! $token) {
             $this->markAsFailed($notification);
-            throw new RuntimeException('Firebase recipient token is unavailable.');
+            $this->reportDeliveryFailure('Firebase recipient token is unavailable.');
+            return;
         }
 
         $payload = $this->buildPayload($notification);
 
         if (! $transport->send($token, $payload)) {
             $this->markAsFailed($notification);
-            throw new RuntimeException('Firebase provider rejected the notification.');
+            $this->reportDeliveryFailure('Firebase provider rejected the notification.');
+            return;
         }
 
         $this->markAsDelivered($notification);
+    }
+
+    /**
+     * A push that cannot be delivered is not a reason to fail the action that
+     * triggered it. The notification row is already marked failed and the
+     * details are logged, so the only thing throwing adds is a retry - which is
+     * useful on a real queue and actively harmful on the sync connection, where
+     * the exception surfaces to the caller.
+     *
+     * This job declares afterCommit(), so on sync it runs at commit time,
+     * outside any try/catch the caller holds. That is how a Firebase rejection
+     * turned a successfully created service booking into an HTTP 500: the
+     * booking, its event row and the quote had all committed, and the customer
+     * still saw a server error and would book again.
+     *
+     * So: throw only where a retry can actually happen.
+     */
+    private function reportDeliveryFailure(string $reason): void
+    {
+        $connection = $this->connection ?? config('queue.default');
+
+        Log::warning('Firebase notification not delivered.', [
+            'notification_id' => $this->notificationId,
+            'recipient_type'  => $this->recipientType,
+            'recipient_id'    => $this->recipientId,
+            'channel'         => $this->channel,
+            'connection'      => $connection,
+            'reason'          => $reason,
+        ]);
+
+        if ($connection !== 'sync') {
+            throw new RuntimeException($reason);
+        }
     }
 
     public function failed(Throwable $exception): void

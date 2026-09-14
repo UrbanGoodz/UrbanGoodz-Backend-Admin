@@ -9,6 +9,7 @@ use App\Models\UserNotification;
 use App\Models\UrbanGoodzNotification;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class UrbanGoodzNotificationService
 {
@@ -101,12 +102,27 @@ class UrbanGoodzNotificationService
                 continue;
             }
 
-            SendFirebaseNotification::dispatchViaChannel(
-                $notification->id,
-                $notification->recipient_type,
-                $notification->recipient_id,
-                $notification->channel
-            );
+            // Same reasoning as persistAndDispatch(): on the sync queue this runs
+            // inline, and an unguarded Firebase rejection here escaped through the
+            // service-booking quote and accept-quote endpoints - both of which had
+            // already committed their state change - and returned 500.
+            try {
+                SendFirebaseNotification::dispatchViaChannel(
+                    $notification->id,
+                    $notification->recipient_type,
+                    $notification->recipient_id,
+                    $notification->channel
+                );
+            } catch (\Throwable $e) {
+                $notification->update(['status' => 'failed']);
+                Log::warning('Push delivery failed; the in-app notification was still recorded.', [
+                    'notification_id' => $notification->id,
+                    'recipient_type'  => $notification->recipient_type,
+                    'recipient_id'    => $notification->recipient_id,
+                    'channel'         => $notification->channel,
+                    'error'           => $e->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -137,8 +153,25 @@ class UrbanGoodzNotificationService
             'data' => json_encode($payload),
         ]);
 
+        // The notification row above is the durable record and is already saved.
+        // Push delivery is best-effort on top of it, and must never take down the
+        // action that triggered it: on QUEUE_CONNECTION=sync this job runs inline,
+        // so a Firebase rejection propagated straight out of the caller. A service
+        // booking was created, its event row written, and the customer still got a
+        // 500 - so they would retry and book twice. No call site guards this
+        // (bookings, provider status, refunds, Fashion Fit all call it bare), so
+        // it is guarded here, once, for all of them.
         if ($this->recipientHasToken($recipientType, $recipientId)) {
-            SendFirebaseNotification::dispatch($notification->id, $recipientType, $recipientId);
+            try {
+                SendFirebaseNotification::dispatch($notification->id, $recipientType, $recipientId);
+            } catch (\Throwable $e) {
+                Log::warning('Push delivery failed; the in-app notification was still recorded.', [
+                    'notification_id' => $notification->id,
+                    'recipient_type'  => $recipientType,
+                    'recipient_id'    => $recipientId,
+                    'error'           => $e->getMessage(),
+                ]);
+            }
         }
 
         return $notification;
