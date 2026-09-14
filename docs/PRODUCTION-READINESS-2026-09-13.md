@@ -27,6 +27,7 @@ sweep, and all of it is on the path every customer, driver or vendor takes.
 | 3 | `DmTokenIsValid` never merged the Bearer token back into the request, but 36 `DeliverymanController` actions resolve the rider from `$request['token']` | A valid, online driver was told **"You can not accept order on offline"** and could never accept an order | `50b9a78` |
 | 4 | `VendorController` transition map had no `accepted` key | Under `order_confirmation_model = deliveryman` — how this install is configured — the **entire vendor order flow was dead** once a rider accepted | `50b9a78` |
 | 5 | The 407-line Urban Goodz nav lived only in the default sidebar | Any admin with a module selected (the normal state) lost **every** route into Control Center, AI Ops Copilot, Load Board, Order Anywhere | `4e31530` |
+| 6 | `logout()` cleared the auth guard but never invalidated the session | The session id survived a logout — the session-fixation case Laravel's own logout guards against | `1ff64d0` |
 
 ## Complete order testing — done
 
@@ -50,27 +51,6 @@ It is configuration-aware: it reads `order_confirmation_model` and asserts the
 sequence this install actually uses, rather than one hardcoded order. Local/test
 databases only, cash on delivery only — no payment provider is touched.
 
-## Browser suite
-
-Two environment faults were making the suite lie, both now fixed:
-
-1. **`APP_MODE` was absent from `.env`.** The suite relies on the custom CAPTCHA
-   being prefilled server-side, which only happens in dev mode. Eight tests
-   failed in ~1.8s with "Custom CAPTCHA is not prefilled" — before any page
-   under test loaded. `.env` is gitignored, so this is a test-machine setting
-   and production stays `APP_MODE=live`.
-
-2. **`php -S` is single-threaded and cannot fork on Windows.** Any spec issuing
-   a second HTTP request while a page is open starved and timed out after 10s,
-   which reads exactly like a broken product. The suite now runs against a
-   standalone Apache (`C:\javatmp\pw-httpd.conf`, port 8080) using Laragon's
-   own httpd and the matching PHP 8.3.30 `mod_php` — 64 worker threads, real
-   concurrency, and `public/assets` serving 200 instead of 404.
-
-Also fixed: the four admin specs called `context.tracing.start()` while the
-config sets `trace: 'on-first-retry'`, so every retry died in ~100ms on
-"Tracing has been already started" before running a single assertion.
-
 ## The one thing still blocking real money
 
 `URBAN_GOODZ_PAYMENT_MODE=sandbox`, `STRIPE_SECRET_KEY=sk_test_***`, and there
@@ -80,7 +60,6 @@ supplied — it is the one item no amount of code work closes.
 
 ## Still open
 
-- Deploy `4e31530` (the sidebar fix) to the server.
 - `urban_goodz_driver_payouts_view` still lives only in the default sidebar; the
   module sidebars do not carry it. Smaller version of defect 5.
 - Vendor APK has not been rebuilt since 2026-09-02.
