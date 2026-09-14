@@ -782,7 +782,17 @@ class OrderController extends Controller
 
     public function quick_view_cart_item(Request $request)
     {
-        $cart_item = session('order_cart')[$request->key];
+        // A missing/unknown ?key= indexed into a null or short session cart and
+        // fatalled. The quick view is only meaningful while an order cart is
+        // being built, so say that instead of crashing.
+        $cart = session('order_cart');
+        if (!is_array($cart) || !isset($cart[$request->key])) {
+            return response()->json([
+                'errors' => [['code' => 'key', 'message' => translate('messages.cart_item_not_found')]],
+            ], 404);
+        }
+
+        $cart_item = $cart[$request->key];
         $order_id = $request->order_id;
         $item_key = $request->key;
         $product = $cart_item->item ? $cart_item->item : $cart_item->campaign;

@@ -1542,6 +1542,14 @@ class ItemController extends Controller
     {
         $product = Item::find($request['id']);
 
+        // Without a valid ?id= this was null, and _get_stock_data indexes into
+        // the product - a 500 for what is simply a missing parameter.
+        if (!$product) {
+            return response()->json([
+                'errors' => [['code' => 'id', 'message' => translate('messages.item_not_found')]],
+            ], 404);
+        }
+
         return response()->json([
             'view' => view('vendor-views.product.partials._get_stock_data', compact('product'))->render()
         ]);
@@ -1550,6 +1558,14 @@ class ItemController extends Controller
     public function get_stock(Request $request)
     {
         $product = Item::withoutGlobalScope(StoreScope::class)->find($request['id']);
+        // Without a valid ?id= this was null, and _get_stock_data indexes into
+        // the product - a 500 for what is simply a missing parameter.
+        if (!$product) {
+            return response()->json([
+                'errors' => [['code' => 'id', 'message' => translate('messages.item_not_found')]],
+            ], 404);
+        }
+
         return response()->json([
             'view' => view('vendor-views.product.partials._get_stock_data', compact('product'))->render()
         ]);

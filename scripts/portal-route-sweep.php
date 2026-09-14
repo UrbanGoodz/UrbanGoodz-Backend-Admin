@@ -126,7 +126,19 @@ if ($code !== 200) {
     exit(3);
 }
 
-$skip = '/(delete|destroy|remove|purge|truncate|reset|logout|export|download|clear|flush|sync|retry|import|install|activate|deactivate|approve|reject|publish|status\/|toggle|rollback)/i';
+$skip = '/(delete|destroy|remove|purge|truncate|reset|logout|export|download|clear|flush|sync|retry|import|install|activate|deactivate|approve|reject|publish|toggle|rollback|auto-fill|autofill|generate|maintenance-mode|landing-page)/i';
+
+// Some state-changing actions are exposed over GET and end in a bare verb, so
+// a substring rule like "status/" misses them: admin/advertisement/status has
+// no trailing slash and was being *called* by this sweep. It changed nothing
+// only because validation rejected the empty request first. Match the final
+// segment too, so the sweep stays genuinely read-only.
+// Matched as a SUBSTRING of the final segment, not an equality test. An
+// equality list still missed vendor-panel/business-settings/update-active-status,
+// a GET route that flips a store's active flag - this sweep called it as the
+// store's own vendor and took Demo Store offline. Over-skipping costs a little
+// coverage; under-skipping silently mutates the database.
+$mutatingLastSegment = '/(status|update|active|toggle|priority|assign|cancel|refund|settle|save|create|^add$|^store$|^pay$)/i';
 
 $targets = [];
 foreach (app('router')->getRoutes() as $route) {
@@ -134,6 +146,9 @@ foreach (app('router')->getRoutes() as $route) {
     $uri = $route->uri();
     if (!str_starts_with($uri, $prefix)) continue;
     if (preg_match($skip, $uri)) continue;
+
+    $segments = explode('/', $uri);
+    if (preg_match($mutatingLastSegment, end($segments))) continue;
     $u = preg_replace('/\{[^}]+\}/', '1', $uri);
     if (str_contains($u, '{')) continue;
     $targets[$u] = true;
@@ -142,6 +157,24 @@ $targets = array_keys($targets);
 sort($targets);
 
 printf("crawling : %d GET routes\n\n", count($targets));
+
+/**
+ * Name-based skipping is best-effort and cannot be trusted on its own: this
+ * codebase exposes state changes on GET routes named as plain nouns -
+ * admin/maintenance-mode and admin/landing-page each TOGGLE their setting when
+ * fetched, and no verb heuristic will ever catch that. An earlier run of this
+ * sweep switched maintenance mode on and took a store offline.
+ *
+ * So the sweep no longer relies on guessing. It snapshots the settings a stray
+ * GET is known to be able to flip, and restores anything that moved, reporting
+ * what it had to undo.
+ */
+$snapshot = static fn (): array => [
+    'business_settings' => DB::table('business_settings')->orderBy('id')->pluck('value', 'id')->toArray(),
+    'stores_active'     => DB::table('stores')->orderBy('id')->pluck('active', 'id')->toArray(),
+    'zones_status'      => DB::table('zones')->orderBy('id')->pluck('status', 'id')->toArray(),
+];
+$before = $snapshot();
 
 $counts = [];
 $paramless = [];
@@ -164,9 +197,34 @@ foreach ($targets as $u) {
     if ($n % 50 === 0) { printf("  ... %d/%d\n", $n, count($targets)); flush(); }
 }
 
+// Undo anything a stray GET flipped, so a sweep never leaves the install in a
+// different state than it found it.
+$after = $snapshot();
+$restored = 0;
+$targetsByGroup = [
+    'business_settings' => ['table' => 'business_settings', 'column' => 'value'],
+    'stores_active'     => ['table' => 'stores', 'column' => 'active'],
+    'zones_status'      => ['table' => 'zones', 'column' => 'status'],
+];
+
+foreach ($targetsByGroup as $group => $spec) {
+    foreach ($after[$group] as $id => $value) {
+        $was = $before[$group][$id] ?? null;
+        if ((string) $value === (string) $was) continue;
+
+        DB::table($spec['table'])->where('id', $id)->update([$spec['column'] => $was]);
+        $label = $group === 'business_settings'
+            ? (DB::table('business_settings')->where('id', $id)->value('key') ?: "id {$id}")
+            : "{$spec['table']} id {$id}";
+        printf("RESTORED %-34s %s -> %s\n", substr((string) $label, 0, 34), substr((string) $value, 0, 12), substr((string) $was, 0, 12));
+        $restored++;
+    }
+}
+
 echo "\nsummary:\n";
 ksort($counts);
 foreach ($counts as $code => $k) printf("  HTTP %-4s %d\n", $code, $k);
+printf("  state changes undone: %d\n", $restored);
 
 printf("\nparameter-less 5xx (the ones worth chasing): %d\n", count($paramless));
 foreach ($paramless as $u) echo "  {$u}\n";

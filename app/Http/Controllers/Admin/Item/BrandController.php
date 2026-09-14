@@ -201,6 +201,15 @@ class BrandController extends BaseController
     public function getBrandData(Request $request): JsonResponse
     {
         $brand = $this->brandRepo->getFirstWithoutGlobalScopeWhere(params: ['id' => $request->id]);
+
+        // A missing or unknown ?id= reached edit_partial as null, which indexes
+        // into the brand - a 500 for what is simply a missing parameter.
+        if (!$brand) {
+            return response()->json([
+                'errors' => [['code' => 'id', 'message' => translate('messages.brand_not_found')]],
+            ], 404);
+        }
+
         $language = getWebConfig('language');
         $defaultLang = str_replace('_', '-', app()->getLocale());
         return response()->json([
