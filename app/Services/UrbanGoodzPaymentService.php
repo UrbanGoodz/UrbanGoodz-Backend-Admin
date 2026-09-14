@@ -47,6 +47,33 @@ class UrbanGoodzPaymentService
         }
     }
 
+    /**
+     * PaymentProviderManager::stripeLiveKeysAvailable() was written as a guard
+     * and then never called from anywhere, so nothing stopped the app running
+     * in live_controlled mode without live keys. That is a reachable state:
+     * setting URBAN_GOODZ_PAYMENT_MODE=live_controlled before adding
+     * STRIPE_LIVE_SECRET_KEY - or adding an empty or mistyped one - leaves
+     * isLiveMode() true while stripeLiveKeysAvailable() is false, and the first
+     * real customer charge then fails somewhere inside the provider instead of
+     * saying the install is misconfigured.
+     *
+     * Fail here, loudly, before taking anyone's money.
+     */
+    private function assertLiveKeysConfigured(): void
+    {
+        if (! OrderAnywhereRequest::isLiveMode()) {
+            return;
+        }
+
+        if ($this->providerManager->providerSupportsLiveControlled()
+            && ! $this->providerManager->stripeLiveKeysAvailable()) {
+            Log::critical('LIVE PAYMENT BLOCKED: live mode is on but live keys are not configured', [
+                'provider' => $this->providerManager->getDefaultDriver(),
+            ]);
+            abort(503, 'Live payments are enabled but the live payment keys are not configured.');
+        }
+    }
+
     private function assertLiveAmountWithinCap(float $amount, ?int $customerId = null): void
     {
         if (! OrderAnywhereRequest::isLiveMode()) {
@@ -176,6 +203,7 @@ class UrbanGoodzPaymentService
         $reference = $request->request_number;
         $description = $data['description'] ?? "Order Anywhere - {$request->request_number}";
 
+        $this->assertLiveKeysConfigured();
         $this->assertLiveAmountWithinCap($amount, $request->customer_id);
 
         if (OrderAnywhereRequest::isLiveMode()) {
@@ -263,6 +291,7 @@ class UrbanGoodzPaymentService
         $amount = (float) ($data['authorized_amount'] ?? $request->final_amount ?? $request->quote_amount);
 
         if (($data['source'] ?? null) !== 'webhook') {
+            $this->assertLiveKeysConfigured();
             $this->assertLiveAmountWithinCap($amount, $request->customer_id);
         }
 
@@ -935,6 +964,7 @@ class UrbanGoodzPaymentService
         }
 
         if (($data['source'] ?? null) !== 'webhook') {
+            $this->assertLiveKeysConfigured();
             $this->assertLiveAmountWithinCap($amount, $request->customer_id);
         }
 
