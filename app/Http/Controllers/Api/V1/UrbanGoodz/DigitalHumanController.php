@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 use App\Http\Controllers\Controller;
 use App\Services\UrbanGoodz\AI\DigitalHuman\DigitalHumanStateService;
 use App\Services\UrbanGoodz\AI\DigitalHuman\ElevenLabsVoiceService;
+use App\Services\UrbanGoodz\AI\DigitalHuman\QwenVoiceService;
 use App\Services\UrbanGoodz\AI\DigitalHuman\VoiceVisemeOrchestrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class DigitalHumanController extends Controller
     public function __construct(
         private readonly DigitalHumanStateService $digitalHumanStateService,
         private readonly VoiceVisemeOrchestrator $voiceVisemeOrchestrator,
-        private readonly ElevenLabsVoiceService $elevenLabsVoiceService
+        private readonly ElevenLabsVoiceService $elevenLabsVoiceService,
+        private readonly QwenVoiceService $qwenVoiceService
     ) {}
 
     /**
@@ -68,8 +70,8 @@ class DigitalHumanController extends Controller
     }
 
     /**
-     * Synthesize speech audio server-side via ElevenLabs. The API key never
-     * reaches the client; this endpoint returns raw audio bytes only.
+     * Synthesize speech audio server-side. Routes to the configured voice
+     * provider (Qwen3-TTS clone by default, ElevenLabs as fallback).
      */
     public function speak(Request $request): JsonResponse|Response
     {
@@ -78,10 +80,21 @@ class DigitalHumanController extends Controller
             'text' => 'required|string|max:2000',
         ]);
 
-        $result = $this->elevenLabsVoiceService->synthesize(
-            personaKey: $validated['persona'],
-            text: $validated['text']
-        );
+        $provider = strtolower(trim((string) config(
+            'urban_goodz_personas.digital_human_global.voice_provider',
+            'qwen'
+        )));
+
+        $result = match ($provider) {
+            'qwen' => $this->qwenVoiceService->synthesize(
+                personaKey: $validated['persona'],
+                text: $validated['text']
+            ),
+            default => $this->elevenLabsVoiceService->synthesize(
+                personaKey: $validated['persona'],
+                text: $validated['text']
+            ),
+        };
 
         if (! $result['success']) {
             return response()->json([

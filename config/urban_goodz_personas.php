@@ -116,16 +116,20 @@ return [
     'digital_human_global' => [
         'engine' => env('UG_DIGITAL_HUMAN_ENGINE', 'rive'),
         'target_fps' => 60,
-        'voice_provider' => env('UG_VOICE_PROVIDER', 'elevenlabs'),
+        'voice_provider' => env('UG_VOICE_PROVIDER', 'qwen'),
         'viseme_sample_rate_ms' => 60,
         'elevenlabs_api_key' => env('ELEVENLABS_API_KEY'),
         'elevenlabs_model_id' => env('ELEVENLABS_MODEL_ID', 'eleven_turbo_v2_5'),
         'elevenlabs_output_format' => env('ELEVENLABS_OUTPUT_FORMAT', 'mp3_44100_128'),
         'elevenlabs_base_url' => env('ELEVENLABS_BASE_URL', 'https://api.elevenlabs.io/v1'),
+        'qwen_base_url' => env('UG_QWEN_BASE_URL', ''),
+        'qwen_api_key' => env('UG_QWEN_API_KEY', ''),
         'environment_variables' => [
             'ELEVENLABS_API_KEY',
             'MONIQUE_ELEVENLABS_VOICE_ID',
             'SKYLAR_ELEVENLABS_VOICE_ID',
+            'UG_QWEN_BASE_URL',
+            'UG_QWEN_API_KEY',
         ],
     ],
 ];
