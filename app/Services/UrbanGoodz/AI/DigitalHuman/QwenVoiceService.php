@@ -62,7 +62,7 @@ class QwenVoiceService
                     'format' => 'wav',
                 ]);
 
-            $contentType = $http->headers()->get('content-type', '');
+            $contentType = (string) $http->header('Content-Type');
 
             if (! $http->successful() || ! str_contains($contentType, 'audio')) {
                 Log::warning('Qwen TTS synthesis request failed.', [
