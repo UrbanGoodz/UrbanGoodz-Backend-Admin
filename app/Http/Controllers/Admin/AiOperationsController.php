@@ -614,6 +614,32 @@ class AiOperationsController extends Controller
             default => $voice->synthesize('chief_of_staff', $validated['text']),
         };
 
+        // Cross-provider fallback, so a cloned-voice outage degrades to the
+        // other real voice rather than all the way to the browser's system
+        // speech synthesiser.
+        //
+        // This matters because the two environments are configured
+        // differently: production carries an ELEVENLABS_API_KEY while local
+        // does not, and both set UG_VOICE_PROVIDER=qwen. Routing strictly by
+        // provider would therefore have *regressed* production whenever the
+        // Colab-hosted Qwen tunnel is down - Monique currently reaches
+        // ElevenLabs there and would have dropped to window.speechSynthesis
+        // instead. Trying the other configured provider keeps her in a real
+        // voice through either outage.
+        if (! $result['success']) {
+            $alternate = $provider === 'qwen'
+                ? $voice->synthesize('chief_of_staff', $validated['text'])
+                : $qwenVoice->synthesize(personaKey: 'chief_of_staff', text: $validated['text']);
+
+            if ($alternate['success']) {
+                \Illuminate\Support\Facades\Log::info('Primary digital-human voice provider failed; served from the alternate.', [
+                    'primary' => $provider,
+                    'primary_error' => $result['error_code'] ?? null,
+                ]);
+                $result = $alternate;
+            }
+        }
+
         if (! $result['success']) {
             return response()->json([
                 'success' => false,
