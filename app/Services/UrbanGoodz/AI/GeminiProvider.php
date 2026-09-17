@@ -9,11 +9,16 @@ class GeminiProvider extends AbstractAIProvider
 {
     /**
      * gemini-2.5-flash is closed to new API keys ("no longer available to new
-     * users") and 404s on generateContent. 3.6-flash is verified live against
-     * the production key; gemini-flash-latest is the fallback alias if a
-     * specific version is ever retired again.
+     * users") and 404s on generateContent.
+     *
+     * flash-lite rather than flash: measured 17 Sep 2026 against this key,
+     * gemini-flash-latest returned 429 on 3 of 3 attempts (its shared
+     * free-tier quota pool was exhausted) while gemini-flash-lite-latest
+     * returned 200 on 3 of 3 at ~800ms. They draw on separate quota pools.
+     * Kept as a "-latest" alias so Google can repoint it when a numbered
+     * snapshot retires.
      */
-    public const DEFAULT_MODEL = 'gemini-flash-latest';
+    public const DEFAULT_MODEL = 'gemini-flash-lite-latest';
 
     public function name(): string
     {
