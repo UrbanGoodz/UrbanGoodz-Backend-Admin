@@ -3,6 +3,7 @@
 namespace Modules\ReelsModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessSetting;
 use App\Models\CreatorCommerceAttribution;
 use App\Models\CreatorReelReport;
 use App\Models\Order;
@@ -303,6 +304,38 @@ class CreatorCommerceController extends Controller
         return response()->json(['message' => 'Report submitted.', 'report_id' => $report->id], 201);
     }
 
+    /**
+     * The creator's share of an attributed order, as a percent in [0, 100].
+     *
+     * Resolution order, most specific first:
+     *   1. business_settings row `creator_commission_rate` - admin-changeable,
+     *      effective immediately with no deploy
+     *   2. config('reelsmodule.creator_commission_rate'), fed by
+     *      UG_CREATOR_COMMISSION_RATE
+     *   3. 5
+     *
+     * This previously read config('reels.creator_commission_rate', 5). The
+     * module merges its config under `reelsmodule` (the provider uses
+     * $this->moduleNameLower), so `reels` resolved to null on every call and
+     * the rate was silently pinned to the hardcoded 5 - unchangeable by any
+     * setting, env var or config file.
+     *
+     * Non-numeric or out-of-range values are clamped rather than rejected, so
+     * a bad setting degrades to a sane rate instead of failing a conversion
+     * that has already happened.
+     */
+    public static function creatorCommissionRate(): float
+    {
+        $configured = config('reelsmodule.creator_commission_rate', 5);
+
+        $setting = BusinessSetting::where('key', 'creator_commission_rate')->value('value');
+        if ($setting !== null && $setting !== '' && is_numeric($setting)) {
+            $configured = $setting;
+        }
+
+        return min(max((float) $configured, 0), 100);
+    }
+
     public function beginAttribution(Request $request)
     {
         $data = $request->validate([
@@ -347,7 +380,7 @@ class CreatorCommerceController extends Controller
 
             $order = Order::withoutGlobalScopes()->whereKey($data['order_id'])
                 ->where('user_id', $userId)->where('store_id', $attribution->store_id)->firstOrFail();
-            $rate = min(max((float) config('reels.creator_commission_rate', 5), 0), 100);
+            $rate = self::creatorCommissionRate();
             $gross = (float) $order->order_amount;
             $commission = round($gross * $rate / 100, 2);
 
