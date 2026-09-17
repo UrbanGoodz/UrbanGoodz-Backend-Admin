@@ -89,8 +89,9 @@
 
     <nav class="navbar navbar-expand-lg navbar-business">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ route('business.dashboard') }}">
-                <strong>{{ translate('Urban Goodz') }}</strong> {{ translate('Business') }}
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ route('business.dashboard') }}" aria-label="Urban Goodz Business">
+                <img src="{{asset('public/assets/landing/img/logo.svg')}}" alt="Urban Goodz" style="height:28px;width:auto;">
+                <span>{{ translate('Business') }}</span>
             </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#businessNavbar" style="border-color: rgba(0,0,0,.1);">
                 <span class="navbar-toggler-icon" style="background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280,0,0,0.5%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e&quot;);"></span>

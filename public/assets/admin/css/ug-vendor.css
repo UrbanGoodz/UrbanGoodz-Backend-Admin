@@ -16,6 +16,15 @@
     --ug-gray-800: #343A40;
     --ug-gray-900: #212529;
 
+    /* Matched to ug-portal.css's --ugp-success/--ugp-danger (#1e8e5a /
+       #c23a3a) rather than raw Bootstrap green/red (#28a745/#dc3545) --
+       both files load together on the vendor layout, and "online/offline"
+       here is the same kind of status signal as ug-portal's KPI trend
+       colors. Declared locally rather than referencing --ugp-* directly so
+       this file doesn't depend on ug-portal.css's load order. */
+    --ug-success: #1e8e5a;
+    --ug-danger: #c23a3a;
+
     --ug-heading-font: 'Thyga Semirounded', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --ug-interface-font: 'Arial Nova', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -190,15 +199,15 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .ug-heading {
 }
 
 .ug-status-badge--online {
-    background-color: rgba(40, 167, 69, 0.12);
-    color: #1e7e34;
-    border: 1px solid rgba(40, 167, 69, 0.3);
+    background-color: rgba(30, 142, 90, 0.12);
+    color: var(--ug-success);
+    border: 1px solid rgba(30, 142, 90, 0.3);
 }
 
 .ug-status-badge--offline {
-    background-color: rgba(220, 53, 69, 0.12);
-    color: #bd2130;
-    border: 1px solid rgba(220, 53, 69, 0.3);
+    background-color: rgba(194, 58, 58, 0.12);
+    color: var(--ug-danger);
+    border: 1px solid rgba(194, 58, 58, 0.3);
 }
 
 .ug-status-dot {
@@ -209,12 +218,12 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .ug-heading {
 }
 
 .ug-status-badge--online .ug-status-dot {
-    background-color: #28a745;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+    background-color: var(--ug-success);
+    box-shadow: 0 0 0 3px rgba(30, 142, 90, 0.3);
 }
 
 .ug-status-badge--offline .ug-status-dot {
-    background-color: #dc3545;
+    background-color: var(--ug-danger);
 }
 
 /* Primary UG Button */

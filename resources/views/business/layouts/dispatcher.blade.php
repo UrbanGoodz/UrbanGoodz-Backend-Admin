@@ -86,8 +86,9 @@
 
     <nav class="navbar navbar-expand-lg navbar-dispatcher">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ route('business.dispatcher.dashboard') }}">
-                <strong>{{ translate('Urban Goodz') }}</strong> {{ translate('Dispatcher') }}
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ route('business.dispatcher.dashboard') }}" aria-label="Urban Goodz Dispatcher">
+                <img src="{{asset('public/assets/landing/img/logo.svg')}}" alt="Urban Goodz" style="height:28px;width:auto;">
+                <span>{{ translate('Dispatcher') }}</span>
                 <span class="workspace-badge ms-2">{{ translate('WORKSPACE') }}</span>
             </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#dispatcherNavbar" style="border-color: rgba(255,255,255,.2);">

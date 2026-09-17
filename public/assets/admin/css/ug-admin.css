@@ -512,7 +512,9 @@ a.order--card:hover,
 }
 .ug-command-options .text-primary,
 .ug-command-options a {
-  color: #f26a00 !important;
+  /* Was #f26a00, a near-duplicate orange invented for this one screen
+     instead of the actual brand token. */
+  color: var(--ug-orange) !important;
   font-weight: 500;
   text-decoration: underline;
   cursor: pointer;
@@ -522,7 +524,9 @@ a.order--card:hover,
   margin: 0;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(90deg, #ff8a00, #ff7900) !important;
+  /* Was linear-gradient(90deg, #ff8a00, #ff7900) -- an off-brand orange
+     gradient on the actual admin/business login submit button. */
+  background: linear-gradient(90deg, var(--ug-orange), var(--ug-orange-dark)) !important;
   color: var(--ug-white) !important;
   font-size: 22px;
   font-weight: 800;
@@ -530,7 +534,9 @@ a.order--card:hover,
 }
 .ug-command-submit:hover,
 .ug-command-submit:focus {
-  background: linear-gradient(90deg, #ed7d00, #ed6800) !important;
+  /* Was linear-gradient(90deg, #ed7d00, #ed6800). */
+  background: linear-gradient(90deg, var(--ug-orange-dark), var(--ug-orange-dark)) !important;
+  filter: brightness(0.92);
 }
 .ug-command-notice {
   display: flex;
@@ -549,7 +555,8 @@ a.order--card:hover,
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: #fff1bc;
+  /* Was #fff1bc, a pale yellow with no relation to --ug-dijon. */
+  background: rgba(var(--ug-orange-rgb), .16);
   color: var(--ug-black);
   font-size: 25px;
   place-items: center;
@@ -564,7 +571,8 @@ a.order--card:hover,
   margin-inline-end: 8px;
 }
 .ug-command-support a {
-  color: #f26a00;
+  /* Was #f26a00, same off-brand orange as .ug-command-options above. */
+  color: var(--ug-orange);
   text-decoration: underline;
 }
 
