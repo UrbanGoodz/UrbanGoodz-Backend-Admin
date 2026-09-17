@@ -84,25 +84,12 @@ class GeminiProvider extends AbstractAIProvider
         }
 
         try {
-            $response = Http::acceptJson()
-                ->asJson()
-                ->withHeaders(['x-goog-api-key' => $this->apiKey()])
-                ->timeout(max(1, (int) config('urban_goodz_ai.request_timeout', 30)))
-                ->retry(
-                    max(1, 1 + (int) config('urban_goodz_ai.max_retries', 1)),
-                    max(0, (int) config('urban_goodz_ai.retry_delay_ms', 250)),
-                    throw: false
-                )
-                ->post($this->endpoint(), $payload);
+            $response = $this->postWithRetry($payload);
 
             if (! $response->successful() && ! empty($tools) && $response->status() === 429) {
                 Log::info('Gemini Search Grounding rate limit reached; retrying direct generation without search tool.');
                 unset($payload['tools']);
-                $response = Http::acceptJson()
-                    ->asJson()
-                    ->withHeaders(['x-goog-api-key' => $this->apiKey()])
-                    ->timeout(max(1, (int) config('urban_goodz_ai.request_timeout', 30)))
-                    ->post($this->endpoint(), $payload);
+                $response = $this->postWithRetry($payload);
             }
 
             if (! $response->successful()) {
@@ -189,6 +176,70 @@ class GeminiProvider extends AbstractAIProvider
             $result['success'] && str_contains(strtoupper($result['response'] ?? ''), 'OK'),
             $result['success'] ? null : $result['error_code']
         );
+    }
+
+    /**
+     * Statuses worth another attempt: Gemini's free tier returns these
+     * transiently under load rather than because the request is wrong.
+     */
+    private const RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
+
+    /**
+     * POST with real retries on transient upstream failures.
+     *
+     * Http::retry(..., throw: false) does NOT do this. Laravel only re-attempts
+     * when the attempt throws, and with throw:false a 503 comes back as an
+     * ordinary unsuccessful Response, so the retry never fires. That is why a
+     * single transient "This model is currently experiencing high demand"
+     * (503 UNAVAILABLE) from gemini-flash-latest - which is a shared free-tier
+     * alias and returns 200 and 503 minutes apart for identical payloads -
+     * failed the whole call, fell through to the rate-limited OpenAI fallback,
+     * and surfaced to the operator as the canned "higher than normal request
+     * volume" line with no task created.
+     *
+     * Retries use exponential backoff with a small jitter so concurrent callers
+     * do not resynchronise onto the same retry instant.
+     */
+    private function postWithRetry(array $payload): \Illuminate\Http\Client\Response
+    {
+        // Floor of 4 attempts regardless of urban_goodz_ai.max_retries, which
+        // ships as 1. Two attempts is not enough against the free-tier
+        // gemini-flash-latest alias: it 503s in bursts, so a single retry
+        // 250ms later usually lands in the same burst and the call still
+        // fails over to the (rate-limited) OpenAI fallback.
+        $attempts = max(4, 1 + (int) config('urban_goodz_ai.max_retries', 3));
+        $baseDelayMs = max(400, (int) config('urban_goodz_ai.retry_delay_ms', 400));
+        $timeout = max(1, (int) config('urban_goodz_ai.request_timeout', 30));
+
+        $response = null;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $response = Http::acceptJson()
+                ->asJson()
+                ->withHeaders(['x-goog-api-key' => $this->apiKey()])
+                ->timeout($timeout)
+                ->post($this->endpoint(), $payload);
+
+            if ($response->successful() || ! in_array($response->status(), self::RETRYABLE_STATUSES, true)) {
+                return $response;
+            }
+
+            if ($attempt < $attempts) {
+                $delayMs = (int) ($baseDelayMs * (2 ** ($attempt - 1)));
+                $delayMs += random_int(0, (int) max(1, $delayMs * 0.2));
+
+                Log::info('Gemini returned a retryable status; backing off.', [
+                    'status' => $response->status(),
+                    'attempt' => $attempt,
+                    'of' => $attempts,
+                    'delay_ms' => $delayMs,
+                ]);
+
+                usleep($delayMs * 1000);
+            }
+        }
+
+        return $response;
     }
 
     private function apiKey(): string
