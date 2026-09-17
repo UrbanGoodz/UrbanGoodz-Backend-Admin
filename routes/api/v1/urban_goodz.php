@@ -106,6 +106,9 @@ Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@han
 Route::post('order-anywhere/cards/stripe/webhook', 'Api\V1\StripeIssuingWebhookController@handle')
     ->middleware('throttle:120,1');
 
+Route::post('stranded/connect/webhook', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedConnectWebhookController@handle')
+    ->middleware('throttle:120,1');
+
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
     Route::post('requests/from-option', 'Api\V1\OrderAnywhereController@createFromOption');
@@ -498,9 +501,17 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     Route::get('responder/offers', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@offers');
     Route::post('responder/offers/{offer}/accept', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@accept');
     Route::post('responder/offers/{offer}/decline', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@decline');
+    // Only reached when accept() was called with uses_alternate_vehicle -- see
+    // UrbanGoodzStrandedOffer::effectiveVehicle().
+    Route::post('responder/offers/{offer}/vehicle', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@submitVehicleOverride');
+    Route::post('responder/assignment/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@cancelAssignment');
     // The one rescue this responder is currently assigned to, with full
     // identifying detail -- withheld entirely until they are selected.
     Route::get('responder/assignment', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@activeAssignment');
+    // Stripe Connect payout onboarding. A responder cannot be dispatched a
+    // paid offer until this reports can_receive_payouts = true.
+    Route::post('responder/payouts/onboarding-link', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@payoutOnboardingLink');
+    Route::get('responder/payouts/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@payoutStatus');
 
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
     // Sends the request to nearby responders. Once a payment provider exists

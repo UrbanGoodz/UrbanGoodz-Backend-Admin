@@ -71,6 +71,7 @@ return [
         'connect_client_id' => env('STRIPE_CONNECT_CLIENT_ID', ''),
         'connect_account_id' => env('STRIPE_CONNECT_ACCOUNT_ID', ''),
         'connect_enabled' => env('STRIPE_CONNECT_ENABLED', false),
+        'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET', ''),
     ],
 
     /*

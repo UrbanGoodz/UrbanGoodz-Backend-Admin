@@ -29,6 +29,7 @@ class UrbanGoodzStrandedSettingsController extends Controller
             'radiusLadder' => implode(', ', UrbanGoodzStrandedSettings::radiusLadder()),
             'offerTtlSeconds' => UrbanGoodzStrandedSettings::offerTtlSeconds(),
             'escalationMinutes' => UrbanGoodzStrandedSettings::escalationMinutes(),
+            'responderStallMinutes' => UrbanGoodzStrandedSettings::responderStallMinutes(),
         ]);
     }
 
@@ -42,6 +43,7 @@ class UrbanGoodzStrandedSettingsController extends Controller
             'radius_ladder' => ['required', 'string', 'max:60', 'regex:/^\s*\d+\s*(,\s*\d+\s*)*$/'],
             'offer_ttl_seconds' => 'required|integer|min:5|max:600',
             'escalation_minutes' => 'required|integer|min:1|max:1440',
+            'responder_stall_minutes' => 'required|integer|min:1|max:1440',
         ], [
             'radius_ladder.regex' => 'Broadcast radius must be a comma-separated list of whole numbers, for example 10, 15, 20, 25.',
         ]);
@@ -89,6 +91,10 @@ class UrbanGoodzStrandedSettingsController extends Controller
         UrbanGoodzStrandedSettings::put(
             UrbanGoodzStrandedSettings::KEY_ESCALATION_MINUTES,
             (int) $request->input('escalation_minutes')
+        );
+        UrbanGoodzStrandedSettings::put(
+            UrbanGoodzStrandedSettings::KEY_RESPONDER_STALL_MINUTES,
+            (int) $request->input('responder_stall_minutes')
         );
 
         return back()->with('success', 'Stranded settings updated.');

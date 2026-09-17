@@ -8,10 +8,11 @@ use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedService;
 use App\Models\UrbanGoodzStrandedVerification;
 use App\Models\UrbanGoodzStrandedResponder;
+use App\Domain\Stranded\Jobs\ReleaseStrandedEscrowJob;
+use App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier;
+use App\Domain\Stranded\Payments\UrbanGoodzStrandedPaymentService;
 use App\Services\UrbanGoodzStrandedDispatcher;
 use App\Services\UrbanGoodzStrandedSafety;
-use App\Services\UrbanGoodzStrandedNotifier;
-use App\Services\UrbanGoodz\UrbanGoodzStrandedPaymentService;
 use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -329,19 +330,43 @@ class UrbanGoodzStrandedController extends Controller
             ->orderByRaw('CASE WHEN status = "selected" THEN 0 ELSE 1 END')
             ->orderBy('eta_minutes')
             ->get()
-            ->map(fn (UrbanGoodzStrandedOffer $o) => [
-                'id' => $o->id,
-                'responder_id' => $o->responder_id,
-                'responder_type' => $o->responder_type,
-                'response_mode' => $o->response_mode,
-                'requested_amount_minor' => $o->payableAmountMinor(),
-                'distance_miles' => $o->distance_miles,
-                'eta_minutes' => $o->eta_minutes,
-                'rating' => $o->responder_rating,
-                'trust_score' => $o->responder_trust_score,
-                'completed_jobs' => $o->responder_completed_jobs,
-                'status' => $o->status,
-            ]);
+            // An accepted samaritan offer with nothing to show yet (profile
+            // incomplete, or "different vehicle" not yet submitted) is not
+            // presented as a choice -- see UrbanGoodzStrandedOffer::isSelectable().
+            ->filter(fn (UrbanGoodzStrandedOffer $o) => $o->status === 'selected' || $o->isSelectable())
+            ->map(function (UrbanGoodzStrandedOffer $o) {
+                $profile = $o->responderProfile();
+                $vehicle = $o->effectiveVehicle();
+                $verified = $o->responder_type === 'samaritan'
+                    ? \App\Models\UrbanGoodzStrandedVerification::where('user_id', $o->responder_id)
+                        ->where('role', \App\Models\UrbanGoodzStrandedVerification::ROLE_SAMARITAN)
+                        ->first()?->isUsable() ?? false
+                    : true; // Professional/vendor responders go through their own vendor verification.
+                $responderUser = \App\Models\User::find($o->responder_id);
+
+                return [
+                    'id' => $o->id,
+                    'responder_id' => $o->responder_id,
+                    'responder_type' => $o->responder_type,
+                    'responder_name' => $responderUser?->f_name ?: 'Community Member',
+                    'responder_photo_url' => $profile?->profile_photo_url,
+                    'verified' => $verified,
+                    'response_mode' => $o->response_mode,
+                    'requested_amount_minor' => $o->payableAmountMinor(),
+                    'distance_miles' => $o->distance_miles,
+                    'eta_minutes' => $o->eta_minutes,
+                    'rating' => $o->responder_rating,
+                    'trust_score' => $o->responder_trust_score,
+                    'completed_jobs' => $o->responder_completed_jobs,
+                    'vehicle' => trim(implode(' ', array_filter([$vehicle['color'], $vehicle['make'], $vehicle['model']]))) ?: null,
+                    'vehicle_plate' => $vehicle['plate'],
+                    'vehicle_photo_url' => $vehicle['photo_path']
+                        ? \Illuminate\Support\Facades\Storage::disk(\App\CentralLogics\Helpers::getDisk())->url($vehicle['photo_path'])
+                        : null,
+                    'status' => $o->status,
+                ];
+            })
+            ->values();
 
         return response()->json([
             'status' => 'success',
@@ -356,6 +381,12 @@ class UrbanGoodzStrandedController extends Controller
      * Wrapped in a transaction with a locking read so a double-tap, or two
      * devices on the same account, cannot select two different responders for
      * one request.
+     *
+     * When the offer carries a reward, the hold is authorised on Stripe
+     * *before* the transaction opens -- an external API call must never run
+     * while holding the row lock below. If the transaction then fails because
+     * someone else won the race, the hold is void()'d rather than left
+     * dangling on the customer's card.
      */
     public function selectOffer(Request $request, string $record, int $offerId): JsonResponse
     {
@@ -372,8 +403,41 @@ class UrbanGoodzStrandedController extends Controller
             ], 409);
         }
 
+        $candidateOffer = UrbanGoodzStrandedOffer::where('request_id', $stranded->getKey())
+            ->whereKey($offerId)
+            ->first();
+
+        if (!$candidateOffer || !$candidateOffer->isSelectable()) {
+            return response()->json(['status' => 'error', 'message' => 'That responder is no longer available.'], 410);
+        }
+
+        $hold = ['held' => false, 'ledger_id' => null, 'intent_id' => null];
+
+        if ($candidateOffer->payableAmountMinor() > 0) {
+            $paymentMethod = (string) $request->input('payment_method', '');
+            if ($paymentMethod === '') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'A payment method is required to hold the reward amount for this responder.',
+                ], 422);
+            }
+
+            try {
+                $hold = app(UrbanGoodzStrandedPaymentService::class)->authorizeReward($stranded, $candidateOffer, $paymentMethod);
+            } catch (\Throwable $e) {
+                return response()->json(['status' => 'error', 'message' => $e->getMessage()], 402);
+            }
+
+            if (!$hold['held']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $hold['message'] ?? 'Your card could not be authorized for the reward amount.',
+                ], 402);
+            }
+        }
+
         try {
-            $offer = DB::transaction(function () use ($stranded, $offerId) {
+            $offer = DB::transaction(function () use ($stranded, $offerId, $hold) {
                 $fresh = UrbanGoodzStrandedRequest::whereKey($stranded->getKey())
                     ->lockForUpdate()
                     ->first();
@@ -407,8 +471,11 @@ class UrbanGoodzStrandedController extends Controller
                     'assigned_responder_type' => $offer->responder_type,
                     'assigned_at' => now(),
                     // Money owed to a responder is held, not paid, until the
-                    // customer confirms the work is done.
-                    'escrow_status' => $offer->payableAmountMinor() > 0 ? 'held' : 'none',
+                    // customer confirms the work is done. The hold itself was
+                    // already authorised on Stripe before this transaction
+                    // opened -- see authorizeReward() above.
+                    'escrow_status' => $hold['held'] ? 'held' : 'none',
+                    'reward_hold_transaction_id' => $hold['ledger_id'],
                 ]);
 
                 // Mark the responder busy so dispatch stops offering them
@@ -420,6 +487,13 @@ class UrbanGoodzStrandedController extends Controller
                 return $offer;
             });
         } catch (\RuntimeException $e) {
+            // The offer never became this request's assignment, so a hold
+            // authorised above is now for nothing -- release the customer's
+            // card rather than leave it pending for up to 7 days.
+            if ($hold['held'] && $hold['intent_id']) {
+                app(UrbanGoodzStrandedPaymentService::class)->voidRewardHold($hold['intent_id']);
+            }
+
             $conflict = $e->getMessage() === 'already_selected';
             return response()->json([
                 'status' => 'error',
@@ -523,7 +597,11 @@ class UrbanGoodzStrandedController extends Controller
         };
 
         if ($event === 'confirmed') {
-            app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($stranded->fresh());
+            // Capturing and transferring real money runs off this request
+            // entirely -- releaseEscrow() talks to Stripe, and an outage or a
+            // slow response there must not delay the customer's confirmation
+            // or, on a retry, ever repeat a transfer that already succeeded.
+            ReleaseStrandedEscrowJob::dispatch($stranded->getKey());
         }
 
         // `completed` and `confirmed` are alternative terminal events, not
@@ -582,6 +660,8 @@ class UrbanGoodzStrandedController extends Controller
             ? UrbanGoodzStrandedOffer::find($stranded->selected_offer_id)
             : null;
 
+        $hadHold = $stranded->escrow_status === 'held';
+
         $stranded->update([
             'status' => 'cancelled',
             'cancelled_at' => now(),
@@ -591,10 +671,18 @@ class UrbanGoodzStrandedController extends Controller
             'help_request_fee_status' => $stranded->feeIsConsumed()
                 ? $stranded->help_request_fee_status
                 : 'refundable',
-            'escrow_status' => $stranded->escrow_status === 'held'
-                ? 'refunded'
-                : $stranded->escrow_status,
+            'escrow_status' => $hadHold ? 'refunded' : $stranded->escrow_status,
         ]);
+
+        // A held authorization is real money reserved on the customer's card.
+        // Marking the column 'refunded' without telling Stripe would leave it
+        // sitting there uncaptured for up to 7 days instead of releasing now.
+        if ($hadHold && $stranded->reward_hold_transaction_id) {
+            $holdLedger = \App\Models\UrbanGoodzPaymentTransaction::find($stranded->reward_hold_transaction_id);
+            if ($holdLedger?->provider_payment_id) {
+                app(UrbanGoodzStrandedPaymentService::class)->voidRewardHold($holdLedger->provider_payment_id);
+            }
+        }
 
         if ($assignedOffer) {
             UrbanGoodzStrandedResponder::where('user_id', $assignedOffer->responder_id)

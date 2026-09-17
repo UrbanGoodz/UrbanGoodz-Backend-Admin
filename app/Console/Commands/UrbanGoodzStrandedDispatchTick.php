@@ -5,8 +5,10 @@ namespace App\Console\Commands;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;
+use App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier;
+use App\Domain\Stranded\Support\MoniqueOperationsAlertService;
 use App\Services\UrbanGoodzStrandedDispatcher;
-use App\Services\UrbanGoodzStrandedNotifier;
+use App\Services\UrbanGoodzStrandedSettings;
 use Illuminate\Console\Command;
 
 /**
@@ -23,9 +25,15 @@ class UrbanGoodzStrandedDispatchTick extends Command
 
     protected $description = 'Expire lapsed Stranded offers, widen the broadcast radius, and escalate to professional providers';
 
-    public function handle(UrbanGoodzStrandedDispatcher $dispatcher, UrbanGoodzStrandedNotifier $notifier): int
-    {
+    public function handle(
+        UrbanGoodzStrandedDispatcher $dispatcher,
+        UrbanGoodzStrandedNotifier $notifier,
+        MoniqueOperationsAlertService $alerts
+    ): int {
         $dry = (bool) $this->option('dry-run');
+
+        $stalled = $this->alertStalledAssignments($dry, $alerts);
+        $this->info("Stalled assignments flagged: {$stalled}");
 
         $expired = $this->expireLapsedOffers($dry);
         $this->info("Offers expired: {$expired}");
@@ -90,13 +98,47 @@ class UrbanGoodzStrandedDispatchTick extends Command
             }
 
             $request->update(['status' => 'no_responders']);
-            $notifier->noRespondersFound($request->fresh());
+            $fresh = $request->fresh();
+            $notifier->noRespondersFound($fresh);
+            $alerts->noResponderFound($fresh);
             $exhausted++;
         }
 
         $this->info("Widened: {$widened} | Escalated: {$escalated} | Exhausted: {$exhausted}");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A responder was assigned but has not sent an en-route update within the
+     * configured window. This is an ops alert, not a customer notification --
+     * repeating "help is on the way" to someone whose help may not actually
+     * be coming would be worse than saying nothing. One alert per assignment:
+     * stall_alert_sent_at stops this from paging ops again every tick.
+     */
+    private function alertStalledAssignments(bool $dry, MoniqueOperationsAlertService $alerts): int
+    {
+        $threshold = now()->subMinutes(UrbanGoodzStrandedSettings::responderStallMinutes());
+
+        $stalled = UrbanGoodzStrandedRequest::query()
+            ->where('status', 'assigned')
+            ->whereNotNull('assigned_at')
+            ->where('assigned_at', '<', $threshold)
+            ->whereNull('en_route_at')
+            ->whereNull('stall_alert_sent_at')
+            ->get();
+
+        if ($dry) {
+            return $stalled->count();
+        }
+
+        foreach ($stalled as $request) {
+            $minutes = (int) $request->assigned_at->diffInMinutes(now());
+            $alerts->responderStalled($request, $minutes);
+            $request->update(['stall_alert_sent_at' => now()]);
+        }
+
+        return $stalled->count();
     }
 
     private function expireLapsedOffers(bool $dry): int

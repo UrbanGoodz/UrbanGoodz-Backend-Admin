@@ -122,6 +122,14 @@
                            value="{{ old('escalation_minutes', $escalationMinutes) }}" required>
                     <small class="text-muted">How long Goodz Samaritans get before professional providers are offered.</small>
                 </div>
+
+                <div class="col-md-4 form-group">
+                    <label for="responder_stall_minutes">Alert ops if assigned but not moving after (minutes)</label>
+                    <input type="number" min="1" max="1440" class="form-control"
+                           id="responder_stall_minutes" name="responder_stall_minutes"
+                           value="{{ old('responder_stall_minutes', $responderStallMinutes) }}" required>
+                    <small class="text-muted">Monique creates an internal operations alert -- not another customer notification -- once an assigned responder has gone this long without an en-route update.</small>
+                </div>
             </div>
         </div>
 

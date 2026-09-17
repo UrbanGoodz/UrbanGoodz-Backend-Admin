@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Services;
+namespace App\Domain\Stranded\Notifications;
 
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
+use App\Services\UrbanGoodzNotificationService;
 
 /**
  * Every Urban Goodz Stranded notification, in one place.
@@ -27,6 +28,16 @@ class UrbanGoodzStrandedNotifier
 {
     public function __construct(private readonly UrbanGoodzNotificationService $notifications)
     {
+    }
+
+    // ---------------------------------------------------------------- posted
+
+    /** The request is live and the search for a responder has begun. */
+    public function requestPosted(UrbanGoodzStrandedRequest $r): void
+    {
+        $this->toCustomer($r, 'Your Stranded request is live',
+            "We're looking for a verified Goodz Person nearby now.",
+            ['event' => 'request_posted']);
     }
 
     // ---------------------------------------------------------------- broadcast
@@ -74,6 +85,36 @@ class UrbanGoodzStrandedNotifier
         $this->toCustomer($r, 'Someone can help',
             'A responder is available · ' . $eta . ' · ' . $terms,
             ['event' => 'responder_accepted', 'offer_id' => $offer->getKey()]);
+    }
+
+    /**
+     * The responder accepted but is not yet customer-visible -- either their
+     * profile is missing its photo/vehicle (should not normally happen for a
+     * verified Samaritan) or they flagged a different vehicle and still owe
+     * its details. Different copy for each: a verified Samaritan should never
+     * be asked to re-submit their own photo just for a different car.
+     */
+    public function responderNeedsVehicleInfo(UrbanGoodzStrandedRequest $r, UrbanGoodzStrandedOffer $offer): void
+    {
+        $profile = $offer->responderProfile();
+        $needsPersonalPhoto = !$profile?->profile_photo_path;
+
+        $body = $needsPersonalPhoto
+            ? "Before you can proceed, please submit a current photo of yourself and the vehicle you're arriving in."
+            : "You're using a different vehicle for this one -- please add its details and a photo before proceeding.";
+
+        $this->toResponder($offer, 'One more step before you proceed', $body, $r, ['event' => 'identity_incomplete']);
+    }
+
+    /** The responder's identity and vehicle are now visible to the customer. */
+    public function responderIdentityReady(UrbanGoodzStrandedRequest $r, UrbanGoodzStrandedOffer $offer): void
+    {
+        $profile = $offer->responderProfile();
+        $name = $profile ? (\App\Models\User::find($profile->user_id)?->f_name ?? 'Your responder') : 'Your responder';
+
+        $this->toCustomer($r, 'Responder verified',
+            $name . " has been verified for your Stranded request. Here's who to look for and the vehicle they're arriving in.",
+            ['event' => 'identity_ready', 'offer_id' => $offer->getKey()]);
     }
 
     public function responderSelected(UrbanGoodzStrandedRequest $r, UrbanGoodzStrandedOffer $offer): void
@@ -181,6 +222,14 @@ class UrbanGoodzStrandedNotifier
             ['event' => 'payment_confirmed']);
     }
 
+    /** The responder has actually been paid -- releaseEscrow() succeeded end to end. */
+    public function payoutReleased(UrbanGoodzStrandedRequest $r): void
+    {
+        $this->toCustomer($r, 'Payment released',
+            'Your Goodz Person payment has been released.',
+            ['event' => 'payout_released']);
+    }
+
     // ---------------------------------------------------------------- changes
 
     public function requestUpdatedByCustomer(UrbanGoodzStrandedRequest $r, ?UrbanGoodzStrandedOffer $offer): void
@@ -214,6 +263,14 @@ class UrbanGoodzStrandedNotifier
         $this->toResponder($offer, 'Request cancelled',
             'The customer cancelled ' . $r->request_number . '. You can stand down.',
             $r, ['event' => 'customer_cancelled']);
+    }
+
+    /** The selected responder backed out. The customer is not left without an answer. */
+    public function responderCancelledAssignment(UrbanGoodzStrandedRequest $r): void
+    {
+        $this->toCustomer($r, 'Looking for another responder',
+            "Your assigned Goodz Person is no longer available. We're looking for another responder now.",
+            ['event' => 'responder_cancelled']);
     }
 
     // ---------------------------------------------------------------- messages
