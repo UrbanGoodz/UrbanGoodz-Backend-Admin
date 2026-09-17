@@ -572,16 +572,27 @@ class AiOperationsController extends Controller
 
     /**
      * Synthesize Monique's spoken executive brief (or any chief_of_staff
-     * text) server-side via ElevenLabs, for the admin panel's own
-     * session-authenticated surface. Mirrors
-     * Api\V1\UrbanGoodz\DigitalHumanController@speak, which is scoped to
-     * the Passport `auth:api` guard used by the customer/vendor/driver
-     * apps -- the admin dashboard authenticates through the `admin`
-     * session guard instead, so it needs its own route into the same
-     * ElevenLabsVoiceService rather than reusing that one.
+     * text) server-side, for the admin panel's own session-authenticated
+     * surface. Mirrors Api\V1\UrbanGoodz\DigitalHumanController@speak,
+     * which is scoped to the Passport `auth:api` guard used by the
+     * customer/vendor/driver apps -- the admin dashboard authenticates
+     * through the `admin` session guard instead, so it needs its own route
+     * into the same voice services rather than reusing that one.
+     *
+     * Routes by the configured provider, exactly as the API controller
+     * does. This previously called ElevenLabsVoiceService directly and so
+     * ignored `voice_provider` entirely: with UG_VOICE_PROVIDER=qwen and no
+     * ELEVENLABS_API_KEY set, every admin request returned
+     * `not_configured`, the widget fell back to window.speechSynthesis, and
+     * Monique spoke in the browser's default system voice instead of her
+     * cloned one. The admin surface must honour the same provider setting
+     * as every other surface, or her cloned voice is unreachable here.
      */
-    public function chiefOfStaffSpeak(Request $request, \App\Services\UrbanGoodz\AI\DigitalHuman\ElevenLabsVoiceService $voice)
-    {
+    public function chiefOfStaffSpeak(
+        Request $request,
+        \App\Services\UrbanGoodz\AI\DigitalHuman\ElevenLabsVoiceService $voice,
+        \App\Services\UrbanGoodz\AI\DigitalHuman\QwenVoiceService $qwenVoice
+    ) {
         if (! Helpers::module_permission_check('urban_goodz_control_center')) {
             abort(403, translate('messages.access_denied'));
         }
@@ -590,7 +601,18 @@ class AiOperationsController extends Controller
             'text' => 'required|string|max:2000',
         ]);
 
-        $result = $voice->synthesize('chief_of_staff', $validated['text']);
+        $provider = strtolower(trim((string) config(
+            'urban_goodz_personas.digital_human_global.voice_provider',
+            'qwen'
+        )));
+
+        $result = match ($provider) {
+            'qwen' => $qwenVoice->synthesize(
+                personaKey: 'chief_of_staff',
+                text: $validated['text']
+            ),
+            default => $voice->synthesize('chief_of_staff', $validated['text']),
+        };
 
         if (! $result['success']) {
             return response()->json([
