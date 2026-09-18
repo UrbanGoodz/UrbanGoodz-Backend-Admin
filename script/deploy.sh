@@ -136,7 +136,17 @@ echo "  now at $(git log -1 --format='%h %s')"
 
 # ---------- 8. dependencies ----------------------------------------------
 echo "[8/11] composer install..."
-composer install --no-dev --optimize-autoloader --no-interaction
+# The production host has no composer on PATH. That is only safe to skip
+# when the lock file did not change, so vendor/ already matches.
+if command -v composer >/dev/null 2>&1; then
+    composer install --no-dev --optimize-autoloader --no-interaction
+elif git diff --quiet "$CURRENT_SHA" "$DEPLOY_SHA" -- composer.lock composer.json; then
+    echo "  composer not installed; composer.lock unchanged - existing vendor/ is current, skipping."
+else
+    echo "  FATAL: composer.lock changed but composer is not installed. Rolling code back."
+    git checkout --quiet "$CURRENT_SHA"
+    exit 1
+fi
 
 # ---------- 9. migrations -------------------------------------------------
 # The real pending list, not a hardcoded one that goes stale.
