@@ -438,7 +438,9 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
         // Vendor-Owned Drivers & Shared Network (My Drivers)
         Route::group(['prefix' => 'vendor/drivers', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
             Route::get('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@index');
-            Route::post('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@store');
+            Route::get('summary', 'Api\V1\UrbanGoodz\VendorDriverManagementController@summary');
+            Route::get('assignable-orders', 'Api\V1\UrbanGoodz\VendorDriverManagementController@assignableOrders');
+            Route::post('/','Api\V1\UrbanGoodz\VendorDriverManagementController@store');
             Route::put('{id}/pay', 'Api\V1\UrbanGoodz\VendorDriverManagementController@updateCompensation');
             Route::delete('{id}', 'Api\V1\UrbanGoodz\VendorDriverManagementController@destroy');
             Route::post('{id}/assign', 'Api\V1\UrbanGoodz\VendorDriverManagementController@assignOrder');

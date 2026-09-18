@@ -262,6 +262,11 @@ return [
             'group' => 'urban_goodz',
             'description' => 'Run route optimization and reorder stops',
         ],
+        'urban_goodz_fleet_operations_view' => [
+            'label' => 'Fleet Operations View',
+            'group' => 'urban_goodz',
+            'description' => 'View platform-wide driver network capacity and active deliveries',
+        ],
     ],
 
     'group_order' => ['urban_goodz' => 50],

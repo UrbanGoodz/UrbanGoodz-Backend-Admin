@@ -88,6 +88,10 @@ class VendorDriverManagementController extends Controller
     public function updateCompensation(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
@@ -110,6 +114,10 @@ class VendorDriverManagementController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
@@ -134,13 +142,17 @@ class VendorDriverManagementController extends Controller
     public function assignOrder(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
             return response()->json(['success' => false, 'message' => 'Driver not found.'], 404);
         }
 
-        $orderId = (int) $request->input('order_id');
+        $orderId = (int) $request->validate(['order_id' => ['required', 'integer', 'min:1']])['order_id'];
         $res = $this->driverNetwork->assignToBusinessOrder($id, $orderId);
 
         return response()->json($res, $res['success'] ? 200 : 422);
@@ -152,29 +164,65 @@ class VendorDriverManagementController extends Controller
     public function releaseDriver(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
             return response()->json(['success' => false, 'message' => 'Driver not found.'], 404);
         }
 
-        $orderId = (int) $request->input('order_id');
+        $orderId = (int) $request->validate(['order_id' => ['required', 'integer', 'min:1']])['order_id'];
         $res = $this->driverNetwork->releaseFromBusinessOrder($id, $orderId);
 
         return response()->json($res, $res['success'] ? 200 : 422);
     }
 
+    /**
+     * Fleet summary for the authenticated vendor: driver counts by network
+     * dispatch status, and today's deliveries broken down by outcome.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->driverNetwork->fleetOperationsSummary($vendorId),
+        ]);
+    }
+
+    /**
+     * The authenticated vendor's orders that can take one of their drivers
+     * right now: the order picker behind the vendor app's assign action.
+     */
+    public function assignableOrders(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->driverNetwork->assignableOrdersForVendor($vendorId),
+        ]);
+    }
+
+    /**
+     * Only the vendor resolved by the vendor.api middleware counts. This used
+     * to fall back to $request->user(), which would have treated a customer's
+     * id as a vendor id.
+     */
     private function authenticatedVendorId(Request $request): ?int
     {
-        $user = $request->user();
-        if ($user && isset($user->vendor_id)) {
-            return (int) $user->vendor_id;
-        }
+        $vendor = $request->vendor ?? auth('vendor')->user();
 
-        if ($user && isset($user->id)) {
-            return (int) $user->id;
-        }
-
-        return null;
+        return ($vendor && isset($vendor->id)) ? (int) $vendor->id : null;
     }
 }

@@ -1011,9 +1011,25 @@
                                     @endif
                                 @endif
                             @else
-                                <span class="badge badge-soft-danger py-2 d-block qcont">
+                                <span class="badge badge-soft-danger py-2 d-block qcont mb-2">
                                     {{ translate('messages.deliveryman_not_found') }}
                                 </span>
+                                @if (isset($availableDrivers) && $availableDrivers->count() > 0)
+                                    <form action="{{ route('vendor.order.assign-driver', ['id' => $order->id]) }}" method="post" class="d-flex gap-2 align-items-center">
+                                        @csrf
+                                        <select name="driver_id" class="form-control form--control" required>
+                                            <option value="">{{ translate('messages.select_driver') }}</option>
+                                            @foreach ($availableDrivers as $driver)
+                                                <option value="{{ $driver->id }}">{{ $driver->f_name }} {{ $driver->l_name }} ({{ $driver->phone }})</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="btn btn--primary">{{ translate('messages.assign') }}</button>
+                                    </form>
+                                @else
+                                    <span class="d-block text-lowercase qcont">
+                                        {{ translate('messages.no_available_driver_found') }}
+                                    </span>
+                                @endif
                             @endif
                         </div>
                         <!-- End Body -->

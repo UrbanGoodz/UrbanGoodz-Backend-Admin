@@ -291,6 +291,7 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
             Route::post('add-order-proof/{id}', 'OrderController@add_order_proof')->name('add-order-proof');
             Route::get('remove-proof-image', 'OrderController@remove_proof_image')->name('remove-proof-image');
             Route::get('export-orders/{file_type}/{status}/{type}', 'OrderController@export_orders')->name('export');
+            Route::post('assign-driver/{id}', 'OrderController@assignDriver')->name('assign-driver');
 
         });
 

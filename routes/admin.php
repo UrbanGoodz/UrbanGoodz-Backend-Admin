@@ -486,6 +486,12 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('external-loads', fn() => redirect()->route('admin.urban-goodz.load-sourcing.sourced-loads'));
             });
 
+            Route::group(['prefix' => 'fleet-operations', 'as' => 'fleet-operations.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzFleetOperationsController@index')
+                    ->middleware('module:urban_goodz_fleet_operations_view')
+                    ->name('index');
+            });
+
             Route::group(['prefix' => 'dispatches', 'as' => 'dispatches.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDispatchController@index')->name('index');
                 Route::get('{id}', 'UrbanGoodz\UrbanGoodzDispatchController@show')->name('show');

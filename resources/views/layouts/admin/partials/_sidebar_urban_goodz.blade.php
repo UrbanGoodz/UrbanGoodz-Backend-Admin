@@ -240,6 +240,14 @@
                         </a>
                     </li>
                     @endif
+                    @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_fleet_operations_view'))
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/fleet-operations*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.fleet-operations.index') }}" title="Fleet Operations">
+                            <i class="tio-car nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Fleet Operations</span>
+                        </a>
+                    </li>
+                    @endif
                     @if(\App\CentralLogics\Helpers::module_permission_check('urban_goodz_earn_money_view') && ($ugModules['earn-money']['readiness'] ?? '') !== 'no_table')
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/modules/earn-money*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.modules.index', 'earn-money') }}" title="Earn Money">

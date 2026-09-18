@@ -2,6 +2,7 @@
 
 namespace App\Services\UrbanGoodz\Agent;
 
+use App\CentralLogics\Helpers;
 use App\Models\DeliveryMan;
 use App\Models\Order;
 use App\Models\Store;
@@ -28,6 +29,19 @@ class UrbanGoodzDriverNetworkService
     public const PAY_FLAT_ROUTE = 'flat_route';
     public const PAY_HOURLY = 'hourly';
     public const PAY_PERCENTAGE = 'percentage';
+
+    /**
+     * Order states a vendor may still put a driver on. Anything past
+     * handover already has a driver or is finished; take-away and dine-in
+     * orders never get one.
+     */
+    public const ASSIGNABLE_ORDER_STATUSES = ['pending', 'accepted', 'confirmed', 'processing', 'handover'];
+
+    /**
+     * States a driver is free to take a vendor's business order from.
+     * available_for_ug means "free, and also opted into the UG pool".
+     */
+    public const ASSIGNABLE_DRIVER_STATUSES = [self::STATUS_AVAILABLE, self::STATUS_AVAILABLE_FOR_UG];
 
     /**
      * 1. Add a vendor-owned driver (requires Urban Goodz approval).
@@ -169,41 +183,179 @@ class UrbanGoodzDriverNetworkService
      */
     public function assignToBusinessOrder(int $driverId, int $orderId): array
     {
-        $driver = DeliveryMan::findOrFail($driverId);
-        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+        // Locked so two concurrent assigns cannot both see the driver or the
+        // order as free and double-book either of them.
+        $result = DB::transaction(function () use ($driverId, $orderId) {
+            $driver = DeliveryMan::withoutGlobalScopes()->lockForUpdate()->findOrFail($driverId);
+            $order = Order::withoutGlobalScopes()->lockForUpdate()->findOrFail($orderId);
+            $store = Store::withoutGlobalScopes()->find($order->store_id);
 
-        if ($driver->admin_approval_status !== 'approved' || (int) $driver->active !== 1) {
+            // Cross-vendor order hijack guard: the order's store must belong to
+            // the same vendor that owns this driver. Without this check, a
+            // vendor could pass an arbitrary order_id belonging to another
+            // vendor's store and have this service reassign it.
+            if (!$driver->vendor_id || !$store || (int) $store->vendor_id !== (int) $driver->vendor_id) {
+                return [
+                    'success' => false,
+                    'message' => "Order does not belong to this driver's vendor.",
+                ];
+            }
+
+            if ($driver->admin_approval_status !== 'approved' || (int) $driver->active !== 1) {
+                return [
+                    'success' => false,
+                    'message' => "Driver #{$driverId} is not approved or inactive.",
+                ];
+            }
+
+            // Double assignment & conflicting availability check
+            if ((int) $driver->current_orders > 0 || !in_array($driver->network_dispatch_status, self::ASSIGNABLE_DRIVER_STATUSES, true)) {
+                return [
+                    'success' => false,
+                    'message' => "Driver #{$driverId} is not available for a new job.",
+                ];
+            }
+
+            // Without these, assigning could reopen a delivered or canceled
+            // order as 'confirmed', or silently take an order off a driver
+            // who already has it and leave that driver stuck on_business_job.
+            if (!in_array($order->order_type, ['delivery', 'parcel'], true)) {
+                return ['success' => false, 'message' => "Order #{$orderId} is not a delivery order."];
+            }
+            if (!in_array($order->order_status, self::ASSIGNABLE_ORDER_STATUSES, true)) {
+                return ['success' => false, 'message' => "Order #{$orderId} is {$order->order_status} and can no longer take a driver."];
+            }
+            if ($order->delivery_man_id) {
+                return ['success' => false, 'message' => "Order #{$orderId} already has a driver. Release them first."];
+            }
+
+            $driver->update([
+                'network_dispatch_status' => self::STATUS_ON_BUSINESS_JOB,
+                'current_orders' => (int) $driver->current_orders + 1,
+            ]);
+            $driver->increment('assigned_order_count');
+
+            // Same transition admin assignment makes (Admin\OrderController::
+            // add_delivery_man): the driver has the job, so pending/confirmed
+            // becomes accepted; an order the store is already processing or
+            // handing over keeps its status.
+            $order->delivery_man_id = $driverId;
+            $order->order_status = in_array($order->order_status, ['pending', 'confirmed'], true) ? 'accepted' : $order->order_status;
+            $order->accepted = now();
+            $order->save();
+
             return [
-                'success' => false,
-                'message' => "Driver #{$driverId} is not approved or inactive.",
+                'success' => true,
+                'driver_id' => $driverId,
+                'order_id' => $orderId,
+                'dispatch_status' => self::STATUS_ON_BUSINESS_JOB,
+                'message' => "Driver assigned to business order. Driver is now marked ON BUSINESS JOB and unavailable to UG dispatch.",
             ];
+        });
+
+        if ($result['success']) {
+            $this->notifyAssignment($orderId, $driverId);
         }
 
-        // Double assignment & conflicting availability check
-        if ((int) $driver->current_orders > 0 || $driver->network_dispatch_status === self::STATUS_ON_BUSINESS_JOB) {
-            return [
-                'success' => false,
-                'message' => "Driver #{$driverId} is already actively delivering another job.",
-            ];
+        return $result;
+    }
+
+    /**
+     * Tell the driver (and the customer) about a vendor assignment, the same
+     * notifications admin assignment sends. Runs after commit and never
+     * fails the assignment: a missing FCM token must not undo a real job.
+     */
+    private function notifyAssignment(int $orderId, int $driverId): void
+    {
+        try {
+            $order = Order::withoutGlobalScopes()->with(['store', 'customer', 'guest', 'module'])->find($orderId);
+            $driver = DeliveryMan::withoutGlobalScopes()->find($driverId);
+            if (!$order || !$driver) {
+                return;
+            }
+
+            if (Helpers::getNotificationStatusData('deliveryman', 'deliveryman_order_assign_unassign', 'push_notification_status')) {
+                $data = [
+                    'title' => translate('Order_Notification'),
+                    'description' => translate('messages.you_are_assigned_to_a_order'),
+                    'order_id' => $order->id,
+                    'image' => '',
+                    'type' => 'order_status',
+                ];
+                if ($driver->fcm_token) {
+                    Helpers::send_push_notif_to_device($driver->fcm_token, $data);
+                }
+                DB::table('user_notifications')->insert([
+                    'data' => json_encode($data),
+                    'delivery_man_id' => $driver->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $customerToken = $order->is_guest == 0 ? $order->customer?->cm_firebase_token : $order->guest?->fcm_token;
+            $message = Helpers::order_status_update_message('accepted', $order->module?->module_type, $order->customer?->current_language_key ?? 'en');
+            $message = Helpers::text_variable_data_format(
+                value: $message,
+                store_name: $order->store?->name,
+                order_id: $order->id,
+                user_name: trim("{$order->customer?->f_name} {$order->customer?->l_name}"),
+                delivery_man_name: trim("{$driver->f_name} {$driver->l_name}")
+            );
+            if ($message && $customerToken && Helpers::getNotificationStatusData('customer', 'customer_order_notification', 'push_notification_status')) {
+                Helpers::send_push_notif_to_device($customerToken, [
+                    'title' => translate('Order_Notification'),
+                    'description' => $message,
+                    'order_id' => $order->id,
+                    'image' => '',
+                    'type' => 'order_status',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Vendor driver assignment notification failed', [
+                'order_id' => $orderId,
+                'driver_id' => $driverId,
+                'error' => $e->getMessage(),
+            ]);
         }
+    }
 
-        $driver->update([
-            'network_dispatch_status' => self::STATUS_ON_BUSINESS_JOB,
-            'current_orders' => (int) $driver->current_orders + 1,
-        ]);
+    /**
+     * The vendor's orders that assignToBusinessOrder() would accept right
+     * now, for the vendor app's order picker. Built from the same constants
+     * so the picker can never offer an order the assign call then rejects.
+     */
+    public function assignableOrdersForVendor(int $vendorId, int $limit = 50): array
+    {
+        $storeIds = Store::withoutGlobalScopes()->where('vendor_id', $vendorId)->pluck('id');
 
-        $order->update([
-            'delivery_man_id' => $driverId,
-            'order_status' => 'confirmed',
-        ]);
+        return Order::withoutGlobalScopes()
+            ->with(['customer:id,f_name,l_name', 'store:id,name'])
+            ->whereIn('store_id', $storeIds)
+            ->whereNull('delivery_man_id')
+            ->whereIn('order_type', ['delivery', 'parcel'])
+            ->whereIn('order_status', self::ASSIGNABLE_ORDER_STATUSES)
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->map(function (Order $order) {
+                $address = is_string($order->delivery_address) ? json_decode($order->delivery_address, true) : $order->delivery_address;
 
-        return [
-            'success' => true,
-            'driver_id' => $driverId,
-            'order_id' => $orderId,
-            'dispatch_status' => self::STATUS_ON_BUSINESS_JOB,
-            'message' => "Driver assigned to business order. Driver is now marked ON BUSINESS JOB and unavailable to UG dispatch.",
-        ];
+                return [
+                    'id' => $order->id,
+                    'order_status' => $order->order_status,
+                    'order_type' => $order->order_type,
+                    'order_amount' => (float) $order->order_amount,
+                    'payment_method' => $order->payment_method,
+                    'store_name' => $order->store?->name,
+                    'customer_name' => trim("{$order->customer?->f_name} {$order->customer?->l_name}") ?: null,
+                    'delivery_address' => is_array($address) ? ($address['address'] ?? null) : null,
+                    'schedule_at' => $order->schedule_at,
+                    // Order casts created_at to a plain string, not Carbon.
+                    'created_at' => $order->created_at ? (string) $order->created_at : null,
+                ];
+            })
+            ->all();
     }
 
     /**
@@ -212,25 +364,58 @@ class UrbanGoodzDriverNetworkService
      */
     public function releaseFromBusinessOrder(int $driverId, int $orderId): array
     {
-        $driver = DeliveryMan::findOrFail($driverId);
-        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+        return DB::transaction(function () use ($driverId, $orderId) {
+            $driver = DeliveryMan::withoutGlobalScopes()->lockForUpdate()->findOrFail($driverId);
+            $order = Order::withoutGlobalScopes()->lockForUpdate()->findOrFail($orderId);
+            $store = Store::withoutGlobalScopes()->find($order->store_id);
 
-        $nextStatus = $driver->available_for_marketplace ? self::STATUS_AVAILABLE_FOR_UG : self::STATUS_AVAILABLE;
+            // Same cross-vendor guard as assignToBusinessOrder(): only the
+            // vendor that owns this driver may release it from an order, and
+            // only when that order actually belongs to one of their stores.
+            if (!$driver->vendor_id || !$store || (int) $store->vendor_id !== (int) $driver->vendor_id) {
+                return [
+                    'success' => false,
+                    'message' => "Order does not belong to this driver's vendor.",
+                ];
+            }
 
-        $driver->update([
-            'network_dispatch_status' => $nextStatus,
-            'current_orders' => max(0, (int) $driver->current_orders - 1),
-        ]);
+            // Otherwise any of the vendor's orders could be used to knock a
+            // driver's current_orders down while they are mid-delivery.
+            if ((int) $order->delivery_man_id !== (int) $driverId) {
+                return ['success' => false, 'message' => "Driver #{$driverId} is not on order #{$orderId}."];
+            }
 
-        return [
-            'success' => true,
-            'driver_id' => $driverId,
-            'network_dispatch_status' => $nextStatus,
-            'available_for_ug' => (bool) $driver->available_for_marketplace,
-            'message' => $driver->available_for_marketplace
-                ? "Driver released. Available for Urban Goodz marketplace orders."
-                : "Driver released. Available for business orders only.",
-        ];
+            // The goods are with the driver once picked up; the driver closes
+            // that out from their app (delivered/failed), not the vendor.
+            if ($order->order_status === 'picked_up') {
+                return ['success' => false, 'message' => "Order #{$orderId} is already picked up and cannot be released."];
+            }
+
+            $stillOpen = in_array($order->order_status, self::ASSIGNABLE_ORDER_STATUSES, true);
+            if ($stillOpen) {
+                // Unassign so the order can be given to another driver.
+                $order->update(['delivery_man_id' => null]);
+            }
+
+            $nextStatus = $driver->available_for_marketplace ? self::STATUS_AVAILABLE_FOR_UG : self::STATUS_AVAILABLE;
+
+            // A finished order was already taken off current_orders by the
+            // driver app when it closed; only an open one still counts.
+            $driver->update([
+                'network_dispatch_status' => $nextStatus,
+                'current_orders' => $stillOpen ? max(0, (int) $driver->current_orders - 1) : (int) $driver->current_orders,
+            ]);
+
+            return [
+                'success' => true,
+                'driver_id' => $driverId,
+                'network_dispatch_status' => $nextStatus,
+                'available_for_ug' => (bool) $driver->available_for_marketplace,
+                'message' => $driver->available_for_marketplace
+                    ? "Driver released. Available for Urban Goodz marketplace orders."
+                    : "Driver released. Available for business orders only.",
+            ];
+        });
     }
 
     /**
@@ -331,6 +516,53 @@ class UrbanGoodzDriverNetworkService
             'compensation' => $comp,
             'network_dispatch_status' => $nextStatus,
             'message' => "Order #{$orderId} delivered. Driver net payout: \${$comp['driver_net_payout']}, Urban Goodz admin fee: \${$comp['platform_admin_fee']}.",
+        ];
+    }
+
+    /**
+     * Fleet summary: driver counts by network_dispatch_status and today's
+     * order counts by outcome. Shared by VendorDriverManagementController's
+     * vendor-scoped summary() endpoint and the admin Fleet Operations page
+     * (platform-wide, $vendorId = null) so the counting logic lives in one
+     * place instead of being duplicated across the two controllers.
+     */
+    public function fleetOperationsSummary(?int $vendorId = null): array
+    {
+        $driverQuery = DeliveryMan::query();
+        if ($vendorId) {
+            $driverQuery->where('vendor_id', $vendorId);
+        }
+
+        $driverIds = (clone $driverQuery)->pluck('id');
+
+        $statusCounts = (clone $driverQuery)
+            ->selectRaw('network_dispatch_status, count(*) as aggregate')
+            ->groupBy('network_dispatch_status')
+            ->pluck('aggregate', 'network_dispatch_status');
+
+        $drivers = [
+            'total' => (int) $driverIds->count(),
+            'available' => (int) ($statusCounts[self::STATUS_AVAILABLE] ?? 0),
+            'on_business_job' => (int) ($statusCounts[self::STATUS_ON_BUSINESS_JOB] ?? 0),
+            'offline' => (int) ($statusCounts[self::STATUS_OFFLINE] ?? 0),
+            'pending_approval' => (int) ($statusCounts[self::STATUS_PENDING_APPROVAL] ?? 0),
+            'suspended' => (int) ($statusCounts[self::STATUS_SUSPENDED] ?? 0),
+        ];
+
+        $todayOrders = Order::withoutGlobalScopes()
+            ->whereIn('delivery_man_id', $driverIds)
+            ->whereDate('created_at', now()->toDateString());
+
+        $deliveries = [
+            'total' => (clone $todayOrders)->count(),
+            'completed' => (clone $todayOrders)->where('order_status', 'delivered')->count(),
+            'in_progress' => (clone $todayOrders)->whereIn('order_status', ['confirmed', 'processing', 'handover', 'picked_up'])->count(),
+            'failed' => (clone $todayOrders)->whereIn('order_status', ['canceled', 'failed', 'refunded'])->count(),
+        ];
+
+        return [
+            'drivers' => $drivers,
+            'deliveries_today' => $deliveries,
         ];
     }
 
