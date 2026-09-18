@@ -14,6 +14,15 @@ class UrbanGoodzIngestionSeeder extends Seeder
 {
     public function run()
     {
+        // Every business this seeder creates is invented (~1,900 of them, with
+        // randomised Black-/woman-owned flags). That is fine for a dev database
+        // and never acceptable on the live marketplace, so it refuses there.
+        // It also runs from DatabaseSeeder, so a plain `db:seed` would hit it.
+        if (app()->environment('production') || config('app.url') === 'https://admin.urbangoodzdelivery.com') {
+            $this->command?->warn('UrbanGoodzIngestionSeeder skipped: it creates fictional businesses and must not run against production.');
+            return;
+        }
+
         $categories = [
             'Restaurants',
             'Food Trucks',
@@ -200,7 +209,7 @@ class UrbanGoodzIngestionSeeder extends Seeder
                         'name'              => $businessName,
                         'slug'              => $slug,
                         'display_name'      => $businessName,
-                        'description'       => "{$businessName} is a premier provider of {$cat} in {$city['name']}, {$city['state']}. Sourced by Urban Goodz from public listings.",
+                        'description'       => "{$businessName} is a sample {$cat} business in {$city['name']}, {$city['state']} (development seed data).",
                         'short_description' => "Premium {$cat} in {$city['name']}.",
                         'business_type'     => Str::slug($cat),
                         'module_id'         => $module ? $module->id : null,
@@ -208,8 +217,9 @@ class UrbanGoodzIngestionSeeder extends Seeder
                         'category_ids'      => [1],
                         'tags'              => [$cat, 'Local', $city['name'], $city['state']],
                         'phone'             => $city['area_code'] . '-555-' . sprintf('%04d', (1000 + $i) % 9000 + 1000),
-                        'email'             => 'contact@' . Str::slug($businessName) . '.com',
-                        'website'           => 'https://www.' . Str::slug($businessName) . '.com',
+                        // .example is reserved (RFC 2606); a made-up .com can be a real stranger's domain.
+                        'email'             => 'contact@' . Str::slug($businessName) . '.example',
+                        'website'           => 'https://www.' . Str::slug($businessName) . '.example',
                         'social_links'      => [
                             'instagram' => 'https://instagram.com/' . Str::slug($businessName),
                             'facebook'  => 'https://facebook.com/' . Str::slug($businessName),
@@ -245,7 +255,7 @@ class UrbanGoodzIngestionSeeder extends Seeder
                             'module_id' => $b->module_id,
                             'name' => $prodName,
                             'slug' => Str::slug($prodName) . '-' . Str::random(4),
-                            'short_description' => "Genuine {$prodName} offered by {$businessName}.",
+                            'short_description' => "Sample {$prodName} from {$businessName}.",
                             'full_description' => "Request a quote for {$prodName} from {$businessName} via Urban Goodz Order Anywhere.",
                             'price' => rand(15, 120),
                             'price_type' => 'fixed',
