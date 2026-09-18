@@ -14,6 +14,9 @@ class UrbanGoodzPhase3Provision extends Command
 {
     protected $signature = 'urban-goodz:phase3-provision
         {--batch-marker=urban_goodz_phase3_sourcing_20260917_1458 : Batch marker of staged rows}
+        {--vendor-id= : Required. Vendor that owns the unclaimed stores until claimed. No default - IDs differ between databases.}
+        {--fallback-zone-id= : Required. Zone for businesses with no zone_id. No default - IDs differ between databases.}
+        {--module-remap=14:16 : from:to module remap for staged rows in an inactive module}
         {--dry-run : Simulate only (default behavior)}
         {--apply : Actually write stores and items to the live database}';
 
@@ -28,6 +31,29 @@ class UrbanGoodzPhase3Provision extends Command
         $this->info("=== Urban Goodz Phase 3 Provisioning ===");
         $this->info("Batch marker: {$marker}");
         $this->info($dryRun ? "MODE: DRY-RUN (no database writes)" : "MODE: APPLY (writing to live stores & items)");
+
+        // These IDs were hardcoded (vendor 1, zone 2, module 14->16) from the
+        // local database. Production IDs are not the same rows, so the
+        // operator must name them, and they are checked before anything runs.
+        $vendorId = (int) $this->option('vendor-id');
+        $fallbackZoneId = (int) $this->option('fallback-zone-id');
+        [$remapFrom, $remapTo] = array_map('intval', explode(':', (string) $this->option('module-remap')) + [0, 0]);
+
+        $vendor = $vendorId > 0 ? DB::table('vendors')->where('id', $vendorId)->first() : null;
+        if (! $vendor) {
+            $this->error('Refusing: --vendor-id must name an existing vendor.');
+            return self::FAILURE;
+        }
+        if ($fallbackZoneId <= 0 || ! DB::table('zones')->where('id', $fallbackZoneId)->exists()) {
+            $this->error('Refusing: --fallback-zone-id must name an existing zone.');
+            return self::FAILURE;
+        }
+        if ($remapTo > 0 && ! DB::table('modules')->where('id', $remapTo)->where('status', 1)->exists()) {
+            $this->error("Refusing: remap target module {$remapTo} does not exist or is inactive.");
+            return self::FAILURE;
+        }
+        $this->info("Owner vendor: #{$vendor->id} {$vendor->f_name} {$vendor->l_name} <{$vendor->email}> (owns "
+            . DB::table('stores')->where('vendor_id', $vendorId)->count() . ' stores today)');
 
         $businesses = UrbanGoodzSourcedBusiness::where('created_by_source', $marker)->get();
         if ($businesses->isEmpty()) {
@@ -76,10 +102,10 @@ class UrbanGoodzPhase3Provision extends Command
                 $matchedStore = $liveStoreByPhone[$rawPhone];
             }
 
-            // Remap inactive Module 14 to active Module 16
+            // Remap a staged inactive module (14 -> 16 locally) to an active one
             $effectiveModuleId = (int) $b->module_id;
-            if ($effectiveModuleId === 14) {
-                $effectiveModuleId = 16;
+            if ($remapFrom > 0 && $remapTo > 0 && $effectiveModuleId === $remapFrom) {
+                $effectiveModuleId = $remapTo;
             }
 
             if ($matchedStore) {
@@ -113,8 +139,12 @@ class UrbanGoodzPhase3Provision extends Command
         }
 
         // Audit products
-        $stagedProducts = UrbanGoodzSourcedProduct::whereIn('sourced_business_id', $businesses->pluck('id'))->get();
-        $this->info("Total staged products to provision: " . $stagedProducts->count());
+        // A product with a store_id was provisioned by an earlier run. Skip it,
+        // or a re-run (e.g. after a partial failure) duplicates every item.
+        $allProducts = UrbanGoodzSourcedProduct::whereIn('sourced_business_id', $businesses->pluck('id'))->get();
+        $stagedProducts = $allProducts->whereNull('store_id');
+        $this->info("Total staged products to provision: " . $stagedProducts->count()
+            . ' (' . ($allProducts->count() - $stagedProducts->count()) . ' already provisioned, skipped)');
 
         if ($dryRun) {
             $this->warn("\nDRY-RUN completed successfully. Re-run with --apply to commit these stores and items.");
@@ -158,7 +188,7 @@ class UrbanGoodzPhase3Provision extends Command
                     'comission' => 23.00,
                     'schedule_order' => 0,
                     'status' => 1, // Live in app
-                    'vendor_id' => 1, // System admin vendor until claimed
+                    'vendor_id' => $vendorId, // holds unclaimed stores until claimed
                     'created_at' => $now,
                     'updated_at' => $now,
                     'free_delivery' => 0,
@@ -167,7 +197,7 @@ class UrbanGoodzPhase3Provision extends Command
                     'take_away' => 1,
                     'item_section' => 1,
                     'tax' => 0.00,
-                    'zone_id' => $b->zone_id ?: 2,
+                    'zone_id' => $b->zone_id ?: $fallbackZoneId,
                     'reviews_section' => 1,
                     'active' => 1, // Activated
                     'minimum_shipping_charge' => 5.99,
@@ -251,8 +281,9 @@ class UrbanGoodzPhase3Provision extends Command
                     'created_at' => $now,
                     'updated_at' => $now,
                     'order_count' => 0,
-                    'avg_rating' => 5.0,
-                    'rating_count' => 1,
+                    // No customer has reviewed these yet; a seeded 5.0 would be a fake review.
+                    'avg_rating' => 0,
+                    'rating_count' => 0,
                     'module_id' => $moduleId,
                     'stock' => 100,
                     'images' => json_encode([$image]),

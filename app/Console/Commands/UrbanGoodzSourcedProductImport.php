@@ -36,8 +36,8 @@ class UrbanGoodzSourcedProductImport extends Command
 
         $jsonPath = $this->option('json');
         if (!$jsonPath) {
-            $home = getenv('USERPROFILE') ?: getenv('HOME');
-            $jsonPath = $home . '/.gemini/antigravity/brain/e729ffa3-729e-4370-9447-6aa0245a6be7/scratch/catalog_products_export.json';
+            $this->error('Refusing: --json=<path to catalog_products_export.json> is required.');
+            return self::FAILURE;
         }
 
         if (!file_exists($jsonPath)) {
@@ -111,8 +111,10 @@ class UrbanGoodzSourcedProductImport extends Command
                     'subcategory_id' => null,
                     'name' => $name,
                     'slug' => Str::slug($name) . '-' . substr(md5($b->id . $name), 0, 6),
-                    'short_description' => $name . ' ($' . number_format($upchargedPrice, 2) . ')',
-                    'full_description' => $name . ' offered by ' . $b->name . ' in ' . $b->city . ', ' . $b->state . '. (Base price: $' . number_format($basePrice, 2) . ' + ' . $upchargeRate . '% platform upcharge = $' . number_format($upchargedPrice, 2) . ').',
+                    // full_description becomes the live item description that
+                    // customers read, so the base price and markup stay out of it.
+                    'short_description' => $name,
+                    'full_description' => $name . ' from ' . $b->name . ' in ' . $b->city . ', ' . $b->state . '.',
                     'price' => $upchargedPrice,
                     'price_type' => 'fixed',
                     'currency' => 'USD',
