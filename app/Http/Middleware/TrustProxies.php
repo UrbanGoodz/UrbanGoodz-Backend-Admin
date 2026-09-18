@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Http\Middleware;
 
@@ -11,8 +11,7 @@ class TrustProxies extends Middleware
      * The trusted proxies for this application.
      *
      * Set to '*' so Cloudflare's ever-changing IP ranges are
-     * all trusted automatically. Cloudflare's WAF provides the
-     * outer security layer, so this is safe.
+     * all trusted automatically.
      *
      * @var array|string|null
      */
@@ -21,12 +20,15 @@ class TrustProxies extends Middleware
     /**
      * The headers that should be used to detect proxies.
      *
+     * Only FOR and PROTO. Cloudflare passes the original Host through
+     * untouched and never sends X-Forwarded-Host/Port, and the origin is
+     * reachable directly, bypassing Cloudflare. Trusting X-Forwarded-Host
+     * from '*' would let anyone who hits the origin rewrite the host that
+     * url() builds - poisoning password-reset links.
+     *
      * @var int
      */
     protected $headers =
         Request::HEADER_X_FORWARDED_FOR |
-        Request::HEADER_X_FORWARDED_HOST |
-        Request::HEADER_X_FORWARDED_PORT |
-        Request::HEADER_X_FORWARDED_PROTO |
-        Request::HEADER_X_FORWARDED_AWS_ELB;
+        Request::HEADER_X_FORWARDED_PROTO;
 }
