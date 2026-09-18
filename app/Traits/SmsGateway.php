@@ -612,6 +612,291 @@ trait  SmsGateway
 
 
 
+    /**
+     * A raw text message, not an OTP. `send()` above is OTP-shaped end to
+     * end -- every provider method templates `#OTP#` into a fixed string,
+     * and two providers (2Factor, MSG91) call OTP-specific API endpoints
+     * that cannot carry an arbitrary message at all. This is what Monique's
+     * Stranded notifications need: their own message body, sent as-is.
+     *
+     * Deliberately new methods, not a refactor of the ones above: those are
+     * live in production auth flows, and rewriting them to share code with
+     * this risks a transcription error breaking OTP delivery for whichever
+     * provider is actually configured. Some duplication here is the safer
+     * trade. 2Factor, MSG91 and 019SMS are not implemented -- their
+     * integrations are OTP-endpoint-specific, not general SMS APIs; a
+     * request through one of those falls through to 'unsupported_provider'.
+     */
+    public static function sendMessage($receiver, string $message): string
+    {
+        $config = self::get_settings('twilio');
+        if (isset($config) && $config['status'] == 1) {
+            return self::twilioMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('nexmo');
+        if (isset($config) && $config['status'] == 1) {
+            return self::nexmoMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('releans');
+        if (isset($config) && $config['status'] == 1) {
+            return self::releansMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('hubtel');
+        if (isset($config) && $config['status'] == 1) {
+            return self::hubtelMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('paradox');
+        if (isset($config) && $config['status'] == 1) {
+            return self::paradoxMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('signal_wire');
+        if (isset($config) && $config['status'] == 1) {
+            return self::signalWireMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('viatech');
+        if (isset($config) && $config['status'] == 1) {
+            return self::viatechMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('global_sms');
+        if (isset($config) && $config['status'] == 1) {
+            return self::globalSmsMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('akandit_sms');
+        if (isset($config) && $config['status'] == 1) {
+            return self::akanditSmsMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('sms_to');
+        if (isset($config) && $config['status'] == 1) {
+            return self::smsToMessage($receiver, $message, $config);
+        }
+
+        $config = self::get_settings('alphanet_sms');
+        if (isset($config) && $config['status'] == 1) {
+            return self::alphanetSmsMessage($receiver, $message, $config);
+        }
+
+        $twoFactor = self::get_settings('2factor');
+        $msg91 = self::get_settings('msg91');
+        $sms019 = self::get_settings('019_sms');
+        if (($twoFactor['status'] ?? 0) == 1 || ($msg91['status'] ?? 0) == 1 || ($sms019['status'] ?? 0) == 1) {
+            return 'unsupported_provider';
+        }
+
+        return 'not_found';
+    }
+
+    private static function twilioMessage($receiver, string $message, array $config): string
+    {
+        try {
+            $twilio = new Client($config['sid'], $config['token']);
+            $twilio->messages->create($receiver, [
+                'messagingServiceSid' => $config['messaging_service_sid'],
+                'body' => $message,
+            ]);
+            return 'success';
+        } catch (\Exception $exception) {
+            return 'error';
+        }
+    }
+
+    private static function nexmoMessage($receiver, string $message, array $config): string
+    {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://rest.nexmo.com/sms/json');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "from=" . $config['from'] . "&text=" . $message . "&to=" . $receiver . "&api_key=" . $config['api_key'] . "&api_secret=" . $config['api_secret']);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
+            curl_exec($ch);
+            $err = curl_errno($ch);
+            curl_close($ch);
+            return $err ? 'error' : 'success';
+        } catch (\Exception $exception) {
+            return 'error';
+        }
+    }
+
+    private static function releansMessage($receiver, string $message, array $config): string
+    {
+        try {
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://api.releans.com/v2/message',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => "sender={$config['from']}&mobile={$receiver}&content={$message}",
+                CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $config['api_key']],
+            ]);
+            curl_exec($curl);
+            $err = curl_errno($curl);
+            curl_close($curl);
+            return $err ? 'error' : 'success';
+        } catch (\Exception $exception) {
+            return 'error';
+        }
+    }
+
+    private static function hubtelMessage($receiver, string $message, array $config): string
+    {
+        $receiver = str_replace('+', '', $receiver);
+        $message = urlencode($message);
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => 'https://sms.hubtel.com/v1/messages/send?clientsecret=' . $config['client_secret'] . '&clientid=' . $config['client_id'] . '&from=' . $config['sender_id'] . '&to=' . $receiver . '&content=' . $message,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => ['content-type: application/json'],
+        ]);
+        curl_exec($curl);
+        $error = curl_errno($curl);
+        curl_close($curl);
+        return $error ? 'error' : 'success';
+    }
+
+    private static function paradoxMessage($receiver, string $message, array $config): string
+    {
+        $receiver = str_replace('+', '', $receiver);
+        $curl = curl_init('http://portal.paradox.co.ke/api/v1/send-sms');
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([
+            'sender' => $config['sender_id'],
+            'message' => $message,
+            'phone' => $receiver,
+        ]));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, [
+            'Content-type: application/json',
+            'Accept: application/json',
+            'Authorization: Bearer ' . $config['api_key'],
+        ]);
+        curl_exec($curl);
+        $err = curl_errno($curl);
+        curl_close($curl);
+        return $err ? 'error' : 'success';
+    }
+
+    private static function signalWireMessage($receiver, string $message, array $config): string
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'https://' . $config['space_url'] . '/api/laml/2010-04-01/Accounts/' . $config['project_id'] . '/Messages');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_USERPWD, $config['project_id'] . ':' . $config['token']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, 'From=' . $config['from'] . '&To=' . $receiver . '&Body=' . $message);
+        curl_exec($ch);
+        $error = curl_errno($ch);
+        curl_close($ch);
+        return $error ? 'error' : 'success';
+    }
+
+    private static function viatechMessage($receiver, string $message, array $config): string
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $config['api_url']);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, [
+            'api_key' => $config['api_key'],
+            'type' => 'text',
+            'contacts' => $receiver,
+            'senderid' => $config['sender_id'],
+            'msg' => $message,
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        return (!is_numeric($response) && substr((string) $response, 0, 13) === 'SMS SUBMITTED') ? 'success' : 'error';
+    }
+
+    private static function globalSmsMessage($receiver, string $message, array $config): string
+    {
+        try {
+            $encoded = urlencode(urlencode(urlencode($message)));
+            $res = Http::get('https://api.smsglobal.com/http-api.php?action=sendsms&user=' . $config['user_name'] . '&password=' . $config['password'] . '&from=' . $config['from'] . '&to=' . $receiver . '&text=' . $encoded);
+            return $res->successful() ? 'success' : 'error';
+        } catch (\Exception $exception) {
+            return 'error';
+        }
+    }
+
+    private static function akanditSmsMessage($receiver, string $message, array $config): string
+    {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'http://66.45.237.70/api.php');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+                'username' => $config['username'],
+                'password' => $config['password'],
+                'number' => $receiver,
+                'message' => $message,
+            ]));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $result = curl_exec($ch);
+            curl_close($ch);
+            $status = explode('|', (string) $result)[0] ?? '';
+            return $status === '1101' ? 'success' : 'error';
+        } catch (\Exception $exception) {
+            return 'error';
+        }
+    }
+
+    private static function smsToMessage($receiver, string $message, array $config): string
+    {
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => 'https://api.sms.to/sms/send',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode([
+                'message' => $message,
+                'to' => $receiver,
+                'sender_id' => $config['sender_id'],
+            ]),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+                'Authorization: Bearer ' . $config['api_key'],
+            ],
+        ]);
+        curl_exec($curl);
+        $err = curl_errno($curl);
+        curl_close($curl);
+        return $err ? 'error' : 'success';
+    }
+
+    private static function alphanetSmsMessage($receiver, string $message, array $config): string
+    {
+        $receiver = str_replace('+', '', $receiver);
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => 'https://api.sms.net.bd/sendsms',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => ['api_key' => $config['api_key'], 'msg' => $message, 'to' => $receiver],
+        ]);
+        $response = curl_exec($curl);
+        curl_close($curl);
+        return ((int) data_get(json_decode((string) $response, true), 'error') === 0) ? 'success' : 'error';
+    }
+
     public static function get_settings($name)
     {
         $data = config_settings($name, 'sms_config');

@@ -125,7 +125,7 @@ class QwenVoiceServiceTest extends TestCase
     public function test_mp3_content_type_is_reported_correctly(): void
     {
         Http::fake([
-            'tts.example.internal/*' => Http::response('fake-mp3-bytes', 200, ['Content-Type' => 'audio/mpeg']),
+            'tts.example.internal/*' => Http::response('fake-mp3-bytes', 200, ['Content-Type' => 'audio/mp3']),
         ]);
 
         $service = new QwenVoiceService();
