@@ -92,7 +92,9 @@ echo "  -> $BACKUP_DIR"
 
 # ---------- 5. database backup -------------------------------------------
 echo "[5/11] Backing up database..."
-envval() { grep -m1 "^$1=" .env | cut -d= -f2- | tr -d '"' | tr -d "'"; }
+# Production's .env indents most keys, so an anchored grep on the raw file
+# finds no DB_* at all and the backup runs with empty credentials.
+envval() { sed -E 's/^[[:space:]]+//' .env | grep -m1 "^$1=" | cut -d= -f2- | tr -d '"' | tr -d "'"; }
 DB_NAME=$(envval DB_DATABASE)
 DB_USER=$(envval DB_USERNAME)
 DB_PASS=$(envval DB_PASSWORD)
@@ -114,6 +116,9 @@ fi
 # Booting artisan on this host has previously flipped system_addons.active
 # from 1 to 0. Snapshot before, compare after, and say so loudly.
 echo "[6/11] Snapshotting addon state..."
+# The flip observed on this host was in config/system-addons.php, not only the
+# table, so keep a byte-exact copy to restore from.
+cp -p config/system-addons.php "$BACKUP_DIR/system-addons.php.before" 2>/dev/null || true
 ADDONS_BEFORE=""
 if command -v mysql >/dev/null 2>&1; then
     ADDONS_BEFORE=$(mysql -h "$DB_HOST" -P "${DB_PORT:-3306}" -u "$DB_USER" -p"$DB_PASS" \
@@ -181,6 +186,11 @@ if [ -n "$ADDONS_BEFORE" ] && command -v mysql >/dev/null 2>&1; then
     else
         echo "  addon state unchanged"
     fi
+fi
+
+if [ -f "$BACKUP_DIR/system-addons.php.before" ] && ! cmp -s "$BACKUP_DIR/system-addons.php.before" config/system-addons.php; then
+    echo "  *** config/system-addons.php CHANGED DURING DEPLOY ***"
+    echo "  Restore with: cp -p $BACKUP_DIR/system-addons.php.before config/system-addons.php"
 fi
 
 echo ""
