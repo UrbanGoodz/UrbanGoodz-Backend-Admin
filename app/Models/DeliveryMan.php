@@ -457,6 +457,23 @@ class DeliveryMan extends Authenticatable
     protected static function boot()
     {
         parent::boot();
+
+        // UrbanGoodzDriverNetworkService marks a driver on_business_job when a
+        // vendor assigns them, but the driver app, vendor panel and admin
+        // close orders out by decrementing current_orders directly and never
+        // touch network_dispatch_status. Without this, a driver who finished
+        // their only job stayed on_business_job forever and could not be
+        // assigned again.
+        static::saving(function ($model) {
+            if ($model->isDirty('current_orders')
+                && (int) $model->current_orders <= 0
+                && $model->network_dispatch_status === \App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::STATUS_ON_BUSINESS_JOB) {
+                $model->network_dispatch_status = $model->available_for_marketplace
+                    ? \App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::STATUS_AVAILABLE_FOR_UG
+                    : \App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::STATUS_AVAILABLE;
+            }
+        });
+
         static::saved(function ($model) {
             if($model->isDirty('image')){
                 $value = Helpers::getDisk();

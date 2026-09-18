@@ -216,6 +216,60 @@ class UrbanGoodzVendorDriverNetworkSecurityTest extends TestCase
         $this->assertSame('available', $this->driverA->fresh()->network_dispatch_status);
     }
 
+    // ---- Adding drivers & listing their current order --------------------
+
+    public function test_adding_a_driver_requires_the_vendor_to_set_a_password(): void
+    {
+        $phone = '6' . random_int(1000000000, 1999999999);
+
+        $this->withHeaders($this->vendorAHeaders())
+            ->postJson('/api/v1/urban-goodz/cross-app/ai/vendor/drivers', ['f_name' => 'New', 'phone' => $phone])
+            ->assertStatus(422);
+
+        $this->withHeaders($this->vendorAHeaders())
+            ->postJson('/api/v1/urban-goodz/cross-app/ai/vendor/drivers', [
+                'f_name' => 'New', 'phone' => $phone, 'password' => 'a-real-secret-9',
+            ])
+            ->assertStatus(201);
+
+        $driver = DeliveryMan::withoutGlobalScopes()->where('phone', $phone)->firstOrFail();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('a-real-secret-9', $driver->password));
+        $this->assertFalse(\Illuminate\Support\Facades\Hash::check('Driver@123', $driver->password));
+    }
+
+    public function test_service_never_falls_back_to_a_known_default_password(): void
+    {
+        $driver = app(\App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::class)
+            ->addVendorDriver($this->vendorA->id, ['phone' => '7' . random_int(1000000000, 1999999999)]);
+
+        $this->assertFalse(\Illuminate\Support\Facades\Hash::check('Driver@123', $driver->password));
+    }
+
+    public function test_driver_list_reports_the_order_each_driver_is_on(): void
+    {
+        $this->assignViaApi($this->driverA->id, $this->orderA->id)->assertStatus(200);
+
+        $row = collect(
+            $this->withHeaders($this->vendorAHeaders())
+                ->getJson('/api/v1/urban-goodz/cross-app/ai/vendor/drivers')
+                ->assertStatus(200)
+                ->json('data')
+        )->firstWhere('id', $this->driverA->id);
+
+        $this->assertSame($this->orderA->id, $row['active_order_id']);
+        $this->assertSame('accepted', $row['active_order_status']);
+    }
+
+    // ---- VendorMoniqueController shares the vendor-auth fix -------------
+
+    public function test_monique_vendor_endpoint_recognizes_the_authenticated_vendor(): void
+    {
+        $this->withHeaders($this->vendorAHeaders())
+            ->getJson('/api/v1/urban-goodz/cross-app/ai/vendor/monique/subscription')
+            ->assertStatus(200)
+            ->assertJson(['success' => true]);
+    }
+
     // ---- Order/driver state rules on assign & release -------------------
 
     private function assignViaApi(int $driverId, int $orderId)

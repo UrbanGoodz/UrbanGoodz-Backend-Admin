@@ -296,17 +296,15 @@ RULES:
         return $prompt;
     }
 
+    /**
+     * The vendor.api middleware sets $request->vendor and never populates
+     * $request->user(), so reading user() here 401'd every Monique vendor
+     * call. Same fix as VendorDriverManagementController.
+     */
     private function authenticatedVendorId(Request $request): ?int
     {
-        $user = $request->user();
-        if ($user && isset($user->vendor_id)) {
-            return (int) $user->vendor_id;
-        }
+        $vendor = $request->vendor ?? auth('vendor')->user();
 
-        if ($user && isset($user->id)) {
-            return (int) $user->id;
-        }
-
-        return null;
+        return ($vendor && isset($vendor->id)) ? (int) $vendor->id : null;
     }
 }

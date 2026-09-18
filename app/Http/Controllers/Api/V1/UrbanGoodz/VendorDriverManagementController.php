@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryMan;
+use App\Models\Order;
 use App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,19 @@ class VendorDriverManagementController extends Controller
 
         $drivers = DeliveryMan::where('vendor_id', $vendorId)
             ->latest('id')
-            ->get()
+            ->get();
+
+        // The order each driver is on right now, so the vendor app can offer
+        // Release without asking the vendor to type an order number.
+        $activeOrders = Order::withoutGlobalScopes()
+            ->whereIn('delivery_man_id', $drivers->pluck('id'))
+            ->whereIn('order_status', [...UrbanGoodzDriverNetworkService::ASSIGNABLE_ORDER_STATUSES, 'picked_up'])
+            ->latest('id')
+            ->get(['id', 'delivery_man_id', 'order_status'])
+            ->unique('delivery_man_id')
+            ->keyBy('delivery_man_id');
+
+        $drivers = $drivers
             ->map(fn ($d) => [
                 'id' => $d->id,
                 'name' => trim("{$d->f_name} {$d->l_name}"),
@@ -39,7 +52,10 @@ class VendorDriverManagementController extends Controller
                 'pay_model' => $d->pay_model,
                 'pay_rate' => (float) $d->pay_rate,
                 'current_orders' => (int) $d->current_orders,
-            ]);
+                'active_order_id' => $activeOrders->get($d->id)?->id,
+                'active_order_status' => $activeOrders->get($d->id)?->order_status,
+            ])
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -63,6 +79,8 @@ class VendorDriverManagementController extends Controller
             'phone' => ['required', 'string', 'max:30', 'unique:delivery_men,phone'],
             'email' => ['nullable', 'email', 'max:100'],
             'identity_number' => ['nullable', 'string', 'max:50'],
+            // The vendor sets the driver's first password and hands it over.
+            'password' => ['required', 'string', 'min:8', 'max:100'],
             'pay_model' => ['nullable', 'string', 'in:per_order,per_mile,flat_route,hourly,percentage'],
             'pay_rate' => ['nullable', 'numeric', 'min:0'],
             'available_for_marketplace' => ['nullable', 'boolean'],

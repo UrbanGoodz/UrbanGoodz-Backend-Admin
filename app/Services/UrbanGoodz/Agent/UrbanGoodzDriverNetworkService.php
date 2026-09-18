@@ -58,7 +58,11 @@ class UrbanGoodzDriverNetworkService
             'email' => $data['email'] ?? null,
             'identity_number' => $data['identity_number'] ?? null,
             'identity_type' => $data['identity_type'] ?? 'passport',
-            'password' => bcrypt($data['password'] ?? 'Driver@123'),
+            // Never a fixed default: 'Driver@123' used to be the fallback, which
+            // made every approved driver added without a password loginable
+            // by anyone with their phone number. With no password the driver
+            // sets one through forgot-password.
+            'password' => bcrypt($data['password'] ?? \Illuminate\Support\Str::random(40)),
             'zone_id' => $data['zone_id'] ?? $primaryStore?->zone_id ?? 1,
             'vendor_id' => $vendorId,
             'store_id' => $primaryStore?->id,
@@ -542,7 +546,8 @@ class UrbanGoodzDriverNetworkService
 
         $drivers = [
             'total' => (int) $driverIds->count(),
-            'available' => (int) ($statusCounts[self::STATUS_AVAILABLE] ?? 0),
+            // Both free states can take a job (see ASSIGNABLE_DRIVER_STATUSES).
+            'available' => (int) ($statusCounts[self::STATUS_AVAILABLE] ?? 0) + (int) ($statusCounts[self::STATUS_AVAILABLE_FOR_UG] ?? 0),
             'on_business_job' => (int) ($statusCounts[self::STATUS_ON_BUSINESS_JOB] ?? 0),
             'offline' => (int) ($statusCounts[self::STATUS_OFFLINE] ?? 0),
             'pending_approval' => (int) ($statusCounts[self::STATUS_PENDING_APPROVAL] ?? 0),
