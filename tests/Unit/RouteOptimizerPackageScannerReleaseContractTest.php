@@ -55,7 +55,15 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
         self::assertStringContainsString("->orderBy('stop_order')", $source);
         self::assertStringContainsString("'sequence_number' => (int) \$groupOrder", $source);
         self::assertStringContainsString("'package_count' => \$packages->count()", $source);
-        self::assertStringContainsString('persisted Business/dispatcher sequence is authoritative', $source);
+        // Driver-initiated resequencing is now allowed, so the old assertion on
+        // the "persisted Business/dispatcher sequence is authoritative" comment
+        // no longer matches. Dispatcher authority now lives in the variance
+        // gate, so assert that instead of a comment: a reorder beyond 20% or
+        // 15 miles is not committed - it flips the route to admin_review and
+        // reports requires_approval for a dispatcher to confirm.
+        self::assertStringContainsString('$isExcessive = ($variancePercent > 20.0 || $varianceMiles > 15.0)', $source);
+        self::assertStringContainsString("\$route->update(['status' => 'admin_review'])", $source);
+        self::assertStringContainsString("'requires_approval' => true", $source);
         self::assertStringContainsString("'optimization_distance_mode'", $source);
         self::assertStringContainsString("'optimization_constraints'", $source);
     }

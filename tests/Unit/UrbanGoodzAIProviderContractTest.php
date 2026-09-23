@@ -91,10 +91,14 @@ class UrbanGoodzAIProviderContractTest extends TestCase
         $health = $provider->healthCheck();
         $serialized = json_encode([$chat, $health]);
 
+        // 84745c6 gave the provider per-status error codes, so a 429 now
+        // reports rate_limit_exceeded rather than the generic provider_error.
+        // What this test is actually about - that neither the credential nor
+        // the upstream diagnostic escapes - is asserted below and unchanged.
         $this->assertFalse($chat['success']);
-        $this->assertSame('provider_error', $chat['error_code']);
+        $this->assertSame('rate_limit_exceeded', $chat['error_code']);
         $this->assertFalse($health['healthy']);
-        $this->assertSame('provider_error', $health['error_code']);
+        $this->assertSame('rate_limit_exceeded', $health['error_code']);
         $this->assertStringNotContainsString($credential, $serialized);
         $this->assertStringNotContainsString('provider diagnostic', $serialized);
     }
