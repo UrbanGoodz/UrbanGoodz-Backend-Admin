@@ -311,8 +311,10 @@ $countryCode = strtolower($country ? $country : 'auto');
                         <div class="max-349 mx-auto">
                             <div>
                                 <div class="text-center">
+                                    {{-- Was Modules/RideShare/...: no RideShare module is installed, so that
+                                         path 302s to login on every admin page load and renders broken. --}}
                                     <img alt="" class="mb-4" id="deleteIcon"
-                                        src="{{asset('Modules/RideShare/public/assets/img/ride-share/safety-alert-shield-icon-red.png')}}">
+                                        src="{{asset('public/assets/admin/img/WarningOctagon.svg')}}">
                                     <h5 class="modal-title mb-3" id="safetyAlertNotificationTitle"></h5>
                                 </div>
                                 <div class="text-center mb-4 pb-2">
@@ -347,7 +349,9 @@ $countryCode = strtolower($country ? $country : 'auto');
                     </div>
                     <div class="modal-body text-center p-3 pt-0">
                         <div class="imageModal_img_wrapper">
-                            <img src="" class="img-fluid imageModal_img" alt="{{ translate('Preview_Image') }}">
+                            {{-- No src="": an empty src makes the browser re-request the current page
+                                 as an image. JS fills this in when the modal opens. --}}
+                            <img class="img-fluid imageModal_img" alt="{{ translate('Preview_Image') }}">
                             <div class="imageModal_btn_wrapper m-1">
                                 <a href="javascript:" class="btn icon-btn px-1 py-1 download_btn"
                                     title="{{ translate('Download') }}" download>
