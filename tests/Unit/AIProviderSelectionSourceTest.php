@@ -8,11 +8,15 @@ class AIProviderSelectionSourceTest extends TestCase
 {
     public function test_gemini_default_is_the_verified_pinned_snapshot_everywhere(): void
     {
-        // Superseded by 13ddfba "fix(ai): pin Gemini to 3.6-flash, verified
-        // live against the production key" - gemini-flash-latest was the
-        // original policy, but the numbered snapshot is what's actually
-        // confirmed working, with the alias kept only as a documented
-        // fallback if this snapshot is ever retired.
+        // Superseded again by 5ec7f4d "fix(ai): default every AI path to
+        // gemini-flash-lite-latest": measured 2026-09-17 against the live key,
+        // gemini-flash-latest returned 429 on 3 of 3 calls (shared free-tier
+        // quota exhausted) while flash-lite returned 200 on 3 of 3, from a
+        // separate quota pool. Kept as a "-latest" alias so Google can repoint
+        // it when a numbered snapshot retires.
+        //
+        // The point of this test is that the three places that name a default
+        // agree; .env.example had been left on the old 3.6-flash pin.
         $env = (string) file_get_contents(__DIR__.'/../../.env.example');
         $config = (string) file_get_contents(__DIR__.'/../../config/urban_goodz_ai.php');
         $provider = (string) file_get_contents(
@@ -20,13 +24,13 @@ class AIProviderSelectionSourceTest extends TestCase
         );
 
         $this->assertSame(1, substr_count($env, "\nGEMINI_API_KEY="));
-        $this->assertSame(1, substr_count($env, "\nGEMINI_MODEL=gemini-3.6-flash"));
+        $this->assertSame(1, substr_count($env, "\nGEMINI_MODEL=gemini-flash-lite-latest"));
         $this->assertStringContainsString(
-            "env('GEMINI_MODEL', 'gemini-3.6-flash')",
+            "env('GEMINI_MODEL', 'gemini-flash-lite-latest')",
             $config
         );
         $this->assertStringContainsString(
-            "public const DEFAULT_MODEL = 'gemini-3.6-flash';",
+            "public const DEFAULT_MODEL = 'gemini-flash-lite-latest';",
             $provider
         );
     }
