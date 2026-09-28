@@ -217,16 +217,33 @@ class UrbanGoodzPhase3Provision extends Command
                     'is_public_sourced' => 1,
                     'is_claimed' => 0,
                     'is_partner' => 0,
-                    'can_direct_checkout' => 1,
+                    // These businesses never signed up, so a checkout must not
+                    // be handed to a vendor dashboard nobody is watching: it
+                    // routes through Order Anywhere, where Urban Goodz fulfils
+                    // on the customer's behalf (PlaceNewOrder intercepts on
+                    // Store::shouldRouteToOrderAnywhere()).
+                    //
+                    // That used to happen only by accident. The row said
+                    // can_direct_checkout = 1 and fulfillment_mode =
+                    // 'direct_vendor_order', and routing worked solely because
+                    // the store also failed isUrbanGoodzPartner(); flip any
+                    // partner-ish field later and checkout would silently start
+                    // pushing orders at an unclaimed store. The previous
+                    // business_status/contract_status values ('sourced_listing',
+                    // 'pending_claim') existed nowhere else in the app - the
+                    // vocabulary the model actually reads is public_sourced /
+                    // not_contracted. Now three independent clauses say
+                    // Order Anywhere, explicitly.
+                    'can_direct_checkout' => 0,
                     'requires_admin_quote' => 0,
-                    'business_status' => 'sourced_listing',
-                    'contract_status' => 'pending_claim',
+                    'business_status' => 'public_sourced',
+                    'contract_status' => 'not_contracted',
                     'vendor_admin_status' => 'unclaimed',
                     'banking_status' => 'pending',
                     'subscription_status' => 'active',
                     'admin_approval_status' => 'approved',
                     'badge_status' => 'verified_black_owned',
-                    'fulfillment_mode' => 'direct_vendor_order',
+                    'fulfillment_mode' => 'order_anywhere_backend',
                 ]);
 
                 $createdStoreMap[$b->id] = $store->id;
