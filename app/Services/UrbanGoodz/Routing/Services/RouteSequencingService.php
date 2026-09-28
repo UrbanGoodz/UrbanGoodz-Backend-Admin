@@ -61,8 +61,15 @@ class RouteSequencingService
         }
 
         $matrix = $this->distanceMatrix->buildPairwiseMatrix($unlockedStops, 0);
+        // The matrix is keyed by each stop's position in $unlockedStops, and
+        // 2-opt reorders its own copy, so carry an explicit package -> index map
+        // rather than trying to recover the position from a reordered stop.
+        $matrixIndexByPackage = [];
+        foreach ($unlockedStops as $idx => $unlockedStop) {
+            $matrixIndexByPackage[$unlockedStop->packageId] = $idx;
+        }
         $initialOrder = $this->nearestFeasibleNeighbor($unlockedStops, $matrix, $constraints);
-        $optimizedOrder = $this->twoOptImprovement($initialOrder, $matrix, $constraints, $startLocation, $endLocation);
+        $optimizedOrder = $this->twoOptImprovement($initialOrder, $matrix, $matrixIndexByPackage, $constraints, $startLocation, $endLocation);
 
         $ordered = array_merge($sortedLocked, $optimizedOrder, $invalidStops);
         $distanceMode = $this->distanceMatrix->getOverallDistanceMode($matrix);
@@ -148,6 +155,7 @@ class RouteSequencingService
     private function twoOptImprovement(
         array $stops,
         array $matrix,
+        array $matrixIndexByPackage,
         ClusteringConstraints $constraints,
         ?array $startLocation = null,
         ?array $endLocation = null
@@ -156,7 +164,7 @@ class RouteSequencingService
         if ($n <= 3) return $stops;
 
         $bestOrder = $stops;
-        $bestDistance = $this->calculateTotalDistance($bestOrder, $matrix, $startLocation, $endLocation);
+        $bestDistance = $this->calculateTotalDistance($bestOrder, $matrix, $matrixIndexByPackage, $startLocation, $endLocation);
 
         for ($iter = 0; $iter < $this->max2OptIterations; $iter++) {
             $improved = false;
@@ -164,7 +172,7 @@ class RouteSequencingService
             for ($i = 1; $i < $n - 1; $i++) {
                 for ($j = $i + 1; $j < $n; $j++) {
                     $newOrder = $this->twoOptSwap($bestOrder, $i, $j);
-                    $newDistance = $this->calculateTotalDistance($newOrder, $matrix, $startLocation, $endLocation);
+                    $newDistance = $this->calculateTotalDistance($newOrder, $matrix, $matrixIndexByPackage, $startLocation, $endLocation);
 
                     if ($newDistance < $bestDistance - 0.001) {
                         $bestOrder = $newOrder;
@@ -191,6 +199,7 @@ class RouteSequencingService
     private function calculateTotalDistance(
         array $stops,
         array $matrix,
+        array $matrixIndexByPackage,
         ?array $startLocation = null,
         ?array $endLocation = null
     ): float {
@@ -209,8 +218,8 @@ class RouteSequencingService
 
         // 2. Between stops
         for ($i = 0; $i < $n - 1; $i++) {
-            $fromIdx = $this->findStopIndex($stops[$i], $matrix);
-            $toIdx = $this->findStopIndex($stops[$i + 1], $matrix);
+            $fromIdx = $this->findStopIndex($stops[$i], $matrixIndexByPackage);
+            $toIdx = $this->findStopIndex($stops[$i + 1], $matrixIndexByPackage);
 
             if ($fromIdx !== null && $toIdx !== null) {
                 $distResult = $matrix[$fromIdx][$toIdx] ?? null;
@@ -235,19 +244,17 @@ class RouteSequencingService
         return $total;
     }
 
-    private function findStopIndex(RouteStop $stop, array $matrix): ?int
+    /**
+     * This used to ignore its $stop argument entirely: it walked the matrix and
+     * returned the first index whose diagonal entry was 'self', which is index 0
+     * for every stop. calculateTotalDistance therefore read matrix[0][0] - a
+     * self distance of 0 - for every consecutive pair, so the inter-stop term
+     * was always 0 and 2-opt could only ever see the start and end legs. It was
+     * optimising nothing. Look the stop up by package id instead.
+     */
+    private function findStopIndex(RouteStop $stop, array $matrixIndexByPackage): ?int
     {
-        $i = 0;
-        foreach ($matrix as $key => $row) {
-            if ($i === $key) {
-                $checkStop = $row[$key] ?? null;
-                if ($checkStop && $checkStop->mode === 'self') {
-                    return $key;
-                }
-            }
-            $i++;
-        }
-        return array_key_first($matrix);
+        return $matrixIndexByPackage[$stop->packageId] ?? null;
     }
 
     private function findOptimalStart(array $stops, ClusteringConstraints $constraints): int
