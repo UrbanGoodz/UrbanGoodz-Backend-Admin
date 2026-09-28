@@ -393,7 +393,11 @@ class UrbanGoodzStrandedPaymentService
      * Stripe's own mechanism for exactly this failure mode, not something
      * this application enforces itself.
      */
-    private function stripe(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
+    // protected, not private, purely so the money-safety paths above can be
+    // exercised against a stubbed provider in tests. Overriding this is the
+    // only supported seam: every other rule (capture-once, idempotent
+    // transfer, payout-readiness, ledger writes) stays real.
+    protected function stripe(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
     {
         $row = DB::table('addon_settings')->where('key_name', 'stripe')->first();
 

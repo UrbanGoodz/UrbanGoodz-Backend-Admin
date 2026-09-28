@@ -13,7 +13,7 @@ use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;
 use App\Models\UrbanGoodzStrandedService;
 use App\Models\UrbanGoodzStrandedVerification;
-use App\Services\UrbanGoodz\UrbanGoodzStrandedPaymentService;
+use App\Domain\Stranded\Payments\UrbanGoodzStrandedPaymentService;
 use App\Services\UrbanGoodzStrandedDispatcher;
 use App\Services\UrbanGoodzStrandedSafety;
 use App\Services\UrbanGoodzStrandedSettings;
@@ -132,7 +132,46 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             'rating' => 4.8,
             'trust_score' => 90,
             'completed_jobs' => 12,
+            // A complete profile: photo on file plus a registered vehicle.
+            // An offer from an incomplete profile is deliberately not
+            // selectable, so fixture responders must be as complete as real
+            // ones rather than side-stepping that gate.
+            'vehicle_make' => 'Subaru',
+            'vehicle_model' => 'Outback',
+            'vehicle_color' => 'Green',
+            'vehicle_plate' => 'SAM' . random_int(100, 999),
+            'profile_photo_path' => 'stranded/test/responder-face.jpg',
+            'vehicle_photo_path' => 'stranded/test/responder-car.jpg',
         ], $overrides));
+    }
+
+    /**
+     * Mark an offer accepted the way the responder accept endpoint does --
+     * including identity_ready_at, which that endpoint sets only once the
+     * responder actually has a photo and a vehicle the customer could
+     * recognise them by.
+     *
+     * The assertion is load-bearing: this helper must never be able to
+     * produce a selectable offer for an incomplete profile, which would
+     * silently disable the gate rather than satisfy it.
+     */
+    private function accept(UrbanGoodzStrandedOffer $offer, string $mode = UrbanGoodzStrandedOffer::MODE_VOLUNTEER, int $amountMinor = 0): UrbanGoodzStrandedOffer
+    {
+        $offer->update([
+            'status' => 'accepted',
+            'response_mode' => $mode,
+            'requested_amount_minor' => $amountMinor,
+            'responded_at' => now(),
+        ]);
+
+        $offer->refresh();
+        $this->assertTrue(
+            $offer->computeIdentityReady(),
+            'Fixture responder profile is incomplete, so the real accept endpoint would not mark it identity-ready either.'
+        );
+        $offer->update(['identity_ready_at' => now()]);
+
+        return $offer->fresh();
     }
 
     /** A request already past the gate, sitting ready to broadcast. */
@@ -484,15 +523,11 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
     {
         $this->dispatcher()->broadcast($request);
 
-        $offer = UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail();
-        $offer->update([
-            'status' => 'accepted',
-            'response_mode' => $mode,
-            'requested_amount_minor' => $amountMinor,
-            'responded_at' => now(),
-        ]);
-
-        return $offer->fresh();
+        return $this->accept(
+            UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail(),
+            $mode,
+            $amountMinor
+        );
     }
 
     public function test_selecting_a_responder_assigns_the_job_and_marks_them_busy(): void
@@ -535,7 +570,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $offers = UrbanGoodzStrandedOffer::where('request_id', $request->id)->get();
         $this->assertCount(2, $offers, 'Both nearby responders should have been offered the job.');
 
-        $offers->each(fn ($o) => $o->update(['status' => 'accepted', 'response_mode' => UrbanGoodzStrandedOffer::MODE_VOLUNTEER]));
+        $offers->each(fn ($o) => $this->accept($o));
 
         $chosen = $offers->first();
 
@@ -558,7 +593,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $this->dispatcher()->broadcast($request);
 
         $offers = UrbanGoodzStrandedOffer::where('request_id', $request->id)->get();
-        $offers->each(fn ($o) => $o->update(['status' => 'accepted', 'response_mode' => UrbanGoodzStrandedOffer::MODE_VOLUNTEER]));
+        $offers->each(fn ($o) => $this->accept($o));
 
         $this->actingAs($customer, 'api')
             ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offers->first()->id}/select")
@@ -602,7 +637,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $this->dispatcher()->broadcast($request);
 
         $offers = UrbanGoodzStrandedOffer::where('request_id', $request->id)->orderBy('id')->get();
-        $offers->first()->update(['status' => 'accepted', 'response_mode' => UrbanGoodzStrandedOffer::MODE_TIPS_ONLY]);
+        $this->accept($offers->first(), UrbanGoodzStrandedOffer::MODE_TIPS_ONLY);
         // The second is left `offered` and must not appear.
 
         $response = $this->actingAs($customer, 'api')
@@ -869,16 +904,51 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             ->assertJsonValidationErrors(['payment_method'], 'errors');
     }
 
+    /**
+     * Swap the real Stripe HTTP calls for a stub, and make the responder
+     * payout-ready the way Stripe Connect onboarding does. Everything else
+     * about the money path stays real.
+     */
+    private function stubbedPayments(): StubbedStripeStrandedPaymentService
+    {
+        $stub = new StubbedStripeStrandedPaymentService(
+            app(UrbanGoodzStrandedDispatcher::class),
+            app(\App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier::class),
+            app(\App\Domain\Stranded\Support\MoniqueOperationsAlertService::class),
+        );
+
+        $this->app->instance(UrbanGoodzStrandedPaymentService::class, $stub);
+
+        return $stub;
+    }
+
+    private function payoutReady(UrbanGoodzStrandedOffer $offer): void
+    {
+        UrbanGoodzStrandedResponder::where('user_id', $offer->responder_id)
+            ->where('responder_type', $offer->responder_type)
+            ->update([
+                'stripe_connect_account_id' => 'acct_stub_1',
+                'stripe_payouts_enabled' => true,
+                'stripe_charges_enabled' => true,
+                'stripe_onboarding_status' => 'complete',
+            ]);
+    }
+
     public function test_confirming_the_job_releases_escrow_and_ledgers_it(): void
     {
+        $stripe = $this->stubbedPayments();
+
         $customer = $this->verified('escrow');
         $request = $this->request($customer);
         $this->responder('samaritan', 2.0);
 
         $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 4500);
+        $this->payoutReady($offer);
 
         $this->actingAs($customer, 'api')
-            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select", [
+                'payment_method' => 'pm_stub_card',
+            ])
             ->assertStatus(200);
 
         // Money owed to a responder is held, not paid, until the work is
@@ -894,30 +964,41 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
         $this->assertNotNull($confirmed->escrow_released_at);
         $this->assertNotNull($confirmed->customer_confirmed_at);
 
+        // The payout row is the ledger entry for money actually leaving the
+        // platform for the responder (it used to be an internal
+        // "escrow_release" marker with no provider behind it).
         $ledger = UrbanGoodzPaymentTransaction::where('payable_type', UrbanGoodzStrandedRequest::class)
             ->where('payable_id', $request->id)
-            ->where('transaction_type', 'escrow_release')
+            ->where('transaction_type', 'responder_payout')
             ->get();
 
-        $this->assertCount(1, $ledger, 'The release must leave exactly one ledger row.');
+        $this->assertCount(1, $ledger, 'The release must leave exactly one payout ledger row.');
+        // Community Samaritans keep the full amount -- no commission.
         $this->assertSame(4500, (int) $ledger->first()->amount_minor);
         $this->assertSame('completed', $ledger->first()->internal_status);
         $this->assertSame($request->request_number, $ledger->first()->merchant_reference);
+        // A ledger row is not proof of payment: the real transfer id must be on it.
+        $this->assertSame('tr_stub_1', $ledger->first()->provider_payment_id);
+
+        $this->assertSame(1, $stripe->countCalls('/transfers'), 'Exactly one transfer must reach the provider.');
     }
 
     public function test_releasing_escrow_twice_never_pays_a_responder_twice(): void
     {
+        $payments = $this->stubbedPayments();
+
         $customer = $this->verified('idempotent');
         $request = $this->request($customer);
         $this->responder('samaritan', 2.0);
 
         $offer = $this->acceptedOffer($request, UrbanGoodzStrandedOffer::MODE_PAID, 2500);
+        $this->payoutReady($offer);
 
         $this->actingAs($customer, 'api')
-            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select", [
+                'payment_method' => 'pm_stub_card',
+            ])
             ->assertStatus(200);
-
-        $payments = app(UrbanGoodzStrandedPaymentService::class);
 
         $first = $payments->releaseEscrow($request->fresh());
         $this->assertTrue($first['released']);
@@ -930,8 +1011,14 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
 
         $this->assertSame(1, UrbanGoodzPaymentTransaction::where('payable_type', UrbanGoodzStrandedRequest::class)
             ->where('payable_id', $request->id)
-            ->where('transaction_type', 'escrow_release')
+            ->where('transaction_type', 'responder_payout')
             ->count(), 'A second confirmation wrote a second payment row.');
+
+        // The stronger statement: the second release must not have reached
+        // the provider at all. One ledger row could also mean two transfers
+        // and a failed insert.
+        $this->assertSame(1, $payments->countCalls('/transfers'), 'A second confirmation sent a second transfer to the provider.');
+        $this->assertSame(1, $payments->countCalls('/capture'), 'A second confirmation captured the hold twice.');
     }
 
     public function test_releasing_escrow_when_nothing_is_held_is_a_no_op(): void
@@ -1171,5 +1258,61 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             array_keys($admin->json('summary')),
             array_keys($vendor->json('summary'))
         );
+    }
+}
+
+/**
+ * A stand-in for Stripe, and nothing else.
+ *
+ * Only the HTTP call is stubbed; every rule that actually protects the
+ * customer's and the responder's money -- capture-once, the idempotent
+ * transfer, the payout-readiness check, the ledger writes, the
+ * already-released guard -- runs for real against this stub. The call log is
+ * what lets a test assert that a second confirmation reached the provider
+ * zero extra times rather than merely "wrote one row".
+ */
+class StubbedStripeStrandedPaymentService extends UrbanGoodzStrandedPaymentService
+{
+    /** @var list<array{method: string, path: string}> */
+    public array $calls = [];
+
+    /** Flipped by the stubbed capture so a re-read reports the real, post-capture state. */
+    private bool $captured = false;
+
+    protected function stripe(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
+    {
+        $this->calls[] = ['method' => $method, 'path' => $path];
+
+        if ($method === 'POST' && $path === '/payment_intents') {
+            // Manual-capture intents sit at requires_capture, never succeeded.
+            return ['id' => 'pi_stub_1', 'status' => 'requires_capture', 'livemode' => false];
+        }
+
+        if (str_ends_with($path, '/capture')) {
+            $this->captured = true;
+            return ['id' => 'pi_stub_1', 'status' => 'succeeded', 'latest_charge' => 'ch_stub_1', 'livemode' => false];
+        }
+
+        if (str_ends_with($path, '/cancel')) {
+            return ['id' => 'pi_stub_1', 'status' => 'canceled', 'livemode' => false];
+        }
+
+        if ($method === 'GET' && str_starts_with($path, '/payment_intents/')) {
+            return $this->captured
+                ? ['id' => 'pi_stub_1', 'status' => 'succeeded', 'latest_charge' => 'ch_stub_1', 'livemode' => false]
+                : ['id' => 'pi_stub_1', 'status' => 'requires_capture', 'livemode' => false];
+        }
+
+        if ($path === '/transfers') {
+            return ['id' => 'tr_stub_1', 'livemode' => false];
+        }
+
+        return [];
+    }
+
+    /** How many times a given endpoint was hit, for double-payment assertions. */
+    public function countCalls(string $needle): int
+    {
+        return count(array_filter($this->calls, fn ($c) => str_contains($c['path'], $needle)));
     }
 }

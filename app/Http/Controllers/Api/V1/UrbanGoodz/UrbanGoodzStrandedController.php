@@ -403,6 +403,20 @@ class UrbanGoodzStrandedController extends Controller
             ], 409);
         }
 
+        // "You already chose somebody" is the more specific, more useful
+        // answer, so it has to be reached before the selectability pre-check
+        // below -- once a responder is selected every other offer on the
+        // request has been passed over, and would otherwise be reported as
+        // "no longer available", which tells the customer the wrong story.
+        // The authoritative check still happens under the row lock inside
+        // the transaction; this only fixes which error the fast path returns.
+        if ($stranded->selected_offer_id !== null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'A responder has already been selected for this request.',
+            ], 409);
+        }
+
         $candidateOffer = UrbanGoodzStrandedOffer::where('request_id', $stranded->getKey())
             ->whereKey($offerId)
             ->first();
