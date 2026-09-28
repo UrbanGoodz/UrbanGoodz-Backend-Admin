@@ -44,10 +44,18 @@ class UrbanGoodzPhase3Provision extends Command
             $this->error('Refusing: --vendor-id must name an existing vendor.');
             return self::FAILURE;
         }
-        if ($fallbackZoneId <= 0 || ! DB::table('zones')->where('id', $fallbackZoneId)->exists()) {
+        $fallbackZone = $fallbackZoneId > 0 ? DB::table('zones')->where('id', $fallbackZoneId)->first() : null;
+        if (! $fallbackZone) {
             $this->error('Refusing: --fallback-zone-id must name an existing zone.');
             return self::FAILURE;
         }
+        // Production zone 1 is a disabled "Demo Zone". A store parked in an
+        // inactive zone is not deliverable, so existing is not good enough.
+        if ((int) $fallbackZone->status !== 1) {
+            $this->error("Refusing: zone {$fallbackZoneId} ({$fallbackZone->name}) is inactive.");
+            return self::FAILURE;
+        }
+        $this->info("Fallback zone: #{$fallbackZone->id} {$fallbackZone->name}");
         if ($remapTo > 0 && ! DB::table('modules')->where('id', $remapTo)->where('status', 1)->exists()) {
             $this->error("Refusing: remap target module {$remapTo} does not exist or is inactive.");
             return self::FAILURE;
