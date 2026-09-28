@@ -128,8 +128,15 @@ class UrbanGoodzPhase3Provision extends Command
                 . 'account cannot be signed into until UG issues credentials at onboarding.');
         }
 
-        $badgeStatus = trim((string) $this->option('badge-status')) ?: null;
-        $this->info('Badge on created stores: ' . ($badgeStatus ?? 'none (granted later, after verification)'));
+        // Not null: stores.badge_status is NOT NULL on production, and its
+        // column default is 'urban_goodz_partner' - the exact claim these
+        // businesses have not earned - so leaving it unset is worse than
+        // setting it. 'public_listing' is what Store::getBadgeStatusAttribute()
+        // computes for a public_sourced store anyway, so the row at rest and
+        // what a customer sees now agree, and neither asserts a verification.
+        $badgeStatus = trim((string) $this->option('badge-status')) ?: 'public_listing';
+        $this->info("Badge on created stores: {$badgeStatus}"
+            . ($badgeStatus === 'public_listing' ? ' (no verification claim; granted later)' : ''));
 
         $businesses = UrbanGoodzSourcedBusiness::where('created_by_source', $marker)->get();
         if ($businesses->isEmpty()) {
