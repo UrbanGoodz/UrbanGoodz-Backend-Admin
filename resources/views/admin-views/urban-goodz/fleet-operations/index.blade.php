@@ -134,7 +134,7 @@
                                     <td>{{ $order->store->name ?? '—' }}</td>
                                     <td>
                                         @if($order->delivery_man)
-                                            <a href="{{ route('admin.delivery-man.preview', $order->delivery_man->id) }}">
+                                            <a href="{{ route('admin.users.delivery-man.preview', $order->delivery_man->id) }}">
                                                 {{ $order->delivery_man->f_name . ' ' . $order->delivery_man->l_name }}
                                             </a>
                                         @else

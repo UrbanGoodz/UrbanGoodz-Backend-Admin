@@ -302,7 +302,10 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
         $result = (new UrbanGoodzAIService())->chatResult('System prompt', 'Hello');
 
         $this->assertFalse($result['success']);
-        $this->assertSame('provider_error', $result['error_code']);
+        // 84745c6 gave the providers per-status error codes; a 503 is now
+        // provider_unavailable. What this test guards - that a provider failure
+        // is never reported as success - is the assertion above and below.
+        $this->assertSame('provider_unavailable', $result['error_code']);
         $this->assertStringContainsString('No action was taken', $result['response']);
     }
 

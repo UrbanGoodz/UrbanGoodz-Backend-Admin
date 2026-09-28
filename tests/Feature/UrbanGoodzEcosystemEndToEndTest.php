@@ -13,16 +13,27 @@ use Tests\TestCase;
 class UrbanGoodzEcosystemEndToEndTest extends TestCase
 {
     /**
-     * 1. Test Gemini 3.6 Flash AI Reasoning Engine Configuration & Provider Resolution
+     * 1. Test the central Gemini AI reasoning engine configuration & provider
+     *    resolution. The pinned default moved to gemini-flash-lite-latest in
+     *    5ec7f4d: flash-latest is a shared free-tier alias that measured 429 on
+     *    3 of 3 calls, while flash-lite answered 3 of 3 from a separate pool.
      */
-    public function test_gemini_3_6_flash_central_ai_brain_configuration(): void
+    public function test_gemini_central_ai_brain_configuration(): void
     {
         $manager = new AIProviderManager();
-        $provider = $manager->resolve();
 
-        $this->assertInstanceOf(GeminiProvider::class, $provider);
+        // resolve() wraps the primary in a FallbackProvider whenever a distinct
+        // fallback is configured, so ask for the primary itself to assert the
+        // concrete class. FallbackProvider delegates name()/model() to the
+        // primary, which is what the resolved provider assertion below checks.
+        $primary = $manager->resolve(withFallback: false);
+        $this->assertInstanceOf(GeminiProvider::class, $primary);
+        $this->assertEquals('gemini', $primary->name());
+        $this->assertEquals(GeminiProvider::DEFAULT_MODEL, $primary->model());
+
+        $provider = $manager->resolve();
         $this->assertEquals('gemini', $provider->name());
-        $this->assertEquals('gemini-3.6-flash', $provider->model());
+        $this->assertEquals(GeminiProvider::DEFAULT_MODEL, $provider->model());
 
         $aiService = new UrbanGoodzAIService($manager);
         $this->assertStringContainsString('generativelanguage.googleapis.com', $aiService->getBaseUrl());

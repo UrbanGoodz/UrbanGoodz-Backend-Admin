@@ -359,7 +359,9 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Support AI
-    Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    // Named bucket: a bare throttle:60,1 shares one limiter with every other
+    // bare throttle:60,1 route, so unrelated traffic can exhaust support AI.
+    Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-support-ai']], function () {
         Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
         Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@attemptAutoResolution');
         Route::post('escalate', 'Api\V1\UrbanGoodz\SupportAIController@escalateToHuman');
@@ -402,7 +404,8 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     // Cross-App AI. Each role is protected by its own authentication guard.
     // Business and dispatcher contracts remain on routes/business.php until a
     // dedicated token guard exists; never expose them through customer Passport.
-    Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['throttle:120,1']], function () {
+    // Named bucket, same reason as the support AI group above.
+    Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['throttle:120,1,ug-cross-app-ai']], function () {
         Route::group(['prefix' => 'customer', 'middleware' => ['auth:api']], function () {
             Route::post('query', 'Api\V1\UrbanGoodz\CrossAppAIController@customerQuery');
             Route::get('history', 'Api\V1\UrbanGoodz\CrossAppAIController@customerHistory');
