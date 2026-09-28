@@ -14,13 +14,63 @@ class UrbanGoodzPhase3Provision extends Command
 {
     protected $signature = 'urban-goodz:phase3-provision
         {--batch-marker=urban_goodz_phase3_sourcing_20260917_1458 : Batch marker of staged rows}
-        {--vendor-id= : Required. Vendor that owns the unclaimed stores until claimed. No default - IDs differ between databases.}
+        {--owner-mode=per-store : per-store creates a UG-controlled vendor account per business (the production convention); single puts every store under one --vendor-id.}
+        {--vendor-id= : Required for --owner-mode=single only. Vendor that owns the unclaimed stores until claimed.}
         {--fallback-zone-id= : Required. Zone for businesses with no zone_id. No default - IDs differ between databases.}
         {--module-remap=14:16 : from:to module remap for staged rows in an inactive module}
+        {--badge-status= : Badge to stamp on every created store. Default none - badges are granted after verification, not on import.}
         {--dry-run : Simulate only (default behavior)}
         {--apply : Actually write stores and items to the live database}';
 
     protected $description = 'Provision verified Black-owned businesses and upcharged products into live stores and items tables.';
+
+    /**
+     * The UG-controlled vendor that holds a sourced store until the business is
+     * onboarded, following the convention already in production (vendors 16+):
+     * "Urban Goodz", phone 8 + the id padded to 9, and the first 20 characters
+     * of the squashed name plus the id at urbangoodzdelivery.com - an address
+     * UG receives, so credentials can be issued at onboarding via a normal
+     * password reset.
+     *
+     * The password is 32 random bytes nobody records. That is deliberate: a
+     * shared default here would be the Driver@123 mistake again, letting anyone
+     * who guessed it sign in as 115 businesses.
+     *
+     * @return array{0:int,1:bool} [vendor id, whether it was created now]
+     */
+    /** Pinned by SourcedVendorIdentityTest against a real production row. */
+    public static function ugVendorEmail(string $businessName, int $businessId): string
+    {
+        return substr(preg_replace('/[^a-z0-9]/', '', strtolower($businessName)), 0, 20)
+            . $businessId . '@urbangoodzdelivery.com';
+    }
+
+    /** Pinned by SourcedVendorIdentityTest against a real production row. */
+    public static function ugVendorPhone(int $businessId): string
+    {
+        return '8' . str_pad((string) $businessId, 9, '0', STR_PAD_LEFT);
+    }
+
+    private function resolveUgVendorFor($business, $now): array
+    {
+        $email = self::ugVendorEmail((string) $business->name, (int) $business->id);
+
+        $existing = DB::table('vendors')->where('email', $email)->first();
+        if ($existing) {
+            return [(int) $existing->id, false];
+        }
+
+        return [(int) DB::table('vendors')->insertGetId([
+            'f_name' => 'Urban',
+            'l_name' => 'Goodz',
+            'phone' => self::ugVendorPhone((int) $business->id),
+            'email' => $email,
+            'password' => bcrypt(bin2hex(random_bytes(32))),
+            'status' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]), true];
+    }
 
     public function handle()
     {
@@ -35,14 +85,22 @@ class UrbanGoodzPhase3Provision extends Command
         // These IDs were hardcoded (vendor 1, zone 2, module 14->16) from the
         // local database. Production IDs are not the same rows, so the
         // operator must name them, and they are checked before anything runs.
+        $ownerMode = $this->option('owner-mode');
+        if (! in_array($ownerMode, ['per-store', 'single'], true)) {
+            $this->error('Refusing: --owner-mode must be per-store or single.');
+            return self::FAILURE;
+        }
         $vendorId = (int) $this->option('vendor-id');
         $fallbackZoneId = (int) $this->option('fallback-zone-id');
         [$remapFrom, $remapTo] = array_map('intval', explode(':', (string) $this->option('module-remap')) + [0, 0]);
 
-        $vendor = $vendorId > 0 ? DB::table('vendors')->where('id', $vendorId)->first() : null;
-        if (! $vendor) {
-            $this->error('Refusing: --vendor-id must name an existing vendor.');
-            return self::FAILURE;
+        $vendor = null;
+        if ($ownerMode === 'single') {
+            $vendor = $vendorId > 0 ? DB::table('vendors')->where('id', $vendorId)->first() : null;
+            if (! $vendor) {
+                $this->error('Refusing: --owner-mode=single requires --vendor-id to name an existing vendor.');
+                return self::FAILURE;
+            }
         }
         $fallbackZone = $fallbackZoneId > 0 ? DB::table('zones')->where('id', $fallbackZoneId)->first() : null;
         if (! $fallbackZone) {
@@ -60,8 +118,18 @@ class UrbanGoodzPhase3Provision extends Command
             $this->error("Refusing: remap target module {$remapTo} does not exist or is inactive.");
             return self::FAILURE;
         }
-        $this->info("Owner vendor: #{$vendor->id} {$vendor->f_name} {$vendor->l_name} <{$vendor->email}> (owns "
-            . DB::table('stores')->where('vendor_id', $vendorId)->count() . ' stores today)');
+        if ($ownerMode === 'single') {
+            $this->info("Owner vendor: #{$vendor->id} {$vendor->f_name} {$vendor->l_name} <{$vendor->email}> (owns "
+                . DB::table('stores')->where('vendor_id', $vendorId)->count() . ' stores today)');
+        } else {
+            $this->info('Owner: a UG-controlled vendor account per business (Urban Goodz / '
+                . '<slug><id>@urbangoodzdelivery.com), matching the existing sourced accounts. '
+                . 'Each gets an unguessable random password - never a shared default - so the '
+                . 'account cannot be signed into until UG issues credentials at onboarding.');
+        }
+
+        $badgeStatus = trim((string) $this->option('badge-status')) ?: null;
+        $this->info('Badge on created stores: ' . ($badgeStatus ?? 'none (granted later, after verification)'));
 
         $businesses = UrbanGoodzSourcedBusiness::where('created_by_source', $marker)->get();
         if ($businesses->isEmpty()) {
@@ -178,10 +246,18 @@ class UrbanGoodzPhase3Provision extends Command
             }
 
             // 2. Create new stores
+            $vendorsCreated = 0;
             foreach ($storesToCreate as $stc) {
                 $b = $stc['business'];
                 $moduleId = $stc['module_id'];
                 $phone = $stc['phone'];
+
+                // Who owns this store until the business is onboarded.
+                $ownerVendorId = $vendorId;
+                if ($ownerMode === 'per-store') {
+                    [$ownerVendorId, $wasCreated] = $this->resolveUgVendorFor($b, $now);
+                    $vendorsCreated += $wasCreated ? 1 : 0;
+                }
 
                 $store = Store::create([
                     'name' => $b->name,
@@ -196,7 +272,7 @@ class UrbanGoodzPhase3Provision extends Command
                     'comission' => 23.00,
                     'schedule_order' => 0,
                     'status' => 1, // Live in app
-                    'vendor_id' => $vendorId, // holds unclaimed stores until claimed
+                    'vendor_id' => $ownerVendorId, // UG-controlled until the business is onboarded
                     'created_at' => $now,
                     'updated_at' => $now,
                     'free_delivery' => 0,
@@ -242,7 +318,11 @@ class UrbanGoodzPhase3Provision extends Command
                     'banking_status' => 'pending',
                     'subscription_status' => 'active',
                     'admin_approval_status' => 'approved',
-                    'badge_status' => 'verified_black_owned',
+                    // No badge on import. A badge is a claim Urban Goodz makes
+                    // about a business, so it is granted after someone actually
+                    // verifies it, not stamped on 118 rows by a sourcing run.
+                    // Use --badge-status=... to set one deliberately.
+                    'badge_status' => $badgeStatus,
                     'fulfillment_mode' => 'order_anywhere_backend',
                 ]);
 
@@ -340,6 +420,9 @@ class UrbanGoodzPhase3Provision extends Command
 
             $this->info("\n=== PROVISIONING SUCCESSFUL ===");
             $this->info("New stores created: " . count($storesToCreate));
+            if ($ownerMode === 'per-store') {
+                $this->info("UG-controlled vendor accounts created: {$vendorsCreated}");
+            }
             $this->info("Existing stores linked: " . count($storesToLink));
             $this->info("Total live items created: " . $itemsCreated);
             return self::SUCCESS;
