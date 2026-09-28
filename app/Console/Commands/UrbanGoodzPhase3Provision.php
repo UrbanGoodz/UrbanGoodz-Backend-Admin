@@ -51,6 +51,22 @@ class UrbanGoodzPhase3Provision extends Command
         return '8' . str_pad((string) $businessId, 9, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * vendors.phone is unique, and this convention keys on the sourced-business
+     * id - which restarts per import batch, so an id here can collide with a
+     * vendor created for the same id in an earlier batch (production already
+     * held 8000000023). Keep the convention as the first choice, then step
+     * through a deterministic band that stays inside the 10-digit shape.
+     */
+    public static function ugVendorPhoneCandidates(int $businessId): \Generator
+    {
+        yield self::ugVendorPhone($businessId);
+
+        for ($block = 1; $block < 900; $block++) {
+            yield '8' . str_pad((string) ($businessId + ($block * 1000000)), 9, '0', STR_PAD_LEFT);
+        }
+    }
+
     private function resolveUgVendorFor($business, $now): array
     {
         $email = self::ugVendorEmail((string) $business->name, (int) $business->id);
@@ -60,10 +76,21 @@ class UrbanGoodzPhase3Provision extends Command
             return [(int) $existing->id, false];
         }
 
+        $phone = null;
+        foreach (self::ugVendorPhoneCandidates((int) $business->id) as $candidate) {
+            if (! DB::table('vendors')->where('phone', $candidate)->exists()) {
+                $phone = $candidate;
+                break;
+            }
+        }
+        if ($phone === null) {
+            throw new \RuntimeException("No free vendor phone for sourced business {$business->id}.");
+        }
+
         return [(int) DB::table('vendors')->insertGetId([
             'f_name' => 'Urban',
             'l_name' => 'Goodz',
-            'phone' => self::ugVendorPhone((int) $business->id),
+            'phone' => $phone,
             'email' => $email,
             'password' => bcrypt(bin2hex(random_bytes(32))),
             'status' => 1,

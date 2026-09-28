@@ -53,6 +53,32 @@ class SourcedVendorIdentityTest extends TestCase
         $this->assertSame(20, strlen(explode('@', $a)[0]) - strlen('41'));
     }
 
+    /**
+     * Production already held 8000000023 from an earlier batch, whose ids
+     * restart per import, so the first choice can be taken.
+     */
+    public function test_phone_candidates_start_with_the_convention_then_step_away(): void
+    {
+        $candidates = iterator_to_array(Provision::ugVendorPhoneCandidates(23));
+
+        $this->assertSame('8000000023', $candidates[0]);
+        $this->assertSame('8001000023', $candidates[1]);
+        $this->assertSame(count($candidates), count(array_unique($candidates)));
+
+        foreach ($candidates as $phone) {
+            $this->assertSame(10, strlen($phone), "{$phone} left the 10-digit shape");
+        }
+    }
+
+    /** Two different businesses must never be offered the same fallback. */
+    public function test_candidate_bands_do_not_overlap_between_businesses(): void
+    {
+        $a = iterator_to_array(Provision::ugVendorPhoneCandidates(23));
+        $b = iterator_to_array(Provision::ugVendorPhoneCandidates(24));
+
+        $this->assertSame([], array_intersect($a, $b));
+    }
+
     public function test_the_phone_stays_ten_digits_across_the_id_range(): void
     {
         foreach ([1, 35, 118, 999999999] as $id) {
