@@ -290,7 +290,14 @@ class UrbanGoodzDriverApiController extends Controller
             return response()->json(['message' => 'Resequencing failed: The optimized stops violate delivery time windows.'], 400);
         }
 
-        $originalMiles = (float)$route->estimated_miles;
+        // Measure against the DISPATCHER's baseline, not the driver's own last
+        // accepted version. $route->estimated_miles is an accessor that returns
+        // the active execution version's miles whenever one exists, so reading
+        // it here made the gate ratchet: after one accepted resequence, every
+        // later variance was measured from the driver's own previous result, and
+        // a driver could walk the route arbitrarily far from the dispatch plan
+        // in a series of sub-20% steps without ever tripping admin_review.
+        $originalMiles = (float)$route->getRawOriginal('estimated_miles');
         $newMiles = (float)$sequenced['total_miles'];
         $varianceMiles = $newMiles - $originalMiles;
         $variancePercent = $originalMiles > 0 ? ($varianceMiles / $originalMiles) * 100 : 0;
