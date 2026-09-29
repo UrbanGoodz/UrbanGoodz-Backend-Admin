@@ -162,6 +162,9 @@ class VendorController extends Controller
         $store->delivery_time = $request->minimum_delivery_time .'-'. $request->maximum_delivery_time.' '.$request->delivery_time_type;
         $store->status = 0;
         $store->store_business_model = 'none';
+        // A badge is granted by Urban Goodz, never assumed at signup.
+        $store->partner_badge_enabled = 0;
+        $store->partner_badge_enabled_at = null;
         $store->save();
 
         Helpers::add_or_update_translations(request: $request, key_data: 'name', name_field: 'name', model_name: 'Store', data_id: $store->id, data_value: $store->name);

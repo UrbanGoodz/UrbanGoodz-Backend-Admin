@@ -183,6 +183,7 @@
                         <th class="border-0">{{translate('messages.owner_information')}}</th>
                         <th class="border-0">{{translate('messages.zone')}}</th>
                         <th class="text-uppercase border-0">{{translate('messages.featured')}}</th>
+                        <th class="text-uppercase border-0">{{translate('messages.partner_badge')}}</th>
                         <th class="text-uppercase border-0">{{translate('messages.status')}}</th>
                         <th class="text-center border-0">{{translate('messages.action')}}</th>
                     </tr>
@@ -232,6 +233,20 @@
                                         <span class="toggle-switch-indicator"></span>
                                     </span>
                                 </label>
+                            </td>
+                            <td>
+                                {{-- Granting the badge is a separate decision from the contract, so
+                                     the toggle shows on every store; it only becomes visible to
+                                     customers once the store also satisfies the contract checks. --}}
+                                <label class="toggle-switch toggle-switch-sm" for="partnerBadgeCheckbox{{$store->id}}">
+                                    <input type="checkbox" data-url="{{route('admin.store.partner-badge',[$store->id,$store->partner_badge_enabled?0:1])}}" data-message="{{translate('messages.you_want_to_change_this_store_partner_badge')}}" class="toggle-switch-input status_change_alert" id="partnerBadgeCheckbox{{$store->id}}" {{$store->partner_badge_enabled?'checked':''}}>
+                                    <span class="toggle-switch-label">
+                                        <span class="toggle-switch-indicator"></span>
+                                    </span>
+                                </label>
+                                @if($store->partner_badge_enabled && !$store->canShowUrbanGoodzPartnerBadge())
+                                    <div class="text-muted font-size-sm">{{translate('messages.granted_pending_contract')}}</div>
+                                @endif
                             </td>
 
                             <td>

@@ -885,6 +885,16 @@ class Store extends Model
         return $this->morphMany(OrderTax::class, 'store');
     }
 
+    /**
+     * Whether this store is a contracted Urban Goodz partner.
+     *
+     * Deliberately does NOT consider partner_badge_enabled. That flag gates
+     * whether we *display* the badge, and shouldRouteToOrderAnywhere() is the
+     * negation of this method - so withholding a partner's badge would
+     * otherwise divert their orders away from their own dashboard and into
+     * Order Anywhere. Granting a badge is a marketing decision and must not
+     * move an order.
+     */
     public function isUrbanGoodzPartner(): bool
     {
         return ($this->business_status ?? 'active_partner') === 'active_partner'
@@ -893,8 +903,7 @@ class Store extends Model
             && in_array($this->banking_status ?? 'active', ['active', 'verified'])
             && in_array($this->subscription_status ?? 'active', ['active', 'not_required'])
             && ($this->admin_approval_status ?? 'approved') === 'approved'
-            && ($this->can_direct_checkout ?? true)
-            && ($this->partner_badge_enabled ?? true);
+            && ($this->can_direct_checkout ?? true);
     }
 
     public function shouldRouteToOrderAnywhere(): bool
@@ -908,13 +917,17 @@ class Store extends Model
 
     public function customerBadgeLabel(): string
     {
-        if ($this->isUrbanGoodzPartner()) {
+        if ($this->canShowUrbanGoodzPartnerBadge()) {
             return 'Urban Goodz Partner';
         }
         if (($this->business_status ?? null) === 'claimed' || ($this->is_claimed ?? false)) {
             return 'Claimed Business';
         }
-        if (($this->order_anywhere_enabled ?? true) || $this->shouldRouteToOrderAnywhere()) {
+        // "Available" has to mean it actually routes there. order_anywhere_enabled
+        // on its own defaults to true, which labelled every direct-checkout
+        // store as Order Anywhere - including a contracted partner who simply
+        // has not been granted a badge yet.
+        if ($this->shouldRouteToOrderAnywhere() && ($this->order_anywhere_enabled ?? true)) {
             return 'Order Anywhere Available';
         }
         return 'Public Listing';
@@ -928,7 +941,7 @@ class Store extends Model
             && ($this->vendor_admin_status ?? 'active') === 'active'
             && ($this->admin_approval_status ?? 'approved') === 'approved'
             && ($this->can_direct_checkout ?? true)
-            && ($this->partner_badge_enabled ?? true)
+            && ($this->partner_badge_enabled ?? false)
             && in_array($this->banking_status ?? 'active', ['active', 'verified'])
             && in_array($this->subscription_status ?? 'active', ['active', 'not_required']);
     }

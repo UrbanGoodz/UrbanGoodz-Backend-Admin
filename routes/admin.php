@@ -912,6 +912,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('verified-seller/{store}', 'VendorController@verifiedSeller')->name('verified-seller');
                 Route::get('verified-seller-all', 'VendorController@verifiedSellerAll')->name('verified-seller-all');
                 Route::get('featured/{store}/{status}', 'VendorController@featured')->name('featured');
+                Route::get('partner-badge/{store}/{status}', 'VendorController@partnerBadge')->name('partner-badge');
                 Route::get('toggle-settings-status/{store}/{status}/{menu}', 'VendorController@store_status')->name('toggle-settings');
                 Route::post('status-filter', 'VendorController@status_filter')->name('status-filter');
 

@@ -141,6 +141,9 @@ class VendorController extends Controller
         $store->tin_certificate_image = Helpers::upload('store/', $extension, $request->file('tin_certificate_image'));
         $store->delivery_time = $request->minimum_delivery_time.'-'.$request->maximum_delivery_time.' '.$request->delivery_time_type;
         $store->module_id = Config::get('module.current_module_id');
+        // A badge is granted by Urban Goodz, never assumed at signup.
+        $store->partner_badge_enabled = 0;
+        $store->partner_badge_enabled_at = null;
         try {
             $store->save();
             // $store->module->increment('stores_count');
@@ -1961,6 +1964,41 @@ class VendorController extends Controller
         $store->featured = $request->status;
         $store->save();
         Toastr::success(translate('messages.store_featured_status_updated'));
+
+        return back();
+    }
+
+    /**
+     * Grant or withdraw the Urban Goodz Partner badge for one store.
+     *
+     * Until now there was no way to do this at all: partner_badge_enabled
+     * defaulted to 1 and no route, controller or view ever touched it, so
+     * every store claimed the badge from the moment it was created and nobody
+     * could take it back. partner_badge_enabled_at is the grant trail - the
+     * column shipped with the table but nothing ever wrote it, so a badge
+     * somebody granted was indistinguishable from one the column default
+     * handed out for free.
+     */
+    public function partnerBadge(Request $request)
+    {
+        $store = Store::findOrFail($request->store);
+        $granted = (bool) $request->status;
+
+        $store->partner_badge_enabled = $granted ? 1 : 0;
+        $store->partner_badge_enabled_at = $granted ? now() : null;
+        $store->save();
+
+        if ($granted) {
+            Toastr::success(translate('messages.partner_badge_granted'));
+
+            // The badge also requires a contract. Say so rather than let the
+            // toggle read as "on" while the storefront shows nothing.
+            if (!$store->fresh()->canShowUrbanGoodzPartnerBadge()) {
+                Toastr::warning(translate('messages.partner_badge_granted_but_store_is_not_contracted'));
+            }
+        } else {
+            Toastr::success(translate('messages.partner_badge_withdrawn'));
+        }
 
         return back();
     }
