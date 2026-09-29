@@ -1491,13 +1491,19 @@ class BusinessSettingsController extends Controller
                 'measurementId' => $request->measurementId,
             ]),
         ]);
-        self::firebase_message_config_file_gen();
-        Toastr::success(translate('messages.settings_updated'));
+        if (self::firebase_message_config_file_gen()) {
+            Toastr::success(translate('messages.settings_updated'));
+        } else {
+            // The settings themselves are saved; it is the browser-facing
+            // service worker that could not be rewritten, so push keeps using
+            // whatever configuration is still on disk.
+            Toastr::warning(translate('messages.settings_updated') . ' ' . translate('messages.push_notification_service_worker_could_not_be_written_check_the_log'));
+        }
 
         return back();
     }
 
-    public function firebase_message_config_file_gen()
+    public function firebase_message_config_file_gen(): bool
     {
         $config = Helpers::get_business_settings('fcm_credentials');
 
@@ -1544,8 +1550,18 @@ class BusinessSettingsController extends Controller
             if (file_put_contents($filePath, $fileContent) === false) {
                 throw new \Exception('Failed to write to file: ' . $filePath);
             }
+
+            return true;
         } catch (\Exception $e) {
-            //
+            // This used to be swallowed silently. It hid a real outage: the
+            // service worker on disk kept an old projectId and API key while
+            // the admin was told the settings had saved, so web push stayed
+            // dead with nothing anywhere to explain why.
+            \Illuminate\Support\Facades\Log::error('Could not regenerate firebase-messaging-sw.js: ' . $e->getMessage(), [
+                'path' => $filePath,
+            ]);
+
+            return false;
         }
     }
 
