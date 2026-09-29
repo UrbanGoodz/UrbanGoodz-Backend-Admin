@@ -274,7 +274,7 @@
     <section class="ug-section ug-section--canvas">
         <div class="container">
             <div class="ug-houston-section">
-                <div class="ug-houston-icon"><img src="{{ asset('/public/assets/landing/img/logo.svg') }}" alt="Urban Goodz" style="width:48px;height:auto;object-fit:contain" /></div>
+                <div class="ug-houston-icon"><img src="{{ asset('/public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz" style="height:48px;width:auto;object-fit:contain" /></div>
                 <h2>Houston Starts It. Built For Everywhere.</h2>
                 <p>Urban Goodz is relaunching with an expanded platform built to connect communities to more than delivery. Houston is the current live relaunch hub.</p>
                 <div class="ug-houston-line">
@@ -688,7 +688,7 @@
     <section class="ug-section ug-section--white">
         <div class="container">
             <div class="ug-mkt-network">
-                <div class="ug-mkt-icon"><img src="{{ asset('/public/assets/landing/img/logo.svg') }}" alt="Urban Goodz" style="width:48px;height:auto;object-fit:contain" /></div>
+                <div class="ug-mkt-icon"><img src="{{ asset('/public/assets/admin/svg/logos/urban-goodz.svg') }}" alt="Urban Goodz" style="height:48px;width:auto;object-fit:contain" /></div>
                 <h2>Relaunching Across Our Market Network</h2>
                 <p>Urban Goodz is relaunching with an expanded marketplace built to connect communities to local products, services, rentals, events, vendors, drivers, and business discovery.</p>
                 <p>Houston is the current live relaunch hub as Urban Goodz activates its upgraded platform across its market network.</p>

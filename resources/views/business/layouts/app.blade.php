@@ -90,7 +90,7 @@
     <nav class="navbar navbar-expand-lg navbar-business">
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center gap-2" href="{{ route('business.dashboard') }}" aria-label="Urban Goodz Business">
-                <img src="{{asset('public/assets/landing/img/logo.svg')}}" alt="Urban Goodz" style="height:28px;width:auto;">
+                <img src="{{asset('public/assets/admin/svg/logos/urban-goodz.svg')}}" alt="Urban Goodz" style="height:28px;width:auto;">
                 <span>{{ translate('Business') }}</span>
             </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#businessNavbar" style="border-color: rgba(0,0,0,.1);">

@@ -5,7 +5,7 @@
                 <!-- Logo -->
                 <a class="navbar-brand" href="{{ route('admin.dispatch.dashboard') }}" aria-label="Urban Goodz">
                        <img class="navbar-brand-logo initial--36"
-                    src="{{asset('public/assets/landing/img/logo.svg')}}"
+                    src="{{asset('public/assets/admin/svg/logos/urban-goodz.svg')}}"
                     alt="Urban Goodz" style="height:32px;width:auto;">
                     <img class="navbar-brand-logo-mini initial--36"
                     src="{{asset('public/assets/admin/svg/logos/logo-short.svg')}}"
