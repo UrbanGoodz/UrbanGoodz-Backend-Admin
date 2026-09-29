@@ -55,7 +55,29 @@ class UrbanGoodzCorrectSourcedStoreClaims extends Command
             return self::SUCCESS;
         }
 
-        $this->warn($affected->count() . ' store(s) held by a UG placeholder vendor currently claim partner status.');
+        $this->warn($affected->count() . ' store(s) held by a UG placeholder vendor differ from the unsigned-business shape.');
+        $this->newLine();
+
+        // Two very different groups match, and lumping them together hides the
+        // only one that changes what a customer sees. Split them before anyone
+        // decides whether to --apply.
+        $claimsPartner = $affected->filter(fn ($r) => $r->business_status !== self::CORRECTED['business_status']
+            || $r->contract_status !== self::CORRECTED['contract_status']
+            || (int) $r->can_direct_checkout !== self::CORRECTED['can_direct_checkout']);
+        $badgeToggleOnly = $affected->count() - $claimsPartner->count();
+
+        $this->table(['group', 'stores', 'what changes'], [
+            [
+                'claims partner status',
+                $claimsPartner->count(),
+                'storefront stops saying Urban Goodz Partner, and checkout reroutes to Order Anywhere',
+            ],
+            [
+                'badge toggle only',
+                $badgeToggleOnly,
+                'partner_badge_enabled 1 -> 0; no customer-visible change today',
+            ],
+        ]);
         $this->newLine();
         $this->table(
             ['store', 'name', 'vendor email', 'business_status', 'contract', 'badge', 'direct checkout'],
