@@ -258,6 +258,13 @@ Route::group(['prefix' => 'deliveryman', 'as' => 'deliveryman.'], function () {
 
 });
 
+// FCM topic subscription for the admin and vendor panels. The layouts have
+// always POSTed here; the route itself was missing, so every panel load logged
+// a 405 and no browser ever got subscribed to its notification topic.
+Route::post('/subscribeToTopic', [FirebaseController::class, 'subscribeToTopic'])
+    ->middleware('throttle:30,1,web-fcm-subscribe-topic')
+    ->name('subscribeToTopic');
+
 Route::get('/image-proxy', function () {
     $url = request('url');
     if (!$url) {
