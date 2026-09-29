@@ -18,6 +18,7 @@ set -euo pipefail
 BRANCH="${DEPLOY_BRANCH:-adminpanel-v39-backend-sprint}"
 BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
 ALLOW_ROLLBACK="${ALLOW_ROLLBACK:-0}"
+MIGRATIONS_SKIPPED=0
 
 echo "=== Urban Goodz deployment ==="
 echo "Started: $(date)"
@@ -42,13 +43,21 @@ CURRENT_SHA="$(git rev-parse HEAD)"
 echo "  currently deployed: $(git log -1 --format='%h %ad %s' --date=short "$CURRENT_SHA")"
 echo "  deploying:          $(git log -1 --format='%h %ad %s' --date=short "$DEPLOY_SHA")"
 
+# Being already at the target does NOT mean there is nothing to do. A run that
+# stops between the checkout and step 10 - which is exactly what an EOF on the
+# old migration prompt used to cause - leaves new code live on the PREVIOUS
+# route and config cache, and any migration it shipped unapplied. Exiting 0
+# here made that state unrecoverable by re-running the script. Steps 9-11 are
+# idempotent, so finish them instead.
+ALREADY_DEPLOYED=0
 if [ "$DEPLOY_SHA" = "$CURRENT_SHA" ]; then
-    echo "  Already at this commit. Nothing to do."
-    exit 0
+    ALREADY_DEPLOYED=1
+    echo "  Already at this commit - code is current."
+    echo "  Continuing to migrations and caches in case an earlier run stopped short."
 fi
 
 # Refuse to silently move production backwards.
-if git merge-base --is-ancestor "$DEPLOY_SHA" "$CURRENT_SHA" 2>/dev/null; then
+if [ "$ALREADY_DEPLOYED" = "0" ] && git merge-base --is-ancestor "$DEPLOY_SHA" "$CURRENT_SHA" 2>/dev/null; then
     BEHIND=$(git rev-list --count "$DEPLOY_SHA..$CURRENT_SHA")
     if [ "$ALLOW_ROLLBACK" != "1" ]; then
         echo "  FATAL: target is $BEHIND commits BEHIND what is deployed."
@@ -58,7 +67,9 @@ if git merge-base --is-ancestor "$DEPLOY_SHA" "$CURRENT_SHA" 2>/dev/null; then
     fi
     echo "  WARNING: rolling back $BEHIND commits (ALLOW_ROLLBACK=1)"
 fi
-echo "  Deploying $(git rev-list --count "$CURRENT_SHA..$DEPLOY_SHA") new commit(s)"
+if [ "$ALREADY_DEPLOYED" = "0" ]; then
+    echo "  Deploying $(git rev-list --count "$CURRENT_SHA..$DEPLOY_SHA") new commit(s)"
+fi
 
 # ---------- 3. protect uncommitted production-only work ------------------
 # The live tree has historically carried hotfixes never committed to git;
@@ -83,12 +94,16 @@ fi
 
 # ---------- 4. file backup ------------------------------------------------
 echo "[4/11] Backing up files..."
-tar -czf "$BACKUP_DIR/files_$(date +%s).tar.gz" \
-    --exclude=vendor --exclude=node_modules --exclude=.git \
-    --exclude=backups --exclude="storage/logs/*" \
-    --exclude="storage/framework/cache/*" --exclude="storage/framework/sessions/*" \
-    --exclude="storage/framework/views/*" . 2>/dev/null || true
-echo "  -> $BACKUP_DIR"
+if [ "$ALREADY_DEPLOYED" = "1" ]; then
+    echo "  SKIPPED - already at this commit, the working tree is not changing."
+else
+    tar -czf "$BACKUP_DIR/files_$(date +%s).tar.gz" \
+        --exclude=vendor --exclude=node_modules --exclude=.git \
+        --exclude=backups --exclude="storage/logs/*" \
+        --exclude="storage/framework/cache/*" --exclude="storage/framework/sessions/*" \
+        --exclude="storage/framework/views/*" . 2>/dev/null || true
+    echo "  -> $BACKUP_DIR"
+fi
 
 # ---------- 5. database backup -------------------------------------------
 echo "[5/11] Backing up database..."
@@ -131,8 +146,12 @@ fi
 
 # ---------- 7. checkout ---------------------------------------------------
 echo "[7/11] Checking out $DEPLOY_SHA..."
-git checkout --quiet "$DEPLOY_SHA"
-echo "  now at $(git log -1 --format='%h %s')"
+if [ "$ALREADY_DEPLOYED" = "1" ]; then
+    echo "  SKIPPED - already at $(git log -1 --format='%h %s')"
+else
+    git checkout --quiet "$DEPLOY_SHA"
+    echo "  now at $(git log -1 --format='%h %s')"
+fi
 
 # ---------- 8. dependencies ----------------------------------------------
 echo "[8/11] composer install..."
@@ -154,17 +173,35 @@ echo "[9/11] Migrations..."
 PENDING=$(php artisan migrate:status 2>/dev/null | grep -ci "pending" || true)
 php artisan migrate:status 2>/dev/null | grep -i "pending" || echo "  (none pending)"
 if [ "${PENDING:-0}" -gt 0 ]; then
-    if [ "${AUTO_MIGRATE:-0}" = "1" ]; then
+    # This prompt used to run unconditionally. Over a non-interactive SSH the
+    # read got EOF, returned non-zero, and 'set -e' killed the deploy right
+    # here - after the checkout but before the caches were rebuilt. The script
+    # had already printed seven successful steps, and the caller saw whatever
+    # its own pipeline exited with, so a deploy that silently skipped its
+    # migrations AND its cache rebuild looked like a clean success.
+    APPLY=""
+    case "${AUTO_MIGRATE:-}" in
+        1) APPLY=yes ;;
+        0) APPLY=no  ;;
+        *)
+            if [ -t 0 ]; then
+                read -r -p "  Apply $PENDING pending migration(s)? (yes/no): " CONFIRM || CONFIRM=""
+                if [ "$CONFIRM" = "yes" ]; then APPLY=yes; else APPLY=no; fi
+            else
+                echo "  FATAL: $PENDING migration(s) pending and stdin is not a terminal,"
+                echo "         so there is nobody to answer a prompt. Re-run with"
+                echo "         AUTO_MIGRATE=1 to apply them, or AUTO_MIGRATE=0 to skip"
+                echo "         them deliberately. Refusing to guess."
+                exit 1
+            fi
+            ;;
+    esac
+    if [ "$APPLY" = "yes" ]; then
         php artisan migrate --force
         echo "  Applied."
     else
-        read -r -p "  Apply $PENDING pending migration(s)? (yes/no): " CONFIRM
-        if [ "$CONFIRM" = "yes" ]; then
-            php artisan migrate --force
-            echo "  Applied."
-        else
-            echo "  SKIPPED."
-        fi
+        echo "  SKIPPED - $PENDING migration(s) still pending."
+        MIGRATIONS_SKIPPED=1
     fi
 fi
 
@@ -208,3 +245,14 @@ echo "=== Deployment complete ==="
 echo "SHA:      $DEPLOY_SHA"
 echo "Backup:   $BACKUP_DIR"
 echo "Rollback: git checkout $CURRENT_SHA && php artisan optimize:clear && php artisan config:cache"
+
+# A deploy whose migrations did not run is not a successful deploy. Say so in
+# the exit status as well as on stdout, so a caller that only checks $? cannot
+# read it as a clean run.
+if [ "$MIGRATIONS_SKIPPED" = "1" ]; then
+    echo ""
+    echo "*** WARNING: migrations were SKIPPED - the deployed code is running"
+    echo "    against an older schema. Apply them with:"
+    echo "      AUTO_MIGRATE=1 bash script/deploy.sh $DEPLOY_SHA"
+    exit 2
+fi
