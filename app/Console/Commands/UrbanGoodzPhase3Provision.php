@@ -357,6 +357,11 @@ class UrbanGoodzPhase3Provision extends Command
                     // verifies it, not stamped on 118 rows by a sourcing run.
                     // Use --badge-status=... to set one deliberately.
                     'badge_status' => $badgeStatus,
+                    // The toggle itself, not just the label. The column
+                    // defaults to 1, and isUrbanGoodzPartner() reads it, so
+                    // leaving it on means the badge reappears the moment any
+                    // other field drifts back - with nobody having granted it.
+                    'partner_badge_enabled' => 0,
                     'fulfillment_mode' => 'order_anywhere_backend',
                 ]);
 
