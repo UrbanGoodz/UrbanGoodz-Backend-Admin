@@ -2,9 +2,9 @@ importScripts('https://www.gstatic.com/firebasejs/8.3.2/firebase-app.js');
 importScripts('https://www.gstatic.com/firebasejs/8.3.2/firebase-messaging.js');
 
 firebase.initializeApp({
-    apiKey: "AIzaSyBMiv_0Id2G7jE0wH_rG5Q7Hz62t_yYxJc",
+    apiKey: "AIzaSyBpyoDbDmub-c_Y99fuILDCYzC_uy9sSlk",
     authDomain: "urbaneatz.firebaseapp.com",
-    projectId: "urbangoodz",
+    projectId: "urbaneatz",
     storageBucket: "urbaneatz.firebasestorage.app",
     messagingSenderId: "709013709032",
     appId: "1:709013709032:web:005e6ba3a9b138b041a95d",
