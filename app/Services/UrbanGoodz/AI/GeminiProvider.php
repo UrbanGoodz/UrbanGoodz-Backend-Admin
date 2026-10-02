@@ -154,9 +154,20 @@ class GeminiProvider extends AbstractAIProvider
 
             return $successResult;
         } catch (\Throwable $exception) {
+            // Recording only the exception class made this undiagnosable
+            // from the log: a ConnectionException could be DNS, blocked egress
+            // or a timeout, and which model was in play decides whether a quota
+            // answer is even plausible. Reproducing the outage live should not
+            // be the only way to learn what broke.
             Log::warning('UrbanGoodz AI provider is unavailable.', [
                 'provider' => $this->name(),
+                'model' => $this->model(),
                 'exception' => $exception::class,
+                // An exception message is untrusted text that can carry a
+                // request echo. The Gemini key travels in a header, not the
+                // URL, so it should never appear here - redact anyway rather
+                // than rely on that staying true.
+                'message' => self::redactSecrets($exception->getMessage()),
             ]);
 
             return $this->failure(
@@ -263,5 +274,19 @@ class GeminiProvider extends AbstractAIProvider
     private function endpoint(): string
     {
         return $this->baseUrl().'/models/'.rawurlencode($this->model()).':generateContent';
+    }
+
+    /**
+     * Strips anything shaped like a provider credential out of text bound for
+     * the log. Cheap insurance: a log line is the wrong place to discover that
+     * a library started echoing the request.
+     */
+    private static function redactSecrets(string $text): string
+    {
+        $text = preg_replace('/AIza[0-9A-Za-z_-]{10,}/', 'AIza<redacted>', $text) ?? $text;
+        $text = preg_replace('/sk-[0-9A-Za-z_-]{10,}/', 'sk-<redacted>', $text) ?? $text;
+        $text = preg_replace('/([?&](?:key|api_key|access_token)=)[^&\s]+/i', '$1<redacted>', $text) ?? $text;
+
+        return mb_strimwidth($text, 0, 500, '...');
     }
 }
