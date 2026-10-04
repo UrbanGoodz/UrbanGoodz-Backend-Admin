@@ -85,7 +85,7 @@
                 <div class="shadow--order-card">
                     <div class="row m-0">
                         <div class="col-12 p-0">
-                            <a class="order--card h-100" href="#">
+                            <a class="order--card h-100" href="{{ route('admin.dispatch.list', ['module' => 'all', 'status' => 'searching_for_deliverymen']) }}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="card-subtitle d-flex justify-content-between m-0 align-items-center">
                                         <img src="{{asset('public/assets/admin/img/dashboard/food/unassigned.svg')}}"
@@ -99,7 +99,7 @@
                             </a>
                         </div>
                         <div class="col-12 p-0">
-                            <a class="order--card h-100" href="#">
+                            <a class="order--card h-100" href="{{ route('admin.dispatch.list', ['module' => 'all', 'status' => 'accepted']) }}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="card-subtitle d-flex justify-content-between m-0 align-items-center">
                                         <img src="{{asset('public/assets/admin/img/dashboard/food/accepted.svg')}}"
@@ -113,7 +113,7 @@
                             </a>
                         </div>
                         <div class="col-12 p-0">
-                            <a class="order--card h-100" href="#">
+                            <a class="order--card h-100" href="{{ route('admin.dispatch.list', ['module' => 'all', 'status' => 'picked_up']) }}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="card-subtitle d-flex justify-content-between m-0 align-items-center">
                                         <img src="{{asset('public/assets/admin/img/dashboard/food/out-for.svg')}}"
