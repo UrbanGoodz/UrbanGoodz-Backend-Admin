@@ -64,6 +64,7 @@ class UrbanGoodzAiChiefOfStaffVisibilityTest extends TestCase
      */
     private function restrictedAdmin(): Admin
     {
+        AdminRole::firstOrCreate(['id' => 1], ['name' => 'Master Role', 'modules' => null, 'status' => 1]);
         $role = AdminRole::firstOrCreate(
             ['name' => 'cos-restricted-test-role'],
             ['modules' => json_encode(['urban_goodz_dashboard']), 'status' => 1]
