@@ -60,6 +60,8 @@ class UrbanGoodzDriverSequencingTest extends TestCase
             'private_endpoint_lng' => -95.3600000,
             'private_endpoint_status' => 'approved',
             'auth_token' => $this->authToken,
+            // Tokens are only ever issued to approved drivers.
+            'application_status' => 'approved',
         ]);
 
         $this->batch = UrbanGoodzIntakeBatch::create([

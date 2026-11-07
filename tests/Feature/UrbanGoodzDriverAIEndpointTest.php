@@ -27,6 +27,9 @@ class UrbanGoodzDriverAIEndpointTest extends TestCase
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
             $table->string('auth_token')->nullable();
+            // The driver token middleware requires an active, approved driver.
+            $table->boolean('status')->default(1);
+            $table->string('application_status')->default('approved');
             $table->unsignedBigInteger('vehicle_id')->nullable();
             $table->timestamps();
         });

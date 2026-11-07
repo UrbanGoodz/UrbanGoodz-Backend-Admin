@@ -216,7 +216,11 @@ class DeliveryManController extends BaseController
 
 
         if ($request['status'] == 0) {
+            // Persist the revocation. This used to set the attribute without saving,
+            // so a suspended driver's token kept working.
             $deliveryMan->auth_token = null;
+            $deliveryMan->active = 0;
+            $deliveryMan->save();
 
             if (isset($deliveryMan->fcm_token) && Helpers::getNotificationStatusData('deliveryman', 'deliveryman_account_block', 'push_notification_status')) {
                 $data = [
@@ -676,8 +680,12 @@ class DeliveryManController extends BaseController
     public function updateApplication(Request $request): RedirectResponse
     {
         $deliveryMan = $this->deliveryManRepo->update(id: $request['id'], data: ['application_status' => $request['status']]);
-        if ($request['status'] == 'approved')
+        if ($request['status'] == 'approved') {
             $this->deliveryManRepo->update(id: $request['id'], data: ['status' => 1]);
+        } else {
+            // A driver whose application is denied/pending must not keep a live session.
+            $this->deliveryManRepo->update(id: $request['id'], data: ['auth_token' => null, 'active' => 0]);
+        }
         try {
             if ($request['status'] == 'approved') {
 

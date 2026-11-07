@@ -511,6 +511,8 @@ class ConnectedDriverRouteScanWorkflowTest extends TestCase
             'email' => $email,
             'password' => bcrypt('password'),
             'auth_token' => hash('sha256', $email),
+            // Tokens are only ever issued to approved drivers.
+            'application_status' => 'approved',
         ]);
     }
 
