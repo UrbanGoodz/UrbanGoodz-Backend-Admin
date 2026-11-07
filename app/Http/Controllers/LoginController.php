@@ -91,13 +91,16 @@ class LoginController extends Controller
 
         $email = null;
         $password = null;
-        if (Cookie::has('p_token') && Cookie::has('e_token') && Cookie::has('role') && Cookie::get('role') == $role) {
+        // The password is never stored in a cookie or pre-filled. Older
+        // releases wrote it (encrypted) to p_token; expire any that remain.
+        if (Cookie::has('p_token')) {
+            Cookie::queue(Cookie::forget('p_token'));
+        }
+        if (Cookie::has('e_token') && Cookie::has('role') && Cookie::get('role') == $role) {
             try {
                 $email = Crypt::decryptString(Cookie::get('e_token'));
-                $password = Crypt::decryptString(Cookie::get('p_token'));
             } catch (\Throwable $e) {
                 $email = null;
-                $password = null;
             }
         }
 
@@ -124,7 +127,6 @@ class LoginController extends Controller
             if ($remember) {
                 Cookie::queue('role', $role, 120);
                 Cookie::queue('e_token', Crypt::encryptString($email), 120);
-                Cookie::queue('p_token', Crypt::encryptString($password), 120);
             }
             if ($auth == 'admin') {
                 RateLimiter::clear('login-attempts:' . $ip);
@@ -198,10 +200,8 @@ class LoginController extends Controller
             $sessionPhrase = session('six_captcha');
 
             if (empty($customCaptchaInput) || empty($sessionPhrase) || strtolower($sessionPhrase) !== strtolower($customCaptchaInput)) {
-                if ($customCaptchaInput !== '9999' || $request->input('email') !== 'eaturban2020@gmail.com') {
-                    return redirect()->back()->withInput($request->only('email', 'remember'))
-                        ->withErrors(['ReCAPTCHA Failed']);
-                }
+                return redirect()->back()->withInput($request->only('email', 'remember'))
+                    ->withErrors(['ReCAPTCHA Failed']);
             }
         }
 

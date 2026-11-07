@@ -499,6 +499,74 @@ class AdminLoginRecoveryRegressionTest extends TestCase
         $this->assertAuthenticatedAs($admin->fresh(), 'admin');
     }
 
+    public function test_legacy_captcha_bypass_code_is_rejected_for_every_account(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        // The previously hard-coded bypass account and code.
+        $admin = $this->createAdmin(['email' => 'eaturban2020@gmail.com']);
+
+        $response = $this
+            ->from('/login/admin')
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'custome_recaptcha' => '9999',
+            ]);
+
+        $response->assertRedirect('/login/admin');
+        $response->assertSessionHasErrors();
+        $this->assertGuest('admin');
+    }
+
+    public function test_remember_me_never_stores_the_password_in_a_cookie(): void
+    {
+        $this->bootSqliteAdminSchema();
+        $this->disableGoogleRecaptcha();
+        $admin = $this->createAdmin();
+
+        $response = $this
+            ->withSession(['_token' => self::CSRF_TOKEN, 'six_captcha' => 'CORRECT'])
+            ->post('/login_submit', [
+                '_token' => self::CSRF_TOKEN,
+                'email' => $admin->email,
+                'password' => 'valid-password',
+                'role' => 'admin',
+                'remember' => '1',
+                'custome_recaptcha' => 'CORRECT',
+            ]);
+
+        $response->assertRedirect(route('admin.dashboard'));
+        $this->assertAuthenticatedAs($admin->fresh(), 'admin');
+        $response->assertCookieMissing('p_token');
+        foreach ($response->headers->getCookies() as $cookie) {
+            $this->assertStringNotContainsString('valid-password', (string) $cookie->getValue());
+        }
+    }
+
+    public function test_login_page_never_prefills_a_password_and_expires_legacy_password_cookies(): void
+    {
+        $this->bootSqliteAdminSchema();
+        Schema::connection('sqlite')->create('business_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->string('key')->nullable();
+            $table->text('value')->nullable();
+            $table->timestamps();
+        });
+
+        $response = $this->withUnencryptedCookie('p_token', app('encrypter')->encrypt(\Illuminate\Cookie\CookieValuePrefix::create('p_token', app('encrypter')->getKey()).'legacy-value', false))->get('/login/admin');
+
+        $response->assertOk();
+        $html = $response->getContent();
+        $this->assertDoesNotMatchRegularExpression('/name="password"[^>]*value="[^"]+"/s', $html);
+        $expired = collect($response->headers->getCookies())->first(fn ($c) => $c->getName() === 'p_token');
+        $this->assertNotNull($expired, 'legacy p_token cookie must be expired');
+        $this->assertTrue($expired->getExpiresTime() < time());
+    }
+
     public function test_logout_invalidates_the_admin_session(): void
     {
         $this->bootSqliteAdminSchema();

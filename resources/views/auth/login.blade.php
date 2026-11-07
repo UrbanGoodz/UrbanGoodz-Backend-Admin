@@ -95,7 +95,7 @@
                                 <svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2m-12 0h14v10H5V10Zm7 4v3"/></svg>
                             </span>
                             <input type="password" class="js-toggle-password form-control form-control-lg"
-                                    name="password" id="signupSrPassword" placeholder="Enter your password" value="{{ $password ?? '' }}"
+                                    name="password" id="signupSrPassword" placeholder="Enter your password" value=""
                                     aria-label="Enter your password" required
                                     data-msg="{{translate('messages.invalid_password_warning')}}"
                                     data-hs-toggle-password-options='{
@@ -120,7 +120,7 @@
                     <div class="ug-command-options">
                         <div class="form-group">
                             <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" id="termsCheckbox" {{ $password ? 'checked' : '' }}
+                                <input type="checkbox" class="custom-control-input" id="termsCheckbox" {{ !empty($email) ? 'checked' : '' }}
                                         name="remember">
                                 <label class="custom-control-label text-muted" for="termsCheckbox">
                                     {{translate('messages.remember_me')}}
