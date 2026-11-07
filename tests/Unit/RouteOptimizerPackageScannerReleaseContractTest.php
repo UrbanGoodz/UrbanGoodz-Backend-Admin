@@ -48,14 +48,18 @@ class RouteOptimizerPackageScannerReleaseContractTest extends TestCase
         }
     }
 
-    public function test_driver_receives_authoritative_sequence_and_cannot_silently_resequence_it(): void
+    public function test_driver_receives_authoritative_sequence_and_resequencing_is_gated_by_dispatcher_variance_approval(): void
     {
         $source = $this->source('app/Http/Controllers/Api/UrbanGoodzDriverApiController.php');
 
         self::assertStringContainsString("->orderBy('stop_order')", $source);
         self::assertStringContainsString("'sequence_number' => (int) \$groupOrder", $source);
         self::assertStringContainsString("'package_count' => \$packages->count()", $source);
-        self::assertStringContainsString('persisted Business/dispatcher sequence is authoritative', $source);
+        // Driver resequencing is enabled (c30a6f2) but dispatcher authority is
+        // kept by the variance gate: excessive reorders are not committed.
+        self::assertStringContainsString('Resequencing requires dispatcher approval due to excessive variance.', $source);
+        self::assertStringContainsString("'requires_approval' => true", $source);
+        self::assertStringContainsString("'status' => \$isExcessive ? 'pending_approval' : 'active'", $source);
         self::assertStringContainsString("'optimization_distance_mode'", $source);
         self::assertStringContainsString("'optimization_constraints'", $source);
     }

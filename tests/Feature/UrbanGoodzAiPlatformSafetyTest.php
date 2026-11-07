@@ -301,8 +301,9 @@ class UrbanGoodzAiPlatformSafetyTest extends TestCase
 
         $result = (new UrbanGoodzAIService())->chatResult('System prompt', 'Hello');
 
+        // HTTP 503 maps to the specific provider_unavailable code.
         $this->assertFalse($result['success']);
-        $this->assertSame('provider_error', $result['error_code']);
+        $this->assertSame('provider_unavailable', $result['error_code']);
         $this->assertStringContainsString('No action was taken', $result['response']);
     }
 

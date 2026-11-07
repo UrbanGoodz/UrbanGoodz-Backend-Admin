@@ -91,10 +91,11 @@ class UrbanGoodzAIProviderContractTest extends TestCase
         $health = $provider->healthCheck();
         $serialized = json_encode([$chat, $health]);
 
+        // The provider maps HTTP 429 to a specific, still-sanitised code.
         $this->assertFalse($chat['success']);
-        $this->assertSame('provider_error', $chat['error_code']);
+        $this->assertSame('rate_limit_exceeded', $chat['error_code']);
         $this->assertFalse($health['healthy']);
-        $this->assertSame('provider_error', $health['error_code']);
+        $this->assertSame('rate_limit_exceeded', $health['error_code']);
         $this->assertStringNotContainsString($credential, $serialized);
         $this->assertStringNotContainsString('provider diagnostic', $serialized);
     }

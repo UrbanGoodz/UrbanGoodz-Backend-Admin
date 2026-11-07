@@ -12,11 +12,16 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Zone;
 use App\Services\UrbanGoodz\Agent\MoniqueProactiveAttentionService;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class MoniqueProactivePolicyTest extends TestCase
 {
+    // Roll back every row this test creates; it previously leaked orders,
+    // users and stores into the shared database (caught by BackendP0GuardrailsTest).
+    use DatabaseTransactions;
+
     private MoniqueProactiveAttentionService $attention;
 
     protected function setUp(): void
