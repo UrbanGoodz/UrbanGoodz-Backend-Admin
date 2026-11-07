@@ -24,8 +24,8 @@ catalog/inventory flows end to end through the UI, Playwright. No staging data a
 | V6 | P2 | Several handlers answered 500 (`... on null`) or a false "deleted" success instead of 404 for records they do not own | `findOrFail`/`firstOrFail`; advertisement delete returns 404 |
 | V7 | P3 | `banner/search` filtered on a `store_id` column banners do not have (always 500). A vendor banner is `type = store_wise` with the owning store id in `data` | corrected, and all banner handlers use it |
 
-Nine of the ten attack classes that are not in the table were already safe (order status/amount/OTP, coupon status/delete,
-driver ownership checks, schedules, advertisements by store). Note the test reproduces V2-V5 against the unpatched controllers.
+Endpoints that held under attack even before the change (the lookup was already store-scoped): order status, order amount, order OTP,
+coupon status/delete, schedule delete and the advertisement lookups. The isolation tests reproduce V2-V5 against the unpatched controllers.
 
 ## Honest limits of the isolation tests
 - **Inconclusive, covered by code review only:** `item/update`, `coupon/update`, `addon/update`, `advertisement/update`,
