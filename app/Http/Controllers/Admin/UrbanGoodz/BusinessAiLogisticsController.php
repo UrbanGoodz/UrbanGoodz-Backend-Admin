@@ -723,7 +723,7 @@ class BusinessAiLogisticsController extends Controller
         ]);
 
         Toastr::success(translate('Exception resolved'));
-        return redirect()->route('business.ai-logistics.exceptions.index');
+        return redirect()->route('business.ai-logistics.exceptions');
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -913,7 +913,7 @@ class BusinessAiLogisticsController extends Controller
         ]);
 
         Toastr::success(translate('Recommendation accepted'));
-        return redirect()->route('business.ai-logistics.recommendations.index');
+        return redirect()->route('business.ai-logistics.copilot-recommendations');
     }
 
     public function copilotDismiss(Request $request, $id)
@@ -931,7 +931,7 @@ class BusinessAiLogisticsController extends Controller
         ]);
 
         Toastr::info(translate('Recommendation dismissed'));
-        return redirect()->route('business.ai-logistics.recommendations.index');
+        return redirect()->route('business.ai-logistics.copilot-recommendations');
     }
 
     public function copilotSnooze(Request $request, $id)
@@ -951,7 +951,7 @@ class BusinessAiLogisticsController extends Controller
         ]);
 
         Toastr::info(translate('Recommendation snoozed'));
-        return redirect()->route('business.ai-logistics.recommendations.index');
+        return redirect()->route('business.ai-logistics.copilot-recommendations');
     }
 
     // ═══════════════════════════════════════════════════════════════════

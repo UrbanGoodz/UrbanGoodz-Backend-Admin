@@ -1386,7 +1386,7 @@ class VendorController extends Controller
         if ((string) $wallet->total_earning < (string) ($wallet->total_withdrawn + $wallet->pending_withdraw)) {
             Toastr::error(translate('messages.Blalnce_mismatched_total_earning_is_too_low'));
 
-            return redirect()->route('admin.restaurant.withdraw_list');
+            return redirect()->route('admin.transactions.store.withdraw_list');
         }
 
         $vendor = $withdraw->vendor;

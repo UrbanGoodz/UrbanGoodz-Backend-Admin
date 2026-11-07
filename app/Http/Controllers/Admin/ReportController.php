@@ -705,7 +705,7 @@ class ReportController extends Controller
      */
     public function earning_index()
     {
-        return redirect()->route('admin.report.admin-earning-report');
+        return redirect()->route('admin.transactions.report.admin-earning-report');
     }
 
 

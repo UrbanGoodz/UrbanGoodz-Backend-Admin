@@ -48,6 +48,6 @@ class AISettingsController extends Controller
             Toastr::success('AI settings updated');
         }
 
-        return redirect()->route('admin.ai.settings');
+        return redirect()->route('admin.urban-goodz.ai.settings');
     }
 }
