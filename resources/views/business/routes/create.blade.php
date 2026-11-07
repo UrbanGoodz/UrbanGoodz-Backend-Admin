@@ -7,6 +7,8 @@
         <h1 class="page-header-title">{{ translate('Create Courier Route') }}</h1>
     </div>
 
+    {{-- Defined before the branch: the script stack below uses it even when the company has no locations yet. --}}
+    @php($oldStops = old('stops', [['dropoff_address' => '', 'recipient_name' => '', 'contact_phone' => '', 'delivery_notes' => '']]))
     @if($locations->isEmpty())
     <div class="card">
         <div class="card-body text-center py-5">
@@ -97,7 +99,6 @@
             </div>
             <div class="card-body" id="stops-wrapper">
                 <div id="stops-container">
-                    @php($oldStops = old('stops', [['dropoff_address' => '', 'recipient_name' => '', 'contact_phone' => '', 'delivery_notes' => '']]))
                     @foreach($oldStops as $index => $stop)
                     <div class="stop-row card card-border mb-2 {{ $index > 0 ? 'border' : '' }}" data-index="{{ $index }}">
                         <div class="card-body py-3">
