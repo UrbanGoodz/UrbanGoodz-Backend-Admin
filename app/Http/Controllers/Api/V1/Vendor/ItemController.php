@@ -448,7 +448,7 @@ class ItemController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $product = Item::find($request->id);
+        $product = Item::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $product->status = $request->status;
         $product->save();
 
@@ -560,7 +560,7 @@ class ItemController extends Controller
         }
 
 
-        $p = Item::findOrFail($request->id);
+        $p = Item::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $oldVideo = $p->video;
 
         $p->name = $data[0]['value'];
@@ -827,7 +827,7 @@ class ItemController extends Controller
             $product = TempProduct::findOrFail($request->id);
         }
         else{
-            $product = Item::findOrFail($request->id);
+            $product = Item::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
             if ($product?->temp_product?->video) {
                 Helpers::check_and_delete('product/', $product->temp_product->video);
             }
@@ -977,7 +977,7 @@ class ItemController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $product = Item::find($request->id);
+        $product = Item::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $product->organic = $request->organic??0;
         $product->save();
 
@@ -1005,7 +1005,7 @@ class ItemController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $product = Item::find($request->id);
+        $product = Item::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $product->recommended = $request->status;
         $product->save();
 
@@ -1465,7 +1465,12 @@ class ItemController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $review = Review::findOrFail($request->id);
+        // A store may only answer reviews of its own items (store_id is set on first reply).
+        $storeId = $request['vendor']?->stores[0]?->id;
+        $review = Review::where(function ($q) use ($storeId) {
+            $q->where('store_id', $storeId)
+                ->orWhereIn('item_id', Item::where('store_id', $storeId)->select('id'));
+        })->findOrFail($request->id);
         $review->reply = $request->reply;
         $review->replied_at = now();
         $review->store_id = $request['vendor']?->stores[0]?->id;

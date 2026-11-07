@@ -224,7 +224,8 @@ class AdvertisementController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
 
         }
-        $advertisement =Advertisement::where('id',$id)->first();
+        $advertisement = Advertisement::where('id', $id)
+            ->where('store_id', $request?->vendor?->stores[0]?->id)->firstOrFail();
 
         $advertisement->title = $data[0]['value'];
         $advertisement->description = $data[1]['value'];
@@ -303,7 +304,8 @@ class AdvertisementController extends Controller
     public function destroy(Request $request,$id)
     {
         $store_id = $request?->vendor?->stores[0]?->id;
-        $advertisement =Advertisement::where('id',$id)->where('store_id', $store_id)->first();
+        // 404 for an advertisement that is not this store's instead of reporting a deletion that never happened.
+        $advertisement = Advertisement::where('id',$id)->where('store_id', $store_id)->firstOrFail();
 
         if($advertisement?->cover_image)
         {
@@ -384,8 +386,8 @@ class AdvertisementController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $advertisement= Advertisement::where('id', $request->id)->first();
         $store_id = $request?->vendor?->stores[0]?->id;
+        $advertisement = Advertisement::where('id', $request->id)->where('store_id', $store_id)->firstOrFail();
 
 
         $dateRange = $request->dates;

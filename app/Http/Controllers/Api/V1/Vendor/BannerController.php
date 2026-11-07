@@ -61,9 +61,10 @@ class BannerController extends Controller
         return response()->json(['message' => translate('messages.banner_added_successfully')], 200);
     }
 
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
-        $banner = Banner::withoutGlobalScope('translate')->with('translations')->find($id);
+        $banner = Banner::withoutGlobalScope('translate')->with('translations')
+            ->where('type', 'store_wise')->where('data', (string) $request->vendor->stores[0]->id)->find($id);
 
         if ($banner) {
             return response()->json($banner, 200);
@@ -85,7 +86,7 @@ class BannerController extends Controller
 
         $data = json_decode($request->translations, true);
 
-        $banner = Banner::find($request->id);
+        $banner = Banner::where('type', 'store_wise')->where('data', (string) $request->vendor->stores[0]->id)->findOrFail($request->id);
         $banner->title = $data[0]['value'];
         $banner->image = $request->has('image') ? Helpers::update('banner/', $banner->image, 'png', $request->file('image')) : $banner->image;
         $banner->default_link = $request->default_link;
@@ -113,7 +114,7 @@ class BannerController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $banner = Banner::findOrFail($request->id);
+        $banner = Banner::where('type', 'store_wise')->where('data', (string) $request->vendor->stores[0]->id)->findOrFail($request->id);
 
         Helpers::check_and_delete('banner/' , $banner['image']);
 
@@ -133,7 +134,7 @@ class BannerController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $banner = Banner::findOrFail($request->id);
+        $banner = Banner::where('type', 'store_wise')->where('data', (string) $request->vendor->stores[0]->id)->findOrFail($request->id);
         $banner->status = $request->status;
         $banner->save();
 
@@ -147,7 +148,7 @@ class BannerController extends Controller
         $offset = $request['offset']??1;
 
         $key = explode(' ', $request['search']);
-        $banners=Banner::where('created_by','store')->where('store_id', $vendor->stores[0]->id)->where(function ($q) use ($key) {
+        $banners=Banner::where('type', 'store_wise')->where('data', (string) $vendor->stores[0]->id)->where(function ($q) use ($key) {
             foreach ($key as $value) {
                 $q->orWhere('name', 'like', "%{$value}%");
             }

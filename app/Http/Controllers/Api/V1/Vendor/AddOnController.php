@@ -116,7 +116,7 @@ class AddOnController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $addon = AddOn::withoutGlobalScope(StoreScope::class)->find($request->id);
+        $addon = AddOn::withoutGlobalScope(StoreScope::class)->where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $addon->name = $data[0]['value'];;
         $addon->price = $request->price;
         $addon->addon_category_id = $request->addon_category_id;
@@ -175,7 +175,7 @@ class AddOnController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $addon = AddOn::withoutGlobalScope(StoreScope::class)->withoutGlobalScope('translate')->findOrFail($request->id);
+        $addon = AddOn::withoutGlobalScope(StoreScope::class)->withoutGlobalScope('translate')->where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $addon->translations()->delete();
         $addon?->taxVats()->delete();
         $addon->delete();
@@ -201,7 +201,7 @@ class AddOnController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $addon_data = AddOn::withoutGlobalScope(StoreScope::class)->findOrFail($request->id);
+        $addon_data = AddOn::withoutGlobalScope(StoreScope::class)->where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $addon_data->status = $request->status;
         $addon_data->save();
 

@@ -115,7 +115,8 @@ class WithdrawMethodController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $method = DisbursementWithdrawalMethod::find($request->id);
+        // Only the caller's own store's methods; the store column is the owner.
+        $method = DisbursementWithdrawalMethod::where('store_id', $store['id'])->findOrFail($request->id);
         $method->is_default = $request->is_default;
         $method->save();
         DisbursementWithdrawalMethod::whereNot('id', $request->id)->where('store_id',$store['id'])->update(['is_default' => 0]);
@@ -132,7 +133,7 @@ class WithdrawMethodController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $method = DisbursementWithdrawalMethod::find($request->id);
+        $method = DisbursementWithdrawalMethod::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->id);
         $method->delete();
         return response()->json(['message'=>translate('messages.method_deleted_successfully')], 200);
     }

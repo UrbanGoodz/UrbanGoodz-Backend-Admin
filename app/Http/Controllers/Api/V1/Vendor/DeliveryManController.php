@@ -154,7 +154,8 @@ class DeliveryManController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)],403);
         }
 
-        $delivery_man = DeliveryMan::find($request->delivery_man_id);
+        // A vendor may only change the status of its own store's drivers.
+        $delivery_man = DeliveryMan::where('store_id', $request->vendor->stores[0]->id)->find($request->delivery_man_id);
         if(!$delivery_man)
         {
             return response()->json([
@@ -229,7 +230,7 @@ class DeliveryManController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)],403);
         }
 
-        $delivery_man = DeliveryMan::find($id);
+        $delivery_man = DeliveryMan::where('store_id', $request->vendor->stores[0]->id)->find($id);
         if(!$delivery_man)
         {
             return response()->json([
@@ -288,7 +289,7 @@ class DeliveryManController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)],403);
         }
 
-        $delivery_man = DeliveryMan::find($request->delivery_man_id);
+        $delivery_man = DeliveryMan::where('store_id', $request->vendor->stores[0]->id)->find($request->delivery_man_id);
         if(!$delivery_man)
         {
             return response()->json([

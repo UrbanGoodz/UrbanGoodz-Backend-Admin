@@ -98,7 +98,7 @@ class CouponController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $coupon = Coupon::find($request->coupon_id);
+        $coupon = Coupon::where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->coupon_id);
         $coupon['data'] = json_decode($coupon['data'],true);
         $coupon['customer_id'] = json_decode($coupon['customer_id'],true);
         return response()->json([$coupon],200);
@@ -112,7 +112,7 @@ class CouponController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $coupon = Coupon::withoutGlobalScope('translate')->find($request->coupon_id);
+        $coupon = Coupon::withoutGlobalScope('translate')->where('store_id', $request->vendor->stores[0]->id)->findOrFail($request->coupon_id);
         $coupon['data'] = json_decode($coupon['data'],true);
         $coupon['customer_id'] = json_decode($coupon['customer_id'],true);
         return response()->json([$coupon],200);
@@ -141,7 +141,7 @@ class CouponController extends Controller
         $store_id = $request->vendor->stores[0]->id;
         $customer_id  = $request->customer_ids ?? ['all'];
 
-        $coupon = Coupon::where(['id' => $request->coupon_id])->where('created_by', 'vendor' )->where('store_id',$store_id)->first();
+        $coupon = Coupon::where(['id' => $request->coupon_id])->where('created_by', 'vendor' )->where('store_id',$store_id)->firstOrFail();
 
         $coupon->title = $data[0]['value'];
         $coupon->code = $request->code;
@@ -181,7 +181,7 @@ class CouponController extends Controller
         }
         $store_id = $request->vendor->stores[0]->id;
 
-        $coupon = Coupon::where(['id' => $request->coupon_id])->where('created_by', 'vendor' )->where('store_id',$store_id)->first();
+        $coupon = Coupon::where(['id' => $request->coupon_id])->where('created_by', 'vendor' )->where('store_id',$store_id)->firstOrFail();
 
         $coupon->status = $request->status;
         $coupon->save();
@@ -198,7 +198,7 @@ class CouponController extends Controller
         }
         $store_id = $request->vendor->stores[0]->id;
 
-        $coupon = Coupon::where(['id' => $request->coupon_id])->where('created_by', 'vendor' )->where('store_id',$store_id)->first();
+        $coupon = Coupon::where(['id' => $request->coupon_id])->where('created_by', 'vendor' )->where('store_id',$store_id)->firstOrFail();
         $coupon->delete();
         return response()->json(['message' => translate('messages.coupon_deleted_successfully')], 200);
 
