@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\UrbanGoodz\OrderAnywhereNLPService;
 use App\Services\UrbanGoodz\AI\AIProviderManager;
+use App\Services\UrbanGoodz\AI\FallbackProvider;
 use App\Services\UrbanGoodz\AI\GeminiProvider;
 use App\Services\UrbanGoodz\AI\Persona\PersonaRegistry;
 use App\Services\UrbanGoodz\UrbanGoodzAIService;
@@ -17,11 +18,23 @@ class UrbanGoodzEcosystemEndToEndTest extends TestCase
      */
     public function test_gemini_3_6_flash_central_ai_brain_configuration(): void
     {
-        $manager = new AIProviderManager();
-        $provider = $manager->resolve();
+        // Explicit config so the result does not depend on a local .env: the
+        // shipped design is Gemini primary with an OpenAI fallback.
+        config()->set('urban_goodz_ai.provider', 'gemini');
+        config()->set('urban_goodz_ai.fallback_provider', 'openai');
+        config()->set('urban_goodz_ai.providers.gemini.model', 'gemini-3.6-flash');
 
-        $this->assertInstanceOf(GeminiProvider::class, $provider);
-        $this->assertEquals('gemini', $provider->name());
+        $manager = new AIProviderManager();
+
+        $primary = $manager->resolve(withFallback: false);
+        $this->assertInstanceOf(GeminiProvider::class, $primary);
+        $this->assertEquals('gemini', $primary->name());
+        $this->assertEquals('gemini-3.6-flash', $primary->model());
+
+        $provider = $manager->resolve();
+        $this->assertInstanceOf(FallbackProvider::class, $provider);
+        $this->assertEquals('gemini', $provider->primaryName());
+        $this->assertEquals('openai', $provider->fallbackName());
         $this->assertEquals('gemini-3.6-flash', $provider->model());
 
         $aiService = new UrbanGoodzAIService($manager);

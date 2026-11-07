@@ -13,7 +13,7 @@ class GeminiProvider extends AbstractAIProvider
      * the production key; gemini-flash-latest is the fallback alias if a
      * specific version is ever retired again.
      */
-    public const DEFAULT_MODEL = 'gemini-flash-latest';
+    public const DEFAULT_MODEL = 'gemini-3.6-flash';
 
     public function name(): string
     {
