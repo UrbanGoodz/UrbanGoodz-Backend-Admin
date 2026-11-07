@@ -6,6 +6,7 @@ use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\StoreWallet;
 use App\Models\UrbanGoodzDriverPayoutRequest;
+use App\Services\UrbanGoodzPayoutGuard;
 use App\Services\UrbanGoodzPayoutSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -162,7 +163,7 @@ class UrbanGoodzVendorPayoutController extends Controller
             $basis = $quote['basis'];
         }
 
-        $payout = UrbanGoodzDriverPayoutRequest::create([
+        $payout = UrbanGoodzPayoutGuard::createVendorPayout($vendorId, $amount, [
             'payee_type' => UrbanGoodzPayoutSettings::PAYEE_VENDOR,
             'vendor_id' => $vendorId,
             'delivery_man_id' => null,
@@ -178,10 +179,20 @@ class UrbanGoodzVendorPayoutController extends Controller
             'driver_notes' => $request->input('notes'),
         ]);
 
-        // Reserve the amount so a second request cannot claim the same money
-        // before this one settles. This mirrors what the platform's own
-        // withdrawal flow does.
-        $wallet->increment('pending_withdraw', $amount);
+        // The guard re-checks the balance and the in-flight rule under a row
+        // lock and reserves the amount in the same transaction.
+        if (is_string($payout)) {
+            return match ($payout) {
+                'request_in_flight' => response()->json([
+                    'status' => 'error', 'code' => 'request_in_flight',
+                    'message' => 'You already have a payout being processed.',
+                ], 409),
+                default => response()->json([
+                    'status' => 'error', 'code' => 'exceeds_balance',
+                    'message' => 'That is more than your available balance.',
+                ], 422),
+            };
+        }
 
         return response()->json([
             'status' => 'success',

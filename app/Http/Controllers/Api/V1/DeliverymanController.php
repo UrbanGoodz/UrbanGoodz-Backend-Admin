@@ -31,6 +31,7 @@ use App\Models\DeliveryHistory;
 use App\Models\DeliveryMan;
 use App\Models\UrbanGoodzDriverEarning;
 use App\Models\UrbanGoodzDriverPayoutRequest;
+use App\Services\UrbanGoodzPayoutGuard;
 use App\Services\UrbanGoodzPayoutSettings;
 use App\Models\DeliverymanLoyaltyPointHistory;
 use App\Models\DeliverymanReferralHistory;
@@ -2002,7 +2003,7 @@ class DeliverymanController extends Controller
             }
 
             try {
-                UrbanGoodzDriverPayoutRequest::create([
+                $created = UrbanGoodzPayoutGuard::createDriverPayout($dm->id, (float) $request['amount'], [
                     'payee_type' => 'driver',
                     'delivery_man_id' => $dm->id,
                     'payout_type' => $payoutType,
@@ -2016,6 +2017,13 @@ class DeliverymanController extends Controller
                     'status' => 'pending',
                     'driver_notes' => $request['sender_note'] ?? null,
                 ]);
+
+                if (!$created) {
+                    // Lost the race for the balance to a concurrent request.
+                    return response()->json([
+                        'errors' => [['code' => 'amount', 'message' => translate('messages.insufficient_balance')]],
+                    ], 403);
+                }
 
                 $mail_status = Helpers::get_mail_status('dm_withdraw_request_mail_status_admin');
                 $admin = Admin::where('role_id', 1)->first();

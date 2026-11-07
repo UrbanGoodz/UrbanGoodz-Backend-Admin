@@ -18,6 +18,7 @@ use App\Models\UrbanGoodzAgeVerification;
 use App\Models\UrbanGoodzPaymentSplit;
 use App\Models\DeliveryMan;
 use App\Services\UrbanGoodz\RouteCompletionSettlementService;
+use App\Services\UrbanGoodzPayoutGuard;
 use App\Services\UrbanGoodzPayoutSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -943,7 +944,7 @@ class UrbanGoodzDriverApiController extends Controller
             $basis = $quote['basis'];
         }
 
-        $payout = UrbanGoodzDriverPayoutRequest::create([
+        $payout = UrbanGoodzPayoutGuard::createDriverPayout($driver->id, (float) $request->amount, [
             'payee_type' => UrbanGoodzPayoutSettings::PAYEE_DRIVER,
             'delivery_man_id' => $driver->id,
             'payout_type' => $request->payout_type,
@@ -957,6 +958,14 @@ class UrbanGoodzDriverApiController extends Controller
             'net_amount' => round($request->amount - $instantFee, 2),
             'status' => 'pending',
         ]);
+
+        if (!$payout) {
+            // Another request took the balance between the check above and the insert.
+            return response()->json([
+                'error' => 'Requested amount exceeds pending earnings',
+                'available_earnings' => UrbanGoodzPayoutGuard::driverAvailable($driver->id),
+            ], 400);
+        }
 
         return response()->json([
             'message' => 'Payout requested',
