@@ -363,10 +363,15 @@ class CustomerController extends Controller
         $orderId = $request->input('order_id');
 
         if ($orderId) {
-            $unpaidOrder = Order::where('id', $orderId)->first();
+            // Scope to the caller; guest ids and customer ids share one numeric space.
+            $unpaidOrder = Order::where('id', $orderId)
+                ->where('user_id', $user_id)
+                ->where('is_guest', $request->user ? 0 : 1)
+                ->first();
         }
         else {
             $unpaidOrder = Order::where('user_id', $user_id)
+                ->where('is_guest', $request->user ? 0 : 1)
                 ->where('created_at', '>=', now()->subMonths(1))
                 ->whereIn('order_status', ['pending','failed'])
                 ->whereNotIn('payment_method', ['cash_on_delivery', 'wallet'])

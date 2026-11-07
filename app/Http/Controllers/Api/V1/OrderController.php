@@ -99,9 +99,7 @@ class OrderController extends Controller
 
         $paginator = Order::with(['store', 'delivery_man.rating', 'parcel_category', 'refund:order_id,admin_note,customer_note'])->withCount('details')->where(['user_id' => $user_id])
         ->whereIn('order_status', ['delivered', 'canceled', 'refund_requested', 'refund_request_canceled', 'refunded', 'failed','returned'])
-            ->when(isset($request->user), function ($query) {
-                $query->where('is_guest', 0);
-            })
+            ->where('is_guest', isset($request->user) ? 0 : 1)
 
             ->Notpos()->latest()->paginate($request['limit'], ['*'], 'page', $request['offset']);
         $orders = array_map(function ($data) {
@@ -135,9 +133,7 @@ class OrderController extends Controller
         $user_id = $request->user ? $request->user->id : $request['guest_id'];
 
         $paginator = Order::with(['store', 'delivery_man.rating', 'parcel_category'])
-            ->when(isset($request->user), function ($query) {
-                $query->where('is_guest', 0);
-            })
+            ->where('is_guest', isset($request->user) ? 0 : 1)
             ->withCount('details')
             ->where(['user_id' => $user_id])->whereNotIn('order_status', ['delivered', 'canceled', 'refund_requested', 'refund_request_canceled', 'refunded', 'failed','returned'])
             ->Notpos()->latest()->paginate($request['limit'], ['*'], 'page', $request['offset']);
@@ -161,20 +157,21 @@ class OrderController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'order_id' => 'required',
+            // A guest must prove which guest session owns the order.
+            'guest_id' => $request->user ? 'nullable' : 'required',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $user_id = $request?->user?->id;
+        $user_id = $request->user ? $request->user->id : $request['guest_id'];
 
+        // Always scope to the caller: a signed-in customer sees only their own
+        // orders, a guest only the orders created by their own guest_id.
         $order = Order::with('details', 'offline_payments', 'parcel_category','parcelCancellation')
-            ->when(isset($request->user), function ($query) {
-                $query->where('is_guest', 0);
-            })
-            ->when($request->user, function ($query) use ($user_id) {
-                return $query->where('user_id', $user_id);
-            })->findOrFail($request->order_id);
+            ->where('is_guest', isset($request->user) ? 0 : 1)
+            ->where('user_id', $user_id)
+            ->findOrFail($request->order_id);
 
         $details = isset($order->details) ? $order->details : null;
         if ($details != null && $details->count() > 0) {
@@ -218,9 +215,7 @@ class OrderController extends Controller
         }
 
         $order = Order::where(['user_id' => $user_id, 'id' => $request['order_id']])
-            ->when(isset($request->user), function ($query) {
-                $query->where('is_guest', 0);
-            })->Notpos()->first();
+            ->where('is_guest', isset($request->user) ? 0 : 1)->Notpos()->first();
 
         if (!$order) {
             return response()->json([
@@ -304,9 +299,7 @@ class OrderController extends Controller
         }
 
         $order = Order::where(['user_id' => $request->user->id, 'id' => $request['order_id']])
-            ->when(isset($request->user), function ($query) {
-                $query->where('is_guest', 0);
-            })
+            ->where('is_guest', isset($request->user) ? 0 : 1)
             ->Notpos()->first();
         if (!$order) {
             return response()->json([
@@ -381,16 +374,16 @@ class OrderController extends Controller
         }
 
         $user_id = $request->user ? $request->user->id : $request['guest_id'];
-        $order = Order::where(['user_id' => $user_id, 'id' => $request['order_id']])->Notpos()->first();
+        $order = Order::where(['user_id' => $user_id, 'is_guest' => $request->user ? 0 : 1, 'id' => $request['order_id']])->Notpos()->first();
         if ($order) {
             if ($order->payment_method != 'partial_payment') {
-                Order::where(['user_id' => $user_id, 'id' => $request['order_id']])->update([
+                Order::where(['user_id' => $user_id, 'is_guest' => $request->user ? 0 : 1, 'id' => $request['order_id']])->update([
                     'payment_method' => 'cash_on_delivery',
                     'order_status' => 'pending',
                     'pending' => now()
                 ]);
             } else {
-                Order::where(['user_id' => $user_id, 'id' => $request['order_id']])->update([
+                Order::where(['user_id' => $user_id, 'is_guest' => $request->user ? 0 : 1, 'id' => $request['order_id']])->update([
                     'order_status' => 'pending',
                     'pending' => now(),
                 ]);
@@ -401,7 +394,7 @@ class OrderController extends Controller
                 $payment->save();
             }
 
-            $order = Order::where(['user_id' => $user_id, 'id' => $request['order_id']])->Notpos()->first();
+            $order = Order::where(['user_id' => $user_id, 'is_guest' => $request->user ? 0 : 1, 'id' => $request['order_id']])->Notpos()->first();
 
             $order_mail_status = Helpers::get_mail_status('place_order_mail_status_user');
             $order_verification_mail_status = Helpers::get_mail_status('order_verification_mail_status_user');
@@ -479,6 +472,18 @@ class OrderController extends Controller
         ], 200);
     }
 
+    /**
+     * Orders the caller owns. user_id alone is not enough: guest ids and customer
+     * ids share one numeric space, so a guest must also be limited to is_guest = 1
+     * (and a signed-in customer to is_guest = 0).
+     */
+    private function ownedOrders(Request $request)
+    {
+        $ownerId = $request->user ? $request->user->id : $request->input('guest_id');
+
+        return Order::where('user_id', $ownerId)->where('is_guest', $request->user ? 0 : 1);
+    }
+
     public function offline_payment(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -498,7 +503,7 @@ class OrderController extends Controller
                 ]
             ], 403);
         }
-        $order = Order::findOrFail($request->order_id);
+        $order = $this->ownedOrders($request)->findOrFail($request->order_id);
 
         $offline_payment_info = [];
         $method = OfflinePaymentMethod::where(['id' => $request->method_id, 'status' => 1])->first();
@@ -561,7 +566,7 @@ class OrderController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
-        $order = Order::where('id', $request->order_id)->firstOrfail();
+        $order = $this->ownedOrders($request)->where('id', $request->order_id)->firstOrfail();
 
         $info = OfflinePayments::where('order_id', $request->order_id)->firstOrfail();
         $old_data =   json_decode($info->payment_info, true);
@@ -752,7 +757,12 @@ class OrderController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $order = Order::where(['id' => $request->order_id])->with('parcelCancellation')->first();
+        $order = $this->ownedOrders($request)->where('id', $request->order_id)->with('parcelCancellation')->first();
+        if (! $order) {
+            return response()->json([
+                'errors' => [['code' => 'order', 'message' => translate('messages.not_found')]],
+            ], 404);
+        }
 
 
         $validationCheck =  OrderLogic::makeValidationForParcelReturn($request,$order);
@@ -783,9 +793,27 @@ class OrderController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
-        $order = Order::where(['id' => $request->order_id])->first();
+        // Only the signed-in owner of an order may pay it from their wallet.
+        // Previously any caller could name any order_id and debit its owner.
+        if (! $request->user) {
+            return response()->json([
+                'errors' => [['code' => 'auth-001', 'message' => 'Unauthenticated.']],
+            ], 401);
+        }
+
+        $order = Order::where(['id' => $request->order_id, 'user_id' => $request->user->id, 'is_guest' => 0])
+            ->Notpos()
+            ->first();
+        if (! $order) {
+            return response()->json([
+                'errors' => [['code' => 'order', 'message' => translate('messages.not_found')]],
+            ], 404);
+        }
         if($order->payment_status == 'paid'){
             return response()->json(['message' => translate('messages.Order_payment_successfully')], 200);
+        }
+        if (in_array($order->order_status, ['canceled', 'failed', 'refunded'], true)) {
+            return response()->json(['message' => translate('messages.some_thing_went_wrong')], 400);
         }
 
         $walletTransaction = CustomerLogic::create_wallet_transaction($order->user_id, $order->order_amount, 'order_place', $order->id);
