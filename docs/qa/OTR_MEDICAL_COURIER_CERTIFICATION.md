@@ -36,5 +36,5 @@ freight document capture, real payout settlement, road distances, and anything n
 6. 2-opt/Or-opt ignore time windows (see the logistics doc); distances are straight-line unless the routing provider is configured.
 
 ## Verified to work
-Admin-assigned and driver-accepted flows through assigned -> in_transit -> delivered with audit events; only the assigned driver can act; the
+Driver-accepted flows through assigned -> in_transit -> delivered with audit events (the admin assignment screens were not exercised); only the assigned driver can act; the
 state machines reject skipped and repeated steps; medical payout is created exactly once; replayed package scans do not duplicate custody entries.
