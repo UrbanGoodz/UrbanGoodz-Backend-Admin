@@ -263,7 +263,10 @@ class PackageScanWorkflowService
                 'from_user_type' => 'client',
                 'to_user_id' => $driver->id,
                 'to_user_type' => 'driver',
-                'seal_intact' => true,
+                // What the driver attested, or NULL (not attested). This used to be a hard-coded
+                // `true`, which recorded a seal check nobody performed.
+                'seal_intact' => array_key_exists('seal_intact', $event) && $event['seal_intact'] !== null ? (bool) $event['seal_intact'] : null,
+                'temperature' => $event['temperature'] ?? null,
                 'notes' => 'Idempotent package workflow pickup',
             ]);
         }
@@ -313,7 +316,8 @@ class PackageScanWorkflowService
                 'from_user_type' => 'driver',
                 'to_user_id' => null,
                 'to_user_type' => 'recipient',
-                'seal_intact' => true,
+                'seal_intact' => array_key_exists('seal_intact', $event) && $event['seal_intact'] !== null ? (bool) $event['seal_intact'] : null,
+                'temperature' => $event['temperature'] ?? null,
                 'signature' => $event['signature'] ?? $package->recipient_signature,
                 'notes' => 'Idempotent package workflow dropoff',
             ]);

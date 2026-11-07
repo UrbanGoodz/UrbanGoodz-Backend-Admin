@@ -117,13 +117,18 @@ class UrbanGoodzMedicalCourierService
         try {
             DB::beginTransaction();
 
-            $job->update([
-                'status' => 'assigned',
-                'assigned_driver_id' => $driverId,
-                'assigned_at' => now(),
-            ]);
+            // Compare-and-swap so two drivers accepting the same specimen run cannot both win.
+            $claimed = UrbanGoodzMedicalCourierJob::where('id', $jobId)
+                ->where('status', 'pending')
+                ->whereNull('assigned_driver_id')
+                ->update(['status' => 'assigned', 'assigned_driver_id' => $driverId, 'assigned_at' => now(), 'updated_at' => now()]);
+            if ($claimed !== 1) {
+                DB::rollBack();
+                return null;
+            }
 
-            $this->logCustody($jobId, 'assigned', $driver->name ?? 'System', 'admin', null, "Job assigned to driver #{$driverId}");
+            $name = trim(($driver->f_name ?? '').' '.($driver->l_name ?? '')) ?: "Driver #{$driverId}";
+            $this->logCustody($jobId, 'assigned', $name, 'driver', $driverId, "Job accepted by driver #{$driverId}");
 
             DB::commit();
             return $job->fresh();
@@ -152,9 +157,21 @@ class UrbanGoodzMedicalCourierService
             if ($status === 'picked_up') {
                 $update['picked_up_at'] = now();
             }
+
+            // Claim the transition first. Only the call that actually changes the row may go on
+            // to pay: two concurrent "delivered" calls used to both pass the check above and both
+            // credit the driver.
+            $claimed = UrbanGoodzMedicalCourierJob::where('id', $jobId)
+                ->where('status', $job->status)
+                ->update($update + ['updated_at' => now()]);
+            if ($claimed !== 1) {
+                DB::rollBack();
+                return null;
+            }
+
             if ($status === 'delivered') {
-                $update['delivered_at'] = now();
-                
+                UrbanGoodzMedicalCourierJob::where('id', $jobId)->update(['delivered_at' => now()]);
+
                 $finalDriverId = $driverId ?? $job->assigned_driver_id;
                 if ($finalDriverId) {
                     try {
@@ -183,12 +200,10 @@ class UrbanGoodzMedicalCourierService
                 }
             }
 
-            $job->update($update);
-
             $handlerName = 'System';
             if ($driverId) {
                 $driver = DeliveryMan::find($driverId);
-                $handlerName = $driver->name ?? "Driver #{$driverId}";
+                $handlerName = $driver ? (trim($driver->f_name.' '.$driver->l_name) ?: "Driver #{$driverId}") : "Driver #{$driverId}";
             }
             $this->logCustody($jobId, $status, $handlerName, $driverId ? 'driver' : 'admin', $driverId, $notes);
 

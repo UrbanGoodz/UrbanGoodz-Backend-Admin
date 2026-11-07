@@ -8,6 +8,7 @@ use App\Models\OrderAnywhereRequest;
 use App\Models\UrbanGoodzLoadBoardLoad;
 use App\Models\UrbanGoodzDedicatedRoute;
 use App\Models\UrbanGoodzBusinessClientJob;
+use App\Services\UrbanGoodz\UrbanGoodzLoadBoardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -150,23 +151,87 @@ class UrbanGoodzDriverActiveJobsController extends Controller
     public function acceptJob(Request $request, int $jobId)
     {
         $driver = $this->authDriver($request);
+        $service = app(UrbanGoodzLoadBoardService::class);
 
-        $job = UrbanGoodzLoadBoardLoad::where('id', $jobId)
+        $load = UrbanGoodzLoadBoardLoad::where('id', $jobId)
             ->whereNull('assigned_driver_id')
             ->where('status', 'available')
             ->first();
 
-        if (!$job) {
+        if (!$load) {
             abort(404, 'Load not available');
         }
 
-        $job->update([
-            'assigned_driver_id' => $driver->id,
-            'status' => 'accepted',
-            'accepted_at' => now(),
-        ]);
+        // Same rules as bidding: load-board vetting, hazmat endorsement, equipment.
+        $reason = $service->ineligibilityReason($load, $driver, true);
+        if ($reason !== null) {
+            return response()->json(['errors' => [['code' => $reason, 'message' => 'You are not eligible to take this load.']]], 403);
+        }
 
-        return response()->json(['job' => $this->normalizeActiveJob($job->fresh(), 'load_board')]);
+        // Atomic claim through the service (audit event, current_orders, status "assigned").
+        // This used to write status "accepted", which is not in the load state machine, so
+        // dispatchers could neither progress nor cancel the load.
+        $claimed = $service->acceptLoad($jobId, $driver->id, null, true);
+        if (!$claimed) {
+            return response()->json(['errors' => [['code' => 'load_taken', 'message' => 'This load was just taken by another driver.']]], 409);
+        }
+
+        return response()->json(['job' => $this->normalizeActiveJob($claimed, 'load_board')]);
+    }
+
+    private function loadTransitionConflict(UrbanGoodzLoadBoardLoad $load, string $action)
+    {
+        return response()->json(['errors' => [[
+            'code' => 'invalid_load_state',
+            'message' => "A load that is \"{$load->status}\" cannot be {$action}. Contact dispatch.",
+        ]]], 409);
+    }
+
+    private function startLoad(DeliveryMan $driver, UrbanGoodzLoadBoardLoad $load)
+    {
+        if (!in_array($load->status, ['assigned', 'exception'], true)) {
+            return $this->loadTransitionConflict($load, 'started');
+        }
+        $updated = app(UrbanGoodzLoadBoardService::class)->updateStatus($load->id, 'in_transit', $driver->id, 'driver');
+
+        return $updated
+            ? response()->json(['job' => $this->normalizeActiveJob($updated, 'load_board')])
+            : $this->loadTransitionConflict($load, 'started');
+    }
+
+    private function completeLoad(DeliveryMan $driver, UrbanGoodzLoadBoardLoad $load)
+    {
+        if (!in_array($load->status, ['in_transit', 'picked_up'], true)) {
+            return $this->loadTransitionConflict($load, 'delivered');
+        }
+        $service = app(UrbanGoodzLoadBoardService::class);
+        $updated = $load;
+        if ($updated->status === 'in_transit') {
+            $updated = $service->updateStatus($load->id, 'picked_up', $driver->id, 'driver');
+        }
+        $updated = $updated ? $service->updateStatus($load->id, 'delivered', $driver->id, 'driver') : null;
+
+        return $updated
+            ? response()->json(['job' => $this->normalizeActiveJob($updated, 'load_board')])
+            : $this->loadTransitionConflict($load, 'delivered');
+    }
+
+    private function releaseLoad(DeliveryMan $driver, UrbanGoodzLoadBoardLoad $load)
+    {
+        // A driver may hand a load back only before it has been started. Once it is moving, or
+        // finished, releasing it would reopen freight already on a truck (or a delivered load).
+        $released = UrbanGoodzLoadBoardLoad::where('id', $load->id)
+            ->where('assigned_driver_id', $driver->id)
+            ->where('status', 'assigned')
+            ->update(['status' => 'available', 'assigned_driver_id' => null, 'assigned_at' => null, 'updated_at' => now()]);
+
+        if ($released !== 1) {
+            return $this->loadTransitionConflict($load->fresh() ?? $load, 'released');
+        }
+        DeliveryMan::where('id', $driver->id)->where('current_orders', '>', 0)->decrement('current_orders');
+        $load->logEvent('status_change', 'assigned', 'available', null, 'driver', $driver->id, 'Released by driver before pickup');
+
+        return response()->json(['message' => 'Job cancelled successfully']);
     }
 
     public function startJob(Request $request, int $jobId)
@@ -178,10 +243,12 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Job not found');
         }
 
-        $updateFields = ['driver_task_status' => 'in_progress', 'driver_started_at' => now()];
         if ($job instanceof UrbanGoodzLoadBoardLoad) {
-            $updateFields['status'] = 'in_transit';
-        } elseif ($job instanceof OrderAnywhereRequest) {
+            return $this->startLoad($driver, $job);
+        }
+
+        $updateFields = ['driver_task_status' => 'in_progress', 'driver_started_at' => now()];
+        if ($job instanceof OrderAnywhereRequest) {
             $updateFields['status'] = 'shopping';
         } elseif ($job instanceof UrbanGoodzBusinessClientJob) {
             $updateFields['status'] = 'in_progress';
@@ -204,10 +271,12 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Job not found');
         }
 
-        $updateFields = ['driver_task_status' => 'completed', 'driver_completed_at' => now()];
         if ($job instanceof UrbanGoodzLoadBoardLoad) {
-            $updateFields['status'] = 'delivered';
-        } elseif ($job instanceof OrderAnywhereRequest) {
+            return $this->completeLoad($driver, $job);
+        }
+
+        $updateFields = ['driver_task_status' => 'completed', 'driver_completed_at' => now()];
+        if ($job instanceof OrderAnywhereRequest) {
             $updateFields['status'] = 'completed';
         } elseif ($job instanceof UrbanGoodzBusinessClientJob) {
             $updateFields['status'] = 'delivered';
@@ -244,12 +313,12 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Job not found');
         }
 
-        $updateFields = ['driver_task_status' => 'cancelled'];
         if ($job instanceof UrbanGoodzLoadBoardLoad) {
-            $updateFields['status'] = 'available';
-            $updateFields['assigned_driver_id'] = null;
-            $updateFields['accepted_at'] = null;
-        } elseif ($job instanceof OrderAnywhereRequest) {
+            return $this->releaseLoad($driver, $job);
+        }
+
+        $updateFields = ['driver_task_status' => 'cancelled'];
+        if ($job instanceof OrderAnywhereRequest) {
             $updateFields['status'] = 'pending_review';
             $updateFields['assigned_delivery_man_id'] = null;
         } elseif ($job instanceof UrbanGoodzBusinessClientJob) {
@@ -309,7 +378,11 @@ class UrbanGoodzDriverActiveJobsController extends Controller
         $loads = UrbanGoodzLoadBoardLoad::where('status', 'available')
             ->whereNull('assigned_driver_id')
             ->latest()
-            ->paginate($request->input('per_page', 20));
+            ->paginate(min(100, max(1, (int) $request->input('per_page', 20))));
+
+        // Whitelist projection: the raw model exposes customer price, platform margin, source
+        // cost and shipper contacts to every driver.
+        $loads->setCollection($loads->getCollection()->map(fn (UrbanGoodzLoadBoardLoad $l) => $l->driverFacing(false)));
 
         return response()->json(['loads' => $loads]);
     }
@@ -319,7 +392,7 @@ class UrbanGoodzDriverActiveJobsController extends Controller
         $driver = $this->authDriver($request);
 
         $validator = Validator::make($request->all(), [
-            'bid_amount' => 'required|numeric|min:0',
+            'bid_amount' => 'required|numeric|gt:0|max:1000000',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -335,18 +408,20 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Load not available');
         }
 
-        $bids = $load->bids ?? [];
-        $bids[] = [
-            'driver_id' => $driver->id,
-            'driver_name' => $driver->first_name . ' ' . $driver->last_name,
-            'bid_amount' => $request->bid_amount,
-            'notes' => $request->notes ?? null,
-            'bid_at' => now()->toIso8601String(),
-        ];
+        $service = app(UrbanGoodzLoadBoardService::class);
+        $reason = $service->ineligibilityReason($load, $driver, true);
+        if ($reason !== null) {
+            return response()->json(['errors' => [['code' => $reason, 'message' => 'You are not eligible to bid on this load.']]], 403);
+        }
 
-        $load->update(['bids' => $bids]);
+        // Persist a real bid (urban_goodz_load_board_bids). This used to write a `bids` attribute
+        // the loads table does not have and answer "Bid submitted successfully" while saving nothing.
+        $bid = $service->placeBid($loadId, $driver->id, (float) $request->bid_amount, $request->notes);
+        if (!$bid) {
+            return response()->json(['errors' => [['code' => 'bid_not_accepted', 'message' => 'You already have a pending bid on this load, or it is no longer available.']]], 409);
+        }
 
-        return response()->json(['message' => 'Bid submitted successfully', 'load' => $load]);
+        return response()->json(['message' => 'Bid submitted successfully', 'bid_id' => $bid->id, 'load' => $load->fresh()]);
     }
 
     // --- Opportunities ---

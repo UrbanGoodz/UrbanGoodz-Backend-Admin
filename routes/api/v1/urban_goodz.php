@@ -35,14 +35,15 @@ Route::group(['prefix' => 'urban-goodz/logistics', 'middleware' => ['auth:api', 
     Route::post('jobs/{record}/status', 'Api\V1\UrbanGoodzOpportunityController@updateLogisticsJobStatus');
 });
 
-Route::group(['prefix' => 'urban-goodz/load-board', 'middleware' => 'auth:api'], function () {
+// Driver-only (DeliveryMan token). These were behind customer auth; see UrbanGoodzOpportunityController.
+Route::group(['prefix' => 'urban-goodz/load-board', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
     Route::get('loads', 'Api\V1\UrbanGoodzOpportunityController@loadBoardLoads');
     Route::get('loads/{record}', 'Api\V1\UrbanGoodzOpportunityController@loadBoardLoad');
     Route::post('loads/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptLoadBoardLoad');
     Route::post('loads/{record}/status', 'Api\V1\UrbanGoodzOpportunityController@updateLoadBoardLoadStatus');
 });
 
-Route::group(['prefix' => 'urban-goodz/medical-courier', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+Route::group(['prefix' => 'urban-goodz/medical-courier', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
     Route::get('jobs', 'Api\V1\UrbanGoodzOpportunityController@medicalCourierJobs');
     Route::get('jobs/{record}', 'Api\V1\UrbanGoodzOpportunityController@medicalCourierJob');
     Route::post('jobs/{record}/accept', 'Api\V1\UrbanGoodzOpportunityController@acceptMedicalCourierJob');

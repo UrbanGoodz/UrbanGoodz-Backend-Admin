@@ -123,7 +123,7 @@ class UrbanGoodzLoadBoardService
         return in_array($to, self::VALID_TRANSITIONS[$from] ?? []);
     }
 
-    public function acceptLoad(int $loadId, int $driverId, ?int $adminId = null): ?UrbanGoodzLoadBoardLoad
+    public function acceptLoad(int $loadId, int $driverId, ?int $adminId = null, bool $selfServe = false): ?UrbanGoodzLoadBoardLoad
     {
         $load = UrbanGoodzLoadBoardLoad::where('status', 'available')->find($loadId);
         if (!$load) {
@@ -134,23 +134,35 @@ class UrbanGoodzLoadBoardService
             ->where('active', 1)
             ->where('application_status', 'approved')
             ->first();
-        if (!$driver) {
+        if (!$driver || $this->ineligibilityReason($load, $driver, $selfServe) !== null) {
             return null;
         }
 
         try {
             DB::beginTransaction();
 
-            $oldStatus = $load->status;
-            $load->update([
-                'status' => 'assigned',
-                'assigned_driver_id' => $driverId,
-                'assigned_by' => $adminId,
-                'assigned_at' => now(),
-            ]);
+            // Compare-and-swap: the status/assignee test is part of the UPDATE, so of two drivers
+            // accepting at the same instant exactly one changes a row. (The earlier
+            // read-then-update let both succeed and silently overwrote the first assignee.)
+            $claimed = UrbanGoodzLoadBoardLoad::where('id', $loadId)
+                ->where('status', 'available')
+                ->whereNull('assigned_driver_id')
+                ->update([
+                    'status' => 'assigned',
+                    'assigned_driver_id' => $driverId,
+                    'assigned_by' => $adminId,
+                    'assigned_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            if ($claimed !== 1) {
+                DB::rollBack();
+
+                return null;
+            }
 
             $driver->increment('current_orders');
-            $load->logEvent('status_change', $oldStatus, 'assigned', null, 'admin', $adminId, "Driver {$driver->f_name} {$driver->l_name} assigned");
+            $load->logEvent('status_change', 'available', 'assigned', null, $selfServe ? 'driver' : 'admin', $selfServe ? $driverId : $adminId, "Driver {$driver->f_name} {$driver->l_name} assigned");
 
             DB::commit();
             return $load->fresh();
@@ -223,6 +235,16 @@ class UrbanGoodzLoadBoardService
 
             $oldStatus = $load->status;
             $update = ['status' => $status];
+
+            // Claim the transition before any side effect (driver counter, payout). Of two
+            // concurrent "completed" calls only the one that changes the row may pay the driver.
+            $claimed = UrbanGoodzLoadBoardLoad::where('id', $loadId)
+                ->where('status', $oldStatus)
+                ->update(['status' => $status, 'updated_at' => now()]);
+            if ($claimed !== 1) {
+                DB::rollBack();
+                return null;
+            }
 
             if ($status === 'reviewed' || $status === 'recommended') {
                 $update['reviewed_by'] = $actorId;
@@ -546,6 +568,10 @@ class UrbanGoodzLoadBoardService
             return null;
         }
 
+        if ($bidAmount <= 0 || $this->ineligibilityReason($load, $driver, true) !== null) {
+            return null;
+        }
+
         $existingBid = UrbanGoodzLoadBoardBid::where('load_id', $loadId)
             ->where('driver_id', $driverId)
             ->where('status', 'pending')
@@ -693,10 +719,46 @@ class UrbanGoodzLoadBoardService
         }
 
         if ($load->is_hazmat) {
-            $query->where('has_hazmat_endorsement', true);
+            // The column is has_hazmat; has_hazmat_endorsement does not exist, so this lookup
+            // threw "Unknown column" for every hazmat load.
+            $query->where('has_hazmat', true);
         }
 
         return $query->get();
+    }
+
+    /**
+     * Why $driver may not take $load, or null when they may.
+     *
+     * Hazmat is a regulatory requirement and is enforced for every assignment path. The
+     * load-board vetting flag and the equipment match apply when a driver takes a load
+     * themselves. Equipment is only judged when the driver has declared a vehicle: an
+     * undeclared vehicle cannot be proven wrong, so it is not used to refuse.
+     */
+    public function ineligibilityReason(UrbanGoodzLoadBoardLoad $load, DeliveryMan $driver, bool $selfServe = true): ?string
+    {
+        if (!$driver->active || $driver->application_status !== 'approved') {
+            return 'driver_not_active';
+        }
+        if ($load->is_hazmat && !$driver->has_hazmat) {
+            return 'hazmat_endorsement_required';
+        }
+        if (!$selfServe) {
+            return null;
+        }
+        if (!$driver->load_board_eligible) {
+            return 'not_load_board_eligible';
+        }
+        if ($load->equipment_type) {
+            $declared = trim((string) $driver->vehicle_type) !== '' || trim((string) $driver->preferred_vehicle_types) !== '';
+            $matches = strcasecmp((string) $driver->vehicle_type, (string) $load->equipment_type) === 0
+                || stripos((string) $driver->preferred_vehicle_types, (string) $load->equipment_type) !== false;
+            if ($declared && !$matches) {
+                return 'equipment_mismatch';
+            }
+        }
+
+        return null;
     }
 
     public function completeWithEarnings(int $loadId, ?int $actorId = null, ?string $actorType = 'admin'): ?UrbanGoodzLoadBoardLoad

@@ -145,6 +145,10 @@ class UrbanGoodzDriverPackageScanController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'photo' => ['nullable', 'string'],
             'signature' => ['nullable', 'string'],
+            // Chain-of-custody attestations for medical packages. Optional so existing apps keep
+            // working; when absent they are recorded as "not attested" rather than assumed.
+            'seal_intact' => ['nullable', 'boolean'],
+            'temperature' => ['nullable', 'numeric', 'between:-80,60'],
             'exception_reason' => ['nullable', 'string', 'max:500'],
             'return_destination' => ['nullable', 'in:pickup,hub,business'],
             'return_location' => ['nullable', 'string', 'max:500'],
@@ -169,6 +173,10 @@ class UrbanGoodzDriverPackageScanController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'photo' => ['nullable', 'string'],
             'signature' => ['nullable', 'string'],
+            // Chain-of-custody attestations for medical packages. Optional so existing apps keep
+            // working; when absent they are recorded as "not attested" rather than assumed.
+            'seal_intact' => ['nullable', 'boolean'],
+            'temperature' => ['nullable', 'numeric', 'between:-80,60'],
             'exception_reason' => ['nullable', 'string', 'max:500'],
             'return_destination' => ['nullable', 'in:pickup,hub,business'],
             'return_location' => ['nullable', 'string', 'max:500'],

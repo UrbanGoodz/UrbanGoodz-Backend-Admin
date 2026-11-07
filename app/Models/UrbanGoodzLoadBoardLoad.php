@@ -255,4 +255,66 @@ class UrbanGoodzLoadBoardLoad extends Model
             'notes' => $notes,
         ]);
     }
+
+    /**
+     * What a driver may see about a load. Deliberately a whitelist: the raw model carries
+     * the customer price, platform margin, source cost, fees and source payload, and the
+     * shipper/consignee contacts, none of which a driver needs to browse or bid. Contacts
+     * are only included once the load is assigned to the viewing driver.
+     */
+    public function driverFacing(bool $assignedToViewer = false): array
+    {
+        $view = [
+            'id' => $this->id,
+            'load_number' => $this->load_number,
+            'status' => $this->status,
+            'origin_city' => $this->origin_city,
+            'origin_state' => $this->origin_state,
+            'origin_zip' => $this->origin_zip,
+            'destination_city' => $this->destination_city,
+            'destination_state' => $this->destination_state,
+            'destination_zip' => $this->destination_zip,
+            'origin_ready_at' => $this->origin_ready_at?->toDateTimeString(),
+            'destination_due_at' => $this->destination_due_at?->toDateTimeString(),
+            'distance_miles' => $this->distance_miles,
+            'estimated_duration_minutes' => $this->estimated_duration_minutes,
+            'payout_amount' => $this->payout_amount,
+            'driver_payout_amount' => $this->effective_driver_payout,
+            'load_type' => $this->load_type,
+            'equipment_type' => $this->equipment_type,
+            'weight_lbs' => $this->weight_lbs,
+            'length_ft' => $this->length_ft,
+            'pieces' => $this->pieces,
+            'commodity_description' => $this->commodity_description,
+            'special_requirements' => $this->special_requirements,
+            'is_hazmat' => (bool) $this->is_hazmat,
+            'is_temperature_controlled' => (bool) $this->is_temperature_controlled,
+            'temperature_min_f' => $this->temperature_min_f,
+            'temperature_max_f' => $this->temperature_max_f,
+            'requires_liftgate' => (bool) $this->requires_liftgate,
+            'requires_pallet_jack' => (bool) $this->requires_pallet_jack,
+            'is_team_load' => (bool) $this->is_team_load,
+            'is_expedited' => (bool) $this->is_expedited,
+        ];
+
+        if ($assignedToViewer) {
+            $view += [
+                'origin_name' => $this->origin_name,
+                'destination_name' => $this->destination_name,
+                'origin_lat' => $this->origin_lat,
+                'origin_lng' => $this->origin_lng,
+                'destination_lat' => $this->destination_lat,
+                'destination_lng' => $this->destination_lng,
+                'shipper_name' => $this->shipper_name,
+                'shipper_phone' => $this->shipper_phone,
+                'consignee_name' => $this->consignee_name,
+                'consignee_phone' => $this->consignee_phone,
+                'notes' => $this->notes,
+                'picked_up_at' => $this->picked_up_at?->toDateTimeString(),
+                'delivered_at' => $this->delivered_at?->toDateTimeString(),
+            ];
+        }
+
+        return $view;
+    }
 }

@@ -240,87 +240,127 @@ class UrbanGoodzOpportunityController extends Controller
     // Load Board
     // =========================================================================
 
+    // =========================================================================
+    // Driver-only: OTR load board and medical courier jobs
+    //
+    // These routes are behind `dm.api` (driver token). They were behind the customer
+    // Passport guard, which let any customer account accept loads and jobs, move any load
+    // or job through its lifecycle, write chain-of-custody entries, and read full records
+    // including platform margins; the customer's user id was even used as the driver id.
+    // The acting driver is always the authenticated driver, never a value from the request.
+    // =========================================================================
+
+    private function actingDriver(): \App\Models\DeliveryMan
+    {
+        $driver = auth('delivery_men')->user();
+        abort_unless($driver, 401, 'Driver authentication required.');
+
+        return $driver;
+    }
+
+    private function forbidden(string $code, string $message)
+    {
+        return response()->json(['success' => false, 'errors' => [['code' => $code, 'message' => $message]], 'message' => $message], 403);
+    }
+
     public function loadBoardLoads(Request $request, UrbanGoodzLoadBoardService $loadBoardService)
     {
-        $filters = $request->only([
-            'origin_state', 'destination_state', 'load_type', 'equipment_type',
-            'min_payout', 'max_distance_miles',
-        ]);
+        $this->actingDriver();
 
-        $result = $loadBoardService->listAvailable($filters);
+        $query = \App\Models\UrbanGoodzLoadBoardLoad::where('status', 'available')->whereNull('assigned_driver_id');
+        foreach (['origin_state', 'destination_state', 'load_type', 'equipment_type'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->input($filter));
+            }
+        }
+        if ($request->filled('min_payout')) {
+            $query->where('payout_amount', '>=', (float) $request->input('min_payout'));
+        }
+        if ($request->filled('max_distance_miles')) {
+            $query->where('distance_miles', '<=', (float) $request->input('max_distance_miles'));
+        }
+
+        $loads = $query->latest()->paginate(min(100, max(1, (int) $request->input('per_page', 25))));
 
         return response()->json([
             'success' => true,
             'message' => 'Load board loads retrieved successfully',
-            'data' => $result['loads']->items(),
-            'meta' => $result['meta'],
+            'data' => $loads->getCollection()->map(fn ($l) => $l->driverFacing(false))->values(),
+            'meta' => [
+                'current_page' => $loads->currentPage(),
+                'last_page' => $loads->lastPage(),
+                'total' => $loads->total(),
+                'per_page' => $loads->perPage(),
+            ],
         ]);
     }
 
     public function loadBoardLoad($record, UrbanGoodzLoadBoardService $loadBoardService)
     {
+        $driver = $this->actingDriver();
         $load = $loadBoardService->getById((int) $record);
 
-        if (!$load) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Load not found',
-            ], 404);
+        $mine = $load && (int) $load->assigned_driver_id === (int) $driver->id;
+        $open = $load && $load->status === 'available' && $load->assigned_driver_id === null;
+        if (!$mine && !$open) {
+            return response()->json(['success' => false, 'message' => 'Load not found'], 404);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Load details retrieved successfully',
-            'data' => $load,
+            'data' => $load->driverFacing($mine),
         ]);
     }
 
     public function acceptLoadBoardLoad(Request $request, $record, UrbanGoodzLoadBoardService $loadBoardService)
     {
-        $driverId = $request->user()?->id;
-        if (!$driverId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Authentication required',
-            ], 401);
+        $driver = $this->actingDriver();
+
+        $load = \App\Models\UrbanGoodzLoadBoardLoad::where('status', 'available')->whereNull('assigned_driver_id')->find((int) $record);
+        if (!$load) {
+            return response()->json(['success' => false, 'message' => 'Load not available'], 404);
+        }
+        if ($reason = $loadBoardService->ineligibilityReason($load, $driver, true)) {
+            return $this->forbidden($reason, 'You are not eligible to take this load.');
         }
 
-        $load = $loadBoardService->acceptLoad((int) $record, $driverId);
-
-        if (!$load) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Load not available or driver not eligible',
-            ], 422);
+        $claimed = $loadBoardService->acceptLoad((int) $record, $driver->id, null, true);
+        if (!$claimed) {
+            return response()->json(['success' => false, 'message' => 'This load was just taken by another driver.'], 409);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Load accepted successfully',
-            'data' => $load,
+            'data' => $claimed->driverFacing(true),
         ]);
     }
 
     public function updateLoadBoardLoadStatus(Request $request, $record, UrbanGoodzLoadBoardService $loadBoardService)
     {
+        $driver = $this->actingDriver();
+        // A driver moves their own load forward only. Cancelling or reopening a load is a
+        // dispatcher decision (or a release before pickup via the active-jobs endpoint).
         $validated = $request->validate([
-            'status' => 'required|string|in:in_transit,picked_up,delivered,cancelled',
+            'status' => 'required|string|in:in_transit,picked_up,delivered',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
-        $driverId = $request->user()?->id;
-        $load = $loadBoardService->updateStatus((int) $record, $validated['status'], $driverId);
-
+        $load = \App\Models\UrbanGoodzLoadBoardLoad::where('assigned_driver_id', $driver->id)->find((int) $record);
         if (!$load) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Load not found or invalid status transition',
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Load not found'], 404);
+        }
+
+        $updated = $loadBoardService->updateStatus((int) $record, $validated['status'], $driver->id, 'driver', $validated['notes'] ?? null);
+        if (!$updated) {
+            return response()->json(['success' => false, 'message' => 'Invalid status transition'], 409);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Load status updated successfully',
-            'data' => $load,
+            'data' => $updated->driverFacing(true),
         ]);
     }
 
@@ -328,27 +368,45 @@ class UrbanGoodzOpportunityController extends Controller
     // Medical Courier
     // =========================================================================
 
+    /** Only approved, active drivers with medical-courier training may work these jobs. */
+    private function medicalDriver()
+    {
+        $driver = $this->actingDriver();
+        $trained = $driver->active && $driver->application_status === 'approved' && $driver->has_medical_courier_training;
+
+        return $trained ? $driver : null;
+    }
+
+    private function medicalListing(UrbanGoodzMedicalCourierJob $job): array
+    {
+        return [
+            'id' => $job->id,
+            'job_number' => $job->job_number,
+            'specimen_type' => $job->specimen_type,
+            'pickup_location' => $job->pickup_facility_name ?? $job->pickup_location,
+            'delivery_location' => $job->delivery_facility_name ?? $job->delivery_location,
+            'distance_miles' => $job->distance_miles,
+            'payout_amount' => $job->payout_amount,
+            'priority' => $job->priority,
+            'requires_refrigeration' => $job->requires_refrigeration,
+            'is_biological_hazard' => $job->is_biological_hazard,
+            'pickup_window_start' => $job->pickup_window_start,
+            'pickup_window_end' => $job->pickup_window_end,
+            'status' => $job->status,
+        ];
+    }
+
     public function medicalCourierJobs()
     {
+        if (!$this->medicalDriver()) {
+            return $this->forbidden('medical_training_required', 'Medical courier jobs require an approved driver with medical courier training.');
+        }
+
         $jobs = UrbanGoodzMedicalCourierJob::where('status', 'pending')
             ->orderBy('priority', 'desc')
             ->limit(50)
             ->get()
-            ->map(fn($job) => [
-                'id' => $job->id,
-                'job_number' => $job->job_number,
-                'specimen_type' => $job->specimen_type,
-                'pickup_location' => $job->pickup_facility_name ?? $job->pickup_location,
-                'delivery_location' => $job->delivery_facility_name ?? $job->delivery_location,
-                'distance_miles' => $job->distance_miles,
-                'payout_amount' => $job->payout_amount,
-                'priority' => $job->priority,
-                'requires_refrigeration' => $job->requires_refrigeration,
-                'is_biological_hazard' => $job->is_biological_hazard,
-                'pickup_window_start' => $job->pickup_window_start,
-                'pickup_window_end' => $job->pickup_window_end,
-                'status' => $job->status,
-            ]);
+            ->map(fn ($job) => $this->medicalListing($job));
 
         return response()->json([
             'success' => true,
@@ -359,119 +417,115 @@ class UrbanGoodzOpportunityController extends Controller
 
     public function medicalCourierJob($record)
     {
-        $job = UrbanGoodzMedicalCourierJob::with('assignedDriver')->find($record);
-
-        if (!$job) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Job not found',
-            ], 404);
+        $driver = $this->medicalDriver();
+        if (!$driver) {
+            return $this->forbidden('medical_training_required', 'Medical courier jobs require an approved driver with medical courier training.');
         }
+
+        $job = UrbanGoodzMedicalCourierJob::find($record);
+        $mine = $job && (int) $job->assigned_driver_id === (int) $driver->id;
+        $open = $job && $job->status === 'pending' && $job->assigned_driver_id === null;
+        if (!$mine && !$open) {
+            return response()->json(['success' => false, 'message' => 'Job not found'], 404);
+        }
+
+        // Facility contacts and the full record only once the job is yours; admin notes never.
+        $data = $mine ? $job->makeHidden(['admin_notes'])->toArray() : $this->medicalListing($job);
 
         return response()->json([
             'success' => true,
             'message' => 'Medical courier job details retrieved successfully',
-            'data' => $job,
+            'data' => $data,
         ]);
     }
 
     public function acceptMedicalCourierJob(Request $request, $record)
     {
-        $service = app(UrbanGoodzMedicalCourierService::class);
-        $driverId = $request->input('driver_id');
-
-        if (!$driverId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'driver_id is required',
-            ], 422);
+        $driver = $this->medicalDriver();
+        if (!$driver) {
+            return $this->forbidden('medical_training_required', 'Medical courier jobs require an approved driver with medical courier training.');
         }
 
-        $job = $service->assignDriver((int) $record, (int) $driverId);
-
+        // The driver is the authenticated driver; a driver_id in the body is ignored.
+        $job = app(UrbanGoodzMedicalCourierService::class)->assignDriver((int) $record, (int) $driver->id);
         if (!$job) {
             return response()->json([
                 'success' => false,
-                'message' => 'Job not found, already assigned, or driver lacks medical courier training',
-            ], 422);
+                'message' => 'Job not found or already assigned',
+            ], 409);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Medical courier job accepted successfully',
-            'data' => [
-                'id' => $job->id,
-                'status' => $job->status,
-                'assigned_driver_id' => $job->assigned_driver_id,
-            ],
+            'data' => ['id' => $job->id, 'status' => $job->status, 'assigned_driver_id' => $job->assigned_driver_id],
         ]);
     }
 
     public function updateMedicalCourierJobStatus(Request $request, $record)
     {
-        $service = app(UrbanGoodzMedicalCourierService::class);
-        $status = $request->input('status');
-        $notes = $request->input('notes');
-
-        if (!$status) {
-            return response()->json([
-                'success' => false,
-                'message' => 'status is required',
-            ], 422);
+        $driver = $this->medicalDriver();
+        if (!$driver) {
+            return $this->forbidden('medical_training_required', 'Medical courier jobs require an approved driver with medical courier training.');
         }
 
-        $job = $service->updateStatus((int) $record, $status, null, $notes);
+        $validated = $request->validate([
+            // A driver advances their own job. Cancelling a specimen run is an admin action.
+            'status' => 'required|string|in:picked_up,in_transit,delivered',
+            'notes' => 'nullable|string|max:1000',
+        ]);
 
+        $job = UrbanGoodzMedicalCourierJob::where('assigned_driver_id', $driver->id)->find((int) $record);
         if (!$job) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid status transition or job not found',
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Job not found'], 404);
+        }
+
+        $updated = app(UrbanGoodzMedicalCourierService::class)->updateStatus((int) $record, $validated['status'], (int) $driver->id, $validated['notes'] ?? null);
+        if (!$updated) {
+            return response()->json(['success' => false, 'message' => 'Invalid status transition'], 409);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Medical courier status updated successfully',
-            'data' => [
-                'id' => $job->id,
-                'status' => $job->status,
-            ],
+            'data' => ['id' => $updated->id, 'status' => $updated->status],
         ]);
     }
 
     public function updateMedicalCourierCustody(Request $request, $record)
     {
-        $service = app(UrbanGoodzMedicalCourierService::class);
-        $action = $request->input('action', 'custody_update');
-        $handlerName = $request->input('handler_name', 'Driver');
-        $notes = $request->input('notes');
-
-        $job = UrbanGoodzMedicalCourierJob::find($record);
-        if (!$job) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Job not found',
-            ], 404);
+        $driver = $this->medicalDriver();
+        if (!$driver) {
+            return $this->forbidden('medical_training_required', 'Medical courier jobs require an approved driver with medical courier training.');
         }
 
-        $log = $service->logCustody(
+        $validated = $request->validate([
+            'action' => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9_]+$/'],
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        // Chain of custody: only the assigned driver, only while the specimen is with them, and
+        // always recorded under the authenticated driver's identity (never a name from the body).
+        $job = UrbanGoodzMedicalCourierJob::where('assigned_driver_id', $driver->id)
+            ->whereIn('status', ['assigned', 'picked_up', 'in_transit'])
+            ->find((int) $record);
+        if (!$job) {
+            return response()->json(['success' => false, 'message' => 'Job not found'], 404);
+        }
+
+        $log = app(UrbanGoodzMedicalCourierService::class)->logCustody(
             (int) $record,
-            $action,
-            $handlerName,
+            $validated['action'] ?? 'custody_update',
+            trim($driver->f_name.' '.$driver->l_name) ?: "Driver #{$driver->id}",
             'driver',
-            $request->input('driver_id'),
-            $notes
+            (int) $driver->id,
+            $validated['notes'] ?? null
         );
 
         return response()->json([
             'success' => true,
             'message' => 'Medical courier custody signature captured',
-            'data' => [
-                'id' => $log->id,
-                'job_id' => $log->job_id,
-                'action' => $log->action,
-                'logged_at' => $log->logged_at,
-            ],
+            'data' => ['id' => $log->id, 'job_id' => $log->job_id, 'action' => $log->action, 'logged_at' => $log->logged_at],
         ]);
     }
 
