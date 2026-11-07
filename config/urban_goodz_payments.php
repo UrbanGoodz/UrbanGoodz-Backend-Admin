@@ -1,6 +1,26 @@
 <?php
 
 return [
+    // Order Anywhere pricing + dispatch behaviour.
+    'order_anywhere' => [
+        // Platform markup on the sourced item, in percent. Deliberately no default:
+        // with none set the admin must enter it, so we never quietly sell at cost.
+        'markup_percent' => env('ORDER_ANYWHERE_MARKUP_PERCENT'),
+        // Authorized payment -> approved -> order -> nearest driver, with nobody in the loop.
+        'auto_dispatch' => (bool) env('ORDER_ANYWHERE_AUTO_DISPATCH', true),
+        // Only drivers within this many miles of the pickup are offered the job (admin-adjustable).
+        'radius_miles' => (float) env('ORDER_ANYWHERE_DISPATCH_RADIUS_MILES', 25),
+        // How long one driver has to answer before the job moves to the next nearest.
+        'offer_minutes' => (int) env('ORDER_ANYWHERE_OFFER_MINUTES', 3),
+        // After this long with nobody accepting, flag the request for an admin.
+        'escalate_after_minutes' => (int) env('ORDER_ANYWHERE_ESCALATE_MINUTES', 10),
+        // With still no driver after this long the request is cancelled and the customer's
+        // authorization voided (0 disables auto-cancel and leaves it to an admin).
+        'cancel_after_minutes' => (int) env('ORDER_ANYWHERE_CANCEL_MINUTES', 30),
+        // Capture the customer's money when a driver accepts, not at checkout.
+        'capture_on_accept' => (bool) env('ORDER_ANYWHERE_CAPTURE_ON_ACCEPT', true),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Payment Provider

@@ -179,11 +179,32 @@ class UrbanGoodzAdminController extends Controller
     public function orderAnywhereQuote($id, Request $request, UrbanGoodzPaymentService $payments)
     {
         $data = $request->validate([
-            'quote_amount' => ['required', 'numeric', 'min:0.01'],
+            // Either the sourced item cost (the platform adds its markup, delivery and
+            // tax) or, as before, a total typed in by hand.
+            'item_cost' => ['nullable', 'numeric', 'min:0.01', 'required_without:quote_amount'],
+            'markup_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'delivery_fee' => ['nullable', 'numeric', 'min:0'],
+            'tax' => ['nullable', 'numeric', 'min:0'],
+            'quote_amount' => ['nullable', 'numeric', 'min:0.01', 'required_without:item_cost'],
             'final_amount' => ['nullable', 'numeric', 'min:0.01'],
             'quote_reference' => ['nullable', 'string', 'max:255'],
             'admin_notes' => ['nullable', 'string'],
         ]);
+
+        if (isset($data['item_cost'])) {
+            try {
+                $priced = \App\Services\OrderAnywhereQuotePricing::price(
+                    (float) $data['item_cost'],
+                    isset($data['delivery_fee']) ? (float) $data['delivery_fee'] : null,
+                    isset($data['markup_percent']) ? (float) $data['markup_percent'] : null,
+                    isset($data['tax']) ? (float) $data['tax'] : null,
+                );
+            } catch (\InvalidArgumentException $e) {
+                return back()->withErrors(['item_cost' => $e->getMessage()])->withInput();
+            }
+
+            $data = array_merge($data, $priced, ['final_amount' => $priced['quote_amount']]);
+        }
 
         $payments->quoteOrderAnywhere(OrderAnywhereRequest::findOrFail($id), $data);
 

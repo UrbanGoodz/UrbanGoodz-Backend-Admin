@@ -19,8 +19,6 @@ class OrderAnywhereController extends Controller
             'merchant_name' => ['required', 'string', 'max:255'],
             'merchant_address_or_website' => ['nullable', 'string', 'max:500'],
             'price' => ['required', 'numeric', 'min:0.01'],
-            'delivery_fee' => ['nullable', 'numeric', 'min:0'],
-            'service_fee' => ['nullable', 'numeric', 'min:0'],
             'delivery_address' => ['required', 'string', 'max:500'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
             'customer_notes' => ['nullable', 'string', 'max:1000'],
@@ -30,8 +28,11 @@ class OrderAnywhereController extends Controller
         return $this->guarded(function () use ($request, $data, $payments) {
             $user = $request->user();
             $price = (float) $data['price'];
-            $deliveryFee = isset($data['delivery_fee']) ? (float) $data['delivery_fee'] : 7.99;
-            $serviceFee = isset($data['service_fee']) ? (float) $data['service_fee'] : max(5.00, round($price * 0.15, 2));
+            // Fees are the platform's, never the client's (a client-supplied fee of 0
+            // meant a customer could quote themselves free delivery).
+            $configuredFee = Helpers::get_business_settings('order_anywhere_estimated_delivery_fee');
+            $deliveryFee = is_numeric($configuredFee) ? (float) $configuredFee : 7.99;
+            $serviceFee = max(5.00, round($price * 0.15, 2));
             $tax = round($price * 0.0825, 2);
             $quoteAmount = round($price + $deliveryFee + $serviceFee + $tax, 2);
 
@@ -130,15 +131,17 @@ class OrderAnywhereController extends Controller
             'item_details' => ['nullable', 'string'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'budget_estimate' => ['nullable', 'numeric', 'min:0'],
-            'admin_notes' => ['nullable', 'string'],
-            'vendor_id' => ['nullable', 'integer'],
         ]);
 
+        // admin_notes and vendor_id are staff decisions. They used to be accepted
+        // from the customer, who could pre-write the reviewer's notes or route
+        // their own request to any vendor. metadata no longer stores the raw
+        // request body either.
         $record = OrderAnywhereRequest::create(array_merge($data, [
             'customer_id' => $this->customerId($request),
             'request_number' => OrderAnywhereRequest::nextRequestNumber(),
             'status' => 'pending_review',
-            'metadata' => $request->all(),
+            'metadata' => ['source' => 'customer_api', 'submitted_fields' => array_keys($data)],
         ]));
 
         return response()->json([
@@ -173,7 +176,7 @@ class OrderAnywhereController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, $record)
+    public function updateStatus(Request $request, $record, UrbanGoodzPaymentService $payments)
     {
         $data = $request->validate([
             'status' => ['nullable', Rule::in(OrderAnywhereRequest::STATUSES)],
@@ -186,9 +189,15 @@ class OrderAnywhereController extends Controller
         $newStatus = $data['status'] ?? $data['request_status'] ?? 'sourcing';
         $oldStatus = $model->status;
 
-        return $this->guarded(function () use ($model, $oldStatus, $newStatus, $data) {
+        return $this->guarded(function () use ($model, $oldStatus, $newStatus, $data, $payments) {
             if ($oldStatus !== $newStatus) {
-                $model->transitionTo($newStatus);
+                if ($newStatus === 'cancelled') {
+                    // Voids the hold / refunds the capture; a bare status change left the
+                    // customer's money where it was.
+                    $model = $payments->cancelAndReturnFunds($model, $data['reason'] ?? 'Cancelled by admin');
+                } else {
+                    $model->transitionTo($newStatus);
+                }
             }
 
             $model->admin_notes = $data['admin_notes'] ?? $model->admin_notes;
@@ -229,15 +238,26 @@ class OrderAnywhereController extends Controller
     public function authorizePayment(Request $request, $record, UrbanGoodzPaymentService $payments)
     {
         $data = $request->validate([
-            'authorized_amount' => ['nullable', 'numeric', 'min:0.01'],
             'payment_method' => ['nullable', 'string', 'max:255'],
-            'authorization_reference' => ['nullable', 'string', 'max:255'],
         ]);
 
         return $this->guarded(function () use ($request, $record, $payments, $data) {
-            $model = $payments->authorizeCustomerPayment($this->findCustomerRecord($request, $record), array_merge($data, [
+            $model = $this->findCustomerRecord($request, $record);
+
+            // The customer never chooses what is charged. The amount is the quote
+            // (or the final amount once set); a client-supplied authorized_amount
+            // let anyone authorize $0.01 against a $60 order. The authorization
+            // reference comes from the payment provider, not from the client.
+            $amount = (float) ($model->final_amount ?? $model->quote_amount);
+            if ($amount <= 0) {
+                throw new \InvalidArgumentException('This request has not been quoted yet.');
+            }
+
+            $model = $payments->authorizeCustomerPayment($model, [
+                'authorized_amount' => $amount,
+                'payment_method' => $data['payment_method'] ?? null,
                 'source' => 'customer_api',
-            ]));
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -251,7 +271,9 @@ class OrderAnywhereController extends Controller
     {
         $data = $request->validate([
             'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'receipt_path' => ['nullable', 'string', 'max:255'],
+            // Only a path this endpoint itself produced. An arbitrary string let a
+            // customer point their request at any file on the public disk.
+            'receipt_path' => ['nullable', 'string', 'max:255', 'starts_with:urban-goodz/order-anywhere/receipts/', 'not_regex:/\.\./'],
         ]);
 
         $path = $data['receipt_path'] ?? null;
@@ -376,10 +398,15 @@ class OrderAnywhereController extends Controller
         });
     }
 
+    /**
+     * Admin override of automatic dispatch: put a specific driver on the job. Works whether
+     * the request is still `authorized` or has already been auto-approved, and withdraws any
+     * offer already out to an auto-selected driver so two drivers are never both on it.
+     */
     public function assignDriver(Request $request, $record)
     {
         $data = $request->validate([
-            'driver_id' => ['required', 'integer'],
+            'driver_id' => ['required', 'integer', 'exists:delivery_men,id'],
             'admin_notes' => ['nullable', 'string'],
         ]);
 
@@ -390,10 +417,40 @@ class OrderAnywhereController extends Controller
         $model->reviewed_at = now();
 
         return $this->guarded(function () use ($model) {
-            $model->transitionTo('approved');
+            if ($model->status !== 'approved') {
+                $model->transitionTo('approved');
+            } else {
+                $model->save();
+            }
+
+            if ($model->order_id) {
+                \App\Models\AiDispatch::where('order_id', $model->order_id)
+                    ->whereIn('status', [\App\Models\AiDispatch::STATUS_PENDING_DRIVER, \App\Models\AiDispatch::STATUS_SENT, \App\Models\AiDispatch::STATUS_VIEWED])
+                    ->get()
+                    ->each(fn ($d) => $d->cancelDispatch('Admin assigned a specific driver'));
+            }
 
             return $this->updated($model, 'Driver assigned to Order Anywhere request.');
         });
+    }
+
+    /** Auto-dispatch switches an admin can change at runtime (radius, offer window, timeouts). */
+    public function dispatchSettings()
+    {
+        return response()->json(['success' => true, 'data' => \App\Services\OrderAnywhereDispatchSettings::all()]);
+    }
+
+    public function updateDispatchSettings(Request $request)
+    {
+        $data = $request->validate([
+            'auto_dispatch' => ['sometimes', 'boolean'],
+            'radius_miles' => ['sometimes', 'numeric', 'min:1', 'max:500'],
+            'offer_minutes' => ['sometimes', 'integer', 'min:1', 'max:60'],
+            'escalate_after_minutes' => ['sometimes', 'integer', 'min:0', 'max:1440'],
+            'cancel_after_minutes' => ['sometimes', 'integer', 'min:0', 'max:10080'],
+        ]);
+
+        return response()->json(['success' => true, 'data' => \App\Services\OrderAnywhereDispatchSettings::update($data)]);
     }
 
     public function driverAvailable(Request $request)
@@ -414,6 +471,34 @@ class OrderAnywhereController extends Controller
         return $this->driverStatus($request, $record);
     }
 
+    /**
+     * What each driver step means for each fulfilment path. A driver moves the request
+     * ONE legal step at a time; the previous mapping (accepted -> shopping,
+     * delivered -> completed) pointed at transitions the state machine forbids, so
+     * accepting a job and finishing a delivery both failed with 422.
+     *
+     * external_merchant: approved -> shopper_assigned -> shopper_accepted -> shopping
+     *                    -> purchased -> picked_up -> out_for_delivery -> delivered -> completed
+     * participating_vendor: ready_for_pickup -> driver_assigned -> picked_up
+     *                    -> out_for_delivery -> delivered -> completed
+     */
+    private const DRIVER_STEPS = [
+        'external_merchant' => [
+            'accepted'  => ['approved' => ['shopper_assigned', 'shopper_accepted'], 'shopper_assigned' => ['shopper_accepted']],
+            'shopping'  => ['shopper_accepted' => ['shopping']],
+            'purchased' => ['shopping' => ['purchased']],
+            'picked_up' => ['purchased' => ['picked_up']],
+            'en_route'  => ['picked_up' => ['out_for_delivery']],
+            'delivered' => ['out_for_delivery' => ['delivered', 'completed']],
+        ],
+        'participating_vendor' => [
+            'accepted'  => ['ready_for_pickup' => ['driver_assigned']],
+            'picked_up' => ['driver_assigned' => ['picked_up']],
+            'en_route'  => ['picked_up' => ['out_for_delivery']],
+            'delivered' => ['out_for_delivery' => ['delivered', 'completed']],
+        ],
+    ];
+
     public function driverStatus(Request $request, $record)
     {
         $data = $request->validate([
@@ -423,20 +508,40 @@ class OrderAnywhereController extends Controller
         ]);
 
         $driverStatus = $data['driver_task_status'] ?? $data['status'] ?? 'in_progress';
-        $status = match ($driverStatus) {
-            'picked_up' => 'picked_up',
-            'en_route' => 'out_for_delivery',
-            'delivered' => 'completed',
-            'issue_reported' => 'sourcing',
-            default => 'shopping',
-        };
 
         $model = $this->findDriverRecord($record);
-        $model->driver_task_status = $driverStatus;
         $model->driver_notes = $data['driver_notes'] ?? $model->driver_notes;
 
-        return $this->guarded(function () use ($model, $status) {
-            $model->transitionTo($status);
+        return $this->guarded(function () use ($model, $driverStatus) {
+            if ($driverStatus === 'issue_reported') {
+                $model->driver_task_status = $driverStatus;
+                $model->transitionTo('sourcing');
+
+                return $this->updated($model, 'Driver issue reported.');
+            }
+
+            $path = self::DRIVER_STEPS[$model->fulfillment_type ?: 'external_merchant'] ?? [];
+            $steps = $path[$driverStatus][$model->status] ?? null;
+
+            if ($steps === null) {
+                throw new \InvalidArgumentException("Cannot move to '{$driverStatus}' from '{$model->status}'.");
+            }
+
+            // The driver pays with the temporary purchase card the platform issued. When
+            // a card exists for this order, "purchased" needs a recorded card purchase;
+            // otherwise a driver could claim the purchase without spending the funds.
+            if ($driverStatus === 'purchased' && $model->card_issued) {
+                $spent = \App\Models\UrbanGoodzOrderAnywhereCardRequest::where('id', $model->card_request_id)
+                    ->where('captured_amount', '>', 0)->exists();
+                if (! $spent) {
+                    throw new \InvalidArgumentException('Complete the purchase with the issued card before marking it purchased.');
+                }
+            }
+
+            $model->driver_task_status = $driverStatus;
+            foreach ($steps as $next) {
+                $model->transitionTo($next);
+            }
 
             return $this->updated($model, 'Driver task status updated.');
         });

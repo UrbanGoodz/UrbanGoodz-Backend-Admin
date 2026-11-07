@@ -46,7 +46,12 @@ class RecoverOrderAnywhereCardIssuance extends Command
             ->get()
             ->each(function (OrderAnywhereRequest $request) use ($cards) {
                 try {
-                    $cards->createCardRequest($request);
+                    // Admin-assigned jobs never pass through driver acceptance, so secure the
+                    // customer's money here before a card is issued against it.
+                    if (! app(\App\Services\OrderAnywhereDispatchIntegrationService::class)->captureFundsForDriver($request)) {
+                        return;
+                    }
+                    $cards->createCardRequest($request->fresh());
                 } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
                     // A concurrent lifecycle change made this request ineligible.
                 }

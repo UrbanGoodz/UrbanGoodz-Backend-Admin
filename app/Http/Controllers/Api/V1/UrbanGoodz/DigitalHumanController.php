@@ -27,7 +27,7 @@ class DigitalHumanController extends Controller
     {
         $validated = $request->validate([
             'persona' => 'required|string|in:concierge,chief_of_staff',
-            'text' => 'nullable|string',
+            'text' => 'nullable|string|max:2000',
             'domain' => 'nullable|string',
             'event_type' => 'nullable|string',
             'intent' => 'nullable|string',
@@ -53,7 +53,7 @@ class DigitalHumanController extends Controller
     {
         $validated = $request->validate([
             'persona' => 'required|string|in:concierge,chief_of_staff',
-            'text' => 'required|string',
+            'text' => 'required|string|max:2000',
             'wpm' => 'nullable|integer|min:80|max:240',
         ]);
 

@@ -30,16 +30,28 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | # | Lane | Status |
 |---|------|--------|
 | C1 | AI actions + Concierge | DONE with notes: see `AI_CONCIERGE_CERTIFICATION.md` (guest session-id entropy, guest chat retention, shared cache in prod) |
-| C2 | Digital humans / avatar (Tavus ownership fixed; persona/avatar providers still to audit) | TODO |
+| C2 | Digital humans / avatar | DONE with notes: text cap fixed; guest `speak` has no global spend cap; persona register + real TTS not audited |
 | C3 | Notifications (push/email/SMS, dedup, opt-out) | TODO |
 | C4 | Remaining customer/guest endpoints: wallet, track_order, refunds | TODO |
 | C5 | Dispatch commission + financial reconciliation | TODO |
-| C6 | Creator/social, Order Anywhere deep pass | TODO |
+| C6 | Creator/social deep pass | TODO |
+| C10 | Order Anywhere | DONE with notes: see `ORDER_ANYWHERE_CERTIFICATION.md` |
 | C7 | Vendor update endpoints: payload-complete tests | TODO |
 | C8 | Stranded: wire `getActiveRequest()` into the customer-app start-up flow (backend + API call done) | TODO |
 | C9 | Final certification report | TODO (last) |
 
+## E. Order Anywhere follow-ups
+| # | Item | Type |
+|---|------|------|
+| E1 | Real pickup coordinates for "anywhere" merchants (geocode at sourcing); today falls back to zone centre | TODO/OWNER |
+| E2 | Stripe Issuing float: who funds the issuing balance while customer captures settle | OWNER |
+| E3 | Customer cancel after driver accepted (money captured, goods possibly bought): refund policy | OWNER |
+| E4 | Admin quote form needs an `item_cost` field; set `ORDER_ANYWHERE_MARKUP_PERCENT`; confirm admin sees `admin_alert` notices | TODO |
+| E5 | Tune defaults: radius 25 mi, offer window 3 min, escalate 10 min, auto-cancel 30 min | OWNER |
+| E6 | Guest `digital-human/speak` global spend cap | TODO |
+
 ## D. Closed so far (for traceability)
+Order Anywhere: customer-chosen charge, vendor/admin_notes injection, broken driver flow, in-progress dispatches expiring, manual approval, silent no-driver, admin cancel not voiding, refund rollback hazard, markup computation.
 Concierge video-avatar ownership + billed-room resume.
 Admin 419 mechanism, captcha bypass + remember-me cookie removed, driver auth/token, customer order/cart/chat ownership,
 vendor tenancy, logistics tenancy, route optimization quality, OTR/medical races + custody, payout race + vendor payout

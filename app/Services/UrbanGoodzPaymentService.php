@@ -267,7 +267,7 @@ class UrbanGoodzPaymentService
             $this->assertLiveAmountWithinCap($amount, $request->customer_id);
         }
 
-        return DB::transaction(function () use ($request, $data, $amount) {
+        $authorized = DB::transaction(function () use ($request, $data, $amount) {
             $reference = $data['authorization_reference'] ?? $data['psp_reference'] ?? 'manual-auth-' . Str::uuid();
 
             $idempotencyKey = "customer_authorize:{$this->gateway->providerName()}:{$request->id}:" . md5($amount . $reference);
@@ -325,6 +325,35 @@ class UrbanGoodzPaymentService
 
             return $request->fresh();
         });
+
+        return $this->autoApproveAfterAuthorization($authorized);
+    }
+
+    /**
+     * Dispatch is automatic: once the customer's payment is authorized, an external-merchant
+     * request is approved with no one in the loop, which converts it to an order and offers it
+     * to the nearest driver to the pickup (OrderAnywhereDispatchTriggerObserver). An admin can
+     * still override by assigning a specific driver first. Turn off with
+     * ORDER_ANYWHERE_AUTO_DISPATCH=false. Never lets a dispatch problem undo a payment.
+     */
+    private function autoApproveAfterAuthorization(OrderAnywhereRequest $request): OrderAnywhereRequest
+    {
+        if (! \App\Services\OrderAnywhereDispatchSettings::get('auto_dispatch')
+            || $request->status !== 'authorized'
+            || ! $request->isExternalMerchant()) {
+            return $request;
+        }
+
+        try {
+            return $this->approveRequest($request);
+        } catch (\Throwable $e) {
+            Log::warning('Order Anywhere auto-approve failed; left for admin', [
+                'request_id' => $request->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $request->fresh();
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -887,8 +916,22 @@ class UrbanGoodzPaymentService
                 $remaining -= $allocation;
             }
 
+            // Money the platform held but never split to anyone (e.g. purchase funds and the delivery
+            // fee before a driver is attached) has no recipient to claw back from. Throwing here ran
+            // AFTER the provider had already refunded the customer, so the database rolled back to
+            // "captured" while the customer had their money -- and a retry could refund again. The
+            // refund stands; the unallocated part is recorded so the ledger still explains every dollar.
             if ($remaining > 0.01) {
-                throw new \LogicException('Refund reversal allocations do not reconcile to the refund amount.');
+                Log::warning('Refund exceeded allocated splits; recording unallocated remainder', [
+                    'request_id' => $request->id,
+                    'refund' => $refundAmount,
+                    'unallocated' => round($remaining, 2),
+                ]);
+
+                $this->ledger($request, 'refund_unallocated', 'neutral', round($remaining, 2), 'refunded', [
+                    'idempotency_key' => "refund_unallocated:{$request->id}:" . md5(round($remaining, 2) . '|' . $refundAmount),
+                    'metadata' => ['note' => 'Refunded funds that had not been split to a recipient.'],
+                ]);
             }
         });
     }
@@ -1281,6 +1324,27 @@ class UrbanGoodzPaymentService
             $this->reversePendingSplits($request);
             return $request->transitionTo('cancelled');
         });
+    }
+
+    /**
+     * Cancel and make the customer whole, whatever stage the money is at:
+     *  - before capture the authorization is voided (instant, no processor fee, nothing to refund);
+     *  - after capture the remaining captured amount is refunded in full.
+     * Admin cancels used to call transitionTo('cancelled') directly, which never told the
+     * payment provider, so the customer's card hold lingered until it expired.
+     */
+    public function cancelAndReturnFunds(OrderAnywhereRequest $request, string $reason = ''): OrderAnywhereRequest
+    {
+        if (in_array($request->payment_status, ['captured', 'partially_captured', 'partially_refunded'], true)) {
+            $remaining = (float) $request->captured_amount - (float) $request->refunded_amount;
+            $request = $remaining > 0
+                ? $this->refundCustomerPayment($request, ['reason' => $reason ?: 'Request cancelled', 'refund_amount' => $remaining])
+                : $request;
+
+            return $request->transitionTo('cancelled');
+        }
+
+        return $this->cancelOrder($request, $reason);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

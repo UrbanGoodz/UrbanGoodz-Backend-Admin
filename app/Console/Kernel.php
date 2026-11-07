@@ -63,6 +63,12 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        // Dispatch is automatic: re-offer unassigned jobs to the next nearest driver.
+        $schedule->command('order-anywhere:dispatch-pending')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
         $schedule->command('order-anywhere:recover-card-issuance')
             ->everyFiveMinutes()
             ->withoutOverlapping()

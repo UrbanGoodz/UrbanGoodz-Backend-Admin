@@ -110,26 +110,80 @@ class OrderAnywhereDispatchIntegrationService
                 $dm->increment('assigned_order_count');
             }
 
-            $orderRequest = OrderAnywhereRequest::where('order_id', $order->id)
-                ->whereNotIn('status', ['completed', 'cancelled', 'rejected'])
-                ->latest()
-                ->first();
-
-            if ($orderRequest && $orderRequest->isExternalMerchant()) {
-                try {
-                    $cardRequest = $this->cardService->createCardRequest($orderRequest);
-                    Log::info('Purchase card auto-issued for dispatch', [
-                        'dispatch_id' => $dispatch->id,
-                        'card_request_id' => $cardRequest->id,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::warning('Card issuance deferred - payment may not be authorized yet', [
-                        'dispatch_id' => $dispatch->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
         });
+
+        // Money moves at the moment a driver commits: capture the customer's authorized funds,
+        // THEN issue the driver's purchase card. Done after the assignment commits so a slow
+        // payment provider never holds the driver's acceptance open, and never inside it.
+        $orderRequest = OrderAnywhereRequest::where('order_id', $order->id)
+            ->whereNotIn('status', ['completed', 'cancelled', 'rejected'])
+            ->latest()
+            ->first();
+
+        if ($orderRequest && $orderRequest->isExternalMerchant() && $this->captureFundsForDriver($orderRequest)) {
+            try {
+                $cardRequest = $this->cardService->createCardRequest($orderRequest->fresh());
+                Log::info('Purchase card auto-issued for dispatch', [
+                    'dispatch_id' => $dispatch->id,
+                    'card_request_id' => $cardRequest->id,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Card issuance deferred', [
+                    'dispatch_id' => $dispatch->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Capture the customer's authorized payment when a driver accepts. The customer is only
+     * ever charged once someone has actually committed to the job; if nobody does, the
+     * authorization is voided instead (no charge, no refund, no processor fee).
+     *
+     * @return bool true when funds are secured and a purchase card may be issued
+     */
+    public function captureFundsForDriver(OrderAnywhereRequest $request): bool
+    {
+        if (! config('urban_goodz_payments.order_anywhere.capture_on_accept', true)) {
+            return in_array($request->payment_status, ['authorized', 'captured'], true);
+        }
+
+        if (in_array($request->payment_status, ['captured', 'partially_captured'], true)) {
+            return true;
+        }
+
+        if ($request->payment_status !== 'authorized') {
+            app(OrderAnywhereOpsNotifier::class)->admins(
+                'Order Anywhere: driver accepted an unpaid request',
+                "Request {$request->request_number} is '{$request->payment_status}', not authorized. No purchase card was issued.",
+                ['request_id' => $request->id]
+            );
+
+            return false;
+        }
+
+        try {
+            app(\App\Services\UrbanGoodzPaymentService::class)->captureCustomerPayment($request, [
+                'captured_amount' => (float) $request->authorized_amount,
+                'capture_reference' => 'capture-on-accept-' . $request->request_number,
+                'source' => 'driver_accept',
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            // Authorization expired or the card no longer holds the funds. Do NOT issue a card
+            // we cannot cover; tell an admin.
+            Log::error('Order Anywhere capture on driver acceptance failed', ['request_id' => $request->id, 'error' => $e->getMessage()]);
+            $request->update(['metadata' => [...($request->metadata ?? []), 'capture_failed_at' => now()->toIso8601String(), 'capture_error' => mb_substr($e->getMessage(), 0, 200)]]);
+            app(OrderAnywhereOpsNotifier::class)->admins(
+                'Order Anywhere: payment capture failed',
+                "Request {$request->request_number}: a driver accepted but the customer's payment could not be captured. No purchase card was issued.",
+                ['request_id' => $request->id]
+            );
+
+            return false;
+        }
     }
 
     public function onDispatchDelivered(AiDispatch $dispatch): void

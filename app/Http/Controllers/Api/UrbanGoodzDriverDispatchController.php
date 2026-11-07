@@ -160,6 +160,13 @@ class UrbanGoodzDriverDispatchController extends Controller
 
         $dispatch->declineDispatch($request->reason_code, $request->reason);
 
+        // Order Anywhere cycles to the next nearest driver immediately.
+        try {
+            app(\App\Services\OrderAnywhereOrderConversionService::class)->redispatchAfterDecline($dispatch->fresh());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Order Anywhere redispatch after decline failed', ['dispatch_id' => $dispatch->id, 'error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'message' => 'Dispatch declined.',
             'dispatch' => $dispatch->fresh(),

@@ -71,4 +71,12 @@ class DigitalHumanPlatformTest extends TestCase
         $this->assertEquals('houston_loft', $payload['data']['digital_human']['environment_key']);
         $this->assertNotEmpty($payload['data']['playback']['viseme_timeline']);
     }
+
+    public function test_open_digital_human_endpoints_reject_oversized_text(): void
+    {
+        $huge = str_repeat('word ', 2000); // 10,000 chars: used to be processed in full on an open route
+        $this->postJson('/api/v1/urban-goodz/cross-app/ai/digital-human/visemes', ['persona' => 'concierge', 'text' => $huge])->assertStatus(422);
+        $this->postJson('/api/v1/urban-goodz/cross-app/ai/digital-human/state', ['persona' => 'concierge', 'text' => $huge])->assertStatus(422);
+        $this->postJson('/api/v1/urban-goodz/cross-app/ai/digital-human/visemes', ['persona' => 'concierge', 'text' => 'Hello there'])->assertOk();
+    }
 }

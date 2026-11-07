@@ -125,6 +125,8 @@ Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin',
     Route::post('requests/{record}/status', 'Api\V1\OrderAnywhereController@updateStatus');
     Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereController@addNotes');
     Route::post('requests/{record}/assign-driver', 'Api\V1\OrderAnywhereController@assignDriver');
+    Route::get('dispatch-settings', 'Api\V1\OrderAnywhereController@dispatchSettings');
+    Route::put('dispatch-settings', 'Api\V1\OrderAnywhereController@updateDispatchSettings');
     Route::post('requests/{record}/payment-link', 'Api\V1\OrderAnywhereController@createPaymentLink');
     Route::get('pending-orders', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@pendingOrders');
     Route::post('orders/{orderId}/dispatch/trigger-nearest', 'Api\V1\UrbanGoodz\OrderAiDispatchAdminController@triggerNearestDriver');

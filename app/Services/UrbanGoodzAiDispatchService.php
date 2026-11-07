@@ -105,14 +105,15 @@ class UrbanGoodzAiDispatchService
     public function expireStaleOffers(int $maxMinutes = 30): int
     {
         $cutoff = now()->subMinutes($maxMinutes);
+
+        // Only offers still waiting on a driver can go stale. The orWhere used to sit
+        // outside the status filter, so any dispatch past its offer_expires_at -- including
+        // deliveries a driver had accepted and was carrying out -- was marked expired
+        // whenever a driver opened their dispatch list.
         return AiDispatch::whereIn('status', [AiDispatch::STATUS_PENDING_DRIVER, AiDispatch::STATUS_SENT])
             ->where(function ($q) use ($cutoff) {
-                $q->whereNull('offer_expires_at')
-                  ->where('sent_at', '<', $cutoff);
-            })
-            ->orWhere(function ($q) {
-                $q->whereNotNull('offer_expires_at')
-                  ->where('offer_expires_at', '<', now());
+                $q->where(fn ($w) => $w->whereNull('offer_expires_at')->where('sent_at', '<', $cutoff))
+                  ->orWhere(fn ($w) => $w->whereNotNull('offer_expires_at')->where('offer_expires_at', '<', now()));
             })
             ->update(['status' => AiDispatch::STATUS_EXPIRED, 'expired_at' => now()]);
     }

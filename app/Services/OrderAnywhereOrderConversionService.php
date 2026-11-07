@@ -167,17 +167,47 @@ class OrderAnywhereOrderConversionService
             return null;
         }
 
-        $nearbyDrivers = $this->integrationService->findNearestDrivers(
+        // Every driver within the admin-set radius, nearest first.
+        $inRadius = $this->integrationService->findNearestDrivers(
             $pickupLat,
             $pickupLng,
-            50,
+            OrderAnywhereDispatchSettings::get('radius_miles'),
             ['zone_id' => $order->zone_id]
         );
 
+        $driverId = fn ($d) => is_array($d) ? $d['id'] : $d->id;
+        $orderRequest = $requestId ? OrderAnywhereRequest::find($requestId) : null;
+        // Dispatches at or below this id belong to earlier rounds (exact, unlike timestamps).
+        $roundWatermark = (int) ($orderRequest?->metadata['dispatch_round_after_id'] ?? 0);
+
+        // Cycle: nearest, then next nearest, and so on. A driver who already declined, let the
+        // offer lapse or was withdrawn in THIS round is skipped.
+        $alreadyTried = AiDispatch::where('order_id', $order->id)
+            ->whereIn('status', [AiDispatch::STATUS_DECLINED, AiDispatch::STATUS_EXPIRED, AiDispatch::STATUS_CANCELLED])
+            ->where('id', '>', $roundWatermark)
+            ->pluck('delivery_man_id')
+            ->all();
+        $nearbyDrivers = array_values(array_filter($inRadius, fn ($d) => ! in_array($driverId($d), $alreadyTried, true)));
+
+        // Everyone in range has had their turn and nobody took it: start another round from the
+        // nearest. This continues until a driver accepts, an admin assigns one, or it is cancelled.
+        if (empty($nearbyDrivers) && ! empty($inRadius) && $orderRequest) {
+            $round = (int) ($orderRequest->metadata['dispatch_round'] ?? 1) + 1;
+            $orderRequest->update(['metadata' => [
+                ...($orderRequest->metadata ?? []),
+                'dispatch_round' => $round,
+                'dispatch_round_after_id' => (int) AiDispatch::where('order_id', $order->id)->max('id'),
+                'dispatch_round_started_at' => now()->toIso8601String(),
+            ]]);
+            Log::info('Order Anywhere dispatch: starting a new round', ['order_id' => $order->id, 'round' => $round]);
+            $nearbyDrivers = $inRadius;
+        }
+
         if (empty($nearbyDrivers)) {
-            Log::warning('Order Anywhere auto-dispatch: no nearby drivers available', [
+            Log::warning('Order Anywhere auto-dispatch: no drivers available within the radius', [
                 'order_id' => $order->id,
                 'request_id' => $requestId,
+                'radius_miles' => OrderAnywhereDispatchSettings::get('radius_miles'),
                 'pickup_lat' => $pickupLat,
                 'pickup_lng' => $pickupLng,
             ]);
@@ -186,13 +216,15 @@ class OrderAnywhereOrderConversionService
         }
 
         $nearest = $nearbyDrivers[0];
-        $driverId = is_array($nearest) ? $nearest['id'] : $nearest->id;
+        $nearestId = $driverId($nearest);
 
-        $dispatch = $this->integrationService->createDispatchForOrder($order, $driverId, [
+        $dispatch = $this->integrationService->createDispatchForOrder($order, $nearestId, [
             'created_by_type' => 'system',
             'created_by_id' => null,
             'pickup_address' => $order->store?->address ?? '',
             'driver_payout_amount' => $order->delivery_charge ?? null,
+            // Short, so a silent driver costs the customer minutes, not a quarter of an hour.
+            'offer_expires_at' => now()->addMinutes(OrderAnywhereDispatchSettings::get('offer_minutes')),
         ]);
 
         if ($requestId) {
@@ -212,10 +244,25 @@ class OrderAnywhereOrderConversionService
             'order_id' => $order->id,
             'request_id' => $requestId,
             'dispatch_id' => $dispatch->id,
-            'delivery_man_id' => $driverId,
+            'delivery_man_id' => $nearestId,
         ]);
 
         return $dispatch;
+    }
+
+    /**
+     * A driver just declined: offer the job to the next nearest straight away instead of waiting
+     * for the next scheduler tick.
+     */
+    public function redispatchAfterDecline(AiDispatch $dispatch): ?AiDispatch
+    {
+        if ($dispatch->source_type !== 'order_anywhere' || ! $dispatch->order_id) {
+            return null;
+        }
+
+        $request = OrderAnywhereRequest::where('order_id', $dispatch->order_id)->where('status', 'approved')->latest()->first();
+
+        return $request ? $this->handleApproved($request) : null;
     }
 
     /**
