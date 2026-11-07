@@ -799,7 +799,7 @@ trait PlaceNewOrder
         }
         if ($request->guest_id  && isset($user->id)) {
 
-            $userStoreIds = Cart::where('user_id', $request->guest_id)
+            $userStoreIds = Cart::where('user_id', $request->guest_id)->where('carts.is_guest', 1)
                 ->join('items', 'carts.item_id', '=', 'items.id')
                 ->pluck('items.store_id')
                 ->toArray();
@@ -810,7 +810,7 @@ trait PlaceNewOrder
                 })
                 ->delete();
 
-            Cart::where('user_id', $request->guest_id)->update(['user_id' => $user->id, 'is_guest' => 0]);
+            Cart::where('user_id', $request->guest_id)->where('is_guest', 1)->update(['user_id' => $user->id, 'is_guest' => 0]);
         }
 
         return ['newUser' => true, 'user' => $user];

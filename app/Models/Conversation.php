@@ -105,6 +105,18 @@ class Conversation extends Model
      * @param $receiver_id
      * @return void
      */
+    /**
+     * Conversations this chat identity (a user_info id) takes part in. Every endpoint that
+     * opens or writes to a conversation by id must go through this: the id alone says nothing
+     * about who may read it.
+     */
+    public function scopeInvolving($query, $userInfoId): void
+    {
+        $query->where(function ($q) use ($userInfoId) {
+            $q->where('sender_id', $userInfoId)->orWhere('receiver_id', $userInfoId);
+        });
+    }
+
     public function scopeWhereConversation($query, $sender_id, $receiver_id): void
     {
         $query->where(function($q)use($sender_id, $receiver_id){

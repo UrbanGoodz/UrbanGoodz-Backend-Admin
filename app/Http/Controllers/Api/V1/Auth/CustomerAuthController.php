@@ -1178,7 +1178,8 @@ class CustomerAuthController extends Controller
                         $query->delete();
                     });
 
-            Cart::where('user_id', $guest_id)->update(['user_id' => $user->id, 'is_guest' => 0]);
+            // Guest carts only: a guest id and a customer id can be the same number.
+            Cart::where('user_id', $guest_id)->where('is_guest', 1)->update(['user_id' => $user->id, 'is_guest' => 0]);
 
             if(addon_published_status('Rental')){
 
@@ -1192,8 +1193,8 @@ class CustomerAuthController extends Controller
                             $query->delete();
                         });
 
-                RentalCart::where('user_id', $guest_id)->update(['user_id' => $user->id, 'is_guest' => 0]);
-                RentalCartUserData::where('user_id', $guest_id)->update(['user_id' => $user->id, 'is_guest' => 0]);
+                RentalCart::where('user_id', $guest_id)->where('is_guest', 1)->update(['user_id' => $user->id, 'is_guest' => 0]);
+                RentalCartUserData::where('user_id', $guest_id)->where('is_guest', 1)->update(['user_id' => $user->id, 'is_guest' => 0]);
             }
         }
         return true;

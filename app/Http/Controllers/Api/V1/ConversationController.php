@@ -51,7 +51,7 @@ class ConversationController extends Controller
         }
 
         if($request->conversation_id){
-            $conversation = Conversation::find($request->conversation_id);
+            $conversation = Conversation::involving($sender->id)->findOrFail($request->conversation_id);
 
             if($conversation->sender_id == $sender->id){
                 $receiver_id = $conversation->receiver_id;
@@ -376,7 +376,7 @@ class ConversationController extends Controller
 
         $conversation = null;
         if($request->conversation_id){
-            $conversation = Conversation::with(['sender','receiver','last_message'])->find($request->conversation_id);
+            $conversation = Conversation::with(['sender','receiver','last_message'])->involving($user->id)->findOrFail($request->conversation_id);
         }else if($request->has('admin_id')){
             $conversation = Conversation::with(['sender','receiver','last_message'])->WhereConversation($user->id,0)->first();
             $order=0;
@@ -511,7 +511,7 @@ class ConversationController extends Controller
         }
 
         if($request->conversation_id){
-            $conversation = Conversation::find($request->conversation_id);
+            $conversation = Conversation::involving($sender->id)->findOrFail($request->conversation_id);
 
             if($conversation->sender_id == $sender->id){
                 $receiver_id = $conversation->receiver_id;
@@ -810,7 +810,7 @@ class ConversationController extends Controller
         }
 
         if($request->conversation_id){
-            $conversation = Conversation::with(['sender','receiver','last_message'])->find($request->conversation_id);
+            $conversation = Conversation::with(['sender','receiver','last_message'])->involving($delivery_man->id)->findOrFail($request->conversation_id);
         }else if($request->has('admin_id')){
             $conversation = Conversation::with(['sender','receiver','last_message'])->WhereConversation($delivery_man->id,0)->first();
             $order=0;

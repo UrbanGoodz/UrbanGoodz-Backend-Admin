@@ -119,7 +119,9 @@ class CartController extends Controller
 
         $user_id = $request->user ? $request->user->id : $request['guest_id'];
         $is_guest = $request->user ? 0 : 1;
-        $cart = Cart::find($request->cart_id);
+        // Only the caller's own cart line. This used to be Cart::find($request->cart_id) followed by
+        // $cart->user_id = $user_id, so any caller could take over (and re-price) another customer's line.
+        $cart = Cart::where('user_id', $user_id)->where('is_guest', $is_guest)->findOrFail($request->cart_id);
         $item = $cart->item_type === 'App\Models\Item' ? Item::find($cart->item_id) : ItemCampaign::find($cart->item_id);
         if($item->maximum_cart_quantity && ($request->quantity>$item->maximum_cart_quantity)){
             return response()->json([
@@ -165,8 +167,8 @@ class CartController extends Controller
         $user_id = $request->user ? $request->user->id : $request['guest_id'];
         $is_guest = $request->user ? 0 : 1;
 
-        $cart = Cart::find($request->cart_id);
-        $cart?->delete();
+        // Delete only the caller's own cart line (any caller could delete any line by id).
+        Cart::where('user_id', $user_id)->where('is_guest', $is_guest)->where('id', $request->cart_id)->delete();
 
         $carts = Cart::where('user_id', $user_id)->where('is_guest',$is_guest)->where('module_id',getModuleId($request->header('moduleId')))->get()
         ->map(function ($data) {

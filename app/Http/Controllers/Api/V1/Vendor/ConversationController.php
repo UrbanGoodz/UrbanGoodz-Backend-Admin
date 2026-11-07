@@ -49,7 +49,7 @@ class ConversationController extends Controller
         }
 
         if($request->conversation_id){
-            $conversation = Conversation::find($request->conversation_id);
+            $conversation = Conversation::involving($sender->id)->findOrFail($request->conversation_id);
 
             if($conversation->sender_id == $sender->id){
                 $receiver_id = $conversation->receiver_id;
@@ -297,7 +297,7 @@ class ConversationController extends Controller
         }
 
         if($request->conversation_id){
-            $conversation = Conversation::with(['sender','receiver'])->find($request->conversation_id);
+            $conversation = Conversation::with(['sender','receiver'])->involving($vendor->id)->findOrFail($request->conversation_id);
         }else if($request->delivery_man_id){
             $dm = UserInfo::where('deliveryman_id', $request->delivery_man_id)->first();
             if(!$dm){
