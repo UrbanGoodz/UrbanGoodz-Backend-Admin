@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzDedicatedRoute;
+use App\Models\DeliveryMan;
 use App\Models\UrbanGoodzIntakeBatch;
 use App\Models\UrbanGoodzRoutePackage;
 use App\Services\UrbanGoodz\DedicatedRouteOptimizationService;
@@ -83,7 +84,19 @@ class UrbanGoodzDriverRouteFinishController extends Controller
 
         $batch = UrbanGoodzIntakeBatch::find($request->input('batch_id'));
 
-        if (!$batch) {
+        // A driver may only build a run from a batch that is finished being scanned in
+        // (not DRAFT / still in intake) and that belongs to a company they may serve:
+        // that company's own fleet, Urban Goodz-owned drivers, or marketplace-shared
+        // drivers. Anything else answers 404 so another company's batch is not even
+        // confirmed to exist. Previously any approved driver could claim any batch.
+        $routable = in_array($batch?->status, [
+            UrbanGoodzIntakeBatch::STATUS_READY_FOR_ROUTING,
+            UrbanGoodzIntakeBatch::STATUS_LOCKED_FOR_ROUTING,
+        ], true);
+        $mayServe = $batch && DeliveryMan::assignableByCompany((int) $batch->business_client_id)
+            ->whereKey($driver->id)->exists();
+
+        if (!$batch || !$routable || !$mayServe) {
             return response()->json(['status' => 'error', 'message' => 'Batch not found.'], 404);
         }
 

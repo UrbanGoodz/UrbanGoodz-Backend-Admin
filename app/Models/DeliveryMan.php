@@ -440,6 +440,21 @@ class DeliveryMan extends Authenticatable
         return $query->withoutGlobalScope('delivery_only')->where('is_ride', 1);
     }
 
+    /**
+     * Drivers a dispatch company may see and assign: its own fleet, Urban Goodz-owned
+     * drivers, and any driver that opted into the marketplace. Another company's fleet
+     * and vendor-owned drivers are excluded. Mirrors UrbanGoodzDriverNetworkService's
+     * definition of "available to Urban Goodz".
+     */
+    public function scopeAssignableByCompany($query, int $companyId)
+    {
+        return $query->where(function ($q) use ($companyId) {
+            $q->where('business_client_id', $companyId)
+                ->orWhere('ownership_type', 'urban_goodz')
+                ->orWhere('available_for_marketplace', 1);
+        });
+    }
+
     protected static function booted()
     {
         static::addGlobalScope('storage', function ($builder) {

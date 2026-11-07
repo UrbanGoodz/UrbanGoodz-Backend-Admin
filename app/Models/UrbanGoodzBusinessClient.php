@@ -91,8 +91,23 @@ class UrbanGoodzBusinessClient extends Model
         return $query->where('account_type', 'dispatch_company');
     }
 
-    public function getTerritoryStatesAttribute(): ?array
+    /**
+     * Territory states as an array. The raw column is JSON; the previous accessor
+     * returned that string whenever a value was set, which violates its own ?array
+     * return type and crashed the dispatcher portal for every company that had
+     * configured a territory.
+     */
+    public function getTerritoryStatesAttribute($value = null): ?array
     {
-        return $this->attributes['territory_states'] ?? ($this->casts['territory_states'] ? json_decode($this->getRawOriginal('territory_states'), true) : null);
+        $raw = $this->attributes['territory_states'] ?? $value;
+        if (is_array($raw)) {
+            return $raw;
+        }
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 }

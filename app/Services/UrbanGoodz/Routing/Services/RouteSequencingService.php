@@ -60,9 +60,15 @@ class RouteSequencingService
             return $this->computeRouteMetrics($ordered, $constraints, 'HAVERSINE_FALLBACK', $startLocation, $endLocation);
         }
 
-        $matrix = $this->distanceMatrix->buildPairwiseMatrix($unlockedStops, 0);
-        $initialOrder = $this->nearestFeasibleNeighbor($unlockedStops, $matrix, $constraints);
-        $optimizedOrder = $this->twoOptImprovement($initialOrder, $matrix, $constraints, $startLocation, $endLocation);
+        // -1: there is no origin row. Passing 0 zero-filled stop 0's row, pricing every edge that leaves the first input stop at 0 miles.
+        $matrix = $this->distanceMatrix->buildPairwiseMatrix($unlockedStops, -1);
+        $initialOrder = $this->nearestFeasibleNeighbor($unlockedStops, $matrix, $constraints, $startLocation);
+        // The matrix is indexed by position in $unlockedStops; 2-opt reorders stops, so it needs
+        // a stop -> matrix-row map (null when package ids are not unique, then pairs are
+        // priced directly).
+        $ids = array_map(fn ($s) => $s->packageId, $unlockedStops);
+        $indexById = count(array_unique($ids)) === count($ids) ? array_flip($ids) : null;
+        $optimizedOrder = $this->twoOptImprovement($initialOrder, $matrix, $constraints, $startLocation, $endLocation, $indexById);
 
         $ordered = array_merge($sortedLocked, $optimizedOrder, $invalidStops);
         $distanceMode = $this->distanceMatrix->getOverallDistanceMode($matrix);
@@ -93,7 +99,7 @@ class RouteSequencingService
         return array_merge($withOrder, $withoutOrder);
     }
 
-    private function nearestFeasibleNeighbor(array $stops, array $matrix, ClusteringConstraints $constraints): array
+    private function nearestFeasibleNeighbor(array $stops, array $matrix, ClusteringConstraints $constraints, ?array $startLocation = null): array
     {
         $n = count($stops);
         if ($n <= 1) return $stops;
@@ -102,7 +108,7 @@ class RouteSequencingService
         $visited = array_fill(0, $n, false);
         $currentTime = 0.0;
 
-        $startIdx = $this->findOptimalStart($stops, $constraints);
+        $startIdx = $this->findOptimalStart($stops, $constraints, $startLocation);
         $ordered[] = $stops[$startIdx];
         $visited[$startIdx] = true;
 
@@ -150,21 +156,23 @@ class RouteSequencingService
         array $matrix,
         ClusteringConstraints $constraints,
         ?array $startLocation = null,
-        ?array $endLocation = null
+        ?array $endLocation = null,
+        ?array $indexById = null
     ): array {
         $n = count($stops);
         if ($n <= 3) return $stops;
 
         $bestOrder = $stops;
-        $bestDistance = $this->calculateTotalDistance($bestOrder, $matrix, $startLocation, $endLocation);
+        $bestDistance = $this->calculateTotalDistance($bestOrder, $matrix, $startLocation, $endLocation, $indexById);
+        $firstIndex = $this->firstStopIsPinned($stops, $constraints) ? 1 : 0;
 
         for ($iter = 0; $iter < $this->max2OptIterations; $iter++) {
             $improved = false;
 
-            for ($i = 1; $i < $n - 1; $i++) {
+            for ($i = $firstIndex; $i < $n - 1; $i++) {
                 for ($j = $i + 1; $j < $n; $j++) {
                     $newOrder = $this->twoOptSwap($bestOrder, $i, $j);
-                    $newDistance = $this->calculateTotalDistance($newOrder, $matrix, $startLocation, $endLocation);
+                    $newDistance = $this->calculateTotalDistance($newOrder, $matrix, $startLocation, $endLocation, $indexById);
 
                     if ($newDistance < $bestDistance - 0.001) {
                         $bestOrder = $newOrder;
@@ -177,7 +185,74 @@ class RouteSequencingService
             if (!$improved) break;
         }
 
+        // 2-opt alone stalls in local optima (e.g. a stop that should sit between two others
+        // can never be relocated by reversals). Alternate with Or-opt until neither helps.
+        if ($n <= self::OR_OPT_MAX_STOPS) {
+            for ($round = 0; $round < $this->max2OptIterations; $round++) {
+                $relocated = $this->orOptPass($bestOrder, $bestDistance, $matrix, $startLocation, $endLocation, $indexById, $firstIndex);
+                if (!$relocated) {
+                    break;
+                }
+                // A relocation can open new 2-opt moves.
+                for ($i = $firstIndex; $i < $n - 1; $i++) {
+                    for ($j = $i + 1; $j < $n; $j++) {
+                        $candidate = $this->twoOptSwap($bestOrder, $i, $j);
+                        $d = $this->calculateTotalDistance($candidate, $matrix, $startLocation, $endLocation, $indexById);
+                        if ($d < $bestDistance - 0.001) {
+                            $bestOrder = $candidate;
+                            $bestDistance = $d;
+                        }
+                    }
+                }
+            }
+        }
+
         return $bestOrder;
+    }
+
+    /** Above this many stops Or-opt is skipped to bound planning time. */
+    private const OR_OPT_MAX_STOPS = 80;
+
+    /**
+     * One improving Or-opt move: relocate a run of 1-3 consecutive stops (optionally
+     * reversed) to the best other position. Mutates $order / $distance; returns whether
+     * anything improved. Stops before $firstIndex (pinned) never move.
+     */
+    private function orOptPass(
+        array &$order,
+        float &$distance,
+        array $matrix,
+        ?array $startLocation,
+        ?array $endLocation,
+        ?array $indexById,
+        int $firstIndex
+    ): bool {
+        $n = count($order);
+
+        for ($len = 1; $len <= 3 && $len < $n; $len++) {
+            for ($i = $firstIndex; $i + $len <= $n; $i++) {
+                $segment = array_slice($order, $i, $len);
+                $rest = array_merge(array_slice($order, 0, $i), array_slice($order, $i + $len));
+
+                for ($pos = $firstIndex; $pos <= count($rest); $pos++) {
+                    if ($pos === $i) {
+                        continue; // same place
+                    }
+                    foreach ([$segment, array_reverse($segment)] as $candidateSegment) {
+                        $candidate = array_merge(array_slice($rest, 0, $pos), $candidateSegment, array_slice($rest, $pos));
+                        $d = $this->calculateTotalDistance($candidate, $matrix, $startLocation, $endLocation, $indexById);
+                        if ($d < $distance - 0.001) {
+                            $order = $candidate;
+                            $distance = $d;
+
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private function twoOptSwap(array $order, int $i, int $j): array
@@ -192,7 +267,8 @@ class RouteSequencingService
         array $stops,
         array $matrix,
         ?array $startLocation = null,
-        ?array $endLocation = null
+        ?array $endLocation = null,
+        ?array $indexById = null
     ): float {
         $total = 0.0;
         $n = count($stops);
@@ -209,17 +285,16 @@ class RouteSequencingService
 
         // 2. Between stops
         for ($i = 0; $i < $n - 1; $i++) {
-            $fromIdx = $this->findStopIndex($stops[$i], $matrix);
-            $toIdx = $this->findStopIndex($stops[$i + 1], $matrix);
+            $fromIdx = $indexById[$stops[$i]->packageId] ?? null;
+            $toIdx = $indexById[$stops[$i + 1]->packageId] ?? null;
 
-            if ($fromIdx !== null && $toIdx !== null) {
-                $distResult = $matrix[$fromIdx][$toIdx] ?? null;
-                $total += $distResult?->distanceMiles ?? PHP_FLOAT_MAX;
+            if ($fromIdx !== null && $toIdx !== null && isset($matrix[$fromIdx][$toIdx])) {
+                $total += $matrix[$fromIdx][$toIdx]->distanceMiles;
             } else {
-                $total += $this->distanceMatrix->haversine(
-                    $stops[$i]->lat, $stops[$i]->lng,
-                    $stops[$i + 1]->lat, $stops[$i + 1]->lng
-                );
+                $total += $this->distanceMatrix->getDistance(
+                    (string) $stops[$i]->lat, (string) $stops[$i]->lng,
+                    (string) $stops[$i + 1]->lat, (string) $stops[$i + 1]->lng
+                )->distanceMiles;
             }
         }
 
@@ -235,22 +310,7 @@ class RouteSequencingService
         return $total;
     }
 
-    private function findStopIndex(RouteStop $stop, array $matrix): ?int
-    {
-        $i = 0;
-        foreach ($matrix as $key => $row) {
-            if ($i === $key) {
-                $checkStop = $row[$key] ?? null;
-                if ($checkStop && $checkStop->mode === 'self') {
-                    return $key;
-                }
-            }
-            $i++;
-        }
-        return array_key_first($matrix);
-    }
-
-    private function findOptimalStart(array $stops, ClusteringConstraints $constraints): int
+    private function findOptimalStart(array $stops, ClusteringConstraints $constraints, ?array $startLocation = null): int
     {
         foreach ($stops as $idx => $stop) {
             if ($stop->isUrgent()) return $idx;
@@ -260,7 +320,36 @@ class RouteSequencingService
             if ($stop->deliveryWindowStart !== null) return $idx;
         }
 
+        // No urgent or windowed stop: begin at the stop nearest the depot. This used to
+        // return index 0 (whichever stop happened to be first in the input), which made the
+        // first leg arbitrary and, because 2-opt never moved it, the whole route long.
+        if ($startLocation) {
+            $best = 0;
+            $bestMiles = PHP_FLOAT_MAX;
+            foreach ($stops as $idx => $stop) {
+                $miles = $this->distanceMatrix->getDistance(
+                    (string) $startLocation['lat'], (string) $startLocation['lng'],
+                    (string) $stop->lat, (string) $stop->lng
+                )->distanceMiles;
+                if ($miles < $bestMiles) {
+                    $bestMiles = $miles;
+                    $best = $idx;
+                }
+            }
+
+            return $best;
+        }
+
         return 0;
+    }
+
+    /**
+     * The first stop stays fixed only when it was chosen for priority or time-window
+     * reasons; otherwise it is just where the greedy pass began and 2-opt may move it.
+     */
+    private function firstStopIsPinned(array $stops, ClusteringConstraints $constraints): bool
+    {
+        return $stops[0]->isUrgent() || $stops[0]->deliveryWindowStart !== null;
     }
 
     private function isFeasible(RouteStop $stop, ClusteringConstraints $constraints): bool

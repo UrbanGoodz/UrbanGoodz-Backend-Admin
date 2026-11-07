@@ -46,11 +46,16 @@ class DispatcherPortalController extends Controller
 
     protected function getAvailableDrivers()
     {
-        $query = DeliveryMan::where('active', 1)
+        $query = DeliveryMan::assignableByCompany($this->companyId())
+            ->where('active', 1)
             ->where('application_status', 'approved');
 
+        // delivery_men.available_states is not created by any migration, so on a database
+        // without it this filter crashed every dispatcher load page for companies that have a
+        // territory configured. Apply it only where the column exists. Ownership scoping above
+        // always applies.
         $territory = $this->territoryStates();
-        if (!empty($territory)) {
+        if (!empty($territory) && \Illuminate\Support\Facades\Schema::hasColumn('delivery_men', 'available_states')) {
             $query->where(function ($q) use ($territory) {
                 foreach ($territory as $state) {
                     $q->orWhereRaw("FIND_IN_SET(?, IFNULL(available_states, ''))", [$state]);
@@ -183,7 +188,9 @@ class DispatcherPortalController extends Controller
             'driver_id' => 'required|exists:delivery_men,id',
         ]);
 
-        $driver = DeliveryMan::where('id', $request->driver_id)
+        // Same pool the picker offers: never another company's or a vendor's driver.
+        $driver = DeliveryMan::assignableByCompany($this->companyId())
+            ->where('id', $request->driver_id)
             ->where('active', 1)
             ->where('application_status', 'approved')
             ->first();
@@ -471,6 +478,8 @@ class DispatcherPortalController extends Controller
             'role' => 'required|in:dispatch_manager,dispatcher,dispatch_readonly,dispatch_finance',
             'permissions' => 'nullable|array',
             'is_active' => 'boolean',
+            // A reset password used to be accepted with no length rule at all.
+            'password' => 'nullable|string|min:8|max:255',
         ]);
 
         if ($editUser->role === 'dispatch_owner') {
