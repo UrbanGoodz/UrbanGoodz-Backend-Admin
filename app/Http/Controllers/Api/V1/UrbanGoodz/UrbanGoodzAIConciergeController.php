@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\UrbanGoodz\UrbanGoodzAIConciergeService;
 use App\Services\UrbanGoodz\UrbanGoodzTavusService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class UrbanGoodzAIConciergeController extends Controller
 {
@@ -86,12 +87,40 @@ class UrbanGoodzAIConciergeController extends Controller
         ]);
     }
 
+    /** A live room is billed per minute and nobody needs two at once. */
+    private const VIDEO_SESSION_TTL_MINUTES = 30;
+
     public function startVideoAvatar(Request $request, UrbanGoodzTavusService $tavus)
     {
         $user = $request->user();
-        $name = $user?->f_name ? "{$user->f_name} {$user->l_name}" : "Customer {$user?->id}";
+
+        // Resume instead of opening a second billed room (double tap, app restart).
+        $existing = Cache::get("tavus:active:{$user->id}");
+        if (is_array($existing) && ! empty($existing['conversation_id'])) {
+            return response()->json([
+                'success' => true,
+                'resumed' => true,
+                'data' => [
+                    'conversation_id' => $existing['conversation_id'],
+                    'conversation_url' => $existing['conversation_url'],
+                ],
+                'error_code' => null,
+            ]);
+        }
+
+        $name = $user->f_name ? "{$user->f_name} {$user->l_name}" : "Customer {$user->id}";
 
         $result = $tavus->startConversation("Skylar with {$name}");
+
+        if ($result['success']) {
+            $ttl = now()->addMinutes(self::VIDEO_SESSION_TTL_MINUTES);
+            Cache::put("tavus:active:{$user->id}", [
+                'conversation_id' => $result['conversation_id'],
+                'conversation_url' => $result['conversation_url'],
+            ], $ttl);
+            // Remembered so only the person who started a room can end it.
+            Cache::put("tavus:owner:{$result['conversation_id']}", $user->id, $ttl);
+        }
 
         return response()->json([
             'success' => $result['success'],
@@ -103,9 +132,17 @@ class UrbanGoodzAIConciergeController extends Controller
         ], $result['success'] ? 200 : 503);
     }
 
-    public function endVideoAvatar(string $conversationId, UrbanGoodzTavusService $tavus)
+    public function endVideoAvatar(Request $request, string $conversationId, UrbanGoodzTavusService $tavus)
     {
+        // Any signed-in customer could previously end any room by id.
+        if ((int) Cache::get("tavus:owner:{$conversationId}") !== (int) $request->user()->id) {
+            return response()->json(['success' => false, 'message' => 'Conversation not found.'], 404);
+        }
+
         $ended = $tavus->endConversation($conversationId);
+
+        Cache::forget("tavus:owner:{$conversationId}");
+        Cache::forget("tavus:active:{$request->user()->id}");
 
         return response()->json(['success' => $ended]);
     }

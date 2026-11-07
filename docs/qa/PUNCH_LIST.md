@@ -29,8 +29,8 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 ## C. Certification lanes not finished (TODO)
 | # | Lane | Status |
 |---|------|--------|
-| C1 | AI actions + Concierge (guest endpoint, action allow-list, prompt injection, cost/abuse limits) | IN PROGRESS |
-| C2 | Digital humans / avatar | TODO |
+| C1 | AI actions + Concierge | DONE with notes: see `AI_CONCIERGE_CERTIFICATION.md` (guest session-id entropy, guest chat retention, shared cache in prod) |
+| C2 | Digital humans / avatar (Tavus ownership fixed; persona/avatar providers still to audit) | TODO |
 | C3 | Notifications (push/email/SMS, dedup, opt-out) | TODO |
 | C4 | Remaining customer/guest endpoints: wallet, track_order, refunds | TODO |
 | C5 | Dispatch commission + financial reconciliation | TODO |
@@ -40,6 +40,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | C9 | Final certification report | TODO (last) |
 
 ## D. Closed so far (for traceability)
+Concierge video-avatar ownership + billed-room resume.
 Admin 419 mechanism, captcha bypass + remember-me cookie removed, driver auth/token, customer order/cart/chat ownership,
 vendor tenancy, logistics tenancy, route optimization quality, OTR/medical races + custody, payout race + vendor payout
 NOT NULL, Stranded fee double-charge / escrow release / double close.
