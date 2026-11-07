@@ -49,12 +49,35 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
 
         $middleware->use([
+            // use() replaces the framework's default global stack, so the
+            // framework TrustProxies must be listed explicitly (see below).
+            \Illuminate\Http\Middleware\TrustProxies::class,
             \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
             \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
             \App\Http\Middleware\TrimStrings::class,
             \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
+
+        // Behind a TLS-terminating load balancer / CDN, Laravel only sees the
+        // proxy's plain-HTTP hop unless the proxy is trusted. That makes the
+        // app generate http:// form actions, redirects and asset URLs while the
+        // browser is on https://, so the session cookie is dropped on the
+        // redirected request and the next POST fails CSRF with HTTP 419.
+        // Set TRUSTED_PROXIES to a comma-separated list of proxy IPs/CIDRs, or
+        // "*" when the app is only reachable through the load balancer.
+        // Unset keeps the previous behaviour (no proxy trusted).
+        $trustedProxies = trim((string) env('TRUSTED_PROXIES', ''));
+        if ($trustedProxies !== '') {
+            $middleware->trustProxies(
+                at: $trustedProxies === '*' ? '*' : array_values(array_filter(array_map('trim', explode(',', $trustedProxies)))),
+                headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+                    | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+                    | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+                    | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
+                    | \Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB
+            );
+        }
 
         $middleware->group('web', [
             EncryptCookies::class,
