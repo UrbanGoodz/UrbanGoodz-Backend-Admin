@@ -62,37 +62,85 @@ class UrbanGoodzStrandedPaymentService
             return $this->broadcastAndReport($request->fresh(), null);
         }
 
-        $intent = $this->stripe('POST', '/payment_intents', [
-            'amount' => $amountMinor,
-            'currency' => strtolower($request->currency ?: 'usd'),
-            'payment_method' => $paymentMethod,
-            'confirm' => 'true',
-            'description' => 'Urban Goodz Stranded help request fee - ' . $request->request_number,
-            'metadata[request_number]' => $request->request_number,
-            'metadata[request_uuid]' => $request->uuid,
-            'automatic_payment_methods[enabled]' => 'true',
-            'automatic_payment_methods[allow_redirects]' => 'never',
-        ]);
+        // Claim the charge atomically. Two simultaneous submissions (a double tap,
+        // two devices) used to both pass the check above and both charge the card.
+        $claimed = UrbanGoodzStrandedRequest::whereKey($request->getKey())
+            ->whereIn('help_request_fee_status', ['unpaid', 'refundable'])
+            ->update(['help_request_fee_status' => 'processing']);
 
-        $ledgerRow = $this->record($request, 'fee', $amountMinor, $intent);
+        if ($claimed !== 1) {
+            throw new RuntimeException('The help request fee has already been paid or is being processed.');
+        }
 
-        if (($intent['status'] ?? null) !== 'succeeded') {
+        // One key per attempt. The old fixed key made the ledger insert collide on
+        // the retry after a declined card -- by which point Stripe had already
+        // taken the money.
+        $attempt = UrbanGoodzPaymentTransaction::where('payable_type', UrbanGoodzStrandedRequest::class)
+            ->where('payable_id', $request->id)
+            ->where('transaction_type', 'fee')
+            ->count() + 1;
+        $idempotencyKey = 'stranded_fee_' . $request->id . '_' . $attempt;
+
+        try {
+            $intent = $this->stripe('POST', '/payment_intents', [
+                'amount' => $amountMinor,
+                'currency' => strtolower($request->currency ?: 'usd'),
+                'payment_method' => $paymentMethod,
+                'confirm' => 'true',
+                'description' => 'Urban Goodz Stranded help request fee - ' . $request->request_number,
+                'metadata[request_number]' => $request->request_number,
+                'metadata[request_uuid]' => $request->uuid,
+                'automatic_payment_methods[enabled]' => 'true',
+                'automatic_payment_methods[allow_redirects]' => 'never',
+            ], $idempotencyKey);
+        } catch (\Throwable $e) {
+            $this->releaseClaim($request);
+            throw $e;
+        }
+
+        $succeeded = ($intent['status'] ?? null) === 'succeeded';
+
+        if (! $succeeded) {
+            $this->releaseClaim($request);
+        } else {
+            // The money has moved: record that first, so a ledger problem can
+            // never leave a charged customer with an unpaid request.
+            $request->update(['help_request_fee_status' => 'paid']);
+        }
+
+        try {
+            $ledgerRow = $this->record($request, 'fee', $amountMinor, $intent, $idempotencyKey);
+
+            if ($succeeded) {
+                // The ledger row id, not the Stripe reference. This column is a
+                // bigint; a Stripe id like pi_3U1... silently casts to 0 in it.
+                // The provider's own id lives on the ledger row's
+                // provider_payment_id, which is a string and the right home for it.
+                $request->update(['help_request_fee_transaction_id' => $ledgerRow->id]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Stranded fee ledger write failed', [
+                'request' => $request->request_number,
+                'intent' => $intent['id'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if (! $succeeded) {
             throw new RuntimeException(
                 $intent['error']['message']
                 ?? 'The payment did not complete (' . ($intent['status'] ?? 'unknown') . ').'
             );
         }
 
-        $request->update([
-            'help_request_fee_status' => 'paid',
-            // The ledger row id, not the Stripe reference. This column is a
-            // bigint; a Stripe id like pi_3U1... silently casts to 0 in it.
-            // The provider's own id lives on the ledger row's
-            // provider_payment_id, which is a string and the right home for it.
-            'help_request_fee_transaction_id' => $ledgerRow->id,
-        ]);
-
         return $this->broadcastAndReport($request->fresh(), $intent['id'] ?? null);
+    }
+
+    private function releaseClaim(UrbanGoodzStrandedRequest $request): void
+    {
+        UrbanGoodzStrandedRequest::whereKey($request->getKey())
+            ->where('help_request_fee_status', 'processing')
+            ->update(['help_request_fee_status' => 'unpaid']);
     }
 
     /**
@@ -179,7 +227,7 @@ class UrbanGoodzStrandedPaymentService
         ];
     }
 
-    private function record(UrbanGoodzStrandedRequest $request, string $type, int $amountMinor, array $intent): UrbanGoodzPaymentTransaction
+    private function record(UrbanGoodzStrandedRequest $request, string $type, int $amountMinor, array $intent, string $idempotencyKey): UrbanGoodzPaymentTransaction
     {
         return UrbanGoodzPaymentTransaction::create([
             'payable_type' => UrbanGoodzStrandedRequest::class,
@@ -193,12 +241,12 @@ class UrbanGoodzStrandedPaymentService
             'currency' => strtoupper($request->currency ?: 'USD'),
             'merchant_reference' => $request->request_number,
             'provider_payment_id' => $intent['id'] ?? null,
-            'idempotency_key' => 'stranded_' . $type . '_' . $request->id,
+            'idempotency_key' => $idempotencyKey,
         ]);
     }
 
     /** Credentials are read per call and never held in a property or logged. */
-    private function stripe(string $method, string $path, array $fields = []): array
+    protected function stripe(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
     {
         $row = DB::table('addon_settings')->where('key_name', 'stripe')->first();
 
@@ -219,6 +267,10 @@ class UrbanGoodzStrandedPaymentService
             CURLOPT_TIMEOUT => 30,
             CURLOPT_USERPWD => $key . ':',
         ];
+
+        if ($idempotencyKey !== null) {
+            $opts[CURLOPT_HTTPHEADER] = ['Idempotency-Key: ' . $idempotencyKey];
+        }
 
         if ($method === 'POST') {
             $opts[CURLOPT_POST] = true;

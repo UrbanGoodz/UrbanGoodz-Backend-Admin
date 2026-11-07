@@ -505,6 +505,10 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     Route::get('responder/assignment', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@activeAssignment');
 
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
+    // Resume after the app was closed or killed mid-rescue, and list past requests.
+    // Registered before requests/{record} so "active" is not read as a record id.
+    Route::get('requests/active', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@active');
+    Route::get('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@index');
     // Sends the request to nearby responders. Once a payment provider exists
     // this belongs on the payment webhook rather than the client.
     Route::post('requests/{record}/broadcast', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@broadcast');

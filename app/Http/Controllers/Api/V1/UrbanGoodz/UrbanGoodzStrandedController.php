@@ -202,6 +202,54 @@ class UrbanGoodzStrandedController extends Controller
         ], 201);
     }
 
+    /**
+     * The caller's most recent unfinished request, with the single next step the
+     * app should put in front of them. Without this a customer whose app closed
+     * mid-rescue had no way back to their request -- or to the unpaid fee that
+     * would have sent it out.
+     */
+    public function active(Request $request): JsonResponse
+    {
+        $stranded = UrbanGoodzStrandedRequest::where('user_id', $request->user()->id)
+            ->whereNotIn('status', ['completed', 'cancelled', 'expired'])
+            ->latest('id')
+            ->first();
+
+        if (!$stranded) {
+            return response()->json(['status' => 'success', 'active' => false, 'data' => null]);
+        }
+
+        $feeOutstanding = !in_array($stranded->help_request_fee_status, ['paid', 'waived'], true);
+
+        $next = match (true) {
+            $feeOutstanding => 'pay_fee',
+            $stranded->selected_offer_id === null && $stranded->broadcast_at === null => 'broadcast',
+            $stranded->selected_offer_id === null => 'choose_helper',
+            $stranded->status === 'assigned' || $stranded->status === 'en_route' => 'track_helper',
+            $stranded->status === 'on_scene' => 'finish_and_rate',
+            default => 'view',
+        };
+
+        return response()->json([
+            'status' => 'success',
+            'active' => true,
+            'next_step' => $next,
+            'data' => $this->present($stranded),
+        ]);
+    }
+
+    /** The caller's recent requests, newest first. */
+    public function index(Request $request): JsonResponse
+    {
+        $rows = UrbanGoodzStrandedRequest::where('user_id', $request->user()->id)
+            ->latest('id')
+            ->limit(20)
+            ->get()
+            ->map(fn (UrbanGoodzStrandedRequest $r) => $this->present($r));
+
+        return response()->json(['status' => 'success', 'total_size' => $rows->count(), 'requests' => $rows]);
+    }
+
     public function show(Request $request, string $record): JsonResponse
     {
         $stranded = $this->findForUser($request, $record);
@@ -509,29 +557,33 @@ class UrbanGoodzStrandedController extends Controller
             ], 422);
         }
 
-        match ($event) {
-            'en_route' => $this->applyStatus($stranded, 'en_route', ['en_route_at' => now()]),
-            'nearby' => null,
-            'delayed' => null,
-            'arrived' => $this->applyStatus($stranded, 'on_scene', ['arrived_at' => now()]),
-            'started' => $this->applyStatus($stranded, 'on_scene', []),
-            'completed' => $this->applyStatus($stranded, 'completed', ['completed_at' => now()]),
-            // Escrow release is money movement, so it runs through the payment
-            // service rather than being a status column written inline. That
-            // keeps it idempotent and ledgered.
-            'confirmed' => $this->applyStatus($stranded, 'completed', ['customer_confirmed_at' => now()]),
-        };
+        $closing = in_array($event, ['completed', 'confirmed'], true);
 
-        if ($event === 'confirmed') {
+        if ($closing) {
+            // Compare-and-swap into the terminal state. A double tap or two
+            // devices used to both pass the isTerminal() read above, so the
+            // job was counted twice and escrow was attempted twice.
+            $won = UrbanGoodzStrandedRequest::whereKey($stranded->getKey())
+                ->whereNotIn('status', ['completed', 'cancelled', 'expired'])
+                ->update(array_filter([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                    'customer_confirmed_at' => now(),
+                ]));
+
+            if ($won !== 1) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'This request is already closed.',
+                ], 409);
+            }
+
+            // The customer is the only party who can close a request, and the
+            // app sends `completed` (never `confirmed`), so closing IS the
+            // confirmation. Releasing escrow only on `confirmed` left a paid
+            // responder's money held forever. Idempotent and ledgered.
             app(UrbanGoodzStrandedPaymentService::class)->releaseEscrow($stranded->fresh());
-        }
 
-        // `completed` and `confirmed` are alternative terminal events, not
-        // sequential steps -- isTerminal() blocks a second status call once
-        // either has landed, so exactly one of them fires per request. The
-        // trust count and freeing the responder must not depend on which one
-        // the client happened to send.
-        if (in_array($event, ['completed', 'confirmed'], true)) {
             UrbanGoodzStrandedResponder::where('user_id', $offer->responder_id)
                 ->where('responder_type', $offer->responder_type)
                 ->update(['active_request_id' => null]);
@@ -539,6 +591,13 @@ class UrbanGoodzStrandedController extends Controller
             UrbanGoodzStrandedResponder::where('user_id', $offer->responder_id)
                 ->where('responder_type', $offer->responder_type)
                 ->increment('completed_jobs');
+        } else {
+            match ($event) {
+                'en_route' => $this->applyStatus($stranded, 'en_route', ['en_route_at' => now()]),
+                'arrived' => $this->applyStatus($stranded, 'on_scene', ['arrived_at' => now()]),
+                'started' => $this->applyStatus($stranded, 'on_scene', []),
+                default => null, // nearby / delayed are notifications only
+            };
         }
 
         $fresh = $stranded->fresh();
