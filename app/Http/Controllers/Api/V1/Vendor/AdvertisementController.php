@@ -130,7 +130,7 @@ class AdvertisementController extends Controller
         }
         $data = json_decode($request?->translations, true);
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Title and description in english is required'));
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
 
@@ -219,7 +219,7 @@ class AdvertisementController extends Controller
 
         $data = json_decode($request->translations, true);
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Title and description in english is required'));
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
 
@@ -406,7 +406,7 @@ class AdvertisementController extends Controller
 
         $data = json_decode($request->translations, true);
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Title and description in english is required'));
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
 

@@ -67,11 +67,11 @@ class ItemController extends Controller
 
         $data = json_decode($request->translations, true);
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Name and description in english is required'));
         }
 
-        if (($dis > 0 && $request['price'] <= $dis )|| count($data) < 1 || $validator->fails()) {
+        if (($dis > 0 && $request['price'] <= $dis )|| !is_array($data) || count($data) < 1 || $validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 402);
         }
 
@@ -502,11 +502,11 @@ class ItemController extends Controller
         }
         $data = json_decode($request->translations, true);
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Name and description in english is required'));
         }
 
-        if (($dis > 0 && $request['price'] <= $dis )|| count($data) < 1 || $validator->fails()) {
+        if (($dis > 0 && $request['price'] <= $dis )|| !is_array($data) || count($data) < 1 || $validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 402);
         }
         $tag_ids = [];

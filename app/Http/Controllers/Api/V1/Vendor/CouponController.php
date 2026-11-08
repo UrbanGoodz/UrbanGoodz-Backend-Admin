@@ -56,8 +56,11 @@ class CouponController extends Controller
         
         $data = json_decode($request->translations, true);
         
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
+            // Added to the bag AND returned: the bag alone is wiped by the next ->fails() and the
+            // handler went on to read $data[0] (a 500).
             $validator->getMessageBag()->add('translations', translate('messages.Title in english is required'));
+            return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
         $coupon_data = "";
@@ -132,10 +135,10 @@ class CouponController extends Controller
         ]);
         $data = json_decode($request->translations, true);
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Title in english is required'));
         }
-        if ($validator->fails()) {
+        if ($validator->fails() || !is_array($data) || count($data) < 1) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
         $store_id = $request->vendor->stores[0]->id;

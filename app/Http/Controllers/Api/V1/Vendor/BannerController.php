@@ -35,6 +35,10 @@ class BannerController extends Controller
 
 
         $data = json_decode($request->translations, true);
+        if (!is_array($data) || count($data) < 1) {
+            return response()->json(['errors' => [['code' => 'translations', 'message' => translate('messages.Title in english is required')]]], 403);
+        }
+
 
         $banner = new Banner;
         $banner->title = $data[0]['value'];
@@ -85,6 +89,10 @@ class BannerController extends Controller
 
 
         $data = json_decode($request->translations, true);
+        if (!is_array($data) || count($data) < 1) {
+            return response()->json(['errors' => [['code' => 'translations', 'message' => translate('messages.Title in english is required')]]], 403);
+        }
+
 
         $banner = Banner::where('type', 'store_wise')->where('data', (string) $request->vendor->stores[0]->id)->findOrFail($request->id);
         $banner->title = $data[0]['value'];

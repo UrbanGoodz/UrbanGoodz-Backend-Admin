@@ -36,7 +36,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | C5 | Dispatch commission + financial reconciliation | DONE with notes: see `DISPATCH_FINANCIAL_RECONCILIATION_CERTIFICATION.md` (reconcile should sum split rows; id collision in active-jobs; dispatcher commission on OA) |
 | C6 | Creator/social + fashion ownership pass | DONE with notes: see `CREATOR_FASHION_CERTIFICATION.md` (vendor can mark `completed` from `pending`; reel moderation not re-audited) |
 | C10 | Order Anywhere | DONE with notes: see `ORDER_ANYWHERE_CERTIFICATION.md` |
-| C7 | Vendor update endpoints: payload-complete tests | TODO |
+| C7 | Vendor update endpoints: payload-complete tests | DONE: see `VENDOR_UPDATE_ENDPOINTS_CERTIFICATION.md` (all tenant-scoped; malformed-body 500s fixed; image-upload variants not exercised) |
 | C8 | Stranded: wire `getActiveRequest()` into the customer-app start-up flow (backend + API call done) | TODO |
 | C9 | Final certification report | TODO (last) |
 
@@ -58,6 +58,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | E6 | Guest `digital-human/speak` global spend cap | TODO |
 
 ## D. Closed so far (for traceability)
+Vendor updates: payload-complete isolation proven for 7 endpoints; missing-translations 500s and coupon validation bypass fixed.
 Dispatch/finance: route reopen double-payout, non-atomic completion, active-jobs completing routes/orders without checks, transitionTo not saving `completed`, driver pay missing from Order Anywhere splits.
 Creator/fashion: stylist-request status IDOR, creator self-activating rejected/pending assignments.
 Customer wallet/refund: partner credit hardening, refund double-tap + guest 500, missing refund_requested column, track throttle.

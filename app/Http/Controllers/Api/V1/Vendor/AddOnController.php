@@ -39,11 +39,11 @@ class AddOnController extends Controller
 
         $data = $request->translations;
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Name and description in english is required'));
         }
 
-        if ($validator->fails() || count($data) < 1) {
+        if ($validator->fails() || !is_array($data) || count($data) < 1) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
@@ -108,11 +108,11 @@ class AddOnController extends Controller
 
         $data = $request->translations;
 
-        if (count($data) < 1) {
+        if (!is_array($data) || count($data) < 1) {
             $validator->getMessageBag()->add('translations', translate('messages.Name and description in english is required'));
         }
 
-        if ($validator->fails() || count($data) < 1) {
+        if ($validator->fails() || !is_array($data) || count($data) < 1) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
