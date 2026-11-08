@@ -27,10 +27,14 @@ class NotificationPayloadAndOptOutTest extends TestCase
 
     private function customer(): User
     {
-        return User::create([
+        $user = User::create([
             'f_name' => 'Push', 'l_name' => 'Test', 'email' => 'push-'.uniqid().'@urbangoodz.test',
-            'phone' => '+1555'.random_int(1000000, 9999999), 'password' => bcrypt('x'), 'cm_firebase_token' => 'fcm-token-1',
+            'phone' => '+1555'.random_int(1000000, 9999999), 'password' => bcrypt('x'),
         ]);
+        // Set directly rather than through mass assignment, which other tests can change.
+        DB::table('users')->where('id', $user->id)->update(['cm_firebase_token' => 'fcm-token-1']);
+
+        return $user->fresh();
     }
 
     public function test_a_push_notification_carries_its_subject_and_body_to_the_device(): void
@@ -59,7 +63,7 @@ class NotificationPayloadAndOptOutTest extends TestCase
     public function test_a_missing_device_token_fails_once_without_retry_noise(): void
     {
         $user = $this->customer();
-        $user->update(['cm_firebase_token' => null]);
+        DB::table('users')->where('id', $user->id)->update(['cm_firebase_token' => null]);
         $n = UrbanGoodzNotification::create([
             'recipient_type' => 'customer', 'recipient_id' => $user->id, 'channel' => 'push', 'event_type' => 'order_ready',
             'subject' => 'Ready', 'body' => 'x', 'priority' => 'normal', 'status' => 'pending',

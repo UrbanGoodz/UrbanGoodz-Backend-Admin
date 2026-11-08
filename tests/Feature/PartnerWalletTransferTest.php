@@ -29,7 +29,11 @@ class PartnerWalletTransferTest extends TestCase
         foreach (['activation_mode' => '1', 'drivemond_base_url' => 'https://drive.test', 'drivemond_token' => 'dm-secret', 'system_self_token' => 'mart-secret'] as $k => $v) {
             ExternalConfiguration::updateOrCreate(['key' => $k], ['value' => $v]);
         }
-        $this->user = User::create(['f_name' => 'Wal', 'l_name' => 'Let', 'email' => 'wal-'.uniqid().'@urbangoodz.test', 'phone' => '+1555'.random_int(1000000, 9999999), 'password' => bcrypt('x'), 'wallet_balance' => 10]);
+        $this->user = User::create(['f_name' => 'Wal', 'l_name' => 'Let', 'email' => 'wal-'.uniqid().'@urbangoodz.test', 'phone' => '+1555'.random_int(1000000, 9999999), 'password' => bcrypt('x')]);
+        // Set directly: another test in the full run changes mass-assignment behaviour, which
+        // silently dropped wallet_balance here.
+        \Illuminate\Support\Facades\DB::table('users')->where('id', $this->user->id)->update(['wallet_balance' => 10]);
+        $this->user = $this->user->fresh();
         Http::fake(['drive.test/*' => Http::response(['status' => true, 'data' => ['phone' => $this->user->phone]], 200)]);
     }
 
