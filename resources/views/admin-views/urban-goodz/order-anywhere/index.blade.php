@@ -22,6 +22,42 @@
             </div>
         </div>
 
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">{{ translate('Automatic dispatch') }}</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('admin.urban-goodz.order-anywhere.dispatch-settings') }}" method="POST">
+                    @csrf @method('PUT')
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="auto_dispatch" name="auto_dispatch" value="1" @checked($dispatchSettings['auto_dispatch'])>
+                                <label class="custom-control-label" for="auto_dispatch">{{ translate('Dispatch automatically after payment (nearest driver first, then the next closest)') }}</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label>{{ translate('Driver radius (miles)') }}</label>
+                            <input type="number" step="0.5" min="1" max="500" name="radius_miles" class="form-control" value="{{ $dispatchSettings['radius_miles'] }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>{{ translate('Minutes each driver has to accept') }}</label>
+                            <input type="number" min="1" max="60" name="offer_minutes" class="form-control" value="{{ $dispatchSettings['offer_minutes'] }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>{{ translate('Alert admins after (minutes)') }}</label>
+                            <input type="number" min="0" max="1440" name="escalate_after_minutes" class="form-control" value="{{ $dispatchSettings['escalate_after_minutes'] }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>{{ translate('Cancel and release payment after (minutes, 0 = never)') }}</label>
+                            <input type="number" min="0" max="10080" name="cancel_after_minutes" class="form-control" value="{{ $dispatchSettings['cancel_after_minutes'] }}">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn--primary mt-3">{{ translate('Save dispatch settings') }}</button>
+                </form>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header py-1 border-0">
                 <div class="search--button-wrapper justify-content-end">

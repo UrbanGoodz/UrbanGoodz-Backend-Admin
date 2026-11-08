@@ -752,6 +752,13 @@
                     </div>
                 @endif
 
+                @if(!empty(($request->metadata ?? [])['needs_manual_dispatch_at']))
+                    <div class="alert alert-warning mb-3">
+                        <strong>{{ translate('No driver has accepted this yet.') }}</strong>
+                        {{ translate('Automatic dispatch is still cycling nearby drivers. Assign a specific driver below to take over, or cancel to release the customer\'s hold.') }}
+                    </div>
+                @endif
+
                 <div class="card mt-3">
                     <div class="card-header">
                         <h5>{{ translate('Quote / Capture / Refund') }}</h5>
@@ -759,9 +766,50 @@
                     <div class="card-body">
                         <form action="{{ route('admin.urban-goodz.order-anywhere.quote', $request->id) }}" method="POST">
                             @csrf @method('PUT')
+                            @php($markupPercent = \App\Services\OrderAnywhereQuotePricing::markupPercent())
                             <div class="form-group">
-                                <label>{{ translate('Quote Amount') }}</label>
-                                <input type="number" step="0.01" name="quote_amount" class="form-control" value="{{ $request->quote_amount }}" required>
+                                <label>{{ translate('Sourced item cost') }}</label>
+                                <input type="number" step="0.01" min="0.01" name="item_cost" class="form-control" value="{{ old('item_cost', $request->item_subtotal) }}">
+                                <small class="text-muted">
+                                    @if($markupPercent !== null)
+                                        {{ translate('We add our markup') }} ({{ rtrim(rtrim(number_format($markupPercent, 2), '0'), '.') }}%), {{ translate('delivery and tax automatically.') }}
+                                    @else
+                                        {{ translate('No default markup is configured. Enter a markup % below or set ORDER_ANYWHERE_MARKUP_PERCENT.') }}
+                                    @endif
+                                </small>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-4 form-group">
+                                    <label>{{ translate('Markup %') }}</label>
+                                    <input type="number" step="0.01" min="0" name="markup_percent" class="form-control" value="{{ old('markup_percent') }}" placeholder="{{ $markupPercent }}">
+                                </div>
+                                <div class="col-md-4 form-group">
+                                    <label>{{ translate('Delivery fee') }}</label>
+                                    <input type="number" step="0.01" min="0" name="delivery_fee" class="form-control" value="{{ old('delivery_fee') }}">
+                                </div>
+                                <div class="col-md-4 form-group">
+                                    <label>{{ translate('Tax') }}</label>
+                                    <input type="number" step="0.01" min="0" name="tax" class="form-control" value="{{ old('tax') }}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>{{ translate('Pickup address (where the driver buys it)') }}</label>
+                                <input type="text" name="pickup_address" class="form-control" value="{{ old('pickup_address', $request->pickup_address) }}">
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6 form-group">
+                                    <label>{{ translate('Pickup latitude') }}</label>
+                                    <input type="number" step="0.0000001" min="-90" max="90" name="pickup_latitude" class="form-control" value="{{ old('pickup_latitude', $request->pickup_latitude) }}">
+                                </div>
+                                <div class="col-md-6 form-group">
+                                    <label>{{ translate('Pickup longitude') }}</label>
+                                    <input type="number" step="0.0000001" min="-180" max="180" name="pickup_longitude" class="form-control" value="{{ old('pickup_longitude', $request->pickup_longitude) }}">
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mb-2">{{ translate('Drivers are offered the job nearest-first from these coordinates.') }}</small>
+                            <div class="form-group">
+                                <label>{{ translate('Or type the total directly') }}</label>
+                                <input type="number" step="0.01" name="quote_amount" class="form-control" value="{{ old('quote_amount') }}" placeholder="{{ $request->quote_amount }}">
                             </div>
                             <button type="submit" class="btn btn--primary btn-block">{{ translate('Create Quote') }}</button>
                         </form>

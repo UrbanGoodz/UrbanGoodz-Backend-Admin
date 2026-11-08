@@ -324,6 +324,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
             Route::get('/', 'UrbanGoodzAdminController@index')->name('index');
             Route::get('order-anywhere', 'UrbanGoodzAdminController@orderAnywhere')->name('order-anywhere.index');
+            Route::put('order-anywhere/dispatch-settings', 'UrbanGoodzAdminController@orderAnywhereDispatchSettings')->name('order-anywhere.dispatch-settings');
             Route::get('order-anywhere/{id}', 'UrbanGoodzAdminController@orderAnywhereShow')->name('order-anywhere.show');
             Route::put('order-anywhere/{id}/status', 'UrbanGoodzAdminController@orderAnywhereStatus')->name('order-anywhere.status');
             Route::put('order-anywhere/{id}/notes', 'UrbanGoodzAdminController@orderAnywhereNotes')->name('order-anywhere.notes');

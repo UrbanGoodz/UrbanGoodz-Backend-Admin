@@ -80,7 +80,24 @@ class UrbanGoodzAdminController extends Controller
             'totalRequests' => OrderAnywhereRequest::count(),
             'pendingReview' => OrderAnywhereRequest::where('status', 'pending_review')->count(),
             'activeRequests' => OrderAnywhereRequest::whereNotIn('status', ['completed', 'cancelled', 'rejected'])->count(),
+            'dispatchSettings' => \App\Services\OrderAnywhereDispatchSettings::all(),
         ]);
+    }
+
+    public function orderAnywhereDispatchSettings(Request $request)
+    {
+        $data = $request->validate([
+            'radius_miles' => ['required', 'numeric', 'min:1', 'max:500'],
+            'offer_minutes' => ['required', 'integer', 'min:1', 'max:60'],
+            'escalate_after_minutes' => ['required', 'integer', 'min:0', 'max:1440'],
+            'cancel_after_minutes' => ['required', 'integer', 'min:0', 'max:10080'],
+        ]);
+        // An unchecked box sends nothing, so presence is the value.
+        $data['auto_dispatch'] = $request->boolean('auto_dispatch');
+
+        \App\Services\OrderAnywhereDispatchSettings::update($data);
+
+        return back()->with('success', translate('Dispatch settings saved.'));
     }
 
     public function orderAnywhereShow($id)
@@ -189,7 +206,20 @@ class UrbanGoodzAdminController extends Controller
             'final_amount' => ['nullable', 'numeric', 'min:0.01'],
             'quote_reference' => ['nullable', 'string', 'max:255'],
             'admin_notes' => ['nullable', 'string'],
+            'pickup_address' => ['nullable', 'string', 'max:500'],
+            'pickup_latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:pickup_longitude'],
+            'pickup_longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:pickup_latitude'],
         ]);
+
+        // Where the driver buys it. Dispatch offers the job nearest-first from these coordinates;
+        // without them it can only fall back to the zone centre.
+        $pickup = array_filter(
+            \Illuminate\Support\Arr::only($data, ['pickup_address', 'pickup_latitude', 'pickup_longitude']),
+            fn ($v) => $v !== null && $v !== ''
+        );
+        if ($pickup) {
+            OrderAnywhereRequest::findOrFail($id)->update($pickup);
+        }
 
         if (isset($data['item_cost'])) {
             try {
@@ -206,6 +236,8 @@ class UrbanGoodzAdminController extends Controller
             $data = array_merge($data, $priced, ['final_amount' => $priced['quote_amount']]);
         }
 
+        // quote_amount is optional when a sourced item cost was priced above.
+        $data['quote_amount'] = $data['quote_amount'] ?? 0;
         $payments->quoteOrderAnywhere(OrderAnywhereRequest::findOrFail($id), $data);
 
         return back()->with('success', translate('Order Anywhere quote created successfully.'));
