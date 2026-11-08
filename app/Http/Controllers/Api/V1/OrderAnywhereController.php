@@ -482,23 +482,6 @@ class OrderAnywhereController extends Controller
      * participating_vendor: ready_for_pickup -> driver_assigned -> picked_up
      *                    -> out_for_delivery -> delivered -> completed
      */
-    private const DRIVER_STEPS = [
-        'external_merchant' => [
-            'accepted'  => ['approved' => ['shopper_assigned', 'shopper_accepted'], 'shopper_assigned' => ['shopper_accepted']],
-            'shopping'  => ['shopper_accepted' => ['shopping']],
-            'purchased' => ['shopping' => ['purchased']],
-            'picked_up' => ['purchased' => ['picked_up']],
-            'en_route'  => ['picked_up' => ['out_for_delivery']],
-            'delivered' => ['out_for_delivery' => ['delivered', 'completed']],
-        ],
-        'participating_vendor' => [
-            'accepted'  => ['ready_for_pickup' => ['driver_assigned']],
-            'picked_up' => ['driver_assigned' => ['picked_up']],
-            'en_route'  => ['picked_up' => ['out_for_delivery']],
-            'delivered' => ['out_for_delivery' => ['delivered', 'completed']],
-        ],
-    ];
-
     public function driverStatus(Request $request, $record)
     {
         $data = $request->validate([
@@ -520,28 +503,7 @@ class OrderAnywhereController extends Controller
                 return $this->updated($model, 'Driver issue reported.');
             }
 
-            $path = self::DRIVER_STEPS[$model->fulfillment_type ?: 'external_merchant'] ?? [];
-            $steps = $path[$driverStatus][$model->status] ?? null;
-
-            if ($steps === null) {
-                throw new \InvalidArgumentException("Cannot move to '{$driverStatus}' from '{$model->status}'.");
-            }
-
-            // The driver pays with the temporary purchase card the platform issued. When
-            // a card exists for this order, "purchased" needs a recorded card purchase;
-            // otherwise a driver could claim the purchase without spending the funds.
-            if ($driverStatus === 'purchased' && $model->card_issued) {
-                $spent = \App\Models\UrbanGoodzOrderAnywhereCardRequest::where('id', $model->card_request_id)
-                    ->where('captured_amount', '>', 0)->exists();
-                if (! $spent) {
-                    throw new \InvalidArgumentException('Complete the purchase with the issued card before marking it purchased.');
-                }
-            }
-
-            $model->driver_task_status = $driverStatus;
-            foreach ($steps as $next) {
-                $model->transitionTo($next);
-            }
+            $model = app(\App\Services\OrderAnywhereDriverFlow::class)->advance($model, $driverStatus);
 
             return $this->updated($model, 'Driver task status updated.');
         });

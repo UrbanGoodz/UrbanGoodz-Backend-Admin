@@ -247,10 +247,31 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             return $this->startLoad($driver, $job);
         }
 
-        $updateFields = ['driver_task_status' => 'in_progress', 'driver_started_at' => now()];
+        // Terminal jobs are never restarted (a completed route reopened here could be completed -- and
+        // paid -- again).
+        if ($this->isFinished($job)) {
+            return response()->json(['error' => 'This job is already finished and cannot be started.'], 409);
+        }
+
         if ($job instanceof OrderAnywhereRequest) {
-            $updateFields['status'] = 'shopping';
-        } elseif ($job instanceof UrbanGoodzBusinessClientJob) {
+            // Walk the legal steps (accept, then start shopping); never jump the state machine.
+            try {
+                $flow = app(\App\Services\OrderAnywhereDriverFlow::class);
+                if (in_array($job->status, ['approved', 'shopper_assigned', 'ready_for_pickup'], true)) {
+                    $job = $flow->advance($job, 'accepted');
+                }
+                if ($job->status === 'shopper_accepted') {
+                    $job = $flow->advance($job, 'shopping');
+                }
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+
+            return response()->json(['job' => $this->normalizeActiveJob($job->fresh(), $this->guessSource($job))]);
+        }
+
+        $updateFields = ['driver_task_status' => 'in_progress', 'driver_started_at' => now()];
+        if ($job instanceof UrbanGoodzBusinessClientJob) {
             $updateFields['status'] = 'in_progress';
         } elseif ($job instanceof UrbanGoodzDedicatedRoute) {
             $updateFields['status'] = 'in_progress';
@@ -275,15 +296,40 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             return $this->completeLoad($driver, $job);
         }
 
-        $updateFields = ['driver_task_status' => 'completed', 'driver_completed_at' => now()];
+        if ($this->isFinished($job)) {
+            return response()->json(['error' => 'This job is already finished.'], 409);
+        }
+
         if ($job instanceof OrderAnywhereRequest) {
-            $updateFields['status'] = 'completed';
-        } elseif ($job instanceof UrbanGoodzBusinessClientJob) {
+            // Only a delivery in progress can be finished, and only through the state machine. A bare
+            // status write let a driver mark an order they never bought or delivered as completed.
+            try {
+                $job = app(\App\Services\OrderAnywhereDriverFlow::class)->advance($job, 'delivered');
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+
+            return response()->json(['job' => $this->normalizeActiveJob($job->fresh(), $this->guessSource($job))]);
+        }
+
+        if ($job instanceof UrbanGoodzDedicatedRoute) {
+            // Same checks, bonus and settlement as the route endpoint: every package must be accounted
+            // for, and completion is atomic. This path used to set `completed` unconditionally.
+            $response = app(UrbanGoodzDriverApiController::class)->routeCompleted(
+                $request,
+                $job->id,
+                app(\App\Services\UrbanGoodz\RouteCompletionSettlementService::class)
+            );
+
+            return $response->getStatusCode() === 200
+                ? response()->json(['job' => $this->normalizeActiveJob($job->fresh(), $this->guessSource($job)), 'completion' => $response->getData(true)])
+                : $response;
+        }
+
+        $updateFields = ['driver_task_status' => 'completed', 'driver_completed_at' => now()];
+        if ($job instanceof UrbanGoodzBusinessClientJob) {
             $updateFields['status'] = 'delivered';
             $updateFields['delivered_at'] = now();
-        } elseif ($job instanceof UrbanGoodzDedicatedRoute) {
-            $updateFields['status'] = 'completed';
-            $updateFields['route_completed_at'] = now();
         }
 
         $job->update($updateFields);
@@ -317,11 +363,25 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             return $this->releaseLoad($driver, $job);
         }
 
-        $updateFields = ['driver_task_status' => 'cancelled'];
+        if ($this->isFinished($job)) {
+            return response()->json(['error' => 'This job is already finished.'], 409);
+        }
+
         if ($job instanceof OrderAnywhereRequest) {
-            $updateFields['status'] = 'pending_review';
-            $updateFields['assigned_delivery_man_id'] = null;
-        } elseif ($job instanceof UrbanGoodzBusinessClientJob) {
+            // Before any goods are bought the job goes straight back to automatic dispatch. After
+            // that the driver reports an issue instead -- walking away with a paid, half-done order
+            // used to drop it into the review queue as if it had never been paid for.
+            try {
+                app(\App\Services\OrderAnywhereDriverFlow::class)->release($job);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+
+            return response()->json(['message' => 'Job cancelled successfully']);
+        }
+
+        $updateFields = ['driver_task_status' => 'cancelled'];
+        if ($job instanceof UrbanGoodzBusinessClientJob) {
             $updateFields['status'] = 'submitted';
             $updateFields['assigned_delivery_man_id'] = null;
             $updateFields['driver_accepted_at'] = null;
@@ -567,6 +627,12 @@ class UrbanGoodzDriverActiveJobsController extends Controller
     }
 
     // --- Helpers ---
+
+    /** Terminal in every source, so start/complete/cancel can never act on a finished job. */
+    private function isFinished($job): bool
+    {
+        return in_array($job->status, ['completed', 'delivered', 'cancelled', 'rejected', 'returned', 'failed'], true);
+    }
 
     private function findDriverJob(DeliveryMan $driver, int $jobId)
     {

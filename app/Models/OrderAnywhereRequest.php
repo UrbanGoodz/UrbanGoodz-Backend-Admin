@@ -309,8 +309,11 @@ class OrderAnywhereRequest extends Model implements PayableRequest
         // Only settle splits on final terminal states, and only if payment was captured
         if (in_array($newStatus, ['completed', 'cancelled', 'failed'], true)) {
             if (in_array($this->payment_status, ['captured', 'partially_captured'], true)) {
-                // Settlement happens after capture, not on status transition
-                // Only reverse splits on cancellation/refund
+                // Settlement happens after capture, not on status transition.
+                // Only reverse splits on cancellation/refund.
+                // The status itself must still be saved: this branch used to be empty, so a captured
+                // request never actually reached `completed` in the database.
+                $this->save();
             } elseif ($newStatus === 'cancelled' && in_array($this->payment_status, ['authorized', 'capture_pending'], true)) {
                 // Cancel authorization, reverse pending splits
                 \Illuminate\Support\Facades\DB::transaction(function () use ($newStatus) {

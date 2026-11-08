@@ -615,6 +615,45 @@ class UrbanGoodzPaymentService
     }
 
     /**
+     * Put the assigned driver's pay on the books.
+     *
+     * Splits are first calculated when the request is QUOTED, before any driver exists, so the
+     * driver's `driver_earning` row was skipped (it needs `assigned_delivery_man_id`) while the
+     * request's driver_payout_amount column still counted it. Reconciliation checks those columns,
+     * so it passed with the driver's pay missing from the splits. Called when a driver is attached
+     * and before capture; a no-op when there is nothing to add.
+     */
+    public function attachDriverSplit(OrderAnywhereRequest $request): void
+    {
+        $driverId = (int) $request->assigned_delivery_man_id;
+        $amount = (float) $request->driver_payout_amount;
+
+        if ($driverId <= 0 || $amount <= 0) {
+            return;
+        }
+
+        $base = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)->where('payable_id', $request->id);
+
+        if ((clone $base)->where('recipient_type', 'driver')->exists()) {
+            return;
+        }
+
+        $ledger = UrbanGoodzPaymentLedger::where('payable_type', OrderAnywhereRequest::class)
+            ->where('payable_id', $request->id)
+            ->where('event_type', 'split_calculated')
+            ->latest('id')
+            ->first();
+
+        // No splits yet: calculateSplits() will include the driver when it runs at capture.
+        if (! $ledger) {
+            return;
+        }
+
+        $status = (clone $base)->value('status') ?: 'calculated';
+        $this->split($ledger, $request, 'driver', $driverId, 'driver_earning', $amount, $status);
+    }
+
+    /**
      * Reserve pending allocations at authorization time.
      * Do NOT settle yet.
      */

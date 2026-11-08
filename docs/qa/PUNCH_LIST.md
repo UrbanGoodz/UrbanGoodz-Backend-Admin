@@ -33,7 +33,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | C2 | Digital humans / avatar | DONE with notes: text cap fixed; guest `speak` has no global spend cap; persona register + real TTS not audited |
 | C3 | Notifications | DONE with notes: see `NOTIFICATIONS_CERTIFICATION.md` (no user opt-out/consent, no SMS provider, MAIL_FROM + queue worker needed in prod) |
 | C4 | Remaining customer/guest endpoints: wallet, track_order, refunds | DONE with notes: see `CUSTOMER_WALLET_REFUND_CERTIFICATION.md` (partner transfer id, refund setting null-deref, admin refund approval flow not re-audited) |
-| C5 | Dispatch commission + financial reconciliation | TODO |
+| C5 | Dispatch commission + financial reconciliation | DONE with notes: see `DISPATCH_FINANCIAL_RECONCILIATION_CERTIFICATION.md` (reconcile should sum split rows; id collision in active-jobs; dispatcher commission on OA) |
 | C6 | Creator/social + fashion ownership pass | DONE with notes: see `CREATOR_FASHION_CERTIFICATION.md` (vendor can mark `completed` from `pending`; reel moderation not re-audited) |
 | C10 | Order Anywhere | DONE with notes: see `ORDER_ANYWHERE_CERTIFICATION.md` |
 | C7 | Vendor update endpoints: payload-complete tests | TODO |
@@ -58,6 +58,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | E6 | Guest `digital-human/speak` global spend cap | TODO |
 
 ## D. Closed so far (for traceability)
+Dispatch/finance: route reopen double-payout, non-atomic completion, active-jobs completing routes/orders without checks, transitionTo not saving `completed`, driver pay missing from Order Anywhere splits.
 Creator/fashion: stylist-request status IDOR, creator self-activating rejected/pending assignments.
 Customer wallet/refund: partner credit hardening, refund double-tap + guest 500, missing refund_requested column, track throttle.
 Notifications: push payload showed generic text, email never sent, SMS/webhook falsely pending.

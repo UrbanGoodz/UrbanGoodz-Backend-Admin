@@ -702,6 +702,15 @@ class UrbanGoodzDriverApiController extends Controller
             ->where('assigned_driver_id', $driver->id)
             ->firstOrFail();
 
+        // A finished or cancelled route must not be reopened: complete -> start -> complete paid the
+        // driver and settled the route a second time (new completion timestamp = new settlement key).
+        if (in_array($route->status, ['completed', 'cancelled'], true)) {
+            return response()->json(['error' => "Route is {$route->status} and cannot be started."], 409);
+        }
+        if ($route->status === 'in_progress') {
+            return response()->json(['message' => 'Route already started', 'started_at' => $route->route_started_at?->toDateTimeString()]);
+        }
+
         $route->status = 'in_progress';
         $route->route_started_at = now();
         $route->save();
@@ -757,9 +766,16 @@ class UrbanGoodzDriverApiController extends Controller
             ->whereIn('status', ['return_required', 'returning_to_pickup', 'returning_to_hub', 'returning_to_business'])
             ->count();
 
-        $route->status = 'completed';
-        $route->route_completed_at = now();
-        $route->save();
+        // Compare-and-swap into `completed`: two simultaneous calls both passed the status check above
+        // and each paid the bonus and settled the route.
+        $won = UrbanGoodzDedicatedRoute::where('id', $route->id)
+            ->where('assigned_driver_id', $driver->id)
+            ->whereIn('status', ['active', 'in_progress'])
+            ->update(['status' => 'completed', 'route_completed_at' => now()]);
+        if ($won !== 1) {
+            return response()->json(['error' => 'Route is not in an active state'], 409);
+        }
+        $route->refresh();
 
         UrbanGoodzRouteAssignment::where('dedicated_route_id', $routeId)
             ->where('delivery_man_id', $driver->id)

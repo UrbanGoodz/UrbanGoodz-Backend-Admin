@@ -120,6 +120,25 @@ class OrderAnywhereDispatchIntegrationService
             ->latest()
             ->first();
 
+        // Record WHO took the job. Without this the request never knew its driver: no driver pay was
+        // allocated at capture, the driver endpoints (which look jobs up by assigned driver) could not
+        // find it, and automatic re-dispatch could not tell it was taken.
+        if ($orderRequest && ! $orderRequest->assigned_delivery_man_id) {
+            $orderRequest->forceFill([
+                'assigned_delivery_man_id' => $dispatch->delivery_man_id,
+                'driver_task_status' => 'assigned',
+                'assigned_at' => now(),
+            ])->save();
+
+            if ($orderRequest->isExternalMerchant() && $orderRequest->status === 'approved') {
+                try {
+                    $orderRequest = app(OrderAnywhereDriverFlow::class)->advance($orderRequest, 'accepted');
+                } catch (\Throwable $e) {
+                    Log::warning('Could not advance Order Anywhere request after dispatch acceptance', ['request_id' => $orderRequest->id, 'error' => $e->getMessage()]);
+                }
+            }
+        }
+
         if ($orderRequest && $orderRequest->isExternalMerchant() && $this->captureFundsForDriver($orderRequest)) {
             try {
                 $cardRequest = $this->cardService->createCardRequest($orderRequest->fresh());
@@ -164,7 +183,10 @@ class OrderAnywhereDispatchIntegrationService
         }
 
         try {
-            app(\App\Services\UrbanGoodzPaymentService::class)->captureCustomerPayment($request, [
+            $payments = app(\App\Services\UrbanGoodzPaymentService::class);
+            // The driver's pay must be a split before the money is released.
+            $payments->attachDriverSplit($request->fresh());
+            $payments->captureCustomerPayment($request->fresh(), [
                 'captured_amount' => (float) $request->authorized_amount,
                 'capture_reference' => 'capture-on-accept-' . $request->request_number,
                 'source' => 'driver_accept',
