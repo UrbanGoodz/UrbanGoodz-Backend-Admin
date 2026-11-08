@@ -654,8 +654,11 @@ class VendorController extends Controller
     public function get_notifications(Request $request){
         $vendor = $request['vendor'];
 
-        $notifications = Notification::active()->where(function($q) use($vendor){
-            $q->whereNull('zone_id')->orWhere('zone_id', $vendor->stores[0]->zone_id);
+        // A vendor without a store yet used to 500 here ($vendor->stores[0] on an empty list).
+        $zoneId = $vendor->stores->first()?->zone_id;
+
+        $notifications = Notification::active()->where(function($q) use($zoneId){
+            $q->whereNull('zone_id')->when($zoneId, fn ($w) => $w->orWhere('zone_id', $zoneId));
         })->where('tergat', 'store')->where('created_at', '>=', \Carbon\Carbon::today()->subDays(7))->get();
 
         $notifications->append('data');

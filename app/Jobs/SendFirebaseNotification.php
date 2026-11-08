@@ -52,8 +52,16 @@ class SendFirebaseNotification implements ShouldQueue
         $token = $this->recipientToken();
 
         if (! $token) {
+            // Retrying cannot conjure a device token; fail once, quietly, instead of three times
+            // with backoff. The in-app copy of the notification is unaffected.
             $this->markAsFailed($notification);
-            throw new RuntimeException('Firebase recipient token is unavailable.');
+            Log::info('Firebase push skipped: recipient has no device token.', [
+                'notification_id' => $this->notificationId,
+                'recipient_type' => $this->recipientType,
+            ]);
+            $this->delete();
+
+            return;
         }
 
         $payload = $this->buildPayload($notification);
@@ -116,8 +124,11 @@ class SendFirebaseNotification implements ShouldQueue
         $data = is_array($notification->data) ? $notification->data : [];
 
         return [
-            'title' => $notification->title ?? ($data['title'] ?? 'Urban Goodz'),
-            'description' => $notification->description ?? ($data['description'] ?? ''),
+            // UserNotification stores title/description; UrbanGoodzNotification (AI, ops, dispatch)
+            // stores subject/body. Reading only the former sent every one of those pushes as
+            // "Urban Goodz" with an empty message.
+            'title' => $notification->title ?? $notification->subject ?? ($data['title'] ?? 'Urban Goodz'),
+            'description' => $notification->description ?? $notification->body ?? ($data['description'] ?? ''),
             'image' => $data['image'] ?? '',
             'type' => $data['event_type'] ?? $data['type'] ?? 'general',
             'order_id' => $data['order_id'] ?? '',

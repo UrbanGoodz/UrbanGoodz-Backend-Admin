@@ -298,8 +298,17 @@ class OrderController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
+        // A guest has no account to refund to; this used to dereference a null user and return a 500.
+        if (!$request->user) {
+            return response()->json([
+                'errors' => [
+                    ['code' => 'auth', 'message' => translate('messages.Sign in to request a refund')]
+                ]
+            ], 403);
+        }
+
         $order = Order::where(['user_id' => $request->user->id, 'id' => $request['order_id']])
-            ->where('is_guest', isset($request->user) ? 0 : 1)
+            ->where('is_guest', 0)
             ->Notpos()->first();
         if (!$order) {
             return response()->json([
@@ -331,9 +340,21 @@ class OrderController extends Controller
             $refund->refund_amount = $refund_amount;
             $refund->image = $image;
 
+            // Re-check under a row lock. Two taps (or two devices) both passed the delivered/paid
+            // check above and each created a Refund row for the same order, i.e. two refunds to approve.
+            DB::beginTransaction();
+            $locked = Order::whereKey($order->id)->lockForUpdate()->first();
+            if (!$locked || $locked->order_status !== 'delivered' || Refund::where('order_id', $order->id)->whereIn('refund_status', ['pending', 'approved'])->exists()) {
+                DB::rollBack();
+                return response()->json([
+                    'errors' => [
+                        ['code' => 'order', 'message' => translate('messages.you_can_not_request_for_a_refund')]
+                    ]
+                ], 403);
+            }
+            $order = $locked;
             $order->order_status = 'refund_requested';
             $order->refund_requested = now();
-            DB::beginTransaction();
             $refund->save();
             $order->save();
             DB::commit();

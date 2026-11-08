@@ -88,9 +88,18 @@ class UrbanGoodzNotificationService
                 continue;
             }
 
+            if (strtolower((string) $notification->channel) === 'email') {
+                $this->deliverEmail($notification);
+                continue;
+            }
+
             if (!self::isPushChannel($notification->channel)) {
-                // email / sms / webhook are owned by their own transports.
-                // Leave them pending rather than failing them here.
+                // sms / webhook have no transport in this codebase. They used to stay `pending`
+                // forever while the API reported success; say plainly that they were not sent.
+                $notification->update([
+                    'status' => 'failed',
+                    'data' => array_merge((array) $notification->data, ['delivery_note' => "No '{$notification->channel}' transport is configured."]),
+                ]);
                 continue;
             }
 
@@ -107,6 +116,33 @@ class UrbanGoodzNotificationService
                 $notification->recipient_id,
                 $notification->channel
             );
+        }
+    }
+
+    /** Real email delivery through the configured mailer; never throws into the caller. */
+    private function deliverEmail(UrbanGoodzNotification $notification): void
+    {
+        $address = match ($notification->recipient_type) {
+            'customer' => DB::table('users')->where('id', $notification->recipient_id)->value('email'),
+            'vendor' => DB::table('vendors')->where('id', $notification->recipient_id)->value('email'),
+            'driver' => DB::table('delivery_men')->where('id', $notification->recipient_id)->value('email'),
+            default => null,
+        };
+
+        if (! $address || ! filter_var($address, FILTER_VALIDATE_EMAIL) || ! config('mail.status', true)) {
+            $notification->update(['status' => 'failed', 'data' => array_merge((array) $notification->data, ['delivery_note' => 'No deliverable email address or mail is disabled.'])]);
+
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw((string) $notification->body, function ($m) use ($address, $notification) {
+                $m->to($address)->subject((string) ($notification->subject ?: 'Urban Goodz'));
+            });
+            $notification->update(['status' => 'sent']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Notification email failed', ['notification_id' => $notification->id, 'error' => $e->getMessage()]);
+            $notification->update(['status' => 'failed']);
         }
     }
 

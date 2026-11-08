@@ -232,7 +232,8 @@ class WalletController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'currency' => 'required',
-            'amount' => 'required',
+            // A negative or non-numeric amount used to pass ("required" only) and reach the balance.
+            'amount' => 'required|numeric|gt:0|max:1000000',
             'bearer_token' => 'required',
             'token' => 'required',
             'external_base_url' => 'required',
@@ -253,6 +254,14 @@ class WalletController extends Controller
             return response()->json($data);
         }
         if (Helpers::checkSelfExternalConfiguration() && Helpers::checkExternalConfiguration($request->external_base_url, $request->external_token, $request->token)) {
+            // This endpoint credits money on the strength of a partner's say-so, so a retried or
+            // replayed call must not credit twice. The partner sends no transfer id, so identical
+            // (customer token, amount) calls inside a short window are treated as one.
+            $replayKey = 'drivemond_transfer:' . hash('sha256', $request->bearer_token . '|' . (float) $request->amount);
+            if (! \Illuminate\Support\Facades\Cache::add($replayKey, 1, now()->addSeconds(120))) {
+                return response()->json(['status' => false, 'data' => ['error_code' => 409, 'message' => 'This transfer was already processed.']]);
+            }
+
             $driveMondBaseUrl = ExternalConfiguration::where('key', 'drivemond_base_url')->first()?->value;
             $driveMondToken = ExternalConfiguration::where('key', 'drivemond_token')->first()?->value;
             $systemSelfToken = ExternalConfiguration::where('key', 'system_self_token')->first()?->value;
@@ -268,17 +277,21 @@ class WalletController extends Controller
                     $drivemondCustomer = $drivemondCustomerResponse['data'];
                     $user = User::where(['phone' => $drivemondCustomer['phone']])->first();
                     if ($user) {
-                        $user->wallet_balance += $request->amount;
-                        $user->save();
-                        $wallet_transaction = new WalletTransaction();
-                        $wallet_transaction->user_id = $user->id;
-                        $wallet_transaction->transaction_id = Str::uuid();
-                        $wallet_transaction->transaction_type = 'wallet_transfer_mart_from_drivemond';
-                        $wallet_transaction->credit = $request->amount;
-                        $wallet_transaction->balance = $user->wallet_balance;
-                        $wallet_transaction->created_at = now();
-                        $wallet_transaction->updated_at = now();
-                        $wallet_transaction->save();
+                        // Locked read-modify-write: `+=` on a stale model lost one of two concurrent credits.
+                        \Illuminate\Support\Facades\DB::transaction(function () use (&$user, $request) {
+                            $user = User::whereKey($user->id)->lockForUpdate()->first();
+                            $user->wallet_balance += (float) $request->amount;
+                            $user->save();
+                            $wallet_transaction = new WalletTransaction();
+                            $wallet_transaction->user_id = $user->id;
+                            $wallet_transaction->transaction_id = Str::uuid();
+                            $wallet_transaction->transaction_type = 'wallet_transfer_mart_from_drivemond';
+                            $wallet_transaction->credit = (float) $request->amount;
+                            $wallet_transaction->balance = $user->wallet_balance;
+                            $wallet_transaction->created_at = now();
+                            $wallet_transaction->updated_at = now();
+                            $wallet_transaction->save();
+                        });
 
                         $notificationData = [
                             'title' => translate('wallet_transfer_mart_from_drivemond'),
@@ -297,8 +310,12 @@ class WalletController extends Controller
                     }
                 }
             }
-            $drivemondCustomer = $drivemondCustomerResponse['data'];
-            if ($drivemondCustomer['error_code'] == 402) {
+            // Nothing was credited: free the replay slot so a legitimate retry is not blocked, and
+            // answer without assuming the partner's reply had the shape we hoped for (an unsuccessful
+            // HTTP call used to hit an undefined variable here).
+            \Illuminate\Support\Facades\Cache::forget($replayKey);
+            $drivemondCustomer = is_array($drivemondCustomerResponse ?? null) ? ($drivemondCustomerResponse['data'] ?? []) : [];
+            if (($drivemondCustomer['error_code'] ?? null) == 402) {
                 $data = [
                     'status' => false,
                     'data' => ['error_code' => 402, 'message' => "Drivemond user not found"]
@@ -306,6 +323,7 @@ class WalletController extends Controller
                 return response()->json($data);
             }
 
+            return response()->json(['status' => false, 'data' => ['error_code' => 404, 'message' => 'Transfer could not be completed.']]);
         }
         $data = [
             'status' => false,

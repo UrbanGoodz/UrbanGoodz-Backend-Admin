@@ -435,7 +435,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
                 Route::put('cancel', 'OrderController@cancel_order');
                 Route::post('refund-request', 'OrderController@refund_request');
                 Route::get('refund-reasons', 'OrderController@refund_reasons');
-                Route::get('track', 'OrderController@track_order')->withoutMiddleware('auth:apiGuestCheck');
+                Route::get('track', 'OrderController@track_order')->withoutMiddleware('auth:apiGuestCheck')->middleware('throttle:30,1');
                 Route::put('payment-method', 'OrderController@update_payment_method');
                 Route::put('offline-payment', 'OrderController@offline_payment');
                 Route::put('offline-payment-update', 'OrderController@update_offline_payment_info');

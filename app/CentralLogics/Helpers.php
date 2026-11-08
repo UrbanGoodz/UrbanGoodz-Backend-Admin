@@ -4740,7 +4740,11 @@ class Helpers
         $driveMondBaseUrl = ExternalConfiguration::where('key', 'drivemond_base_url')->first()?->value;
         $driveMondToken = ExternalConfiguration::where('key', 'drivemond_token')->first()?->value;
         $systemSelfToken = ExternalConfiguration::where('key', 'system_self_token')->first()?->value;
-        return $activationMode == 1 && $driveMondBaseUrl == $externalBaseUrl && $driveMondToken == $externalTokem && $systemSelfToken == $martToken;
+        // Strict, constant-time comparison. Loose == treats numeric-looking strings ("0e111" and
+        // "0e222") as equal, which would let the wrong secret through.
+        $same = fn ($known, $given) => is_string($known) && $known !== '' && is_scalar($given) && hash_equals($known, (string) $given);
+
+        return $activationMode == 1 && $same($driveMondBaseUrl, $externalBaseUrl) && $same($driveMondToken, $externalTokem) && $same($systemSelfToken, $martToken);
     }
 
     public static function checkSelfExternalConfiguration()

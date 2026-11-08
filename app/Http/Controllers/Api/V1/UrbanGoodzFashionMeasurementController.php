@@ -238,10 +238,16 @@ class UrbanGoodzFashionMeasurementController extends Controller
 
     public function updateStylistRequestStatus($id, Request $request)
     {
-        $measurement = MeasurementRequest::findOrFail($id);
-        if ($request->has('status')) {
-            $measurement->review_status = $request->input('status');
-        }
+        // Any signed-in customer could set ANY request to ANY review status (including approving
+        // their own, or closing someone else's). The review decision belongs to staff; the owner
+        // may only withdraw their own request.
+        $data = $request->validate(['status' => ['required', 'string', 'in:cancelled']]);
+
+        $customerId = $request->user()?->id;
+        abort_unless($customerId, 401, 'Unauthorized.');
+
+        $measurement = MeasurementRequest::where('customer_id', $customerId)->findOrFail($id);
+        $measurement->review_status = $data['status'];
         $measurement->save();
 
         return response()->json([

@@ -10,9 +10,9 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | # | Item | Type | Notes |
 |---|------|------|-------|
 | A1 | Admin 419 fix not verified in production | ENV | Fix + tests are unit-level. Production needs `TRUSTED_PROXIES`, correct `APP_URL`, `SESSION_SECURE_COOKIE`, a session driver shared across servers. See `ADMIN_419_INCIDENT.md`. |
-| A2 | Migrations must run in production | ENV | `2026_11_07_000001_make_payout_request_delivery_man_nullable` (vendor payouts fail without it) plus all earlier ones. |
+| A2 | Migrations must run in production | ENV | `2026_11_07_000001_make_payout_request_delivery_man_nullable` (vendor payouts fail without it), `2026_11_08_000001_add_refund_requested_to_orders_if_missing`, plus all earlier ones. |
 | A3 | Stranded helper rewards are not real money movement | OWNER | `selectOffer` marks escrow `held`, `releaseEscrow` writes a "completed" ledger row; nothing is authorized/captured/transferred at Stripe. Decide: Stripe Connect vs manual settlement. |
-| A4 | No device / Playwright / Appium runs | ENV | A device was attached once; no browser or device reachable from this container now. All app-level behaviour is unit/feature-test verified only. |
+| A4 | No device / Playwright / Appium runs | ENV | A phone is connected to the owner's computer, but this cloud session cannot reach it. Remote Control IS on and the computer 'Urban-Goodz' lists folders UG, AdminPanel_Update_V39 and UrbanGoodz2026-Revised, but all three come back 'not_available' to cloud sessions: update the Claude desktop app on that computer (Windows needs a recent version) and re-check. Alternatively start a session on that computer (Claude desktop app > Settings > Claude Code > Remote Control, or run `claude remote-control` in the repo folder). That session can run adb + Flutter device tests. All app-level behaviour here is unit/feature-test verified only. |
 | A5 | Real Stripe / Adyen never called | ENV | Provider seams are scripted in tests; needs sandbox-key runs. |
 
 ## B. Product decisions (OWNER)
@@ -31,14 +31,21 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 |---|------|--------|
 | C1 | AI actions + Concierge | DONE with notes: see `AI_CONCIERGE_CERTIFICATION.md` (guest session-id entropy, guest chat retention, shared cache in prod) |
 | C2 | Digital humans / avatar | DONE with notes: text cap fixed; guest `speak` has no global spend cap; persona register + real TTS not audited |
-| C3 | Notifications (push/email/SMS, dedup, opt-out) | TODO |
-| C4 | Remaining customer/guest endpoints: wallet, track_order, refunds | TODO |
+| C3 | Notifications | DONE with notes: see `NOTIFICATIONS_CERTIFICATION.md` (no user opt-out/consent, no SMS provider, MAIL_FROM + queue worker needed in prod) |
+| C4 | Remaining customer/guest endpoints: wallet, track_order, refunds | DONE with notes: see `CUSTOMER_WALLET_REFUND_CERTIFICATION.md` (partner transfer id, refund setting null-deref, admin refund approval flow not re-audited) |
 | C5 | Dispatch commission + financial reconciliation | TODO |
-| C6 | Creator/social deep pass | TODO |
+| C6 | Creator/social + fashion ownership pass | DONE with notes: see `CREATOR_FASHION_CERTIFICATION.md` (vendor can mark `completed` from `pending`; reel moderation not re-audited) |
 | C10 | Order Anywhere | DONE with notes: see `ORDER_ANYWHERE_CERTIFICATION.md` |
 | C7 | Vendor update endpoints: payload-complete tests | TODO |
 | C8 | Stranded: wire `getActiveRequest()` into the customer-app start-up flow (backend + API call done) | TODO |
 | C9 | Final certification report | TODO (last) |
+
+## F. Notifications follow-ups
+| # | Item | Type |
+|---|------|------|
+| F1 | User-level notification preferences + SMS/email consent (promotions opt-out) | OWNER/TODO |
+| F2 | SMS provider: wire one or drop the `sms` channel | OWNER |
+| F3 | Production: set `MAIL_FROM_ADDRESS`, run a queue worker for `notifications` | ENV |
 
 ## E. Order Anywhere follow-ups
 | # | Item | Type |
@@ -51,6 +58,9 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | E6 | Guest `digital-human/speak` global spend cap | TODO |
 
 ## D. Closed so far (for traceability)
+Creator/fashion: stylist-request status IDOR, creator self-activating rejected/pending assignments.
+Customer wallet/refund: partner credit hardening, refund double-tap + guest 500, missing refund_requested column, track throttle.
+Notifications: push payload showed generic text, email never sent, SMS/webhook falsely pending.
 Order Anywhere: customer-chosen charge, vendor/admin_notes injection, broken driver flow, in-progress dispatches expiring, manual approval, silent no-driver, admin cancel not voiding, refund rollback hazard, markup computation.
 Concierge video-avatar ownership + billed-room resume.
 Admin 419 mechanism, captcha bypass + remember-me cookie removed, driver auth/token, customer order/cart/chat ownership,

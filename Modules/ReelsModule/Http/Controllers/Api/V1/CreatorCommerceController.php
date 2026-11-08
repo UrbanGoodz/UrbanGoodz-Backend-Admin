@@ -200,6 +200,16 @@ class CreatorCommerceController extends Controller
         ]);
         abort_if($assignment->approval_status === 'completed', 409, 'Completed assignments cannot be changed.');
 
+        // The brand decides first (pending -> approved/rejected). A creator could previously set
+        // `accepted` or `completed` on a pending or even REJECTED assignment, activating work the
+        // brand never approved. A creator may only respond to an approval, then finish accepted work.
+        $creatorMoves = ['approved' => ['accepted', 'declined'], 'accepted' => ['completed', 'declined']];
+        abort_unless(
+            in_array($data['status'], $creatorMoves[$assignment->approval_status] ?? [], true),
+            409,
+            "An assignment that is '{$assignment->approval_status}' cannot be moved to '{$data['status']}'."
+        );
+
         $assignment->update([
             'approval_status' => $data['status'],
             'creator_notes' => $data['notes'] ?? $assignment->creator_notes,
