@@ -126,7 +126,7 @@ file references are in the per-lane documents listed in section 9.
 
 ### Product decisions (OWNER)
 - **Recurring routes are now real** (daily, weekdays, weekly, every 2 weeks, monthly, chosen weekdays): a nightly job creates the next week of runs as unassigned copies of the template. Runs still need a driver assigned by dispatch; auto-assigning a preferred driver is a product choice.
-- **Proof of delivery** is required for medical courier jobs. For loads and Order Anywhere the server records the receiver when sent and can require it (`UG_REQUIRE_DELIVERY_PROOF`), off until the driver app's new prompt ships. Signature, photo or PIN proof is still a product decision.
+- **Proof of delivery** is required for medical courier jobs. For loads and Order Anywhere the server records the receiver when sent and can require it (`UG_REQUIRE_DELIVERY_PROOF`), off until the driver app's new prompt is wired into a screen and tested (the dialog is built, but nothing calls it yet). Signature, photo or PIN proof is still a product decision.
 - **Customer-app Medical Courier and Logistics screens now return 401** (they used customer tokens against driver tasks); the driver app has no UI for them.
 - Ride-share modules are now ignored by the customer app (no backend exists). Driver app flow `/sequence` vs `/finish`, and `from-batch` is not called by the app.
 - Admin and vendor-panel driver suspend/approve are now POST with CSRF. Orphan legacy routes remain.
