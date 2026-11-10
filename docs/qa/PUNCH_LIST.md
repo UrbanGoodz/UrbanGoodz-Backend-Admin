@@ -1,7 +1,7 @@
 # Urban Goodz certification punch list
 
 Single source of truth for everything **not fully resolved**. Updated whenever an item opens or closes.
-Release decision today: **NOT READY FOR PRODUCTION**.
+Release decision today: **NOT READY FOR PRODUCTION**. Full reasoning and the path to CONDITIONALLY READY: `FINAL_CERTIFICATION_REPORT.md`.
 
 Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/production access I do not have ·
 `TODO` I can do next · `DONE` closed (kept briefly for traceability).
@@ -37,8 +37,8 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | C6 | Creator/social + fashion ownership pass | DONE with notes: see `CREATOR_FASHION_CERTIFICATION.md` (vendor can mark `completed` from `pending`; reel moderation not re-audited) |
 | C10 | Order Anywhere | DONE with notes: see `ORDER_ANYWHERE_CERTIFICATION.md` |
 | C7 | Vendor update endpoints: payload-complete tests | DONE: see `VENDOR_UPDATE_ENDPOINTS_CERTIFICATION.md` (all tenant-scoped; malformed-body 500s fixed; image-upload variants not exercised) |
-| C8 | Stranded: wire `getActiveRequest()` into the customer-app start-up flow (backend + API call done) | TODO |
-| C9 | Final certification report | TODO (last) |
+| C8 | Stranded: resume an unfinished request from the customer app | DONE: `loadResume()` + banner on the Stranded home screen (analyzer clean; not run on a device) |
+| C9 | Final certification report | DONE: `FINAL_CERTIFICATION_REPORT.md` |
 
 ## F. Notifications follow-ups
 | # | Item | Type |
@@ -50,10 +50,10 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 ## E. Order Anywhere follow-ups
 | # | Item | Type |
 |---|------|------|
-| E1 | Real pickup coordinates for "anywhere" merchants (geocode at sourcing); today falls back to zone centre | TODO/OWNER |
+| E1 | Real pickup coordinates for "anywhere" merchants: admins can now enter them on the quote form; automatic geocoding at sourcing is not built, and dispatch falls back to the zone centre when they are missing | TODO/OWNER |
 | E2 | Stripe Issuing float: who funds the issuing balance while customer captures settle | OWNER |
 | E3 | Customer cancel after driver accepted (money captured, goods possibly bought): refund policy | OWNER |
-| E4 | Admin quote form needs an `item_cost` field; set `ORDER_ANYWHERE_MARKUP_PERCENT`; confirm admin sees `admin_alert` notices | TODO |
+| E4 | Set `ORDER_ANYWHERE_MARKUP_PERCENT`; confirm admins can see `admin_alert` notices in the panel. (Quote form with item cost, markup and pickup coordinates, and the dispatch settings card, are built and tested.) | OWNER/ENV |
 | E5 | Tune defaults: radius 25 mi, offer window 3 min, escalate 10 min, auto-cancel 30 min | OWNER |
 | E6 | Guest `digital-human/speak` global spend cap | TODO |
 
