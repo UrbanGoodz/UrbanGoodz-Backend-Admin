@@ -292,8 +292,23 @@ class UrbanGoodzDriverActiveJobsController extends Controller
             abort(404, 'Job not found');
         }
 
+        // Proof of delivery: who received it. Always recorded when the app sends it; required for loads and
+        // Order Anywhere when UG_REQUIRE_DELIVERY_PROOF is on (see config/urban_goodz_proof.php).
+        $proof = $request->validate(['recipient_name' => ['nullable', 'string', 'min:2', 'max:120']]);
+        $recipient = trim((string) ($proof['recipient_name'] ?? ''));
+        $needsProof = $job instanceof OrderAnywhereRequest || $job instanceof UrbanGoodzLoadBoardLoad;
+
+        if ($needsProof && $recipient === '' && config('urban_goodz_proof.require_recipient_on_delivery') && ! $this->isFinished($job)) {
+            return response()->json(['error' => 'Enter the name of the person who received the delivery.', 'code' => 'recipient_required'], 422);
+        }
+
         if ($job instanceof UrbanGoodzLoadBoardLoad) {
-            return $this->completeLoad($driver, $job);
+            $response = $this->completeLoad($driver, $job);
+            if ($recipient !== '' && $response->getStatusCode() === 200) {
+                UrbanGoodzLoadBoardLoad::whereKey($job->id)->update(['delivery_proof' => 'Received by: ' . $recipient]);
+            }
+
+            return $response;
         }
 
         if ($this->isFinished($job)) {
@@ -301,6 +316,11 @@ class UrbanGoodzDriverActiveJobsController extends Controller
         }
 
         if ($job instanceof OrderAnywhereRequest) {
+            if ($recipient !== '') {
+                $job->driver_notes = trim(((string) $job->driver_notes) . ' Received by: ' . $recipient . '.');
+                $job->save();
+            }
+
             // Only a delivery in progress can be finished, and only through the state machine. A bare
             // status write let a driver mark an order they never bought or delivered as completed.
             try {

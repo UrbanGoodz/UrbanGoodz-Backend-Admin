@@ -192,6 +192,18 @@ class OrderAnywhereDispatchIntegrationService
                 'source' => 'driver_accept',
             ]);
 
+            // The reconciliation gate checks the request's totals, not who actually has a payout row. Check the
+            // rows too, and tell an admin if the money was captured but someone is missing from the split.
+            $problems = $payments->splitRowMismatches($request->fresh());
+            if ($problems) {
+                app(OrderAnywhereOpsNotifier::class)->admins(
+                    'Order Anywhere: payout split does not match',
+                    "Request {$request->request_number} was captured but its payout rows disagree with its totals: " . implode('; ', $problems),
+                    ['request_id' => $request->id],
+                    'order_anywhere_split_mismatch'
+                );
+            }
+
             return true;
         } catch (\Throwable $e) {
             // Authorization expired or the card no longer holds the funds. Do NOT issue a card

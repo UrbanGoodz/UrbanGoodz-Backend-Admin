@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Models\UrbanGoodzNotification;
 use App\Models\UrbanGoodzPaymentLedger;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\InsertsRows;
 use Tests\TestCase;
@@ -391,5 +392,56 @@ class OrderAnywhereAutoDispatchTest extends TestCase
         Artisan::call('order-anywhere:dispatch-pending');
 
         $this->assertSame([$a->id], $this->offeredTo($r), 'an accepted job is never re-offered');
+    }
+
+    // ---------------------------------------------------------------- pickup location
+
+    private function mapKey(?string $key): void
+    {
+        \App\Models\BusinessSetting::updateOrInsert(['key' => 'map_api_key_server'], ['value' => $key ?? '']);
+        \Illuminate\Support\Facades\Cache::flush();
+    }
+
+    public function test_an_address_with_no_coordinates_is_geocoded_so_the_nearest_driver_is_really_nearest(): void
+    {
+        $this->mapKey('test-key');
+        Http::fake(['maps.googleapis.com/*' => Http::response(['status' => 'OK', 'results' => [[
+            'formatted_address' => '1 Merchant Way, New York, NY', 'types' => ['street_address'],
+            'geometry' => ['location' => ['lat' => self::PICK_LAT, 'lng' => self::PICK_LNG], 'location_type' => 'ROOFTOP'],
+        ]]], 200)]);
+        $near = $this->driverAt(1, 'near');
+        $far = $this->driverAt(20, 'far');
+        $c = $this->customer();
+        $r = $this->quotedRequest($c, ['pickup_latitude' => null, 'pickup_longitude' => null, 'pickup_address' => '1 Merchant Way, New York, NY']);
+
+        $this->pay($c, $r);
+
+        $this->assertSame('geocoded', $r->fresh()->metadata['pickup_location_source']);
+        $this->assertEqualsWithDelta(self::PICK_LAT, (float) $r->fresh()->pickup_latitude, 0.0001);
+        $this->assertSame([$near->id], $this->offeredTo($r), 'the driver nearest the real pickup, not the zone centre');
+    }
+
+    public function test_without_a_usable_address_the_location_is_marked_as_an_estimate(): void
+    {
+        $this->mapKey(null);                                    // no key: nothing to look up with
+        $this->driverAt(1, 'near');
+        $c = $this->customer();
+        $r = $this->quotedRequest($c, ['pickup_latitude' => null, 'pickup_longitude' => null, 'pickup_address' => 'https://example.test/product/123']);
+
+        $this->pay($c, $r);
+
+        $this->assertSame('estimated_zone_center', $r->fresh()->metadata['pickup_location_source'], 'an admin can see the location is a guess');
+        Http::assertNothingSent();
+    }
+
+    public function test_a_city_level_match_is_not_trusted_as_a_pickup_location(): void
+    {
+        $this->mapKey('test-key');
+        Http::fake(['maps.googleapis.com/*' => Http::response(['status' => 'OK', 'results' => [[
+            'formatted_address' => 'Houston, TX', 'types' => ['locality', 'political'],
+            'geometry' => ['location' => ['lat' => 29.76, 'lng' => -95.36], 'location_type' => 'APPROXIMATE'],
+        ]]], 200)]);
+
+        $this->assertNull(app(\App\Services\GeocodingService::class)->geocode('somewhere in Houston Texas'));
     }
 }

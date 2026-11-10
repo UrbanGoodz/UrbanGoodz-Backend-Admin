@@ -171,4 +171,25 @@ class OrderAnywhereMoneyReconciliationTest extends TestCase
         $this->assertSame('purchased', $request->fresh()->status);
         $this->assertSame('captured', $request->fresh()->payment_status);
     }
+
+    public function test_an_admin_is_alerted_when_money_is_captured_but_the_driver_is_missing_from_the_split(): void
+    {
+        $customer = User::create(['f_name' => 'Al', 'l_name' => 'Ert', 'email' => 'alert-'.uniqid().'@urbangoodz.test', 'phone' => '+1555'.random_int(1000000, 9999999), 'password' => bcrypt('x')]);
+        \App\Models\Admin::create(['f_name' => 'B', 'l_name' => 'Oss', 'email' => 'boss-'.uniqid().'@urban-goodz.test', 'phone' => '1555'.random_int(1000000, 9999999), 'password' => bcrypt('x'), 'role_id' => 1]);
+        Config::set('urban_goodz_payments.order_anywhere.auto_dispatch', false);
+        $request = OrderAnywhereRequest::create([
+            'request_number' => OrderAnywhereRequest::nextRequestNumber(), 'customer_id' => $customer->id, 'status' => 'sourcing', 'payment_status' => 'awaiting_quote',
+            'fulfillment_type' => 'external_merchant', 'dropoff_address' => '1 Customer Way',
+        ]);
+        $payments = app(UrbanGoodzPaymentService::class);
+        $payments->quoteOrderAnywhere($request, ['quote_amount' => 135.50, 'final_amount' => 135.50, 'item_subtotal' => 100, 'service_fee' => 20, 'delivery_fee' => 8, 'tax' => 7.5]);
+        $this->actingAs($customer, 'api')->postJson("/api/v1/order-anywhere/requests/{$request->id}/authorize-payment")->assertOk();
+
+        // Captured with nobody attached (an unusual path): the gap must not pass silently.
+        $this->assertTrue(app(\App\Services\OrderAnywhereDispatchIntegrationService::class)->captureFundsForDriver($request->fresh()));
+
+        $alert = \App\Models\UrbanGoodzNotification::where('event_type', 'order_anywhere_split_mismatch')->first();
+        $this->assertNotNull($alert);
+        $this->assertStringContainsString($request->request_number, $alert->body);
+    }
 }

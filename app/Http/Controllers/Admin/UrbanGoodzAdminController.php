@@ -217,6 +217,13 @@ class UrbanGoodzAdminController extends Controller
             \Illuminate\Support\Arr::only($data, ['pickup_address', 'pickup_latitude', 'pickup_longitude']),
             fn ($v) => $v !== null && $v !== ''
         );
+        // An address without coordinates is geocoded, so "nearest driver to the pickup" uses the real place.
+        if (! empty($pickup['pickup_address']) && (empty($pickup['pickup_latitude']) || empty($pickup['pickup_longitude']))) {
+            if ($geo = app(\App\Services\GeocodingService::class)->geocode($pickup['pickup_address'])) {
+                $pickup['pickup_latitude'] = $geo['lat'];
+                $pickup['pickup_longitude'] = $geo['lng'];
+            }
+        }
         if ($pickup) {
             OrderAnywhereRequest::findOrFail($id)->update($pickup);
         }

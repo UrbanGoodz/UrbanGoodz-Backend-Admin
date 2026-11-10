@@ -128,11 +128,72 @@ class NotificationPayloadAndOptOutTest extends TestCase
     public function test_channels_without_a_transport_are_marked_failed_not_left_pending_forever(): void
     {
         $user = $this->customer();
+        // Consent given, so the only thing left to stop it is the missing SMS transport.
+        \App\Models\UrbanGoodzNotificationPreference::create(['recipient_type' => 'customer', 'recipient_id' => $user->id, 'sms_consent' => true]);
 
         $sms = $this->queued('sms', $user);
 
         $this->assertSame('failed', $sms->status);
         $this->assertStringContainsString('transport', $sms->data['delivery_note']);
         $this->assertSame('delivered', $this->queued('in_app', $user)->status);
+    }
+
+    // ------------------------------------------------------------------ preferences / consent
+
+    private function authed(User $u)
+    {
+        return $this->actingAs($u, 'api');
+    }
+
+    public function test_preferences_default_to_service_messages_only_and_record_when_consent_was_given(): void
+    {
+        $user = $this->customer();
+        $url = '/api/v1/urban-goodz/notification-preferences';
+
+        $this->authed($user)->getJson($url)->assertOk()
+            ->assertJsonPath('data.push_enabled', true)->assertJsonPath('data.email_enabled', true)
+            ->assertJsonPath('data.sms_consent', false)->assertJsonPath('data.promotions_opt_in', false);
+
+        $this->authed($user)->putJson($url, ['sms_consent' => true, 'promotions_opt_in' => true])->assertOk()
+            ->assertJsonPath('data.sms_consent', true);
+        $row = \App\Models\UrbanGoodzNotificationPreference::where('recipient_id', $user->id)->first();
+        $this->assertNotNull($row->sms_consent_at, 'when consent was given is the evidence');
+
+        $this->authed($user)->putJson($url, ['sms_consent' => false])->assertOk();
+        $this->assertFalse((bool) $row->fresh()->sms_consent);
+    }
+
+    public function test_one_customer_cannot_change_anothers_preferences(): void
+    {
+        $a = $this->customer();
+        $b = $this->customer();
+        $this->authed($a)->putJson('/api/v1/urban-goodz/notification-preferences', ['promotions_opt_in' => true, 'user_id' => $b->id, 'recipient_id' => $b->id])->assertOk();
+
+        $this->assertNull(\App\Models\UrbanGoodzNotificationPreference::where('recipient_id', $b->id)->first());
+        $this->assertTrue((bool) \App\Models\UrbanGoodzNotificationPreference::where('recipient_id', $a->id)->value('promotions_opt_in'));
+    }
+
+    public function test_opt_outs_and_missing_consent_stop_delivery_but_service_messages_still_flow(): void
+    {
+        config()->set('mail.status', true);
+        config()->set('mail.default', 'array');
+        config()->set('mail.from', ['address' => 'noreply@urbangoodz.test', 'name' => 'Urban Goodz']);
+        $user = $this->customer();
+        $make = fn (string $channel, string $event) => tap(UrbanGoodzNotification::create([
+            'recipient_type' => 'customer', 'recipient_id' => $user->id, 'channel' => $channel, 'event_type' => $event,
+            'subject' => 'S', 'body' => 'B', 'priority' => 'normal', 'status' => 'pending',
+        ]), fn ($n) => app(UrbanGoodzNotificationService::class)->queueForDelivery([$n]))->fresh();
+
+        // Defaults: a promotion is blocked on every outside channel; an order update by email is fine; SMS needs consent.
+        $this->assertSame('failed', $make('email', 'promotion_available')->status, 'promotions are opt-in');
+        $this->assertSame('sent', $make('email', 'order_delivered')->status, 'service email goes out');
+        $this->assertSame('failed', $make('sms', 'order_delivered')->status, 'no SMS without consent');
+        $this->assertSame('delivered', $make('in_app', 'promotion_available')->status, 'the in-app copy is always kept');
+
+        // Switch email off: service email stops too.
+        \App\Models\UrbanGoodzNotificationPreference::create(['recipient_type' => 'customer', 'recipient_id' => $user->id, 'email_enabled' => false]);
+        $blocked = $make('email', 'order_delivered');
+        $this->assertSame('failed', $blocked->status);
+        $this->assertStringContainsString('opted in', $blocked->data['delivery_note']);
     }
 }

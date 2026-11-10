@@ -168,4 +168,26 @@ class DriverJobLifecycleMoneyTest extends TestCase
 
         $this->postJson("/api/v1/urban-goodz/driver/active-jobs/{$oa->id}/complete?source=nonsense&token=".$this->driver->auth_token)->assertNotFound();
     }
+
+    public function test_a_receiver_name_is_recorded_when_sent_and_required_only_when_the_flag_is_on(): void
+    {
+        $url = fn (int $id) => "/api/v1/urban-goodz/driver/active-jobs/{$id}/complete?source=order_anywhere&token=".$this->driver->auth_token;
+
+        // Flag off (default): the current app, which sends nothing, keeps working.
+        $a = $this->orderAnywhere('out_for_delivery');
+        $this->postJson($url($a->id))->assertOk();
+
+        // Sent: recorded either way.
+        $b = $this->orderAnywhere('out_for_delivery');
+        $this->postJson($url($b->id), ['recipient_name' => 'Sam Rivera'])->assertOk();
+        $this->assertStringContainsString('Received by: Sam Rivera', (string) $b->fresh()->driver_notes);
+
+        // Flag on: no name, no completion.
+        config()->set('urban_goodz_proof.require_recipient_on_delivery', true);
+        $c = $this->orderAnywhere('out_for_delivery');
+        $this->postJson($url($c->id))->assertStatus(422)->assertJsonPath('code', 'recipient_required');
+        $this->assertSame('out_for_delivery', $c->fresh()->status);
+        $this->postJson($url($c->id), ['recipient_name' => 'Front Desk'])->assertOk();
+        $this->assertSame('completed', $c->fresh()->status);
+    }
 }

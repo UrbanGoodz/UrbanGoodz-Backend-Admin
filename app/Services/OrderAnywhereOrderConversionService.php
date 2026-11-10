@@ -92,8 +92,26 @@ class OrderAnywhereOrderConversionService
 
             $request->order_id = $order->id;
             $request->pickup_address = $store->address ?? $request->pickup_address;
-            $request->pickup_latitude = $store->latitude ?? $request->pickup_latitude ?? $this->zoneCenterLat($zoneId);
-            $request->pickup_longitude = $store->longitude ?? $request->pickup_longitude ?? $this->zoneCenterLng($zoneId);
+
+            $lat = $store->latitude ?? $request->pickup_latitude;
+            $lng = $store->longitude ?? $request->pickup_longitude;
+            $source = $lat !== null && $lng !== null ? ($store ? 'store' : 'provided') : null;
+
+            // "Anywhere" merchants have no store row: look the address up before falling back to a guess.
+            if ($source === null) {
+                $geo = app(GeocodingService::class)->geocode($request->pickup_address ?: $request->store_vendor_address_or_website);
+                if ($geo) {
+                    [$lat, $lng, $source] = [$geo['lat'], $geo['lng'], 'geocoded'];
+                }
+            }
+            if ($source === null) {
+                [$lat, $lng, $source] = [$this->zoneCenterLat($zoneId), $this->zoneCenterLng($zoneId), 'estimated_zone_center'];
+            }
+
+            $request->pickup_latitude = $lat;
+            $request->pickup_longitude = $lng;
+            // An estimate means "nearest driver" is only nearest to the middle of the zone. Say so, so an admin can fix it.
+            $request->metadata = array_merge((array) $request->metadata, ['pickup_location_source' => $source]);
             $request->dropoff_address = $dropoffAddress;
             $request->save();
 

@@ -177,6 +177,11 @@ Route::group(['prefix' => 'urban-goodz/ai-concierge', 'middleware' => ['auth:api
     Route::post('video-avatar/{conversationId}/end', 'Api\V1\UrbanGoodz\UrbanGoodzAIConciergeController@endVideoAvatar');
 });
 
+Route::group(['prefix' => 'urban-goodz/notification-preferences', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@show');
+    Route::put('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@update');
+});
+
 Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('generate', 'Api\V1\UrbanGoodz\NotificationAIController@generateNotification');
     Route::post('batch', 'Api\V1\UrbanGoodz\NotificationAIController@generateBatch');

@@ -83,6 +83,16 @@ class UrbanGoodzNotificationService
                 continue;
             }
 
+            // Honour the person's choices: promotions and SMS are opt-in, push and email can be switched off.
+            // The in-app copy is always kept, so nothing important is lost by opting out.
+            if (! \App\Models\UrbanGoodzNotificationPreference::allows((string) $notification->recipient_type, (int) $notification->recipient_id, (string) $notification->channel, (string) $notification->event_type)) {
+                $notification->update([
+                    'status' => 'failed',
+                    'data' => array_merge((array) $notification->data, ['delivery_note' => 'Not sent: the recipient has not opted in to this.']),
+                ]);
+                continue;
+            }
+
             if (self::isInAppChannel($notification->channel)) {
                 $notification->update(['status' => 'delivered']);
                 continue;

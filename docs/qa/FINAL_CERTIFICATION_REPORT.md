@@ -34,7 +34,7 @@ these require new engineering of the existing flows; they require access and dec
 
 | Evidence | Result |
 |---|---|
-| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,479 tests, 27,830 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
+| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,487 tests, 27,869 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
 | Flutter customer app (`flutter analyze` / `test`) | analyzer clean on changed files; 388 tests passed at the customer-app pass |
 | Flutter driver app | analyzer clean; 192 tests passed |
 | Flutter vendor app | 160 tests passed (153 existing + 7 added) |
@@ -63,7 +63,7 @@ were re-run after restart and are not counted as results.
 | Stranded | PARTIAL | Fee double-charge and "helper never paid" fixed; resume flow added. **Reward payouts are bookkeeping only** |
 | AI actions + Concierge | DONE with notes | Guest concierge is text-only (cannot act); video-avatar ownership and billed-room reuse fixed |
 | Digital humans | DONE with notes | Unbounded text on open endpoints capped; no global spend cap on guest speech |
-| Notifications | DONE with notes | Push showed generic text, email never sent, SMS falsely "pending": all fixed. No user opt-out or consent exists |
+| Notifications | DONE with notes | Push showed generic text, email never sent, SMS falsely "pending": all fixed. Customers now have preferences and consent (SMS and promotions are opt-in) |
 | Customer wallet / tracking / refunds | DONE with notes | Partner credit endpoint hardened; refund double-tap and guest 500 fixed |
 | Creator / social + fashion | DONE with notes | Stylist-request status IDOR and creator self-activation fixed |
 | Dispatch commission + financial reconciliation | DONE with notes | Double-payout by reopening a route and driver pay missing from Order Anywhere splits fixed |
@@ -126,15 +126,15 @@ file references are in the per-lane documents listed in section 9.
 
 ### Product decisions (OWNER)
 - **Recurring routes are now real** (daily, weekdays, weekly, every 2 weeks, monthly, chosen weekdays): a nightly job creates the next week of runs as unassigned copies of the template. Runs still need a driver assigned by dispatch; auto-assigning a preferred driver is a product choice.
-- **Proof of delivery** is now required for medical courier jobs (the receiver must be named and goes into the custody trail). Loads and Order Anywhere still need a decision on what proof they require.
+- **Proof of delivery** is required for medical courier jobs. For loads and Order Anywhere the server records the receiver when sent and can require it (`UG_REQUIRE_DELIVERY_PROOF`), off until the driver app's new prompt ships. Signature, photo or PIN proof is still a product decision.
 - **Customer-app Medical Courier and Logistics screens now return 401** (they used customer tokens against driver tasks); the driver app has no UI for them.
 - Ride-share modules are now ignored by the customer app (no backend exists). Driver app flow `/sequence` vs `/finish`, and `from-batch` is not called by the app.
 - Admin and vendor-panel driver suspend/approve are now POST with CSRF. Orphan legacy routes remain.
-- **Notifications:** no per-user opt-out or SMS/email consent (needed before any marketing sends); no SMS provider is integrated.
+- **Notifications:** customers now have preferences (push and email on by default; SMS and promotions opt-in with timestamped consent). No SMS provider is integrated, and vendors and drivers have no preferences yet.
 
 ### Engineering follow-ups (known, scoped)
 - Reconciliation should sum the actual split rows, not just request columns.
-- Pickup coordinates for "anywhere" merchants need geocoding at sourcing; otherwise dispatch falls back to the zone centre.
+- Pickup addresses are now geocoded with the existing server map key (set `map_api_key_server`); an address that cannot be located is marked as an estimate so an admin can see it.
 - Active-jobs resolves a bare job id across four tables in a fixed order (id collisions possible).
 - Dispatcher commission on Order Anywhere is not attached by the automatic flow.
 - Guest concierge session ids are client-chosen (a guessable id exposes that chat); guest chats are never pruned; no global spend cap on guest speech.
@@ -149,6 +149,7 @@ file references are in the per-lane documents listed in section 9.
 - `2026_11_07_000001_make_payout_request_delivery_man_nullable` — vendor payouts fail without it.
 - `2026_11_08_000001_add_refund_requested_to_orders_if_missing` — refund requests fail on migration-built databases without it.
 - `2026_11_10_000001_add_recurring_parent_to_dedicated_routes` — needed for recurring routes.
+- `2026_11_10_000002_create_urban_goodz_notification_preferences` — needed for notification preferences.
 
 **Environment**
 - `TRUSTED_PROXIES` (load balancer CIDRs or `*`), `APP_URL=https://<admin host>`, `SESSION_SECURE_COOKIE=true`; `SESSION_DRIVER=redis|database` if more than one instance serves the admin. Run `php artisan config:clear` after. (This is the 419 fix; see `ADMIN_419_INCIDENT.md`.)
