@@ -182,6 +182,16 @@ Route::group(['prefix' => 'urban-goodz/notification-preferences', 'middleware' =
     Route::put('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@update');
 });
 
+Route::group(['prefix' => 'urban-goodz/vendor/notification-preferences', 'middleware' => ['vendor.api', 'throttle:60,1']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@vendorShow');
+    Route::put('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@vendorUpdate');
+});
+
+Route::group(['prefix' => 'urban-goodz/driver/notification-preferences', 'middleware' => ['dm.api', 'throttle:60,1']], function () {
+    Route::get('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@driverShow');
+    Route::put('/', 'Api\V1\UrbanGoodz\NotificationPreferencesController@driverUpdate');
+});
+
 Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('generate', 'Api\V1\UrbanGoodz\NotificationAIController@generateNotification');
     Route::post('batch', 'Api\V1\UrbanGoodz\NotificationAIController@generateBatch');

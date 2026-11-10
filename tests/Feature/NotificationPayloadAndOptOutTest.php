@@ -196,4 +196,25 @@ class NotificationPayloadAndOptOutTest extends TestCase
         $this->assertSame('failed', $blocked->status);
         $this->assertStringContainsString('opted in', $blocked->data['delivery_note']);
     }
+
+    public function test_vendors_and_drivers_have_their_own_preferences_too(): void
+    {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        $vToken = 'np-v-'.bin2hex(random_bytes(8));
+        $vendor = $this->insertRow('vendors', ['f_name' => 'V', 'l_name' => 'P', 'phone' => '+1555'.random_int(1000000, 9999999), 'email' => 'npv-'.uniqid().'@urbangoodz.test', 'password' => bcrypt('x'), 'auth_token' => $vToken, 'status' => 1]);
+        $this->insertRow('stores', ['name' => 'NP Store', 'vendor_id' => $vendor, 'status' => 1, 'module_id' => 1, 'zone_id' => 1, 'phone' => '+1555'.random_int(1000000, 9999999), 'email' => 'nps-'.uniqid().'@urbangoodz.test']);
+        $driver = DeliveryMan::create(['f_name' => 'D', 'l_name' => 'P', 'phone' => '+1555'.random_int(1000000, 9999999), 'email' => 'npd-'.uniqid().'@urbangoodz.test', 'password' => bcrypt('x'), 'auth_token' => 'np-d-'.bin2hex(random_bytes(8)), 'status' => 1, 'active' => 1, 'application_status' => 'approved']);
+        $vh = ['Authorization' => 'Bearer '.$vToken, 'vendorType' => 'owner', 'Accept' => 'application/json'];
+
+        $this->putJson('/api/v1/urban-goodz/vendor/notification-preferences', ['sms_consent' => true, 'email_enabled' => false], $vh)->assertOk()->assertJsonPath('data.sms_consent', true);
+        $this->getJson('/api/v1/urban-goodz/vendor/notification-preferences', $vh)->assertOk()->assertJsonPath('data.email_enabled', false);
+        $this->putJson('/api/v1/urban-goodz/driver/notification-preferences?token='.$driver->auth_token, ['promotions_opt_in' => true])->assertOk()->assertJsonPath('data.promotions_opt_in', true);
+
+        $this->assertSame(1, \App\Models\UrbanGoodzNotificationPreference::where('recipient_type', 'vendor')->where('recipient_id', $vendor)->count());
+        $this->assertSame(1, \App\Models\UrbanGoodzNotificationPreference::where('recipient_type', 'driver')->where('recipient_id', $driver->id)->count());
+        // Each person's row is their own: the vendor's choices did not touch the driver's.
+        $this->assertFalse(\App\Models\UrbanGoodzNotificationPreference::forRecipient('driver', $driver->id)->sms_consent);
+        $this->getJson('/api/v1/urban-goodz/vendor/notification-preferences')->assertUnauthorized();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+    }
 }

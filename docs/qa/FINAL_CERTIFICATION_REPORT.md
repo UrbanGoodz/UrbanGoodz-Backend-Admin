@@ -34,7 +34,7 @@ these require new engineering of the existing flows; they require access and dec
 
 | Evidence | Result |
 |---|---|
-| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,490 tests, 27,880 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
+| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,491 tests, 27,890 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
 | Flutter customer app (`flutter analyze` / `test`) | analyzer clean on changed files; 388 tests passed at the customer-app pass |
 | Flutter driver app | analyzer clean; 192 tests passed |
 | Flutter vendor app | 160 tests passed (153 existing + 7 added) |
@@ -130,7 +130,7 @@ file references are in the per-lane documents listed in section 9.
 - **Customer-app Medical Courier and Logistics screens now return 401** (they used customer tokens against driver tasks); the driver app has no UI for them.
 - Ride-share modules are now ignored by the customer app (no backend exists). Driver app flow `/sequence` vs `/finish`, and `from-batch` is not called by the app.
 - Admin and vendor-panel driver suspend/approve are now POST with CSRF. Orphan legacy routes remain.
-- **Notifications:** customers now have preferences (push and email on by default; SMS and promotions opt-in with timestamped consent). No SMS provider is integrated, and vendors and drivers have no preferences yet.
+- **Notifications:** customers now have preferences (push and email on by default; SMS and promotions opt-in with timestamped consent). No SMS provider is integrated. Vendor and driver preferences exist as API only (no app screen yet).
 
 ### Engineering follow-ups (known, scoped)
 - Reconciliation should sum the actual split rows, not just request columns.
