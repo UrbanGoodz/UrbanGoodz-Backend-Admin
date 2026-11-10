@@ -10,6 +10,7 @@ use App\Services\UrbanGoodz\AI\DigitalHuman\VoiceVisemeOrchestrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 
 class DigitalHumanController extends Controller
 {
@@ -82,6 +83,26 @@ class DigitalHumanController extends Controller
             'text' => 'required|string|max:2000',
         ]);
 
+        // Guests share one daily budget of synthesized characters. The route is open on purpose,
+        // and its throttle is per client, so without this a spread of clients could run the
+        // provider bill without limit. Signed-in callers are not counted here.
+        $guest = ! auth('api')->check();
+        $chars = mb_strlen($validated['text']);
+        $budgetKey = 'ug:guest-speech-chars:' . now()->toDateString();
+        if ($guest) {
+            $budget = (int) config('urban_goodz_personas.digital_human_global.guest_daily_char_budget', 100000);
+            Cache::add($budgetKey, 0, now()->endOfDay());
+            if ((int) Cache::increment($budgetKey, $chars) > $budget) {
+                Cache::decrement($budgetKey, $chars);
+
+                return response()->json([
+                    'success' => false,
+                    'error_code' => 'guest_budget_exhausted',
+                    'message' => 'Voice is unavailable right now. Sign in to keep using it.',
+                ], 429);
+            }
+        }
+
         $provider = (string) config('urban_goodz_personas.digital_human_global.voice_provider', 'elevenlabs');
 
         $result = $provider === 'qwen'
@@ -95,6 +116,11 @@ class DigitalHumanController extends Controller
             );
 
         if (! $result['success']) {
+            // Nothing was synthesized, so nothing is spent from the guest budget.
+            if ($guest) {
+                Cache::decrement($budgetKey, $chars);
+            }
+
             return response()->json([
                 'success' => false,
                 'error_code' => $result['error_code'],

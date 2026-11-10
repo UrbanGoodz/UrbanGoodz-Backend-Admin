@@ -649,8 +649,57 @@ class UrbanGoodzPaymentService
             return;
         }
 
-        $status = (clone $base)->value('status') ?: 'calculated';
+        // Never create the row already "released": that would mark the driver paid without
+        // crediting them. It joins the unsettled rows, and when the customer's money has already
+        // been captured it is settled now, which credits the wallet and the earning exactly once.
+        $sibling = (string) (clone $base)->value('status');
+        $status = in_array($sibling, ['calculated', 'reserved', 'accrued', 'finalized'], true) ? $sibling : 'reserved';
         $this->split($ledger, $request, 'driver', $driverId, 'driver_earning', $amount, $status);
+
+        if (in_array($request->payment_status, ['captured', 'partially_captured'], true)) {
+            $this->settleSplits($request->fresh());
+        }
+    }
+
+    /**
+     * Where the split ROWS disagree with the request's own summary columns. reconcileSplits()
+     * compares the columns to the captured amount, so it cannot see a recipient whose row is
+     * missing; this can. Empty array = consistent.
+     *
+     * @return array<int, string>
+     */
+    public function splitRowMismatches(OrderAnywhereRequest $request): array
+    {
+        if (! in_array($request->payment_status, ['captured', 'partially_captured'], true)) {
+            return [];
+        }
+
+        $rows = UrbanGoodzPaymentSplit::where('payable_type', OrderAnywhereRequest::class)
+            ->where('payable_id', $request->id)
+            ->whereIn('split_type', ['platform_fee', 'service_revenue', 'vendor_earning', 'driver_earning', 'dispatcher_commission'])
+            ->whereNotIn('status', ['cancelled'])
+            ->get()
+            ->groupBy('recipient_type')
+            ->map(fn ($g) => round((float) $g->sum('amount'), 2));
+
+        $expected = [
+            'platform' => round((float) $request->urban_goodz_revenue, 2),
+            'vendor' => $request->vendor_id ? round((float) $request->vendor_payout_amount, 2) : 0.0,
+            'driver' => $request->assigned_delivery_man_id ? round((float) $request->driver_payout_amount, 2) : 0.0,
+        ];
+
+        $problems = [];
+        foreach ($expected as $recipient => $amount) {
+            $actual = (float) ($rows[$recipient] ?? 0.0);
+            if (abs($actual - $amount) > 0.01) {
+                $problems[] = "{$recipient}: split rows total {$actual}, request says {$amount}";
+            }
+        }
+        if (! $request->assigned_delivery_man_id && (float) $request->driver_payout_amount > 0) {
+            $problems[] = 'driver pay of ' . round((float) $request->driver_payout_amount, 2) . ' is unallocated: no driver is attached';
+        }
+
+        return $problems;
     }
 
     /**

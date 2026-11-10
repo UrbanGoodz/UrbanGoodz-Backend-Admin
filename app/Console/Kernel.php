@@ -63,6 +63,8 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        $schedule->command('ai-concierge:prune-guests')->dailyAt('03:17')->withoutOverlapping();
+
         // Dispatch is automatic: re-offer unassigned jobs to the next nearest driver.
         $schedule->command('order-anywhere:dispatch-pending')
             ->everyMinute()

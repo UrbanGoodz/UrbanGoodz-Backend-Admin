@@ -108,6 +108,9 @@ return [
         'engine' => env('UG_DIGITAL_HUMAN_ENGINE', 'rive'),
         'target_fps' => 60,
         'voice_provider' => env('UG_VOICE_PROVIDER', 'elevenlabs'),
+        // Paid speech for callers with no account is capped across the whole platform per day,
+        // because a per-client throttle does not stop many clients. 0 turns guest speech off.
+        'guest_daily_char_budget' => (int) env('UG_GUEST_SPEECH_DAILY_CHARS', 100000),
         'viseme_sample_rate_ms' => 60,
         'elevenlabs_api_key' => env('ELEVENLABS_API_KEY'),
         'elevenlabs_model_id' => env('ELEVENLABS_MODEL_ID', 'eleven_turbo_v2_5'),

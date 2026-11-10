@@ -14,7 +14,9 @@ class UrbanGoodzAIConciergeController extends Controller
     {
         $data = $request->validate([
             'query' => ['required', 'string', 'max:2000'],
-            'session_id' => ['nullable', 'string', 'max:64'],
+            // The session id is the only key to a guest's chat history, so it must be hard to
+            // guess: a short or patterned id let one guest read another's conversation.
+            'session_id' => ['nullable', 'string', 'min:16', 'max:64', 'regex:/^[A-Za-z0-9_-]+$/'],
         ]);
 
         // This route is open to guests, so there is no auth middleware to resolve

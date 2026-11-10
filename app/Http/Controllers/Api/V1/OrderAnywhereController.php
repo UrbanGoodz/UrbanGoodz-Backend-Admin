@@ -423,6 +423,9 @@ class OrderAnywhereController extends Controller
                 $model->save();
             }
 
+            // Put the chosen driver's pay on the books (and settle it if the money is already captured).
+            app(UrbanGoodzPaymentService::class)->attachDriverSplit($model->fresh());
+
             if ($model->order_id) {
                 \App\Models\AiDispatch::where('order_id', $model->order_id)
                     ->whereIn('status', [\App\Models\AiDispatch::STATUS_PENDING_DRIVER, \App\Models\AiDispatch::STATUS_SENT, \App\Models\AiDispatch::STATUS_VIEWED])

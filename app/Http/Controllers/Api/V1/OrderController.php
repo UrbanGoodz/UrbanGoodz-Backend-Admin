@@ -282,7 +282,8 @@ class OrderController extends Controller
 
     public function refund_request(Request $request)
     {
-        if (BusinessSetting::where(['key' => 'refund_active_status'])->first()->value == false) {
+        // A missing setting row means refunds are not switched on (it used to be a null dereference, i.e. a 500).
+        if (BusinessSetting::where(['key' => 'refund_active_status'])->first()?->value == false) {
             return response()->json([
                 'errors' => [
                     ['code' => 'order', 'message' => translate('You can not request for a refund')]

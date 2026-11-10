@@ -105,4 +105,44 @@ class OrderAnywhereMoneyReconciliationTest extends TestCase
         $this->assertSame('pending', $earnings->first()->status, 'pending earnings are what the driver can request a payout against');
         $this->assertEqualsWithDelta((float) $split->amount, \App\Services\UrbanGoodzPayoutGuard::driverAvailable($driver->id), 0.01);
     }
+
+    public function test_the_automatic_flow_leaves_split_rows_that_match_the_request(): void
+    {
+        [$request] = $this->run_();
+
+        $this->assertSame([], app(UrbanGoodzPaymentService::class)->splitRowMismatches($request));
+        $this->assertSame(0, \Illuminate\Support\Facades\Artisan::call('order-anywhere:audit-splits'));
+    }
+
+    public function test_a_driver_assigned_by_an_admin_after_capture_is_paid_exactly_once(): void
+    {
+        $customer = User::create(['f_name' => 'Late', 'l_name' => 'Assign', 'email' => 'late-'.uniqid().'@urbangoodz.test', 'phone' => '+1555'.random_int(1000000, 9999999), 'password' => bcrypt('x')]);
+        $driver = DeliveryMan::create([
+            'f_name' => 'Late', 'l_name' => 'Driver', 'phone' => '+1555'.random_int(1000000, 9999999), 'email' => 'ld-'.uniqid().'@urbangoodz.test', 'password' => bcrypt('x'),
+            'auth_token' => 'tok-'.bin2hex(random_bytes(8)), 'status' => 1, 'active' => 1, 'application_status' => 'approved',
+        ]);
+        Config::set('urban_goodz_payments.order_anywhere.auto_dispatch', false);   // admin drives this one by hand
+        $request = OrderAnywhereRequest::create([
+            'request_number' => OrderAnywhereRequest::nextRequestNumber(), 'customer_id' => $customer->id, 'status' => 'sourcing', 'payment_status' => 'awaiting_quote',
+            'fulfillment_type' => 'external_merchant', 'dropoff_address' => '1 Customer Way',
+        ]);
+        $payments = app(UrbanGoodzPaymentService::class);
+        $payments->quoteOrderAnywhere($request, ['quote_amount' => 135.50, 'final_amount' => 135.50, 'item_subtotal' => 100, 'service_fee' => 20, 'delivery_fee' => 8, 'tax' => 7.5]);
+        $this->actingAs($customer, 'api')->postJson("/api/v1/order-anywhere/requests/{$request->id}/authorize-payment")->assertOk();
+        $payments->captureCustomerPayment($request->fresh(), ['captured_amount' => 135.50, 'capture_reference' => 'manual-'.uniqid(), 'source' => 'admin']);
+
+        // Captured with nobody attached: the audit must say so rather than pass silently.
+        $this->assertNotSame([], $payments->splitRowMismatches($request->fresh()));
+
+        $admin = \App\Models\Admin::create(['f_name' => 'A', 'l_name' => 'D', 'email' => 'ad-'.uniqid().'@urban-goodz.test', 'phone' => '1555'.random_int(1000000, 9999999), 'password' => bcrypt('x'), 'role_id' => 1]);
+        $assign = fn () => $this->actingAs($admin, 'admin')->postJson("/api/v1/order-anywhere/admin/requests/{$request->id}/assign-driver", ['driver_id' => $driver->id])->assertOk();
+        $assign();
+        $assign();   // a repeat must not pay twice
+
+        $split = UrbanGoodzPaymentSplit::where('payable_id', $request->id)->where('recipient_type', 'driver')->get();
+        $this->assertCount(1, $split);
+        $this->assertSame('released', $split->first()->status);
+        $this->assertSame(1, \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)->count(), 'one earning, even though the driver was assigned twice');
+        $this->assertSame([], $payments->splitRowMismatches($request->fresh()));
+    }
 }
