@@ -34,7 +34,7 @@ these require new engineering of the existing flows; they require access and dec
 
 | Evidence | Result |
 |---|---|
-| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,487 tests, 27,869 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
+| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,490 tests, 27,880 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
 | Flutter customer app (`flutter analyze` / `test`) | analyzer clean on changed files; 388 tests passed at the customer-app pass |
 | Flutter driver app | analyzer clean; 192 tests passed |
 | Flutter vendor app | 160 tests passed (153 existing + 7 added) |
@@ -158,7 +158,7 @@ file references are in the per-lane documents listed in section 9.
 - A **shared cache store** (Redis), not `file`, on multi-server setups: used for video-avatar ownership and the partner-transfer replay guard.
 
 **Processes**
-- **Scheduler (critical).** The schedule Laravel 12 actually reads is `bootstrap/app.php`. The old `app/Console/Kernel.php` schedule was never read, so Stranded escalation, card-issuance recovery and driver-history pruning had never run in production. They are now on the live schedule, guarded by a test, along with `order-anywhere:dispatch-pending` (automatic dispatch cycling), `routes:generate-recurring` (nightly) and `ai-concierge:prune-guests` (daily). `run-scheduled-sourcing` is opt-in (`LOAD_SOURCING_SCHEDULED_ENABLED=true`). Cron must call `schedule:run` every minute, and the first run of the newly live jobs should be watched.
+- **Scheduler (critical).** The schedule Laravel 12 actually reads is `bootstrap/app.php`. The old `app/Console/Kernel.php` schedule was never read, so Stranded escalation, card-issuance recovery and driver-history pruning had never run in production. They are now on the live schedule, guarded by a test, along with `order-anywhere:dispatch-pending` (automatic dispatch cycling), `routes:generate-recurring` (nightly) and `ai-concierge:prune-guests` (daily). `run-scheduled-sourcing` is opt-in (`LOAD_SOURCING_SCHEDULED_ENABLED=true`). Cron must call `schedule:run` every minute, and the first run of the newly live jobs should be watched. Their first-run hazards were reviewed and fixed: the history pruner deletes in capped batches, and the Stranded tick closes requests stuck for more than 6 hours quietly and only penalises responders for offers that lapsed in the last 15 minutes.
 - Queued jobs (including the `notifications` queue) are processed by the scheduled `queue:work`, so the scheduler is the only process you need. If you run a dedicated worker instead, give it `payments,notifications,ai,load-sourcing,default`.
 
 **Provider setup:** Stripe keys and webhook secrets (payments, Issuing), Adyen if used, Firebase credentials, distance-matrix provider key (otherwise routes are optimized for straight lines, not roads), Tavus and voice provider keys if those features are enabled.

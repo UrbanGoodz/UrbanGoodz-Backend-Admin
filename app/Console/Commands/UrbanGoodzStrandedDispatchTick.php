@@ -27,6 +27,9 @@ class UrbanGoodzStrandedDispatchTick extends Command
     {
         $dry = (bool) $this->option('dry-run');
 
+        $stale = $this->expireStaleRequests($dry);
+        $this->info("Stale requests expired quietly: {$stale}");
+
         $expired = $this->expireLapsedOffers($dry);
         $this->info("Offers expired: {$expired}");
 
@@ -114,9 +117,41 @@ class UrbanGoodzStrandedDispatchTick extends Command
         $count = UrbanGoodzStrandedOffer::whereIn('id', $ids->keys())
             ->update(['status' => 'expired', 'responded_at' => now()]);
 
-        // Track misses so trust scoring has something honest to work from.
-        foreach ($ids->values()->unique() as $responderId) {
+        // Track misses so trust scoring has something honest to work from, but only for offers that lapsed
+        // recently. Anything older (including offers that piled up while this command was not running) is
+        // closed without penalty: the responder was never given a fair chance to answer.
+        $cutoff = now()->subMinutes(max(1, (int) config('urban_goodz_stranded.missed_offer_window_minutes', 15)));
+        $recent = UrbanGoodzStrandedOffer::whereIn('id', $ids->keys())->where('expires_at', '>=', $cutoff)->pluck('responder_id');
+        foreach ($recent->unique() as $responderId) {
             UrbanGoodzStrandedResponder::where('user_id', $responderId)->increment('missed_jobs');
+        }
+
+        return $count;
+    }
+
+    /**
+     * Close requests that have been live for far longer than any rescue could be, with no notifications.
+     * Their offers are withdrawn and any responder they were holding busy is freed.
+     */
+    private function expireStaleRequests(bool $dry): int
+    {
+        $cutoff = now()->subHours(max(1, (int) config('urban_goodz_stranded.max_live_hours', 6)));
+        $query = UrbanGoodzStrandedRequest::query()
+            ->whereIn('status', ['broadcasting', 'awaiting_selection', 'no_responders'])
+            ->whereNull('selected_offer_id')
+            ->where('created_at', '<', $cutoff);
+
+        if ($dry) {
+            return $query->count();
+        }
+
+        $count = 0;
+        foreach ($query->get() as $request) {
+            $request->update(['status' => 'expired']);
+            UrbanGoodzStrandedOffer::where('request_id', $request->getKey())
+                ->whereIn('status', ['offered', 'accepted'])
+                ->update(['status' => 'expired', 'responded_at' => now()]);
+            $count++;
         }
 
         return $count;

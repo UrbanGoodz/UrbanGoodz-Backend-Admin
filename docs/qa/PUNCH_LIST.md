@@ -23,7 +23,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | B3 | Driver app flow: `/sequence` vs `/finish`; `routes/from-batch` is not called by the app. Pick one path. |
 | B4 | DONE: customer-app entry points to Medical Courier, Load Board and Logistics are removed (deep links and concierge suggestions land on the hub). Building these in the driver app is a separate product item. |
 | B5 | DONE: ride-share modules are ignored by the customer app. Building a ride-share backend is a separate product item. |
-| B6 | Orphan legacy routes (see `known-broken-routes.txt`): delete or restore. |
+| B6 | Reviewed, left in place on purpose: the 11 routes in `known-broken-routes.txt` point at controller methods that do not exist, so each already returns a 500 and always has. No page or app calls any of them (the business manifest `validate`/`duplicate-check` routes are not referenced by any view and mis-target `BusinessAIController`; the subscription and payment-method API routes are dead constants in the apps). Removing them only turns a 500 into a 404 and risks breaking a named-route reference, so it is a cleanup item, not a launch item. A ratchet test already stops new ones appearing. |
 | B7 | DONE: admin driver suspend and approve/deny, and the vendor-panel driver status and earning toggles, are POST with CSRF. |
 
 ## C. Certification lanes not finished (TODO)
@@ -61,7 +61,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | # | Item | Type |
 |---|------|------|
 | G1 | **The schedule in `app/Console/Kernel.php` was never read** (Laravel 12 uses `bootstrap/app.php`), so `stranded:dispatch-tick`, `order-anywhere:recover-card-issuance`, `delivery-history:prune` and `run-scheduled-sourcing` have never run in production. All are now on the live schedule, guarded by a test. `run-scheduled-sourcing` is opt-in (`LOAD_SOURCING_SCHEDULED_ENABLED=true`) because it has never run and works with external load sources. | DONE, confirm in prod that `schedule:run` is wired to cron |
-| G2 | Review what a first run of the newly live jobs does against production data (Stranded tick, history prune) before relying on them. | ENV |
+| G2 | First-run hazards of the newly live jobs were reviewed and fixed: the history pruner deletes in capped batches (it has never run, so the first run could face millions of rows); the Stranded tick closes requests stuck for more than 6 hours quietly (no messages about old emergencies) and only penalises responders for offers that lapsed in the last 15 minutes. Tunable: `STRANDED_MAX_LIVE_HOURS`, `STRANDED_MISSED_OFFER_WINDOW_MINUTES`. Still worth watching the first night in production. | DONE / watch |
 
 ## D. Closed so far (for traceability)
 Pickup geocoding, delivery-proof recording (enforcement flagged), notification preferences and consent, capture-time payout-split alert.

@@ -25,6 +25,8 @@ class PruneDeliveryHistory extends Command
     protected $signature = 'delivery-history:prune
                             {--days=14 : Drop unattached points older than this}
                             {--order-days=90 : Drop order-attached points older than this}
+                            {--chunk=5000 : Rows deleted per statement}
+                            {--max=500000 : Most rows removed in one run; the rest goes on the next night}
                             {--dry-run : Report what would be removed without deleting}';
 
     protected $description = 'Prune old driver location breadcrumbs, preserving each driver\'s latest point';
@@ -56,8 +58,25 @@ class PruneDeliveryHistory extends Command
             return self::SUCCESS;
         }
 
-        $a = $unattached->delete();
-        $b = $attached->delete();
+        // This table has never been pruned, so the first run could face millions of rows. One huge DELETE would
+        // hold locks and bloat the transaction log on a live table. Delete in small batches, capped per run;
+        // whatever is left goes on the next night.
+        $chunk = max(100, (int) $this->option('chunk'));
+        $budget = max($chunk, (int) $this->option('max'));
+        $removed = ['a' => 0, 'b' => 0];
+
+        foreach (['a' => $unattached, 'b' => $attached] as $key => $query) {
+            do {
+                $take = min($chunk, $budget);
+                $batch = $take > 0 ? (clone $query)->limit($take)->delete() : 0;
+                $removed[$key] += $batch;
+                $budget -= $batch;
+                if ($batch > 0) {
+                    usleep(20000);          // let the database breathe between batches
+                }
+            } while ($batch === $take && $budget > 0);
+        }
+        [$a, $b] = [$removed['a'], $removed['b']];
 
         $this->info("Pruned {$a} unattached and {$b} order-attached points; kept " . count($keepIds) . ' latest-per-driver.');
 
