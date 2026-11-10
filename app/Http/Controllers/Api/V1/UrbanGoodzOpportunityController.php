@@ -473,6 +473,11 @@ class UrbanGoodzOpportunityController extends Controller
             // A driver advances their own job. Cancelling a specimen run is an admin action.
             'status' => 'required|string|in:picked_up,in_transit,delivered',
             'notes' => 'nullable|string|max:1000',
+            // Proof of delivery: a specimen is not "delivered" (and the driver is not paid) until
+            // someone is named as having received it. It goes into the custody trail below.
+            'recipient_name' => 'required_if:status,delivered|nullable|string|min:2|max:120',
+        ], [
+            'recipient_name.required_if' => 'Enter the name of the person who received the delivery.',
         ]);
 
         $job = UrbanGoodzMedicalCourierJob::where('assigned_driver_id', $driver->id)->find((int) $record);
@@ -480,7 +485,12 @@ class UrbanGoodzOpportunityController extends Controller
             return response()->json(['success' => false, 'message' => 'Job not found'], 404);
         }
 
-        $updated = app(UrbanGoodzMedicalCourierService::class)->updateStatus((int) $record, $validated['status'], (int) $driver->id, $validated['notes'] ?? null);
+        $notes = $validated['notes'] ?? null;
+        if ($validated['status'] === 'delivered') {
+            $notes = trim('Received by: ' . $validated['recipient_name'] . '. ' . (string) $notes);
+        }
+
+        $updated = app(UrbanGoodzMedicalCourierService::class)->updateStatus((int) $record, $validated['status'], (int) $driver->id, $notes);
         if (!$updated) {
             return response()->json(['success' => false, 'message' => 'Invalid status transition'], 409);
         }

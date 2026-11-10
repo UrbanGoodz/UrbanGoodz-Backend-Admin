@@ -182,7 +182,16 @@
                 reverseButtons: true
             }).then((result) => {
                 if (result.value) {
-                    location.href = url;
+                    // These routes are POST-only (CSRF protected), so submit a form
+                    // instead of navigating with a GET.
+                    $('<form>', { method: 'POST', action: url })
+                        .append($('<input>', {
+                            type: 'hidden',
+                            name: '_token',
+                            value: $('meta[name="csrf-token"]').attr('content')
+                        }))
+                        .appendTo('body')
+                        .trigger('submit');
                 }
             })
         }

@@ -151,4 +151,21 @@ class DriverJobLifecycleMoneyTest extends TestCase
         $this->assertSame('approved', $fresh->status, 'a paid order must not fall back to pending_review');
         $this->assertNull($fresh->assigned_delivery_man_id);
     }
+
+    public function test_source_picks_the_right_job_when_two_kinds_share_an_id(): void
+    {
+        // Same numeric id in two tables, both assigned to this driver.
+        $oa = $this->orderAnywhere('out_for_delivery');
+        DB::table('urban_goodz_route_packages')->where('dedicated_route_id', $this->route->id)->update(['dedicated_route_id' => $oa->id]);
+        DB::table('urban_goodz_dedicated_routes')->where('id', $this->route->id)->update(['id' => $oa->id]);
+
+        $this->postJson("/api/v1/urban-goodz/driver/active-jobs/{$oa->id}/complete?source=dedicated_route&token=".$this->driver->auth_token)
+            ->assertStatus(409);                                   // the ROUTE (undelivered packages), not the order
+        $this->assertSame('out_for_delivery', $oa->fresh()->status, 'the order must not have been touched');
+
+        $this->postJson("/api/v1/urban-goodz/driver/active-jobs/{$oa->id}/complete?source=order_anywhere&token=".$this->driver->auth_token)->assertOk();
+        $this->assertSame('completed', $oa->fresh()->status);
+
+        $this->postJson("/api/v1/urban-goodz/driver/active-jobs/{$oa->id}/complete?source=nonsense&token=".$this->driver->auth_token)->assertNotFound();
+    }
 }

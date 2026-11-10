@@ -901,7 +901,10 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
 
         $this->assertCount(1, $ledger, 'The release must leave exactly one ledger row.');
         $this->assertSame(4500, (int) $ledger->first()->amount_minor);
-        $this->assertSame('completed', $ledger->first()->internal_status);
+        // The platform does not collect or pay the reward, and the ledger must say so rather
+        // than claim a completed card payment.
+        $this->assertSame('not_collected', $ledger->first()->internal_status);
+        $this->assertSame('none', $ledger->first()->provider);
         $this->assertSame($request->request_number, $ledger->first()->merchant_reference);
     }
 

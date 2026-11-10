@@ -34,7 +34,7 @@ these require new engineering of the existing flows; they require access and dec
 
 | Evidence | Result |
 |---|---|
-| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,451 tests, 7,671 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
+| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,470 tests, 27,753 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
 | Flutter customer app (`flutter analyze` / `test`) | analyzer clean on changed files; 388 tests passed at the customer-app pass |
 | Flutter driver app | analyzer clean; 192 tests passed |
 | Flutter vendor app | 160 tests passed (153 existing + 7 added) |
@@ -119,17 +119,17 @@ file references are in the per-lane documents listed in section 9.
 ## 5. Open items that block or condition release
 
 ### Money decisions (OWNER): needed before launch
-1. **Stranded helper rewards do not move money.** `selectOffer` marks escrow `held` and `releaseEscrow` writes a ledger row marked `completed`, but nothing is authorized, captured or transferred at the payment provider. Decide: Stripe Connect payouts, or manual settlement, and relabel the ledger honestly until then.
+1. **Stranded helper rewards are paid directly by the customer, not by the platform.** The ledger and API now say so (no provider, nothing collected) instead of claiming a completed Stripe payment. If you want the platform to hold and pay out rewards, that is Stripe Connect work and a new decision.
 2. **Stripe Issuing float** for Order Anywhere purchase cards: cards spend from the platform's issuing balance while customer captures settle. Someone must fund it.
-3. **Customer cancel after a driver has accepted** (money captured, goods possibly bought) is refused today; a refund policy is needed.
+3. **Customer cancel policy** is now: full refund until the driver has bought the goods, then support. Confirm that is the policy you want.
 4. **Order Anywhere defaults** to confirm or tune: driver radius 25 mi, offer window 3 min, alert admins at 10 min, auto-cancel and release the hold at 30 min, markup percent (no default by design).
 
 ### Product decisions (OWNER)
 - **Recurring medical courier routes are not implemented** (the rule is a saved text field that nothing reads; a "weekly" route runs once). Build or remove from UI and marketing.
-- **Proof of delivery is not enforced** for medical jobs, loads or OA (signature/temperature/photo).
+- **Proof of delivery** is now required for medical courier jobs (the receiver must be named and goes into the custody trail). Loads and Order Anywhere still need a decision on what proof they require.
 - **Customer-app Medical Courier and Logistics screens now return 401** (they used customer tokens against driver tasks); the driver app has no UI for them.
-- **Ride-share screens have no backend API**; driver app flow `/sequence` vs `/finish`, and `from-batch` is not called by the app.
-- **Admin suspend/approve are GET links** (state change with no CSRF protection); orphan legacy routes remain.
+- Ride-share modules are now ignored by the customer app (no backend exists). Driver app flow `/sequence` vs `/finish`, and `from-batch` is not called by the app.
+- Admin and vendor-panel driver suspend/approve are now POST with CSRF. Orphan legacy routes remain.
 - **Notifications:** no per-user opt-out or SMS/email consent (needed before any marketing sends); no SMS provider is integrated.
 
 ### Engineering follow-ups (known, scoped)
@@ -156,7 +156,7 @@ file references are in the per-lane documents listed in section 9.
 - A **shared cache store** (Redis), not `file`, on multi-server setups: used for video-avatar ownership and the partner-transfer replay guard.
 
 **Processes**
-- The **scheduler must be running** (`schedule:run` every minute): a new command, `order-anywhere:dispatch-pending`, drives the automatic dispatch cycling; `order-anywhere:recover-card-issuance` already depends on it.
+- The **scheduler must be running** (`schedule:run` every minute): `order-anywhere:dispatch-pending` drives automatic dispatch cycling, and `ai-concierge:prune-guests` runs daily; `order-anywhere:recover-card-issuance` already depends on it.
 - A **queue worker** on the `notifications` queue.
 
 **Provider setup:** Stripe keys and webhook secrets (payments, Issuing), Adyen if used, Firebase credentials, distance-matrix provider key (otherwise routes are optimized for straight lines, not roads), Tavus and voice provider keys if those features are enabled.

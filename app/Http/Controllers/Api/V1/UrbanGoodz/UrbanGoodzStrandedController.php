@@ -827,6 +827,10 @@ class UrbanGoodzStrandedController extends Controller
             'help_request_fee_status' => $r->help_request_fee_status,
             'reward_offer_minor' => $r->reward_offer_minor,
             'escrow_status' => $r->escrow_status,
+            // The app must not tell anyone their money is being held: the reward is agreed in the
+            // app and paid directly to the helper. Only the help request fee is charged by Urban Goodz.
+            'reward_settlement' => 'direct',
+            'reward_payment_note' => 'You pay your helper directly. Urban Goodz only charges the help request fee.',
             'tip_minor' => $r->tip_minor,
             'currency' => $r->currency,
             'broadcast_radius_miles' => $r->broadcast_radius_miles,

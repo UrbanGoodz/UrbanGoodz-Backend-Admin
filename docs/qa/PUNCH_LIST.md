@@ -11,7 +11,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 |---|------|------|-------|
 | A1 | Admin 419 fix not verified in production | ENV | Fix + tests are unit-level. Production needs `TRUSTED_PROXIES`, correct `APP_URL`, `SESSION_SECURE_COOKIE`, a session driver shared across servers. See `ADMIN_419_INCIDENT.md`. |
 | A2 | Migrations must run in production | ENV | `2026_11_07_000001_make_payout_request_delivery_man_nullable` (vendor payouts fail without it), `2026_11_08_000001_add_refund_requested_to_orders_if_missing`, plus all earlier ones. |
-| A3 | Stranded helper rewards are not real money movement | OWNER | `selectOffer` marks escrow `held`, `releaseEscrow` writes a "completed" ledger row; nothing is authorized/captured/transferred at Stripe. Decide: Stripe Connect vs manual settlement. |
+| A3 | Stranded helper rewards: decide whether the platform should ever handle that money | OWNER | Resolved to the honest state: the reward is agreed in the app and paid by the customer directly to the helper. The ledger row no longer claims a completed Stripe payment (`provider=none`, `not_collected`) and the API tells the app the reward is paid directly. If you want the platform to hold and pay out rewards, that is Stripe Connect work and a new decision. |
 | A4 | No device / Playwright / Appium runs | ENV | A phone is connected to the owner's computer, but this cloud session cannot reach it. Remote Control IS on and the computer 'Urban-Goodz' lists folders UG, AdminPanel_Update_V39 and UrbanGoodz2026-Revised, but all three come back 'not_available' to cloud sessions: update the Claude desktop app on that computer (Windows needs a recent version) and re-check. Alternatively start a session on that computer (Claude desktop app > Settings > Claude Code > Remote Control, or run `claude remote-control` in the repo folder). That session can run adb + Flutter device tests. All app-level behaviour here is unit/feature-test verified only. |
 | A5 | Real Stripe / Adyen never called | ENV | Provider seams are scripted in tests; needs sandbox-key runs. |
 
@@ -19,21 +19,21 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | # | Item |
 |---|------|
 | B1 | Recurring medical courier routes are not implemented. Build, or remove from the UI/marketing? |
-| B2 | Delivery proof / signature: enforce server-side, or optional? |
+| B2 | Delivery proof / signature. DONE for medical courier jobs: a specimen cannot be marked delivered without naming the receiver (recorded in the custody trail). Still open for load board and Order Anywhere: decide what proof each needs (signature, photo, PIN). |
 | B3 | Driver app flow: `/sequence` vs `/finish`; `routes/from-batch` is not called by the app. Pick one path. |
-| B4 | Customer-app Medical Courier and Logistics screens now get 401 after the auth fix: give customers a real entry path or hide the screens. |
-| B5 | Ride-share screens have no backend API: build or remove. |
+| B4 | DONE: customer-app entry points to Medical Courier, Load Board and Logistics are removed (deep links and concierge suggestions land on the hub). Building these in the driver app is a separate product item. |
+| B5 | DONE: ride-share modules are ignored by the customer app. Building a ride-share backend is a separate product item. |
 | B6 | Orphan legacy routes (see `known-broken-routes.txt`): delete or restore. |
-| B7 | Admin suspend/approve are GET links: convert to POST (needs view edits + CSRF). |
+| B7 | DONE: admin driver suspend and approve/deny, and the vendor-panel driver status and earning toggles, are POST with CSRF. |
 
 ## C. Certification lanes not finished (TODO)
 | # | Lane | Status |
 |---|------|--------|
-| C1 | AI actions + Concierge | DONE with notes: see `AI_CONCIERGE_CERTIFICATION.md` (guest session-id entropy, guest chat retention, shared cache in prod) |
+| C1 | AI actions + Concierge | DONE with notes: see `AI_CONCIERGE_CERTIFICATION.md` (shared cache needed in prod; session-id entropy and guest chat retention now fixed) |
 | C2 | Digital humans / avatar | DONE with notes: text cap fixed; guest `speak` has no global spend cap; persona register + real TTS not audited |
 | C3 | Notifications | DONE with notes: see `NOTIFICATIONS_CERTIFICATION.md` (no user opt-out/consent, no SMS provider, MAIL_FROM + queue worker needed in prod) |
 | C4 | Remaining customer/guest endpoints: wallet, track_order, refunds | DONE with notes: see `CUSTOMER_WALLET_REFUND_CERTIFICATION.md` (partner transfer id, refund setting null-deref, admin refund approval flow not re-audited) |
-| C5 | Dispatch commission + financial reconciliation | DONE with notes: see `DISPATCH_FINANCIAL_RECONCILIATION_CERTIFICATION.md` (reconcile should sum split rows; id collision in active-jobs; dispatcher commission on OA) |
+| C5 | Dispatch commission + financial reconciliation | DONE with notes: see `DISPATCH_FINANCIAL_RECONCILIATION_CERTIFICATION.md` (dispatcher commission on OA still open; split-row audit command and active-jobs `source` selector now added) |
 | C6 | Creator/social + fashion ownership pass | DONE with notes: see `CREATOR_FASHION_CERTIFICATION.md` (vendor can mark `completed` from `pending`; reel moderation not re-audited) |
 | C10 | Order Anywhere | DONE with notes: see `ORDER_ANYWHERE_CERTIFICATION.md` |
 | C7 | Vendor update endpoints: payload-complete tests | DONE: see `VENDOR_UPDATE_ENDPOINTS_CERTIFICATION.md` (all tenant-scoped; malformed-body 500s fixed; image-upload variants not exercised) |
@@ -52,12 +52,13 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 |---|------|------|
 | E1 | Real pickup coordinates for "anywhere" merchants: admins can now enter them on the quote form; automatic geocoding at sourcing is not built, and dispatch falls back to the zone centre when they are missing | TODO/OWNER |
 | E2 | Stripe Issuing float: who funds the issuing balance while customer captures settle | OWNER |
-| E3 | Customer cancel after driver accepted (money captured, goods possibly bought): refund policy | OWNER |
+| E3 | Customer cancel after driver accepted: DONE as policy: full refund until the driver has bought the goods, then contact support. Confirm that is the policy you want. | OWNER |
 | E4 | Set `ORDER_ANYWHERE_MARKUP_PERCENT`; confirm admins can see `admin_alert` notices in the panel. (Quote form with item cost, markup and pickup coordinates, and the dispatch settings card, are built and tested.) | OWNER/ENV |
 | E5 | Tune defaults: radius 25 mi, offer window 3 min, escalate 10 min, auto-cancel 30 min | OWNER |
-| E6 | Guest `digital-human/speak` global spend cap | TODO |
+| E6 | DONE: guest speech has a platform-wide daily character budget (`UG_GUEST_SPEECH_DAILY_CHARS`, default 100,000; 0 turns it off). | DONE |
 
 ## D. Closed so far (for traceability)
+Parallel lane (this stretch): guest speech budget, guest chat session ids + daily pruning, refund-setting crash, late-assigned driver pay settled once, `order-anywhere:audit-splits`, customer cancel with full refund until purchase, active-jobs `source` selector, medical proof-of-delivery, Stranded ledger honesty, driver/vendor state-change links to POST, customer app dead-screen entry points removed.
 Vendor updates: payload-complete isolation proven for 7 endpoints; missing-translations 500s and coupon validation bypass fixed.
 Dispatch/finance: route reopen double-payout, non-atomic completion, active-jobs completing routes/orders without checks, transitionTo not saving `completed`, driver pay missing from Order Anywhere splits.
 Creator/fashion: stylist-request status IDOR, creator self-activating rejected/pending assignments.

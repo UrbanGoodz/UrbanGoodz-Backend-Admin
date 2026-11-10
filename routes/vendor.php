@@ -136,8 +136,8 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
                 Route::group(['prefix' => 'reviews', 'as' => 'reviews.'], function () {
                     Route::get('list', 'DeliveryManController@reviews_list')->name('list');
                 });
-                Route::get('status/{id}/{status}', 'DeliveryManController@status')->name('status');
-                Route::get('earning/{id}/{status}', 'DeliveryManController@earning')->name('earning');
+                Route::post('status/{id}/{status}', 'DeliveryManController@status')->name('status');
+                Route::post('earning/{id}/{status}', 'DeliveryManController@earning')->name('earning');
                 Route::get('edit/{id}', 'DeliveryManController@edit')->name('edit');
                 Route::post('update/{id}', 'DeliveryManController@update')->name('update');
                 Route::delete('delete/{id}', 'DeliveryManController@delete')->name('delete');

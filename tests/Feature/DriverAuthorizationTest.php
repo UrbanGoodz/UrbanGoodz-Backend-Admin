@@ -192,7 +192,7 @@ class DriverAuthorizationTest extends TestCase
         $this->actAsPrimaryAdmin();
         $token = $this->a->auth_token;
 
-        $this->get("/admin/users/delivery-man/status/{$this->a->id}/0");
+        $this->post("/admin/users/delivery-man/status/{$this->a->id}/0");
 
         $fresh = $this->a->fresh();
         $this->assertSame(0, (int) $fresh->status);
@@ -206,7 +206,7 @@ class DriverAuthorizationTest extends TestCase
         $this->actAsPrimaryAdmin();
         $token = $this->a->auth_token;
 
-        $this->get("/admin/users/delivery-man/update-application/{$this->a->id}/denied");
+        $this->post("/admin/users/delivery-man/update-application/{$this->a->id}/denied");
 
         $fresh = $this->a->fresh();
         $this->assertSame('denied', $fresh->application_status);
@@ -220,7 +220,7 @@ class DriverAuthorizationTest extends TestCase
         $this->a->update(['application_status' => 'pending', 'status' => 0]);
         $this->a->update(['auth_token' => 'keep-this-token']);
 
-        $this->get("/admin/users/delivery-man/update-application/{$this->a->id}/approved");
+        $this->post("/admin/users/delivery-man/update-application/{$this->a->id}/approved");
 
         $fresh = $this->a->fresh();
         $this->assertSame('approved', $fresh->application_status);

@@ -78,11 +78,13 @@
                 <div class="search--button-wrapper">
                     <h4 class="card-title mb-md-0">{{$dm['f_name'].' '.$dm['l_name']}}@if($dm['status']) @if($dm['active']) <label class="badge badge-soft-primary m-0 ml-2">{{translate('messages.online')}}</label> @else <label class="badge badge-soft-danger m-0 ml-2">{{translate('messages.offline')}}</label> @endif  @else <span class="badge badge-danger">{{translate('messages.suspended')}}</span> @endif</h4>
 
+                    {{-- A state change, so POST + CSRF (it used to be a plain GET link). The existing
+                         .form-alert helper asks for confirmation and then submits this form. --}}
+                    <form id="dm-status-form" method="POST" action="{{route('vendor.delivery-man.status',[$dm['id'],$dm->status?0:1])}}" class="d-none">@csrf</form>
                     <a  href="javascript:"
-                        data-url="{{route('vendor.delivery-man.status',[$dm['id'],$dm->status?0:1])}}"
-                        data-title="{{translate('Are_you_sure_?')}}"
+                        data-id="dm-status-form"
                         data-message="{{$dm->status?'Want to suspend this deliveryman ?':'Want to unsuspend this deliveryman'}}"
-                        class="btn {{$dm->status?'btn-danger':'btn-success'}}  route-alert">
+                        class="btn {{$dm->status?'btn-danger':'btn-success'}}  form-alert">
                             {{$dm->status?translate('messages.suspend_this_delivery_man'):translate('messages.unsuspend_this_delivery_man')}}
                     </a>
                 </div>

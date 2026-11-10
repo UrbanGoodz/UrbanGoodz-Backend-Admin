@@ -277,7 +277,8 @@ class OrderAnywhereRequest extends Model implements PayableRequest
 
     public static function nextRequestNumber(): string
     {
-        return 'OA-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
+        // Same widening as ledger numbers: two requests in one second must not collide.
+        return 'OA-' . now()->format('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(4)));
     }
 
     // ─── State Machine ────────────────────────────────────────────────────

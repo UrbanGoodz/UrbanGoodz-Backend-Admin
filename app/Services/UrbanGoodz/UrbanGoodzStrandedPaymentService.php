@@ -176,11 +176,14 @@ class UrbanGoodzStrandedPaymentService
                 UrbanGoodzPaymentTransaction::create([
                     'payable_type' => UrbanGoodzStrandedRequest::class,
                     'payable_id' => $request->id,
-                    'provider' => 'stripe',
+                    // Truthful record: Urban Goodz never charges the customer for the reward, so there
+                    // is no provider and nothing was collected or paid out by the platform. The customer
+                    // pays the helper directly. This row used to claim a completed Stripe payment.
+                    'provider' => 'none',
                     'environment' => config('app.env') === 'production' ? 'live' : 'test',
                     'transaction_type' => 'escrow_release',
-                    'internal_status' => 'completed',
-                    'provider_status' => 'released',
+                    'internal_status' => 'not_collected',
+                    'provider_status' => 'paid_directly_by_customer',
                     'amount_minor' => $amountMinor,
                     'currency' => $request->currency ?: 'USD',
                     'merchant_reference' => $request->request_number,

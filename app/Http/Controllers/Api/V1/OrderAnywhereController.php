@@ -308,7 +308,24 @@ class OrderAnywhereController extends Controller
                 throw new \InvalidArgumentException('Cannot cancel a request that is already in a terminal state.');
             }
 
-            $payments->cancelOrder($model, $data['reason'] ?? '');
+            // Policy: a customer can cancel, and gets every dollar back, until the driver has bought
+            // the goods. After that the goods exist and are on their way, so it goes through support.
+            // (Payment is captured when a driver accepts, so without this a customer could not cancel
+            // at all once someone had taken the job, even before they left for the store.)
+            if (in_array($model->status, ['purchased', 'picked_up', 'out_for_delivery'], true)) {
+                throw new \InvalidArgumentException('Your items have already been bought, so this order can no longer be cancelled here. Contact support for help.');
+            }
+
+            $orderId = $model->order_id;
+            $payments->cancelAndReturnFunds($model, $data['reason'] ?? 'Cancelled by customer');
+
+            // Take the job off the driver's list.
+            if ($orderId) {
+                \App\Models\AiDispatch::where('order_id', $orderId)
+                    ->whereNotIn('status', [\App\Models\AiDispatch::STATUS_CANCELLED, \App\Models\AiDispatch::STATUS_DECLINED, \App\Models\AiDispatch::STATUS_EXPIRED, \App\Models\AiDispatch::STATUS_DELIVERED])
+                    ->get()
+                    ->each(fn ($d) => $d->cancelDispatch('Customer cancelled the order'));
+            }
 
             return response()->json([
                 'success' => true,

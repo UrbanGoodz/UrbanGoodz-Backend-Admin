@@ -145,4 +145,30 @@ class OrderAnywhereMoneyReconciliationTest extends TestCase
         $this->assertSame(1, \App\Models\UrbanGoodzDriverEarning::where('delivery_man_id', $driver->id)->count(), 'one earning, even though the driver was assigned twice');
         $this->assertSame([], $payments->splitRowMismatches($request->fresh()));
     }
+
+    public function test_a_customer_can_cancel_for_a_full_refund_until_the_goods_are_bought(): void
+    {
+        [$request, $driver] = $this->run_();          // driver accepted, payment captured, nothing bought yet
+        $customer = User::find($request->customer_id);
+
+        $this->actingAs($customer, 'api')->postJson("/api/v1/order-anywhere/requests/{$request->id}/cancel", ['reason' => 'Changed my mind'])->assertOk();
+
+        $fresh = $request->fresh();
+        $this->assertSame('cancelled', $fresh->status);
+        $this->assertSame('refunded', $fresh->payment_status);
+        $this->assertSame(135.5, (float) $fresh->refunded_amount, 'every dollar comes back');
+        $this->assertSame(AiDispatch::STATUS_CANCELLED, AiDispatch::where('order_id', $fresh->order_id)->value('status'), 'the job leaves the driver\'s list');
+    }
+
+    public function test_a_customer_cannot_cancel_once_the_driver_has_bought_the_goods(): void
+    {
+        [$request] = $this->run_();
+        $customer = User::find($request->customer_id);
+        $request->forceFill(['status' => 'purchased'])->save();
+
+        $this->actingAs($customer, 'api')->postJson("/api/v1/order-anywhere/requests/{$request->id}/cancel")->assertStatus(422);
+
+        $this->assertSame('purchased', $request->fresh()->status);
+        $this->assertSame('captured', $request->fresh()->payment_status);
+    }
 }

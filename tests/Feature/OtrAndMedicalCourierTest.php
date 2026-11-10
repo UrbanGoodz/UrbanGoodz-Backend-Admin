@@ -350,6 +350,23 @@ class OtrAndMedicalCourierTest extends TestCase
 
     // ====================================================== MEDICAL: custody + money
 
+    public function test_a_specimen_cannot_be_marked_delivered_without_naming_who_received_it(): void
+    {
+        $job = $this->job();
+        $driver = $this->medicalDriver('pod');
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/accept"))->assertOk();
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'picked_up'])->assertOk();
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'in_transit'])->assertOk();
+
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered'])->assertStatus(422);
+        $this->assertSame('in_transit', DB::table('urban_goodz_medical_courier_jobs')->where('id', $job)->value('status'), 'no proof, no delivery');
+        $this->assertSame(0, DB::table('urban_goodz_driver_earnings')->where('delivery_man_id', $driver->id)->count(), 'and no payout');
+
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered', 'recipient_name' => 'Dr. Patel, Lab 3'])->assertOk();
+        $entry = DB::table('urban_goodz_medical_courier_custody_logs')->where('job_id', $job)->where('action', 'delivered')->first();
+        $this->assertStringContainsString('Received by: Dr. Patel, Lab 3', (string) $entry->notes, 'the receiver is part of the custody trail');
+    }
+
     public function test_a_full_run_records_a_custody_trail_under_the_real_driver_and_pays_exactly_once(): void
     {
         $job = $this->job();
@@ -357,12 +374,12 @@ class OtrAndMedicalCourierTest extends TestCase
 
         $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/accept"))->assertOk();
         // a step cannot be skipped
-        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered'])->assertStatus(409);
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered', 'recipient_name' => 'Lab Front Desk'])->assertStatus(409);
 
         $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'picked_up'])->assertOk();
         $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/custody"), ['action' => 'temperature_check', 'notes' => '4C', 'handler_name' => 'FORGED NAME'])->assertOk();
         $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'in_transit'])->assertOk();
-        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered'])->assertOk();
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered', 'recipient_name' => 'Lab Front Desk'])->assertOk();
 
         $log = DB::table('urban_goodz_medical_courier_custody_logs')->where('job_id', $job)->orderBy('id')->get();
         $this->assertSame(['assigned', 'picked_up', 'temperature_check', 'in_transit', 'delivered'], $log->pluck('action')->all());
@@ -375,7 +392,7 @@ class OtrAndMedicalCourierTest extends TestCase
         $this->assertSame(1, DB::table('urban_goodz_driver_earnings')->where('delivery_man_id', $driver->id)->where('earning_type', 'medical_courier')->count(), 'delivery must pay exactly once');
 
         // a repeated "delivered" is refused and cannot pay again
-        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered'])->assertStatus(409);
+        $this->postJson($this->d($driver, self::MEDICAL."/jobs/{$job}/status"), ['status' => 'delivered', 'recipient_name' => 'Lab Front Desk'])->assertStatus(409);
         $this->assertSame(1, DB::table('urban_goodz_driver_earnings')->where('delivery_man_id', $driver->id)->where('earning_type', 'medical_courier')->count());
     }
 

@@ -42,6 +42,8 @@ class UrbanGoodzPaymentLedger extends Model
 
     public static function nextLedgerNumber(): string
     {
-        return 'UGL-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
+        // 8 hex characters instead of 4 digits: with 9,000 possible suffixes per second, a busy second
+        // (several ledger rows per payment) could hit the unique index and fail a payment step.
+        return 'UGL-' . now()->format('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(4)));
     }
 }

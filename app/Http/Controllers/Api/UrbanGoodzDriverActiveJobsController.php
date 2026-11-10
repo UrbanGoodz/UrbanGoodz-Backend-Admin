@@ -634,23 +634,31 @@ class UrbanGoodzDriverActiveJobsController extends Controller
         return in_array($job->status, ['completed', 'delivered', 'cancelled', 'rejected', 'returned', 'failed'], true);
     }
 
+    /**
+     * Ids are per table, so the same number can be an Order Anywhere request AND a route for one
+     * driver. Callers should say which with `source` (order_anywhere | business_courier |
+     * dedicated_route | load_board); without it the old fixed search order still applies, where the
+     * first match hid the others.
+     */
     private function findDriverJob(DeliveryMan $driver, int $jobId)
     {
-        $job = OrderAnywhereRequest::where('id', $jobId)
-            ->where('assigned_delivery_man_id', $driver->id)->first();
-        if ($job) return $job;
+        $lookups = [
+            'order_anywhere' => fn () => OrderAnywhereRequest::where('id', $jobId)->where('assigned_delivery_man_id', $driver->id)->first(),
+            'business_courier' => fn () => UrbanGoodzBusinessClientJob::where('id', $jobId)->where('assigned_delivery_man_id', $driver->id)->first(),
+            'dedicated_route' => fn () => UrbanGoodzDedicatedRoute::where('id', $jobId)->where('assigned_driver_id', $driver->id)->first(),
+            'load_board' => fn () => UrbanGoodzLoadBoardLoad::where('id', $jobId)->where('assigned_driver_id', $driver->id)->first(),
+        ];
 
-        $job = UrbanGoodzBusinessClientJob::where('id', $jobId)
-            ->where('assigned_delivery_man_id', $driver->id)->first();
-        if ($job) return $job;
+        $source = (string) request()->input('source', '');
+        if ($source !== '') {
+            return isset($lookups[$source]) ? $lookups[$source]() : null;
+        }
 
-        $job = UrbanGoodzDedicatedRoute::where('id', $jobId)
-            ->where('assigned_driver_id', $driver->id)->first();
-        if ($job) return $job;
-
-        $job = UrbanGoodzLoadBoardLoad::where('id', $jobId)
-            ->where('assigned_driver_id', $driver->id)->first();
-        if ($job) return $job;
+        foreach ($lookups as $lookup) {
+            if ($job = $lookup()) {
+                return $job;
+            }
+        }
 
         return null;
     }
