@@ -105,7 +105,11 @@ class BusinessPortalController extends Controller
             'end_lng' => 'nullable|numeric|between:-180,180|required_with:end_lat',
             'return_to_origin' => 'nullable|boolean',
             'scheduled_date' => 'required|date|after_or_equal:today',
-            'recurring_rule' => 'nullable|string|max:100',
+            'recurring_rule' => ['nullable', 'string', 'max:100', function ($attribute, $value, $fail) {
+                if (! \App\Services\UrbanGoodz\RecurringRouteScheduler::isValid($value)) {
+                    $fail('Use one of: daily, weekdays, weekly, biweekly, monthly, or weekly:mon,wed,fri.');
+                }
+            }],
             'capacity_packages' => 'nullable|integer|min:1|max:10000',
             'capacity_weight_lbs' => 'nullable|numeric|min:0|max:1000000',
             'stops' => 'required|array|min:1',
@@ -136,7 +140,7 @@ class BusinessPortalController extends Controller
             'end_lng' => $request->boolean('return_to_origin') ? $request->pickup_lng : $request->end_lng,
             'return_to_origin' => $request->boolean('return_to_origin'),
             'scheduled_date' => $request->scheduled_date,
-            'recurring_rule' => $request->recurring_rule,
+            'recurring_rule' => \App\Services\UrbanGoodz\RecurringRouteScheduler::normalize($request->recurring_rule),
             'capacity_packages' => $request->capacity_packages,
             'capacity_weight_lbs' => $request->capacity_weight_lbs,
             'status' => 'pending',
@@ -231,7 +235,11 @@ class BusinessPortalController extends Controller
             'end_lng' => 'nullable|numeric|between:-180,180|required_with:end_lat',
             'return_to_origin' => 'nullable|boolean',
             'scheduled_date' => 'required|date',
-            'recurring_rule' => 'nullable|string|max:100',
+            'recurring_rule' => ['nullable', 'string', 'max:100', function ($attribute, $value, $fail) {
+                if (! \App\Services\UrbanGoodz\RecurringRouteScheduler::isValid($value)) {
+                    $fail('Use one of: daily, weekdays, weekly, biweekly, monthly, or weekly:mon,wed,fri.');
+                }
+            }],
             'capacity_packages' => 'nullable|integer|min:1|max:10000',
             'capacity_weight_lbs' => 'nullable|numeric|min:0|max:1000000',
         ]);

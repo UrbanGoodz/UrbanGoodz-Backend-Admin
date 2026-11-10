@@ -10,7 +10,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | # | Item | Type | Notes |
 |---|------|------|-------|
 | A1 | Admin 419 fix not verified in production | ENV | Fix + tests are unit-level. Production needs `TRUSTED_PROXIES`, correct `APP_URL`, `SESSION_SECURE_COOKIE`, a session driver shared across servers. See `ADMIN_419_INCIDENT.md`. |
-| A2 | Migrations must run in production | ENV | `2026_11_07_000001_make_payout_request_delivery_man_nullable` (vendor payouts fail without it), `2026_11_08_000001_add_refund_requested_to_orders_if_missing`, plus all earlier ones. |
+| A2 | Migrations must run in production | ENV | `2026_11_07_000001_make_payout_request_delivery_man_nullable` (vendor payouts fail without it), `2026_11_08_000001_add_refund_requested_to_orders_if_missing`, `2026_11_10_000001_add_recurring_parent_to_dedicated_routes` (recurring routes), plus all earlier ones. |
 | A3 | Stranded helper rewards: decide whether the platform should ever handle that money | OWNER | Resolved to the honest state: the reward is agreed in the app and paid by the customer directly to the helper. The ledger row no longer claims a completed Stripe payment (`provider=none`, `not_collected`) and the API tells the app the reward is paid directly. If you want the platform to hold and pay out rewards, that is Stripe Connect work and a new decision. |
 | A4 | No device / Playwright / Appium runs | ENV | A phone is connected to the owner's computer, but this cloud session cannot reach it. Remote Control IS on and the computer 'Urban-Goodz' lists folders UG, AdminPanel_Update_V39 and UrbanGoodz2026-Revised, but all three come back 'not_available' to cloud sessions: update the Claude desktop app on that computer (Windows needs a recent version) and re-check. Alternatively start a session on that computer (Claude desktop app > Settings > Claude Code > Remote Control, or run `claude remote-control` in the repo folder). That session can run adb + Flutter device tests. All app-level behaviour here is unit/feature-test verified only. |
 | A5 | Real Stripe / Adyen never called | ENV | Provider seams are scripted in tests; needs sandbox-key runs. |
@@ -18,7 +18,7 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 ## B. Product decisions (OWNER)
 | # | Item |
 |---|------|
-| B1 | Recurring medical courier routes are not implemented. Build, or remove from the UI/marketing? |
+| B1 | DONE: recurring routes are real. Supported repeats: daily, weekdays, weekly, every 2 weeks, monthly, or chosen weekdays (`weekly:mon,wed,fri`). A nightly job (`routes:generate-recurring`) creates the next 7 days of runs as unassigned copies of the template (same stops, pay, custody and temperature rules, fresh tracking codes, delivery windows moved to the run date). Business route forms have a "Repeat" field. To stop a series, cancel the template route or clear its repeat. Open: runs start unassigned, so dispatch must assign each; auto-assigning a preferred driver is a product choice. |
 | B2 | Delivery proof / signature. DONE for medical courier jobs: a specimen cannot be marked delivered without naming the receiver (recorded in the custody trail). Still open for load board and Order Anywhere: decide what proof each needs (signature, photo, PIN). |
 | B3 | Driver app flow: `/sequence` vs `/finish`; `routes/from-batch` is not called by the app. Pick one path. |
 | B4 | DONE: customer-app entry points to Medical Courier, Load Board and Logistics are removed (deep links and concierge suggestions land on the hub). Building these in the driver app is a separate product item. |
@@ -57,7 +57,14 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | E5 | Tune defaults: radius 25 mi, offer window 3 min, escalate 10 min, auto-cancel 30 min | OWNER |
 | E6 | DONE: guest speech has a platform-wide daily character budget (`UG_GUEST_SPEECH_DAILY_CHARS`, default 100,000; 0 turns it off). | DONE |
 
+## G. Scheduler (found late, important)
+| # | Item | Type |
+|---|------|------|
+| G1 | **The schedule in `app/Console/Kernel.php` was never read** (Laravel 12 uses `bootstrap/app.php`), so `stranded:dispatch-tick`, `order-anywhere:recover-card-issuance`, `delivery-history:prune` and `run-scheduled-sourcing` have never run in production. All are now on the live schedule, guarded by a test. `run-scheduled-sourcing` is opt-in (`LOAD_SOURCING_SCHEDULED_ENABLED=true`) because it has never run and works with external load sources. | DONE, confirm in prod that `schedule:run` is wired to cron |
+| G2 | Review what a first run of the newly live jobs does against production data (Stranded tick, history prune) before relying on them. | ENV |
+
 ## D. Closed so far (for traceability)
+Recurring routes built. Scheduler consolidated into the live schedule (four jobs had never run).
 Parallel lane (this stretch): guest speech budget, guest chat session ids + daily pruning, refund-setting crash, late-assigned driver pay settled once, `order-anywhere:audit-splits`, customer cancel with full refund until purchase, active-jobs `source` selector, medical proof-of-delivery, Stranded ledger honesty, driver/vendor state-change links to POST, customer app dead-screen entry points removed.
 Vendor updates: payload-complete isolation proven for 7 endpoints; missing-translations 500s and coupon validation bypass fixed.
 Dispatch/finance: route reopen double-payout, non-atomic completion, active-jobs completing routes/orders without checks, transitionTo not saving `completed`, driver pay missing from Order Anywhere splits.

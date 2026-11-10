@@ -34,7 +34,7 @@ these require new engineering of the existing flows; they require access and dec
 
 | Evidence | Result |
 |---|---|
-| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,470 tests, 27,753 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
+| Backend automated suite (`vendor/bin/phpunit`, MariaDB test DB, run in isolation) | **1,479 tests, 27,830 assertions, 0 failures, 0 errors, 6 skipped** (the skips are existing opt-in tests) |
 | Flutter customer app (`flutter analyze` / `test`) | analyzer clean on changed files; 388 tests passed at the customer-app pass |
 | Flutter driver app | analyzer clean; 192 tests passed |
 | Flutter vendor app | 160 tests passed (153 existing + 7 added) |
@@ -58,7 +58,7 @@ were re-run after restart and are not counted as results.
 | Driver app + API | PARTIAL | Suspended/denied drivers kept access; legacy endpoints ran as a logged-out driver. Fixed. No device run |
 | Vendor app + API | PARTIAL → API tenant isolation **proven** | Cross-vendor delete/edit/read holes fixed; payload-complete tests now prove all 7 update endpoints are tenant-scoped |
 | Logistics / dispatch / route optimization | PARTIAL | Cross-company driver and dispatch leaks fixed; sequencer was 25–38% longer than optimal, now 0–0.4% mean gap |
-| OTR (load board) + medical courier | PARTIAL | API open to any customer account fixed; 8-way races fixed; custody trail made honest. Recurring routes **not implemented** |
+| OTR (load board) + medical courier | PARTIAL | API open to any customer account fixed; 8-way races fixed; custody trail made honest. Recurring routes now built (runs start unassigned) |
 | Order Anywhere | PARTIAL | Customer-chosen charge, broken driver flow, silent dispatch stalls fixed; automatic nearest-first dispatch built. Real provider money not exercised |
 | Stranded | PARTIAL | Fee double-charge and "helper never paid" fixed; resume flow added. **Reward payouts are bookkeeping only** |
 | AI actions + Concierge | DONE with notes | Guest concierge is text-only (cannot act); video-avatar ownership and billed-room reuse fixed |
@@ -125,7 +125,7 @@ file references are in the per-lane documents listed in section 9.
 4. **Order Anywhere defaults** to confirm or tune: driver radius 25 mi, offer window 3 min, alert admins at 10 min, auto-cancel and release the hold at 30 min, markup percent (no default by design).
 
 ### Product decisions (OWNER)
-- **Recurring medical courier routes are not implemented** (the rule is a saved text field that nothing reads; a "weekly" route runs once). Build or remove from UI and marketing.
+- **Recurring routes are now real** (daily, weekdays, weekly, every 2 weeks, monthly, chosen weekdays): a nightly job creates the next week of runs as unassigned copies of the template. Runs still need a driver assigned by dispatch; auto-assigning a preferred driver is a product choice.
 - **Proof of delivery** is now required for medical courier jobs (the receiver must be named and goes into the custody trail). Loads and Order Anywhere still need a decision on what proof they require.
 - **Customer-app Medical Courier and Logistics screens now return 401** (they used customer tokens against driver tasks); the driver app has no UI for them.
 - Ride-share modules are now ignored by the customer app (no backend exists). Driver app flow `/sequence` vs `/finish`, and `from-batch` is not called by the app.
@@ -148,6 +148,7 @@ file references are in the per-lane documents listed in section 9.
 **Migrations to run** (those authored in this effort; run the full pending set):
 - `2026_11_07_000001_make_payout_request_delivery_man_nullable` — vendor payouts fail without it.
 - `2026_11_08_000001_add_refund_requested_to_orders_if_missing` — refund requests fail on migration-built databases without it.
+- `2026_11_10_000001_add_recurring_parent_to_dedicated_routes` — needed for recurring routes.
 
 **Environment**
 - `TRUSTED_PROXIES` (load balancer CIDRs or `*`), `APP_URL=https://<admin host>`, `SESSION_SECURE_COOKIE=true`; `SESSION_DRIVER=redis|database` if more than one instance serves the admin. Run `php artisan config:clear` after. (This is the 419 fix; see `ADMIN_419_INCIDENT.md`.)
@@ -156,8 +157,8 @@ file references are in the per-lane documents listed in section 9.
 - A **shared cache store** (Redis), not `file`, on multi-server setups: used for video-avatar ownership and the partner-transfer replay guard.
 
 **Processes**
-- The **scheduler must be running** (`schedule:run` every minute): `order-anywhere:dispatch-pending` drives automatic dispatch cycling, and `ai-concierge:prune-guests` runs daily; `order-anywhere:recover-card-issuance` already depends on it.
-- A **queue worker** on the `notifications` queue.
+- **Scheduler (critical).** The schedule Laravel 12 actually reads is `bootstrap/app.php`. The old `app/Console/Kernel.php` schedule was never read, so Stranded escalation, card-issuance recovery and driver-history pruning had never run in production. They are now on the live schedule, guarded by a test, along with `order-anywhere:dispatch-pending` (automatic dispatch cycling), `routes:generate-recurring` (nightly) and `ai-concierge:prune-guests` (daily). `run-scheduled-sourcing` is opt-in (`LOAD_SOURCING_SCHEDULED_ENABLED=true`). Cron must call `schedule:run` every minute, and the first run of the newly live jobs should be watched.
+- Queued jobs (including the `notifications` queue) are processed by the scheduled `queue:work`, so the scheduler is the only process you need. If you run a dedicated worker instead, give it `payments,notifications,ai,load-sourcing,default`.
 
 **Provider setup:** Stripe keys and webhook secrets (payments, Issuing), Adyen if used, Firebase credentials, distance-matrix provider key (otherwise routes are optimized for straight lines, not roads), Tavus and voice provider keys if those features are enabled.
 

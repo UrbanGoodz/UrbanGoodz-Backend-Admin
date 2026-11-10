@@ -55,7 +55,11 @@ class UrbanGoodzDedicatedRouteController extends Controller
             'end_lng' => ['nullable', 'numeric', 'required_with:end_lat'],
             'return_to_origin' => ['nullable', 'boolean'],
             'scheduled_date' => ['nullable', 'date'],
-            'recurring_rule' => ['nullable', 'string', 'max:50'],
+            'recurring_rule' => ['nullable', 'string', 'max:50', function ($attribute, $value, $fail) {
+                if (! \App\Services\UrbanGoodz\RecurringRouteScheduler::isValid($value)) {
+                    $fail('Use one of: daily, weekdays, weekly, biweekly, monthly, or weekly:mon,wed,fri.');
+                }
+            }],
             'max_packages_per_batch' => ['nullable', 'integer', 'min:1', 'max:200'],
             'capacity_packages' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'capacity_weight_lbs' => ['nullable', 'numeric', 'min:0'],

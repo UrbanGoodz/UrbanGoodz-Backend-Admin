@@ -33,7 +33,7 @@ class UrbanGoodzDedicatedRoute extends Model
     protected $fillable = [
         'business_client_id', 'route_name', 'route_type', 'source_module',
         'source_record_type', 'source_record_id', 'pickup_location', 'end_location',
-        'intake_batch_id', 'route_label',
+        'intake_batch_id', 'route_label', 'recurring_parent_id',
         'end_lat', 'end_lng',
         'pickup_lat', 'pickup_lng', 'scheduled_date', 'recurring_rule',
         'max_packages_per_batch', 'capacity_packages', 'capacity_weight_lbs',

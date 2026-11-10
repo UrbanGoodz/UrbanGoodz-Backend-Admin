@@ -80,6 +80,10 @@ return [
     ],
 
     'sourcing' => [
+        // The scheduled sourcing run (saved searches, per-source syncs) has never actually run in production,
+        // because it sat in a schedule file Laravel 12 does not read. It now exists on the live schedule but
+        // stays OFF until someone opts in: LOAD_SOURCING_SCHEDULED_ENABLED=true.
+        'enabled' => (bool) env('LOAD_SOURCING_SCHEDULED_ENABLED', false),
         'platform_fee_percent' => (float) env('SOURCING_PLATFORM_FEE_PERCENT', 12.0),
         'fuel_cost_per_mile' => (float) env('SOURCING_FUEL_COST_PER_MILE', 0.75),
         'toll_estimation_per_mile' => (float) env('SOURCING_TOLL_ESTIMATION_PER_MILE', 0.05),

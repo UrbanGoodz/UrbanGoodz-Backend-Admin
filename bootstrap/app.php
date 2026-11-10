@@ -157,6 +157,50 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground()
             ->when(fn () => config('urban_goodz_ai.monique_proactive.enabled', true));
+
+        // These were defined in app/Console/Kernel.php, which Laravel 12 does not read, so none of them
+        // ever ran. This closure is the only live schedule; tests/Feature/ScheduledCommandsAreRegisteredTest
+        // fails if one goes missing again.
+        $schedule->command('run-scheduled-sourcing')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn () => config('urban_goodz_load_board.sourcing.enabled', false));
+
+        // Stranded: the responder answer window is measured in seconds, so this runs every minute.
+        $schedule->command('stranded:dispatch-tick')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Order Anywhere: offer unassigned jobs to the next nearest driver, expire lapsed offers,
+        // alert admins and release the customer's hold when nobody takes a job.
+        $schedule->command('order-anywhere:dispatch-pending')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command('order-anywhere:recover-card-issuance')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Recurring routes: create the next week of runs every night.
+        $schedule->command('routes:generate-recurring', ['--ahead' => 7])
+            ->dailyAt('02:30')
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command('ai-concierge:prune-guests')
+            ->dailyAt('03:17')
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Driver breadcrumbs are unbounded by nature: prune nightly, keeping each driver's latest point.
+        $schedule->command('delivery-history:prune')
+            ->dailyAt('03:20')
+            ->withoutOverlapping()
+            ->runInBackground();
     })
 
     ->withExceptions(function (Exceptions $exceptions) {

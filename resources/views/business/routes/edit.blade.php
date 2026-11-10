@@ -61,6 +61,19 @@
                             <input type="date" class="form-control" name="scheduled_date" id="scheduled_date" required value="{{ old('scheduled_date', $route->scheduled_date?->format('Y-m-d')) }}">
                         </div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="input-label" for="recurring_rule">{{ translate('Repeat') }}</label>
+                            <select class="form-control" name="recurring_rule" id="recurring_rule">
+                                @php($rr = old('recurring_rule', $route->recurring_rule))
+                                <option value="">{{ translate('Does not repeat') }}</option>
+                                @foreach(['daily' => 'Every day', 'weekdays' => 'Every weekday (Mon-Fri)', 'weekly' => 'Every week on this day', 'biweekly' => 'Every 2 weeks on this day', 'monthly' => 'Every month on this date', 'weekly:mon,wed,fri' => 'Mon, Wed and Fri', 'weekly:tue,thu' => 'Tue and Thu'] as $value => $label)
+                                    <option value="{{ $value }}" @selected($rr === $value)>{{ translate($label) }}</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">{{ translate('Each repeat is created automatically a week ahead with the same stops, and assigned like any other route.') }}</small>
+                        </div>
+                    </div>
                 </div>
                 <div class="row mt-3">
                     <div class="col-12">

@@ -31,50 +31,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('ai-copilot:generate', ['--notify'])
-            ->everyFifteenMinutes()
-            ->withoutOverlapping()
-            ->runInBackground();
-
-        $schedule->command('sync-load-board')
-            ->everyThirtyMinutes()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->when(fn() => config('urban_goodz_load_board.sync.enabled', true));
-
-        $schedule->command('run-scheduled-sourcing')
-            ->everyThirtyMinutes()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->when(fn() => config('urban_goodz_load_board.sourcing.enabled', true));
-
-        // Stranded is the one schedule here that somebody is waiting on in
-        // real time. The responder answer window is measured in seconds, so
-        // this runs every minute rather than on the usual cadence.
-        $schedule->command('stranded:dispatch-tick')
-            ->everyMinute()
-            ->withoutOverlapping()
-            ->runInBackground();
-
-        // Driver breadcrumbs are unbounded by nature. Prune nightly, keeping
-        // each driver's most recent point so the live map never goes blank.
-        $schedule->command('delivery-history:prune')
-            ->dailyAt('03:20')
-            ->withoutOverlapping()
-            ->runInBackground();
-
-        $schedule->command('ai-concierge:prune-guests')->dailyAt('03:17')->withoutOverlapping();
-
-        // Dispatch is automatic: re-offer unassigned jobs to the next nearest driver.
-        $schedule->command('order-anywhere:dispatch-pending')
-            ->everyMinute()
-            ->withoutOverlapping()
-            ->runInBackground();
-
-        $schedule->command('order-anywhere:recover-card-issuance')
-            ->everyFiveMinutes()
-            ->withoutOverlapping()
-            ->runInBackground();
+        // Intentionally empty. Laravel 12 does not read this file for scheduling; the live schedule is the
+        // ->withSchedule() closure in bootstrap/app.php. Commands defined here never ran.
     }
 
     /**
