@@ -125,6 +125,10 @@ Route::group(['prefix' => 'order-anywhere/admin', 'middleware' => ['auth:admin',
     Route::post('requests/{record}/status', 'Api\V1\OrderAnywhereController@updateStatus');
     Route::post('requests/{record}/notes', 'Api\V1\OrderAnywhereController@addNotes');
     Route::post('requests/{record}/assign-driver', 'Api\V1\OrderAnywhereController@assignDriver');
+    Route::get('reimbursements', 'Api\V1\OrderAnywhereReimbursementController@adminIndex');
+    Route::get('reimbursements/{id}/receipt', 'Api\V1\OrderAnywhereReimbursementController@adminReceipt');
+    Route::post('reimbursements/{id}/approve', 'Api\V1\OrderAnywhereReimbursementController@adminApprove');
+    Route::post('reimbursements/{id}/reject', 'Api\V1\OrderAnywhereReimbursementController@adminReject');
     Route::get('dispatch-settings', 'Api\V1\OrderAnywhereController@dispatchSettings');
     Route::put('dispatch-settings', 'Api\V1\OrderAnywhereController@updateDispatchSettings');
     Route::post('requests/{record}/payment-link', 'Api\V1\OrderAnywhereController@createPaymentLink');
@@ -148,6 +152,9 @@ Route::group(['prefix' => 'order-anywhere/driver', 'middleware' => ['dm.api', 't
     Route::post('{record}/accept', 'Api\V1\OrderAnywhereController@driverAccept');
     Route::post('{record}/status', 'Api\V1\OrderAnywhereController@driverStatus');
     Route::post('{record}/issue', 'Api\V1\OrderAnywhereController@driverIssue');
+    // Reimbursement purchasing (URBAN_GOODZ_PURCHASE_METHOD=reimburse): driver pays, uploads the receipt.
+    Route::get('{requestId}/reimbursement', 'Api\V1\OrderAnywhereReimbursementController@driverShow');
+    Route::post('{requestId}/reimbursement', 'Api\V1\OrderAnywhereReimbursementController@driverSubmit');
 });
 
 Route::group(['prefix' => 'urban-goodz/fashion-fit'], function () {

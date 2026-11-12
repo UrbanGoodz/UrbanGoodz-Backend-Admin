@@ -63,6 +63,14 @@ class OrderAnywhereDriverFlow
             }
         }
 
+        // Reimbursement mode has no card, so the receipt claim is the proof of purchase.
+        if ($driverStatus === 'purchased'
+            && ($model->fulfillment_type ?: 'external_merchant') === 'external_merchant'
+            && OrderAnywhereReimbursementService::enabled()
+            && ! app(OrderAnywhereReimbursementService::class)->hasLiveClaim($model->id)) {
+            throw new InvalidArgumentException('Upload your purchase receipt before marking the order purchased.');
+        }
+
         $model->driver_task_status = $driverStatus;
         foreach ($steps as $next) {
             $model->transitionTo($next);
