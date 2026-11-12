@@ -156,8 +156,9 @@ class OrderController extends Controller
 
     public function dispatch_list(Request $request, $module = null, $status = null)
     {
-        if (! is_numeric($module)
-            || ! in_array($status, ['searching_for_deliverymen', 'on_going'], true)) {
+        // 'all' = every module (the dashboard tiles count across modules, so their lists must too).
+        if (($module !== 'all' && ! is_numeric($module))
+            || ! in_array($status, ['searching_for_deliverymen', 'accepted', 'picked_up', 'on_going'], true)) {
             return redirect()->route('admin.dispatch.dashboard');
         }
 
@@ -171,8 +172,10 @@ class OrderController extends Controller
         Order::where(['checked' => 0])->update(['checked' => 1]);
 
         $orders = Order::with(['customer', 'store'])
-            ->whereHas('module', function($query) use($module){
-                $query->where('id', $module);
+            ->when($module !== 'all', function ($query) use ($module) {
+                return $query->whereHas('module', function ($q) use ($module) {
+                    $q->where('id', $module);
+                });
             })
             ->when(isset($key), function ($query) use ($key) {
                 return $query->where(function ($q) use ($key) {
@@ -194,6 +197,12 @@ class OrderController extends Controller
             ->when($status == 'searching_for_deliverymen', function ($query) {
                 return $query->SearchingForDeliveryman();
             })
+            ->when($status == 'accepted', function ($query) {
+                return $query->AccepteByDeliveryman();
+            })
+            ->when($status == 'picked_up', function ($query) {
+                return $query->ItemOnTheWay();
+            })
             ->when($status == 'on_going', function ($query) {
                 return $query->Ongoing();
             })
@@ -206,7 +215,11 @@ class OrderController extends Controller
                 return $query->whereBetween('created_at', [$request->from_date . " 00:00:00", $request->to_date . " 23:59:59"]);
             })
             ->StoreOrder()
-            ->OrderScheduledIn(30)
+            // The 30-minute scheduling window only applies to the two legacy lists; applying it to
+            // accepted / picked-up would hide orders the dashboard tile has just counted.
+            ->when(in_array($status, ['searching_for_deliverymen', 'on_going'], true), function ($query) {
+                return $query->OrderScheduledIn(30);
+            })
             ->orderBy('schedule_at', 'desc')
             ->paginate(config('default_pagination'));
 

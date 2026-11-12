@@ -44,4 +44,25 @@ class AdminDispatchDashboardRegressionTest extends TestCase
         $this->assertStringContainsString('on_going', $method);
         $this->assertStringContainsString('admin.dispatch.dashboard', $method);
     }
+
+    public function test_dashboard_tiles_link_to_real_lists_and_every_counted_status_has_one(): void
+    {
+        $view = file_get_contents(dirname(__DIR__, 2).'/resources/views/admin-views/dashboard-dispatch.blade.php');
+        $this->assertStringNotContainsString('class="order--card h-100" href="#"', $view, 'a dashboard tile is a dead link');
+        foreach (['searching_for_deliverymen', 'accepted', 'picked_up'] as $status) {
+            $this->assertStringContainsString("route('admin.dispatch.list', ['all', '{$status}'])", $view);
+        }
+
+        $admin = \App\Models\Admin::create([
+            'f_name' => 'Disp', 'l_name' => 'Admin', 'email' => 'disp-'.uniqid().'@urban-goodz.test', 'phone' => '1555'.random_int(1000000, 9999999),
+            'password' => bcrypt('x'), 'role_id' => 1, 'is_logged_in' => 1, 'login_remember_token' => 'disp-token',
+        ]);
+        foreach (['searching_for_deliverymen', 'accepted', 'picked_up', 'on_going'] as $status) {
+            $this->actingAs($admin, 'admin')->withSession(['login_remember_token' => 'disp-token'])
+                ->get("/admin/dispatch/list/all/{$status}")->assertOk();
+        }
+        // Anything else still bounces back to the dashboard.
+        $this->actingAs($admin, 'admin')->withSession(['login_remember_token' => 'disp-token'])
+            ->get('/admin/dispatch/list/all/bogus')->assertRedirect(route('admin.dispatch.dashboard'));
+    }
 }
