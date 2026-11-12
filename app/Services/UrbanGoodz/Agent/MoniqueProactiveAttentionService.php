@@ -57,6 +57,16 @@ class MoniqueProactiveAttentionService
                 continue;
             }
 
+            // A read-only report that was already delivered (and auto-resolved) must not repeat every
+            // 15 minutes while the backlog it describes is still there.
+            if (in_array($category, ['driver_applications_pending', 'reimbursements_pending'], true)
+                && AiMoniqueNotification::forAccount($accountType, $accountId)
+                    ->where('category', $category)
+                    ->where('created_at', '>=', now()->subHours(6))
+                    ->exists()) {
+                continue;
+            }
+
             $this->valueTracker->recordMetric($accountType, $accountId, MoniqueTrialValueTracker::METRIC_ISSUES_IDENTIFIED);
 
             // Category policy decides whether Monique acts now, asks first, or
@@ -177,6 +187,21 @@ class MoniqueProactiveAttentionService
                 $resolutionSummary = $exec['message'] ?? 'Vendor backlog audited.';
                 $success = (bool) ($exec['success'] ?? false);
                 $verified = (bool) ($exec['verified'] ?? false);
+            } elseif ($category === 'order_anywhere_unassigned') {
+                $result = $this->widenAndRedispatchOrderAnywhere();
+                $resolutionSummary = $result['message'];
+                $success = $result['success'];
+                $verified = $result['verified'];
+            } elseif ($category === 'driver_applications_pending') {
+                $result = $this->auditDriverApplications();
+                $resolutionSummary = $result['message'];
+                $success = $result['success'];
+                $verified = $result['verified'];
+            } elseif ($category === 'reimbursements_pending') {
+                $result = $this->precheckReimbursements();
+                $resolutionSummary = $result['message'];
+                $success = $result['success'];
+                $verified = $result['verified'];
             } elseif ($category === 'failed_queue_jobs') {
                 // Manual "handle it" drains every failed job (owner explicitly
                 // asked), retrying the oldest first through the verified router.
@@ -284,6 +309,9 @@ class MoniqueProactiveAttentionService
             'failed_queue_jobs' => $this->retryFailedQueueJobs(
                 (int) ($policy['max_auto_retry_per_cycle'] ?? 1)
             ),
+            'order_anywhere_unassigned' => $this->widenAndRedispatchOrderAnywhere(),
+            'driver_applications_pending' => $this->auditDriverApplications(),
+            'reimbursements_pending' => $this->precheckReimbursements(),
             default => null,
         };
     }
@@ -699,6 +727,26 @@ class MoniqueProactiveAttentionService
         }
 
         try {
+            if (Schema::hasTable('urban_goodz_order_anywhere_reimbursements')) {
+                $hours = max(1, (int) config('urban_goodz_ai.monique_proactive.ops.reimbursement_hours', 4));
+                $pending = DB::table('urban_goodz_order_anywhere_reimbursements')
+                    ->where('status', 'pending')
+                    ->where('created_at', '<=', now()->subHours($hours))
+                    ->count();
+                if ($pending > 0) {
+                    $observations[] = [
+                        'category' => 'reimbursements_pending',
+                        'priority' => AiMoniqueNotification::PRIORITY_HIGH,
+                        'title' => "{$pending} driver reimbursement claim(s) waiting",
+                        'message' => "{$pending} driver receipt claim(s) have waited more than {$hours} hours. The driver paid with their own money and is waiting to be paid back.",
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Monique could not observe reimbursements', ['error' => $e->getMessage()]);
+        }
+
+        try {
             if (Schema::hasTable('urban_goodz_driver_payout_requests')) {
                 $hours = max(1, (int) config('urban_goodz_ai.monique_proactive.ops.driver_payout_hours', 24));
                 $pending = DB::table('urban_goodz_driver_payout_requests')
@@ -719,6 +767,137 @@ class MoniqueProactiveAttentionService
         }
 
         return $observations;
+    }
+
+    /**
+     * Stuck Order Anywhere job: nobody is within the search radius. Double the radius for this one
+     * job (capped), offer it again, and only claim success if a new offer really exists.
+     */
+    private function widenAndRedispatchOrderAnywhere(): array
+    {
+        $minutes = max(1, (int) \App\Services\OrderAnywhereDispatchSettings::get('escalate_after_minutes') ?: 10);
+        $request = \App\Models\OrderAnywhereRequest::query()
+            ->where('status', 'approved')
+            ->where('fulfillment_type', \App\Models\OrderAnywhereRequest::FULFILLMENT_EXTERNAL_MERCHANT)
+            ->whereNull('assigned_delivery_man_id')
+            ->where('updated_at', '<=', now()->subMinutes($minutes))
+            ->orderBy('id')
+            ->first();
+
+        if (! $request) {
+            return ['success' => false, 'verified' => false, 'message' => 'No unassigned Order Anywhere request is waiting right now.'];
+        }
+
+        $max = (float) config('urban_goodz_ai.monique_proactive.ops.max_widen_miles', 60);
+        $current = max(
+            (float) \App\Services\OrderAnywhereDispatchSettings::get('radius_miles'),
+            (float) ($request->metadata['dispatch_radius_override_miles'] ?? 0)
+        );
+        $widened = min($current * 2, $max);
+
+        if ($widened <= $current) {
+            return ['success' => false, 'verified' => false, 'message' => "{$request->request_number} is already searching {$current} miles, the widest Monique will go. No driver is in range: assign one manually or recruit drivers near the pickup."];
+        }
+
+        $request->update(['metadata' => [...($request->metadata ?? []), 'dispatch_radius_override_miles' => $widened]]);
+        $before = (int) \App\Models\AiDispatch::where('order_id', $request->order_id ?: 0)->max('id');
+
+        try {
+            app(\App\Services\OrderAnywhereOrderConversionService::class)->handleApproved($request->fresh());
+        } catch (\Throwable $e) {
+            Log::warning('Monique widen-and-redispatch failed', ['request_id' => $request->id, 'error' => $e->getMessage()]);
+        }
+
+        $request->refresh();
+        $after = (int) \App\Models\AiDispatch::where('order_id', $request->order_id ?: 0)->max('id');
+
+        if ($request->order_id && $after > $before) {
+            return ['success' => true, 'verified' => true, 'message' => "Widened the search for {$request->request_number} from {$current} to {$widened} miles and offered it to the nearest driver in range."];
+        }
+
+        return ['success' => false, 'verified' => false, 'message' => "Widened the search for {$request->request_number} to {$widened} miles, but no online driver is in range. Assign one manually."];
+    }
+
+    /** Read-only: which pending driver applications are complete enough to review, and what the rest lack. */
+    private function auditDriverApplications(): array
+    {
+        if (! Schema::hasTable('delivery_men') || ! Schema::hasColumn('delivery_men', 'application_status')) {
+            return ['success' => false, 'verified' => false, 'message' => 'Driver applications are not available in this environment.'];
+        }
+
+        $rows = DB::table('delivery_men')->where('application_status', 'pending')->orderBy('created_at')->limit(50)
+            ->get(['id', 'f_name', 'l_name', 'image', 'identity_image', 'vehicle_id', 'phone', 'email']);
+
+        if ($rows->isEmpty()) {
+            return ['success' => true, 'verified' => true, 'message' => 'No driver applications are waiting.'];
+        }
+
+        $ready = [];
+        $incomplete = [];
+        foreach ($rows as $r) {
+            $missing = [];
+            if (empty($r->image) || $r->image === 'def.png') {
+                $missing[] = 'profile photo';
+            }
+            if (empty($r->identity_image) || in_array(trim((string) $r->identity_image), ['[]', 'null', '""'], true)) {
+                $missing[] = 'ID photo';
+            }
+            if (empty($r->vehicle_id)) {
+                $missing[] = 'vehicle';
+            }
+            $name = trim(($r->f_name ?? '') . ' ' . ($r->l_name ?? '')) ?: "driver #{$r->id}";
+            if ($missing) {
+                $incomplete[] = "{$name} (#{$r->id}) is missing: " . implode(', ', $missing);
+            } else {
+                $ready[] = "{$name} (#{$r->id})";
+            }
+        }
+
+        $message = count($ready) . ' application(s) are complete and ready for your review'
+            . ($ready ? ': ' . implode(', ', array_slice($ready, 0, 10)) : '') . '. '
+            . count($incomplete) . ' are incomplete'
+            . ($incomplete ? ': ' . implode('; ', array_slice($incomplete, 0, 10)) : '')
+            . '. Monique does not approve or reject drivers; that stays with you.';
+
+        return ['success' => true, 'verified' => true, 'message' => $message];
+    }
+
+    /**
+     * Read-only recommendation for each pending reimbursement claim: is the receipt there, is the
+     * total within what the customer funded, is the claimant the assigned driver. She never approves.
+     */
+    private function precheckReimbursements(): array
+    {
+        if (! Schema::hasTable('urban_goodz_order_anywhere_reimbursements')) {
+            return ['success' => false, 'verified' => false, 'message' => 'Reimbursements are not available in this environment.'];
+        }
+
+        $claims = \App\Models\UrbanGoodzOrderAnywhereReimbursement::where('status', 'pending')->orderBy('id')->limit(25)->get();
+        if ($claims->isEmpty()) {
+            return ['success' => true, 'verified' => true, 'message' => 'No reimbursement claims are waiting.'];
+        }
+
+        $lines = [];
+        foreach ($claims as $c) {
+            $order = \App\Models\OrderAnywhereRequest::find($c->order_anywhere_request_id);
+            $issues = [];
+            $path = $c->getRawOriginal('receipt_path');
+            if (! $path || ! \Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+                $issues[] = 'receipt file is missing';
+            }
+            if (! $order || (int) $order->assigned_delivery_man_id !== (int) $c->delivery_man_id) {
+                $issues[] = 'claimant is not the assigned driver';
+            }
+            if ((float) $c->claimed_total > (float) $c->authorized_total + 0.005) {
+                $issues[] = 'over the customer-funded budget by $' . number_format((float) $c->claimed_total - (float) $c->authorized_total, 2);
+            }
+            $label = 'Claim #' . $c->id . ' ($' . number_format((float) $c->claimed_total, 2) . ')';
+            $lines[] = $issues
+                ? $label . ': needs a look, ' . implode('; ', $issues)
+                : $label . ': looks fine to approve (receipt present, within budget, right driver)';
+        }
+
+        return ['success' => true, 'verified' => true, 'message' => implode('. ', $lines) . '. Monique only recommends; you approve or reject.'];
     }
 
     /**

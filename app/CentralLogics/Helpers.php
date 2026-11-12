@@ -1722,8 +1722,14 @@ class Helpers
             $response = Http::withHeaders($headers)->post($decision['endpoint'], $data);
 
             if (! $response->successful()) {
+                // Firebase says WHY in error.status / errorCode (UNREGISTERED = dead device token,
+                // SENDER_ID_MISMATCH / INVALID_ARGUMENT = wrong project or credentials). Neither value
+                // is a secret, and without them every rejection looks identical in the log.
+                $body = (array) $response->json();
                 Log::warning('FCM v1 provider rejected a push request.', [
                     'status' => $response->status(),
+                    'error_status' => data_get($body, 'error.status'),
+                    'error_code' => data_get($body, 'error.details.0.errorCode'),
                 ]);
             }
 

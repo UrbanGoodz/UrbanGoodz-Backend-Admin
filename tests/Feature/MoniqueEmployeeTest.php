@@ -71,8 +71,8 @@ class MoniqueEmployeeTest extends TestCase
         $this->assertNotNull($note, 'Monique did not notice the unassigned Order Anywhere request');
         $this->assertSame(AiMoniqueNotification::PRIORITY_URGENT, $note->priority);
         $this->assertGreaterThanOrEqual(1, $result['notifications_created']);
-        // No write exists for it, so no "handle it" button may pretend otherwise.
-        $this->assertNotContains('let_monique_handle_it', array_column((array) $note->actions, 'action'));
+        // She can act on this one (widen the search), so it carries the button; payouts do not.
+        $this->assertContains('let_monique_handle_it', array_column((array) $note->actions, 'action'));
     }
 
     public function test_urgent_findings_are_emailed_and_the_channel_is_recorded_only_when_sent(): void

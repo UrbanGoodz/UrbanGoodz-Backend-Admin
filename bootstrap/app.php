@@ -156,6 +156,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground()
             ->when(fn () => config('urban_goodz_ai.monique_proactive.enabled', true));
 
+        // Monique reads the week's real numbers and writes ranked recommendations (once a day, cheap).
+        $schedule->command('monique:think')
+            ->dailyAt('04:07')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->when(fn () => config('urban_goodz_ai.monique_proactive.enabled', true));
+
         // These were defined in app/Console/Kernel.php, which Laravel 12 does not read, so none of them
         // ever ran. This closure is the only live schedule; tests/Feature/ScheduledCommandsAreRegisteredTest
         // fails if one goes missing again.

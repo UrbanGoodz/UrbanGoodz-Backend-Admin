@@ -185,16 +185,23 @@ class OrderAnywhereOrderConversionService
             return null;
         }
 
-        // Every driver within the admin-set radius, nearest first.
+        $orderRequest = $requestId ? OrderAnywhereRequest::find($requestId) : null;
+        // The admin-set radius, unless a person (or Monique, at an admin's request) widened the
+        // search for this one job. The override can only widen, never narrow, the global setting.
+        $radius = max(
+            (float) OrderAnywhereDispatchSettings::get('radius_miles'),
+            (float) ($orderRequest?->metadata['dispatch_radius_override_miles'] ?? 0)
+        );
+
+        // Every driver within that radius, nearest first.
         $inRadius = $this->integrationService->findNearestDrivers(
             $pickupLat,
             $pickupLng,
-            OrderAnywhereDispatchSettings::get('radius_miles'),
+            $radius,
             ['zone_id' => $order->zone_id]
         );
 
         $driverId = fn ($d) => is_array($d) ? $d['id'] : $d->id;
-        $orderRequest = $requestId ? OrderAnywhereRequest::find($requestId) : null;
         // Dispatches at or below this id belong to earlier rounds (exact, unlike timestamps).
         $roundWatermark = (int) ($orderRequest?->metadata['dispatch_round_after_id'] ?? 0);
 
@@ -225,7 +232,7 @@ class OrderAnywhereOrderConversionService
             Log::warning('Order Anywhere auto-dispatch: no drivers available within the radius', [
                 'order_id' => $order->id,
                 'request_id' => $requestId,
-                'radius_miles' => OrderAnywhereDispatchSettings::get('radius_miles'),
+                'radius_miles' => $radius,
                 'pickup_lat' => $pickupLat,
                 'pickup_lng' => $pickupLng,
             ]);

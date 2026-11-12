@@ -140,6 +140,9 @@ return [
         'ops' => [
             'driver_application_hours' => (int) env('MONIQUE_DRIVER_APPLICATION_HOURS', 24),
             'driver_payout_hours' => (int) env('MONIQUE_DRIVER_PAYOUT_HOURS', 24),
+            'reimbursement_hours' => (int) env('MONIQUE_REIMBURSEMENT_HOURS', 4),
+            // When Monique widens a stuck Order Anywhere search she doubles the radius, up to this.
+            'max_widen_miles' => (float) env('MONIQUE_MAX_WIDEN_MILES', 60),
         ],
 
         // Global thresholds (also env-tunable at runtime via .env).
@@ -160,7 +163,7 @@ return [
                 'enabled' => true,
                 // auto_run assigns the oldest delayed order automatically;
                 // ask lets Monique propose the assignment first.
-                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'ask'),
+                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'auto_run'),
                 'max_auto_assign_per_cycle' => (int) env('MONIQUE_DELAYED_MAX_ASSIGN_PER_CYCLE', 1),
             ],
             'failed_queue_jobs' => [
@@ -183,8 +186,13 @@ return [
             ],
             // Urban Goodz operations. None has a safe autonomous write yet, so Monique flags them
             // for a person (no "handle it" button that would pretend to do something).
-            'order_anywhere_unassigned' => ['enabled' => true, 'action' => 'observe_only'],
-            'driver_applications_pending' => ['enabled' => true, 'action' => 'observe_only'],
+            // Monique may widen the search radius for a stuck job and re-offer it, and may audit
+            // pending applications / pre-check reimbursement claims. All three are read-or-widen only:
+            // she never approves an application, a claim or a payout, and never moves money.
+            'order_anywhere_unassigned' => ['enabled' => true, 'action' => env('MONIQUE_OA_UNASSIGNED_ACTION', 'auto_run')],
+            'driver_applications_pending' => ['enabled' => true, 'action' => env('MONIQUE_DRIVER_APPS_ACTION', 'auto_run')],
+            'reimbursements_pending' => ['enabled' => true, 'action' => env('MONIQUE_REIMBURSEMENTS_ACTION', 'auto_run')],
+            // Money: flag only.
             'driver_payouts_pending' => ['enabled' => true, 'action' => 'observe_only'],
             'pending_withdrawals' => [
                 'enabled' => true,
