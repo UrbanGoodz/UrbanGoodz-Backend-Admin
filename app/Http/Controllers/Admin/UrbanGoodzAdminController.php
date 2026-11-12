@@ -84,6 +84,57 @@ class UrbanGoodzAdminController extends Controller
         ]);
     }
 
+    public function reimbursements(Request $request)
+    {
+        $status = in_array($request->query('status'), ['pending', 'approved', 'rejected', 'all'], true) ? $request->query('status') : 'pending';
+        $q = \App\Models\UrbanGoodzOrderAnywhereReimbursement::with('orderAnywhereRequest')->latest('id');
+        if ($status !== 'all') {
+            $q->where('status', $status);
+        }
+        $drivers = \App\Models\DeliveryMan::withoutGlobalScopes()
+            ->whereIn('id', (clone $q)->pluck('delivery_man_id'))->get()->keyBy('id');
+
+        return view('admin-views.urban-goodz.order-anywhere.reimbursements', [
+            'claims' => $q->paginate(25)->withQueryString(),
+            'drivers' => $drivers,
+            'status' => $status,
+            'enabled' => \App\Services\OrderAnywhereReimbursementService::enabled(),
+        ]);
+    }
+
+    public function reimbursementReceipt(int $id)
+    {
+        $claim = \App\Models\UrbanGoodzOrderAnywhereReimbursement::findOrFail($id);
+        $path = $claim->getRawOriginal('receipt_path');
+        abort_if(! $path || ! \Illuminate\Support\Facades\Storage::disk('local')->exists($path), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path);
+    }
+
+    public function reimbursementApprove(Request $request, int $id, \App\Services\OrderAnywhereReimbursementService $svc)
+    {
+        $data = $request->validate(['approved_total' => ['nullable', 'numeric', 'min:0.01'], 'notes' => ['nullable', 'string', 'max:1000']]);
+        try {
+            $svc->approve($id, (int) auth('admin')->id(), isset($data['approved_total']) ? (float) $data['approved_total'] : null, $data['notes'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Reimbursement approved. It will be paid with the driver\'s next payout.');
+    }
+
+    public function reimbursementReject(Request $request, int $id, \App\Services\OrderAnywhereReimbursementService $svc)
+    {
+        $data = $request->validate(['notes' => ['required', 'string', 'max:1000']]);
+        try {
+            $svc->reject($id, (int) auth('admin')->id(), $data['notes']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Reimbursement rejected.');
+    }
+
     public function orderAnywhereDispatchSettings(Request $request)
     {
         $data = $request->validate([
