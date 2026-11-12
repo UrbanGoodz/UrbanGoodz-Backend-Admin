@@ -100,4 +100,26 @@ class OrderAnywhereAdminWiringTest extends TestCase
             ->assertSee('Pickup latitude')
             ->assertSee('No driver has accepted this yet');
     }
+
+    public function test_the_reimbursement_page_lists_and_approves_a_claim_once(): void
+    {
+        $req = $this->req(['status' => 'shopping']);
+        $d = \App\Models\DeliveryMan::create([
+            'f_name' => 'Rb', 'l_name' => 'Drv', 'phone' => '+1555'.random_int(1000000, 9999999), 'email' => 'rbd-'.uniqid().'@urbangoodz.test',
+            'password' => bcrypt('x'), 'auth_token' => 'tk-'.uniqid(), 'status' => 1, 'application_status' => 'approved', 'active' => 1,
+        ]);
+        $claim = \App\Models\UrbanGoodzOrderAnywhereReimbursement::create([
+            'order_anywhere_request_id' => $req->id, 'delivery_man_id' => $d->id,
+            'claimed_total' => 40, 'authorized_total' => 40, 'cap_total' => 44, 'status' => 'pending',
+        ]);
+
+        $this->as()->get('/admin/urban-goodz/order-anywhere')->assertOk()->assertSee('Purchase reimbursements');
+        $this->as()->get('/admin/urban-goodz/order-anywhere-reimbursements')->assertOk()->assertSee('$40.00', false);
+
+        $this->as()->post("/admin/urban-goodz/order-anywhere-reimbursements/{$claim->id}/approve", [])->assertRedirect();
+        $this->as()->post("/admin/urban-goodz/order-anywhere-reimbursements/{$claim->id}/approve", [])->assertRedirect();
+        $this->assertSame(1, \App\Models\UrbanGoodzDriverEarning::where('earning_type', 'order_anywhere_reimbursement')->count());
+        // State changes are POST only.
+        $this->assertContains($this->as()->get("/admin/urban-goodz/order-anywhere-reimbursements/{$claim->id}/approve")->status(), [405, 302]);
+    }
 }

@@ -141,6 +141,10 @@ return [
     |
     */
     'issuing' => [
+        // card      - drivers pay with a platform-issued purchase card (needs an issuing provider).
+        // reimburse - drivers pay with their own money, upload the receipt, and are paid back with
+        //             their payout once an admin approves it. Needs no card provider.
+        'purchase_method' => env('URBAN_GOODZ_PURCHASE_METHOD', 'card'),
         'provider' => env('URBAN_GOODZ_ISSUING_PROVIDER', 'disabled'),
         'mode' => env('URBAN_GOODZ_CARDS_MODE', 'sandbox'),
         'max_driver_card_amount' => (float) env('URBAN_GOODZ_MAX_DRIVER_CARD_AMOUNT', 50.00),

@@ -324,6 +324,10 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
             Route::get('/', 'UrbanGoodzAdminController@index')->name('index');
             Route::get('order-anywhere', 'UrbanGoodzAdminController@orderAnywhere')->name('order-anywhere.index');
+            Route::get('order-anywhere-reimbursements', 'UrbanGoodzAdminController@reimbursements')->name('order-anywhere.reimbursements');
+            Route::get('order-anywhere-reimbursements/{id}/receipt', 'UrbanGoodzAdminController@reimbursementReceipt')->name('order-anywhere.reimbursements.receipt');
+            Route::post('order-anywhere-reimbursements/{id}/approve', 'UrbanGoodzAdminController@reimbursementApprove')->name('order-anywhere.reimbursements.approve');
+            Route::post('order-anywhere-reimbursements/{id}/reject', 'UrbanGoodzAdminController@reimbursementReject')->name('order-anywhere.reimbursements.reject');
             Route::put('order-anywhere/dispatch-settings', 'UrbanGoodzAdminController@orderAnywhereDispatchSettings')->name('order-anywhere.dispatch-settings');
             Route::get('order-anywhere/{id}', 'UrbanGoodzAdminController@orderAnywhereShow')->name('order-anywhere.show');
             Route::put('order-anywhere/{id}/status', 'UrbanGoodzAdminController@orderAnywhereStatus')->name('order-anywhere.status');

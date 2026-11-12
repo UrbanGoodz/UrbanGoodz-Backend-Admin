@@ -20,6 +20,7 @@ class UrbanGoodzDriverEarning extends Model
         'logistics_loads',
         'medical_courier',
         'order_anywhere',
+        'order_anywhere_reimbursement',
         'returns_exceptions',
         'load_board_delivery',
     ];

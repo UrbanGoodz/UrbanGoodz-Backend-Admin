@@ -17,6 +17,7 @@
                     </div>
                 </div>
                 <div class="col-sm-auto">
+                    <a href="{{ route('admin.urban-goodz.order-anywhere.reimbursements') }}" class="btn btn-outline-primary mr-2">{{ translate('Purchase reimbursements') }}</a>
                     <a href="{{ route('admin.urban-goodz.index') }}" class="btn btn--secondary">{{ translate('Back') }}</a>
                 </div>
             </div>
