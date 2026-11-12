@@ -64,6 +64,23 @@ class MoniqueEntitlementService
      */
     public function checkEntitlement(string $accountType, int $accountId): array
     {
+        // The platform's own admin accounts are the people who run Urban Goodz, and Monique is its
+        // employee: she must not lapse after a 30-day trial. The trial/paid model is for vendors.
+        if ($accountType !== 'vendor' && (bool) Config::get('urban_goodz_ai.monique_pricing.platform_admins_exempt', true)) {
+            return [
+                'allowed' => true,
+                'status' => 'platform_owned',
+                'days_remaining' => null,
+                'trial_start_at' => null,
+                'trial_ends_at' => null,
+                'price_per_month' => 0.0,
+                'auto_continue' => true,
+                'post_trial_policy' => null,
+                'message' => 'Monique works for the platform team and is always on.',
+                'subscription_id' => null,
+            ];
+        }
+
         $sub = $this->getOrCreateSubscription($accountType, $accountId);
 
         $allowed = $sub->isEntitled();

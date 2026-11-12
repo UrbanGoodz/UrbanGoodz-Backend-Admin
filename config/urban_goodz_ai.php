@@ -110,6 +110,8 @@ return [
         'monthly_fee' => (float) env('MONIQUE_MONTHLY_FEE', 49.00),
         'post_trial_policy' => env('MONIQUE_POST_TRIAL_POLICY', 'auto_charge'), // 'auto_charge', 'explicit_opt_in', 'auto_disable'
         'default_auto_continue' => (bool) env('MONIQUE_AUTO_CONTINUE', true),
+        // Platform admins are the people who run Urban Goodz; Monique never lapses for them.
+        'platform_admins_exempt' => (bool) env('MONIQUE_PLATFORM_ADMINS_EXEMPT', true),
     ],
 
     /*
@@ -129,6 +131,16 @@ return [
     */
     'monique_proactive' => [
         'enabled' => (bool) env('MONIQUE_PROACTIVE_ENABLED', true),
+
+        // Urgent/high findings are also emailed to the admin, so Monique reaches people who are not
+        // looking at the admin page. Off with MONIQUE_EMAIL_ALERTS=false.
+        'email_alerts' => (bool) env('MONIQUE_EMAIL_ALERTS', true),
+
+        // Urban Goodz operations she watches beyond the legacy store marketplace.
+        'ops' => [
+            'driver_application_hours' => (int) env('MONIQUE_DRIVER_APPLICATION_HOURS', 24),
+            'driver_payout_hours' => (int) env('MONIQUE_DRIVER_PAYOUT_HOURS', 24),
+        ],
 
         // Global thresholds (also env-tunable at runtime via .env).
         'delayed_order_minutes' => (int) env('MONIQUE_DELAYED_ORDER_MINUTES', 30),
@@ -169,6 +181,11 @@ return [
                 'enabled' => true,
                 'action' => 'ask',
             ],
+            // Urban Goodz operations. None has a safe autonomous write yet, so Monique flags them
+            // for a person (no "handle it" button that would pretend to do something).
+            'order_anywhere_unassigned' => ['enabled' => true, 'action' => 'observe_only'],
+            'driver_applications_pending' => ['enabled' => true, 'action' => 'observe_only'],
+            'driver_payouts_pending' => ['enabled' => true, 'action' => 'observe_only'],
             'pending_withdrawals' => [
                 'enabled' => true,
                 // Money always needs the owner's sign-off; there is no approval

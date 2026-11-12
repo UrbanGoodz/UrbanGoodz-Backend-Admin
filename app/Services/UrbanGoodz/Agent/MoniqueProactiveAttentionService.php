@@ -94,7 +94,7 @@ class MoniqueProactiveAttentionService
             // Requires owner decision / approval
             $this->valueTracker->recordMetric($accountType, $accountId, MoniqueTrialValueTracker::METRIC_ISSUES_ESCALATED);
 
-            $notificationsCreated[] = AiMoniqueNotification::create([
+            $created = AiMoniqueNotification::create([
                 'account_type' => $accountType,
                 'account_id' => $accountId,
                 'store_id' => $storeId,
@@ -109,6 +109,8 @@ class MoniqueProactiveAttentionService
                 'status' => AiMoniqueNotification::STATUS_PENDING,
                 'delivered_channels' => ['in_app', 'notification_center'],
             ]);
+            $notificationsCreated[] = $created;
+            $this->emailAdmin($accountType, $accountId, $created);
         }
 
         return [
@@ -642,6 +644,112 @@ class MoniqueProactiveAttentionService
             }
         }
 
+        return array_merge($observations, $this->observeUrbanGoodzOperations());
+    }
+
+    /**
+     * What a platform employee would watch beyond the store marketplace: customer requests nobody has
+     * picked up, driver applications and payout requests waiting on a person. Each query is guarded
+     * so a missing table in an older schema can never take the whole loop down.
+     */
+    private function observeUrbanGoodzOperations(): array
+    {
+        $observations = [];
+
+        try {
+            if (Schema::hasTable('order_anywhere_requests')) {
+                $minutes = max(1, (int) \App\Services\OrderAnywhereDispatchSettings::get('escalate_after_minutes') ?: 10);
+                $waiting = DB::table('order_anywhere_requests')
+                    ->where('status', 'approved')
+                    ->whereNull('assigned_delivery_man_id')
+                    ->where('updated_at', '<=', now()->subMinutes($minutes))
+                    ->count();
+                if ($waiting > 0) {
+                    $observations[] = [
+                        'category' => 'order_anywhere_unassigned',
+                        'priority' => AiMoniqueNotification::PRIORITY_URGENT,
+                        'title' => "{$waiting} Order Anywhere request(s) have no driver",
+                        'message' => "{$waiting} paid Order Anywhere request(s) have waited more than {$minutes} minutes with no driver. "
+                            . 'Automatic dispatch is still offering them; assign a driver from the Order Anywhere page, or they will be cancelled and refunded.',
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Monique could not observe Order Anywhere', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            if (Schema::hasTable('delivery_men') && Schema::hasColumn('delivery_men', 'application_status')) {
+                $hours = max(1, (int) config('urban_goodz_ai.monique_proactive.ops.driver_application_hours', 24));
+                $pending = DB::table('delivery_men')
+                    ->where('application_status', 'pending')
+                    ->where('created_at', '<=', now()->subHours($hours))
+                    ->count();
+                if ($pending > 0) {
+                    $observations[] = [
+                        'category' => 'driver_applications_pending',
+                        'priority' => AiMoniqueNotification::PRIORITY_MEDIUM,
+                        'title' => "{$pending} driver application(s) waiting for review",
+                        'message' => "{$pending} driver application(s) have been waiting more than {$hours} hours. Drivers cannot take work until an admin approves them.",
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Monique could not observe driver applications', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            if (Schema::hasTable('urban_goodz_driver_payout_requests')) {
+                $hours = max(1, (int) config('urban_goodz_ai.monique_proactive.ops.driver_payout_hours', 24));
+                $pending = DB::table('urban_goodz_driver_payout_requests')
+                    ->where('status', 'pending')
+                    ->where('created_at', '<=', now()->subHours($hours))
+                    ->count();
+                if ($pending > 0) {
+                    $observations[] = [
+                        'category' => 'driver_payouts_pending',
+                        'priority' => AiMoniqueNotification::PRIORITY_HIGH,
+                        'title' => "{$pending} driver payout request(s) waiting",
+                        'message' => "{$pending} driver payout request(s) have waited more than {$hours} hours. Paying people needs an admin's sign-off; Monique never moves money.",
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Monique could not observe driver payouts', ['error' => $e->getMessage()]);
+        }
+
         return $observations;
+    }
+
+    /**
+     * Tell the admin outside the admin page. Only urgent/high findings, only when something is
+     * actually pending, and the channel is recorded only if the mail really went out.
+     */
+    private function emailAdmin(string $accountType, int $accountId, AiMoniqueNotification $notification): void
+    {
+        if ($accountType === 'vendor'
+            || ! (bool) config('urban_goodz_ai.monique_proactive.email_alerts', true)
+            || ! in_array($notification->priority, [AiMoniqueNotification::PRIORITY_URGENT, AiMoniqueNotification::PRIORITY_HIGH], true)) {
+            return;
+        }
+
+        try {
+            $email = \App\Models\Admin::query()->whereKey($accountId)->value('email');
+            if (! $email) {
+                return;
+            }
+            \Illuminate\Support\Facades\Mail::raw(
+                $notification->message . "\n\nOpen the admin dashboard to review. - Monique",
+                function ($m) use ($email, $notification) {
+                    $m->to($email)->subject('Monique: ' . $notification->title);
+                }
+            );
+            $notification->update(['delivered_channels' => array_values(array_unique(array_merge(
+                (array) $notification->delivered_channels,
+                ['email']
+            )))]);
+        } catch (\Throwable $e) {
+            Log::warning('Monique alert email failed', ['account_id' => $accountId, 'error' => $e->getMessage()]);
+        }
     }
 }
