@@ -85,6 +85,14 @@ class WithdrawalMethodController extends Controller
     public function getMethodInfo(Request $request)
     {
         $withdrawal_method = $this->withdrawal_method->find($request->id);
+        // A missing/unknown ?id= reached _method_info as null, which indexes
+        // into the method - 500 for a missing parameter.
+        if (!$withdrawal_method) {
+            return response()->json([
+                'errors' => [['code' => 'id', 'message' => translate('messages.withdraw_method_not_found')]],
+            ], 404);
+        }
+
         return response()->json([
             'view' => view('admin-views.withdraw-method.partials._method_info', compact('withdrawal_method'))->render(),
         ]);

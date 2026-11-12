@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryMan;
+use App\Models\Order;
 use App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,19 @@ class VendorDriverManagementController extends Controller
 
         $drivers = DeliveryMan::where('vendor_id', $vendorId)
             ->latest('id')
-            ->get()
+            ->get();
+
+        // The order each driver is on right now, so the vendor app can offer
+        // Release without asking the vendor to type an order number.
+        $activeOrders = Order::withoutGlobalScopes()
+            ->whereIn('delivery_man_id', $drivers->pluck('id'))
+            ->whereIn('order_status', [...UrbanGoodzDriverNetworkService::ASSIGNABLE_ORDER_STATUSES, 'picked_up'])
+            ->latest('id')
+            ->get(['id', 'delivery_man_id', 'order_status'])
+            ->unique('delivery_man_id')
+            ->keyBy('delivery_man_id');
+
+        $drivers = $drivers
             ->map(fn ($d) => [
                 'id' => $d->id,
                 'name' => trim("{$d->f_name} {$d->l_name}"),
@@ -39,7 +52,10 @@ class VendorDriverManagementController extends Controller
                 'pay_model' => $d->pay_model,
                 'pay_rate' => (float) $d->pay_rate,
                 'current_orders' => (int) $d->current_orders,
-            ]);
+                'active_order_id' => $activeOrders->get($d->id)?->id,
+                'active_order_status' => $activeOrders->get($d->id)?->order_status,
+            ])
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -63,6 +79,8 @@ class VendorDriverManagementController extends Controller
             'phone' => ['required', 'string', 'max:30', 'unique:delivery_men,phone'],
             'email' => ['nullable', 'email', 'max:100'],
             'identity_number' => ['nullable', 'string', 'max:50'],
+            // The vendor sets the driver's first password and hands it over.
+            'password' => ['required', 'string', 'min:8', 'max:100'],
             'pay_model' => ['nullable', 'string', 'in:per_order,per_mile,flat_route,hourly,percentage'],
             'pay_rate' => ['nullable', 'numeric', 'min:0'],
             'available_for_marketplace' => ['nullable', 'boolean'],
@@ -88,6 +106,10 @@ class VendorDriverManagementController extends Controller
     public function updateCompensation(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
@@ -110,6 +132,10 @@ class VendorDriverManagementController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
@@ -134,13 +160,17 @@ class VendorDriverManagementController extends Controller
     public function assignOrder(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
             return response()->json(['success' => false, 'message' => 'Driver not found.'], 404);
         }
 
-        $orderId = (int) $request->input('order_id');
+        $orderId = (int) $request->validate(['order_id' => ['required', 'integer', 'min:1']])['order_id'];
         $res = $this->driverNetwork->assignToBusinessOrder($id, $orderId);
 
         return response()->json($res, $res['success'] ? 200 : 422);
@@ -152,29 +182,65 @@ class VendorDriverManagementController extends Controller
     public function releaseDriver(Request $request, int $id): JsonResponse
     {
         $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
         $driver = DeliveryMan::where('id', $id)->where('vendor_id', $vendorId)->first();
 
         if (!$driver) {
             return response()->json(['success' => false, 'message' => 'Driver not found.'], 404);
         }
 
-        $orderId = (int) $request->input('order_id');
+        $orderId = (int) $request->validate(['order_id' => ['required', 'integer', 'min:1']])['order_id'];
         $res = $this->driverNetwork->releaseFromBusinessOrder($id, $orderId);
 
         return response()->json($res, $res['success'] ? 200 : 422);
     }
 
+    /**
+     * Fleet summary for the authenticated vendor: driver counts by network
+     * dispatch status, and today's deliveries broken down by outcome.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->driverNetwork->fleetOperationsSummary($vendorId),
+        ]);
+    }
+
+    /**
+     * The authenticated vendor's orders that can take one of their drivers
+     * right now: the order picker behind the vendor app's assign action.
+     */
+    public function assignableOrders(Request $request): JsonResponse
+    {
+        $vendorId = $this->authenticatedVendorId($request);
+        if (!$vendorId) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated vendor.'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->driverNetwork->assignableOrdersForVendor($vendorId),
+        ]);
+    }
+
+    /**
+     * Only the vendor resolved by the vendor.api middleware counts. This used
+     * to fall back to $request->user(), which would have treated a customer's
+     * id as a vendor id.
+     */
     private function authenticatedVendorId(Request $request): ?int
     {
-        $user = $request->user();
-        if ($user && isset($user->vendor_id)) {
-            return (int) $user->vendor_id;
-        }
+        $vendor = $request->vendor ?? auth('vendor')->user();
 
-        if ($user && isset($user->id)) {
-            return (int) $user->id;
-        }
-
-        return null;
+        return ($vendor && isset($vendor->id)) ? (int) $vendor->id : null;
     }
 }

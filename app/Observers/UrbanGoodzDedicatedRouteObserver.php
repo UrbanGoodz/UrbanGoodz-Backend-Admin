@@ -4,6 +4,8 @@ namespace App\Observers;
 
 use App\Events\UrbanGoodzRealtimeUpdate;
 use App\Models\UrbanGoodzDedicatedRoute;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class UrbanGoodzDedicatedRouteObserver
 {
@@ -20,6 +22,26 @@ class UrbanGoodzDedicatedRouteObserver
     }
 
     private function broadcast(UrbanGoodzDedicatedRoute $route): void
+    {
+        // Realtime updates are best effort. Under QUEUE_CONNECTION=sync a
+        // ShouldBroadcast event fires inside the request, so a broadcast
+        // transport failure would otherwise turn a completed route change into
+        // a 500 for the driver - after the write has already committed.
+        // Production runs the database queue and the log broadcaster, so it
+        // does not take that path today; this guards the config, not a live
+        // fault, and costs nothing while the config stays as it is.
+        try {
+            $this->publish($route);
+        } catch (Throwable $e) {
+            Log::warning('Dedicated route realtime broadcast failed', [
+                'route_id' => (int) $route->id,
+                'status' => (string) ($route->status ?: 'pending'),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function publish(UrbanGoodzDedicatedRoute $route): void
     {
         $status = (string) ($route->status ?: 'pending');
 

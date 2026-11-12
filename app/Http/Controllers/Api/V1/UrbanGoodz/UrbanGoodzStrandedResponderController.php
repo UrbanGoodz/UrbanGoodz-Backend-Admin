@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 
 use App\Http\Controllers\Controller;
+use App\Models\UrbanGoodzPaymentTransaction;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;
 use App\Models\UrbanGoodzStrandedVerification;
-use App\Services\UrbanGoodzStrandedNotifier;
+use App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier;
+use App\Domain\Stranded\Payments\UrbanGoodzStrandedPaymentService;
+use App\Domain\Stranded\Payments\UrbanGoodzStripeConnectService;
+use App\Services\UrbanGoodzStrandedDispatcher;
 use App\Services\UrbanGoodzStrandedSafety;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -143,6 +147,11 @@ class UrbanGoodzStrandedResponderController extends Controller
             'response_mode' => 'required|in:volunteer,tips_only,paid',
             'requested_amount_minor' => 'required_if:response_mode,paid|nullable|integer|min:0|max:100000',
             'eta_minutes' => 'nullable|integer|min:1|max:600',
+            // The client's own "I'm using a different vehicle" toggle. A
+            // samaritan who leaves this false is accepting with the vehicle
+            // on their verified profile -- see UrbanGoodzStrandedOffer::
+            // effectiveVehicle().
+            'uses_alternate_vehicle' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -151,9 +160,10 @@ class UrbanGoodzStrandedResponderController extends Controller
 
         $userId = (int) $request->user()->id;
         $mode = $request->input('response_mode');
+        $usesAlternateVehicle = $request->boolean('uses_alternate_vehicle');
 
         try {
-            $accepted = DB::transaction(function () use ($request, $offer, $userId, $mode) {
+            $accepted = DB::transaction(function () use ($request, $offer, $userId, $mode, $usesAlternateVehicle) {
                 $row = UrbanGoodzStrandedOffer::whereKey($offer)
                     ->where('responder_id', $userId)
                     ->lockForUpdate()
@@ -189,7 +199,16 @@ class UrbanGoodzStrandedResponderController extends Controller
                         : 0,
                     'eta_minutes' => $request->input('eta_minutes', $row->eta_minutes),
                     'responded_at' => now(),
+                    'uses_alternate_vehicle' => $usesAlternateVehicle,
                 ]);
+
+                // Normal path: verified profile, registered vehicle, nothing
+                // more to collect -- ready in the same instant as accepting.
+                // Declaring an alternate vehicle leaves this null until the
+                // vehicle override endpoint is called.
+                if (!$usesAlternateVehicle && $row->computeIdentityReady()) {
+                    $row->update(['identity_ready_at' => now()]);
+                }
 
                 // Let the customer know somebody can help, and move the
                 // request on so the UI can show a choice.
@@ -209,7 +228,15 @@ class UrbanGoodzStrandedResponderController extends Controller
         }
 
         [$acceptedOffer, $strandedRequest] = $accepted;
-        $this->notifier->responderAccepted($strandedRequest, $acceptedOffer);
+
+        // The customer is only told a responder is ready to choose once the
+        // identity/vehicle they'll actually see is in hand -- notifying
+        // earlier would surface a shortlist entry with nothing to show.
+        if ($acceptedOffer->identity_ready_at !== null) {
+            $this->notifier->responderAccepted($strandedRequest, $acceptedOffer);
+        } else {
+            $this->notifier->responderNeedsVehicleInfo($strandedRequest, $acceptedOffer);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -291,6 +318,10 @@ class UrbanGoodzStrandedResponderController extends Controller
             'vehicle_plate' => 'nullable|string|max:20',
             'capabilities' => 'nullable|array',
             'capabilities.*' => 'in:battery,tire,fuel,lockout,vehicle,towing,general',
+            // Set once, not per request -- this is what lets a normal
+            // acceptance skip any extra step. See the migration docblock.
+            'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:8192',
+            'vehicle_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:8192',
         ]);
 
         if ($validator->fails()) {
@@ -312,6 +343,15 @@ class UrbanGoodzStrandedResponderController extends Controller
         if ($request->has('capabilities')) {
             $responder->capabilities = $request->input('capabilities');
         }
+
+        $dir = "stranded/responders/{$userId}";
+        if ($request->hasFile('profile_photo')) {
+            $responder->profile_photo_path = $dir . '/' . \App\CentralLogics\Helpers::upload($dir, 'webp', $request->file('profile_photo'), 8);
+        }
+        if ($request->hasFile('vehicle_photo')) {
+            $responder->vehicle_photo_path = $dir . '/' . \App\CentralLogics\Helpers::upload($dir, 'webp', $request->file('vehicle_photo'), 8);
+        }
+
         $responder->save();
 
         return response()->json(['status' => 'success']);
@@ -335,6 +375,215 @@ class UrbanGoodzStrandedResponderController extends Controller
             \App\Services\UrbanGoodzStrandedSafety::DOC_SAMARITAN_PLEDGE,
             $request
         );
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * A fresh Stripe-hosted link to start or resume payout onboarding.
+     *
+     * Generated on demand and never stored -- Account Links expire quickly by
+     * design, so there is nothing useful to cache.
+     */
+    public function payoutOnboardingLink(Request $request, UrbanGoodzStripeConnectService $connect): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'responder_type' => 'nullable|in:samaritan,professional,mobile_mechanic,tow,fleet',
+            'return_url' => 'required|url',
+            'refresh_url' => 'required|url',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        if (!$connect->isEnabled()) {
+            return response()->json(['status' => 'error', 'message' => 'Responder payouts are not configured right now.'], 503);
+        }
+
+        $responder = UrbanGoodzStrandedResponder::firstOrNew([
+            'user_id' => (int) $request->user()->id,
+            'responder_type' => $request->input('responder_type', 'samaritan'),
+        ]);
+        if (!$responder->exists) {
+            $responder->save();
+        }
+
+        try {
+            $url = $connect->createOnboardingLink(
+                $responder,
+                (string) $request->input('refresh_url'),
+                (string) $request->input('return_url')
+            );
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 502);
+        }
+
+        return response()->json(['status' => 'success', 'onboarding_url' => $url]);
+    }
+
+    /** Whether this responder can actually be paid yet, and what is still needed. */
+    public function payoutStatus(Request $request): JsonResponse
+    {
+        $responder = UrbanGoodzStrandedResponder::where('user_id', (int) $request->user()->id)
+            ->where('responder_type', $request->input('responder_type', 'samaritan'))
+            ->first();
+
+        if (!$responder) {
+            return response()->json([
+                'status' => 'success',
+                'onboarding_status' => 'not_started',
+                'can_receive_payouts' => false,
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'onboarding_status' => $responder->stripe_onboarding_status,
+            'charges_enabled' => (bool) $responder->stripe_charges_enabled,
+            'can_receive_payouts' => $responder->canReceivePayouts(),
+        ]);
+    }
+
+    /**
+     * Complete the "I'm using a different vehicle" declaration made at
+     * accept() time. Only vehicle details are collected here -- never a new
+     * personal photo. A verified Samaritan's identity does not change
+     * because the car did.
+     *
+     * The vehicle is stored on this offer only (temporary, this request).
+     * Making it a standing second vehicle on the profile is a follow-on --
+     * this endpoint intentionally does not touch the profile row.
+     */
+    public function submitVehicleOverride(Request $request, int $offer, UrbanGoodzStrandedNotifier $notifier): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'vehicle_make' => 'required|string|max:60',
+            'vehicle_model' => 'required|string|max:60',
+            'vehicle_color' => 'nullable|string|max:40',
+            'vehicle_plate' => 'nullable|string|max:20',
+            'vehicle_photo' => 'required|image|mimes:jpg,jpeg,png|max:8192',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $userId = (int) $request->user()->id;
+
+        $row = UrbanGoodzStrandedOffer::whereKey($offer)
+            ->where('responder_id', $userId)
+            ->where('status', 'accepted')
+            ->first();
+
+        if (!$row) {
+            return response()->json(['status' => 'error', 'message' => 'Offer not found or not yet accepted.'], 404);
+        }
+
+        if (!$row->uses_alternate_vehicle) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'This offer was accepted with your registered vehicle. There is nothing to override.',
+            ], 409);
+        }
+
+        $dir = "stranded/offers/{$row->getKey()}";
+        $wasReady = $row->identity_ready_at !== null;
+
+        $row->update([
+            'vehicle_make' => $request->input('vehicle_make'),
+            'vehicle_model' => $request->input('vehicle_model'),
+            'vehicle_color' => $request->input('vehicle_color'),
+            'vehicle_plate' => $request->input('vehicle_plate'),
+            'vehicle_photo_path' => $dir . '/' . \App\CentralLogics\Helpers::upload($dir, 'webp', $request->file('vehicle_photo'), 8),
+        ]);
+
+        if (!$wasReady && $row->computeIdentityReady()) {
+            $row->update(['identity_ready_at' => now()]);
+
+            $strandedRequest = UrbanGoodzStrandedRequest::find($row->request_id);
+            if ($strandedRequest) {
+                // This is the customer's first notice of this offer -- accept()
+                // held it back because there was nothing to show yet. The
+                // "verified" copy covers both "someone can help" and "here's
+                // who," so nothing else needs to fire alongside it.
+                $notifier->responderIdentityReady($strandedRequest, $row->fresh());
+            }
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * A selected responder backs out after being chosen -- something the
+     * product never had a path for. Anyone can decline before selection;
+     * nobody could cancel after it. Reopens the request for a fresh round of
+     * offers rather than leaving the customer stranded on a responder who
+     * is not coming, and releases any reward hold rather than leaving it
+     * pending against a job that is not happening with this responder.
+     */
+    public function cancelAssignment(Request $request, UrbanGoodzStrandedNotifier $notifier, UrbanGoodzStrandedDispatcher $dispatcher): JsonResponse
+    {
+        $userId = (int) $request->user()->id;
+
+        $responder = UrbanGoodzStrandedResponder::where('user_id', $userId)
+            ->whereNotNull('active_request_id')
+            ->first();
+
+        if (!$responder) {
+            return response()->json(['status' => 'error', 'message' => 'You do not have an active assignment.'], 404);
+        }
+
+        try {
+            [$stranded, $offer] = DB::transaction(function () use ($responder, $userId) {
+                $fresh = UrbanGoodzStrandedRequest::whereKey($responder->active_request_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$fresh || (int) $fresh->assigned_responder_id !== $userId || $fresh->isTerminal()) {
+                    throw new \RuntimeException('not_assigned');
+                }
+
+                $offer = $fresh->selected_offer_id ? UrbanGoodzStrandedOffer::find($fresh->selected_offer_id) : null;
+                $offer?->update(['status' => 'cancelled_by_responder']);
+
+                $fresh->update([
+                    'status' => 'broadcasting',
+                    'selected_offer_id' => null,
+                    'assigned_responder_id' => null,
+                    'assigned_responder_type' => null,
+                    'assigned_at' => null,
+                    'escrow_status' => $fresh->escrow_status === 'held' ? 'none' : $fresh->escrow_status,
+                    // A new round so the responder who just backed out (and
+                    // anyone else already offered this round) gets a clean
+                    // slate rather than colliding with their old offer row.
+                    'broadcast_round' => (int) $fresh->broadcast_round + 1,
+                ]);
+
+                $responder->update(['active_request_id' => null]);
+
+                return [$fresh->fresh(), $offer];
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['status' => 'error', 'message' => 'You do not have an active assignment for this request.'], 409);
+        }
+
+        if ($offer?->payableAmountMinor() > 0 && $stranded->reward_hold_transaction_id) {
+            $holdLedger = UrbanGoodzPaymentTransaction::find($stranded->reward_hold_transaction_id);
+            if ($holdLedger?->provider_payment_id) {
+                app(UrbanGoodzStrandedPaymentService::class)->voidRewardHold($holdLedger->provider_payment_id);
+            }
+        }
+
+        $notifier->responderCancelledAssignment($stranded);
+
+        // Look for a new responder immediately rather than waiting on the
+        // next dispatch-tick -- the customer already lost the one they had.
+        try {
+            $dispatcher->broadcast($stranded);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json(['status' => 'success']);
     }

@@ -6,8 +6,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const ADMIN_EMAIL = process.env.ADMIN_TEST_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_TEST_PASSWORD;
+// These specs exercise features, not the permission boundary, so they need an
+// account that holds every module the routes gate on - including the
+// urban_goodz_* modules that the AdminLoginTest fixture pair deliberately
+// withholds from BOTH its accounts to keep that boundary provable.
+// Falls back to the boundary-pair account so an unseeded environment still runs.
+const ADMIN_EMAIL = process.env.ADMIN_FULL_TEST_EMAIL || process.env.ADMIN_TEST_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_FULL_TEST_PASSWORD || process.env.ADMIN_TEST_PASSWORD;
 const EVIDENCE_ROOT = process.env.E2E_EVIDENCE_DIR
   || path.join(os.tmpdir(), 'urban-goodz-admin-load-sourcing');
 
@@ -96,9 +101,12 @@ async function clickUiLink(page, pathName, expectedPath = pathName) {
     const url = new URL(candidate.url());
     return url.pathname === expectedPath && candidate.request().method() === 'GET';
   });
-  const click = link.isVisible().then((visible) => visible
-    ? link.click()
-    : link.evaluate((element) => element.click()));
+  // isVisible() is not enough: at mobile widths the sidebar is an off-canvas
+  // drawer whose links report visible but sit outside the viewport, so the real
+  // click reports "element is outside of the viewport" and never lands. Try the
+  // genuine click first - that is what exercises the UI - then dispatch one.
+  const click = link.click({ timeout: 4000 })
+    .catch(() => link.evaluate((element) => element.click()));
   const response = await navigation;
   expect(response.status(), `UI navigation failed for ${expectedPath}`).toBe(200);
   await click;
@@ -139,7 +147,30 @@ for (const device of [
       storageState,
       recordVideo: { dir: evidenceDir },
     });
-    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    // The admin sidebar is an off-canvas drawer at mobile widths with a CSS
+    // slide transition, so Playwright's actionability check keeps reporting
+    // "element is not stable" and the click never lands - something a person
+    // tapping the link never experiences. Disable animation for the run rather
+    // than force-clicking, which would skip the very actionability checks this
+    // suite is here to make.
+    await context.addInitScript(() => {
+      const apply = () => {
+        const style = document.createElement('style');
+        style.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}';
+        document.head.appendChild(style);
+      };
+      if (document.head) apply();
+      else document.addEventListener('DOMContentLoaded', apply, { once: true });
+    });
+
+    // The config sets trace: 'on-first-retry', so on a retry Playwright has
+    // already started tracing on this context and a second start throws
+    // "Tracing has been already started" - which failed every retry of this
+    // spec instantly, before any assertion ran, and hid the real result.
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true })
+      .catch((error) => {
+        if (!/already started/i.test(String(error))) throw error;
+      });
     const page = await context.newPage();
     const consoleMessages = [];
     const networkFailures = [];
@@ -161,11 +192,11 @@ for (const device of [
 
     try {
       await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-      await clickUiLink(
-        page,
-        '/admin/urban-goodz/load-sourcing',
-        '/admin/urban-goodz/load-sourcing/overview'
-      );
+      // "Load Sourcing" in the sidebar is an accordion toggle (href="javascript:"),
+      // not a link - there is no anchor ending in /admin/urban-goodz/load-sourcing
+      // for a user to click. Overview is the first real destination under it, and
+      // clickUiLink already clicks links inside a collapsed submenu.
+      await clickUiLink(page, '/admin/urban-goodz/load-sourcing/overview');
       actionLog.push({ action: 'open-load-sourcing-through-admin-ui', url: page.url() });
 
       for (const pathName of PAGE_PATHS) {
@@ -197,7 +228,7 @@ for (const device of [
       fs.writeFileSync(path.join(evidenceDir, 'console.json'), JSON.stringify(consoleMessages, null, 2));
       fs.writeFileSync(path.join(evidenceDir, 'network-failures.json'), JSON.stringify(networkFailures, null, 2));
       fs.writeFileSync(path.join(evidenceDir, 'actions.json'), JSON.stringify(actionLog, null, 2));
-      await context.tracing.stop({ path: path.join(evidenceDir, 'trace.zip') });
+      await context.tracing.stop({ path: path.join(evidenceDir, 'trace.zip') }).catch(() => {});
       await context.close();
       testInfo.annotations.push({ type: 'evidence', description: evidenceDir });
     }

@@ -392,9 +392,19 @@ class VendorController extends Controller
             ], 404);
         }
 
+        // 'accepted' is what accept_order sets when a rider takes the order, and
+        // under order_confirmation_model = 'deliveryman' - which is how this
+        // install is configured - it is the status EVERY order passes through,
+        // because the rider confirms and the vendor is refused the confirm.
+        // Omitting it here meant $allowedTransitions[$currentStatus] fell through
+        // to [], so once a rider accepted, the vendor could no longer mark the
+        // order processing or handed over: the entire vendor order flow was dead
+        // for that configuration. It mirrors 'confirmed', which is the same point
+        // in the lifecycle reached the other way.
         $allowedTransitions = [
             'pending' => ['confirmed', 'canceled'],
             'confirmed' => ['processing'],
+            'accepted' => ['processing'],
             'processing' => ['handover'],
             'handover' => ['delivered'],
         ];

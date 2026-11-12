@@ -6,8 +6,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const ADMIN_EMAIL = process.env.ADMIN_TEST_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_TEST_PASSWORD;
+// These specs exercise features, not the permission boundary, so they need an
+// account that holds every module the routes gate on - including the
+// urban_goodz_* modules that the AdminLoginTest fixture pair deliberately
+// withholds from BOTH its accounts to keep that boundary provable.
+// Falls back to the boundary-pair account so an unseeded environment still runs.
+const ADMIN_EMAIL = process.env.ADMIN_FULL_TEST_EMAIL || process.env.ADMIN_TEST_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_FULL_TEST_PASSWORD || process.env.ADMIN_TEST_PASSWORD;
 const EVIDENCE_ROOT = process.env.E2E_EVIDENCE_DIR
   || path.join(os.tmpdir(), 'urban-goodz-admin-ai-operations');
 const FORBIDDEN = /{{|}}|@endif|@foreach|@php|ErrorException|Undefined variable|Undefined offset|Trying to access|SQLSTATE\[|Stack trace:|Whoops, looks like something went wrong/i;
@@ -69,7 +74,30 @@ for (const device of [
     fs.mkdirSync(evidenceDir, { recursive: true });
 
     const context = await browser.newContext({ viewport: device.viewport, recordVideo: { dir: evidenceDir } });
-    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    // The admin sidebar is an off-canvas drawer at mobile widths with a CSS
+    // slide transition, so Playwright's actionability check keeps reporting
+    // "element is not stable" and the click never lands - something a person
+    // tapping the link never experiences. Disable animation for the run rather
+    // than force-clicking, which would skip the very actionability checks this
+    // suite is here to make.
+    await context.addInitScript(() => {
+      const apply = () => {
+        const style = document.createElement('style');
+        style.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}';
+        document.head.appendChild(style);
+      };
+      if (document.head) apply();
+      else document.addEventListener('DOMContentLoaded', apply, { once: true });
+    });
+
+    // The config sets trace: 'on-first-retry', so on a retry Playwright has
+    // already started tracing on this context and a second start throws
+    // "Tracing has been already started" - which failed every retry of this
+    // spec instantly, before any assertion ran, and hid the real result.
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true })
+      .catch((error) => {
+        if (!/already started/i.test(String(error))) throw error;
+      });
     const page = await context.newPage();
     const consoleMessages = [];
     const networkFailures = [];
@@ -95,7 +123,15 @@ for (const device of [
 
       const copilotLink = page.locator('a[href$="/admin/urban-goodz/ai-copilot"]').first();
       await expect(copilotLink).toBeVisible();
-      await copilotLink.click();
+      // At mobile widths the sidebar is an off-canvas drawer: links report as
+      // visible but sit outside the viewport, so a real click reports "element
+      // is outside of the viewport" and never lands. Prefer the genuine click -
+      // that is what exercises the UI - and dispatch one only as a fallback.
+      try {
+        await copilotLink.click({ timeout: 4000 });
+      } catch {
+        await copilotLink.evaluate((element) => element.click());
+      }
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('h1')).toContainText(/AI Ops Copilot/i);
       expect(await page.locator('form[action$="/admin/urban-goodz/ai-copilot/generate"][method="POST"]').count()).toBeGreaterThanOrEqual(1);

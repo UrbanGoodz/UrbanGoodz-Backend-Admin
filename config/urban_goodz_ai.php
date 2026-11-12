@@ -54,18 +54,24 @@ return [
         ],
 
         /*
-        | Gemini model note (verified against Google AI Studio, July 2026):
-        |   gemini-2.5-flash -> HTTP 404, "no longer available to new users"
-        |   gemini-2.0-flash -> HTTP 429 on the free tier
-        |   gemini-3.6-flash -> verified live against the production key; this is
-        |     the default (owner decision). gemini-flash-latest is the documented
-        |     fallback alias if this snapshot is ever retired.
+        | Gemini model note (re-measured against this key, 17 Sep 2026):
+        |   gemini-2.5-flash          -> HTTP 404, "no longer available to new users"
+        |   gemini-2.0-flash          -> not offered to this key
+        |   gemini-3.5-flash          -> connection timeout (>25s), no response
+        |   gemini-flash-latest       -> 0/3 success, HTTP 429 (free-tier quota exhausted)
+        |   gemini-flash-lite-latest  -> 3/3 success, ~800ms
+        |
+        | flash-latest and flash-lite-latest draw on separate free-tier quota
+        | pools, and flash-latest is the one everyone shares, so it is the first
+        | to exhaust. flash-lite is the reliable default for this workload -
+        | operational triage and summarisation, not deep reasoning.
+        |
+        | The default MUST stay a "-latest" alias so a new key keeps working when
+        | Google retires a numbered snapshot.
         */
         'gemini' => [
             'api_key' => env('GEMINI_API_KEY', env('GOOGLE_API_KEY')),
-            // gemini-3.6-flash is the owner-chosen default; set GEMINI_MODEL to
-            // gemini-flash-latest if Google retires this snapshot.
-            'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
+            'model' => env('GEMINI_MODEL', 'gemini-flash-lite-latest'),
             'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         ],
     ],

@@ -71,10 +71,8 @@ class DigitalHumanController extends Controller
     }
 
     /**
-     * Synthesize speech audio server-side. The voice backend is chosen by the
-     * configured provider ('elevenlabs' or 'qwen', via UG_VOICE_PROVIDER);
-     * the API key/host never reach the client; this endpoint returns raw audio
-     * bytes only.
+     * Synthesize speech audio server-side. Routes to the configured voice
+     * provider (Qwen3-TTS clone by default, ElevenLabs as fallback).
      */
     public function speak(Request $request): JsonResponse|Response
     {
@@ -103,17 +101,21 @@ class DigitalHumanController extends Controller
             }
         }
 
-        $provider = (string) config('urban_goodz_personas.digital_human_global.voice_provider', 'elevenlabs');
+        $provider = strtolower(trim((string) config(
+            'urban_goodz_personas.digital_human_global.voice_provider',
+            'qwen'
+        )));
 
-        $result = $provider === 'qwen'
-            ? $this->qwenVoiceService->synthesize(
+        $result = match ($provider) {
+            'qwen' => $this->qwenVoiceService->synthesize(
                 personaKey: $validated['persona'],
                 text: $validated['text']
-            )
-            : $this->elevenLabsVoiceService->synthesize(
+            ),
+            default => $this->elevenLabsVoiceService->synthesize(
                 personaKey: $validated['persona'],
                 text: $validated['text']
-            );
+            ),
+        };
 
         if (! $result['success']) {
             // Nothing was synthesized, so nothing is spent from the guest budget.

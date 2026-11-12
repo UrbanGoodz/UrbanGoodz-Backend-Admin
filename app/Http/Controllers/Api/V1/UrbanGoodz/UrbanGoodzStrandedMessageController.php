@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\V1\UrbanGoodz;
 use App\Http\Controllers\Controller;
 use App\Models\UrbanGoodzStrandedMessage;
 use App\Models\UrbanGoodzStrandedRequest;
-use App\Services\UrbanGoodzStrandedNotifier;
+use App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;

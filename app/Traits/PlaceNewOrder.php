@@ -926,7 +926,13 @@ trait PlaceNewOrder
             default => null,
         };
 
-        if ($request->order_type !== 'parcel') {
+        // Assigning to $validationError here rather than adding to it would
+        // discard the !$zone error above: for a non-parcel order whose address
+        // falls outside the store's zone polygon, none of the arms below match,
+        // the zone error is overwritten with null, and the caller carries a null
+        // $zone to `$zone->modules()` and answers 500 instead of the 403
+        // "out of coverage area" this function already decided on.
+        if (!$validationError && $request->order_type !== 'parcel') {
             $validationError = match (true) {
                 !$store => [
                     'code'    => 'store',

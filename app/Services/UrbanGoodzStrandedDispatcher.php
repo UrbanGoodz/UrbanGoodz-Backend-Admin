@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier;
 use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;

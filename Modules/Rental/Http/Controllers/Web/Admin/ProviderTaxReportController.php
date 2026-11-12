@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Modules\Rental\Entities\Trips;
 use Modules\Rental\Exports\ProviderWiseTaxExport;
 use NunoMaduro\Collision\Provider;
+use Brian2694\Toastr\Facades\Toastr;
 
 class ProviderTaxReportController extends Controller
 {
@@ -238,6 +239,15 @@ class ProviderTaxReportController extends Controller
         $store_id = $request->id;
         $store = is_numeric($store_id) ? Store::select('id', 'name', 'phone')->findOrFail($store_id) : null;
 
+        // The line above deliberately allows a null store - the report opens
+        // without ?id= from the reports menu - but the next line then read
+        // $store->id and answered 500 instead of asking which store.
+        if ($store === null) {
+            Toastr::warning(translate('messages.Please_select_a_store_for_this_report'));
+
+            return back();
+        }
+
         // $start = microtime(true);
         $providertaxData =   $this->getprovidertaxData($store->id, $startDate, $endDate);
         $summary =   $providertaxData['summary'];
@@ -268,6 +278,15 @@ class ProviderTaxReportController extends Controller
 
         $store_id = $request->id;
         $store = is_numeric($store_id) ? Store::select('id', 'name', 'phone')->findOrFail($store_id) : null;
+
+        // The line above deliberately allows a null store - the report opens
+        // without ?id= from the reports menu - but the next line then read
+        // $store->id and answered 500 instead of asking which store.
+        if ($store === null) {
+            Toastr::warning(translate('messages.Please_select_a_store_for_this_report'));
+
+            return back();
+        }
 
         // $start = microtime(true);
         $providertaxData =   $this->getprovidertaxData($store->id, $startDate, $endDate);

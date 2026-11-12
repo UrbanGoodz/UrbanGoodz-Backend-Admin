@@ -105,7 +105,7 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
 
     public function test_vendor_registration_rejects_submission_missing_all_required_fields(): void
     {
-        $response = $this->postJson('/vendor/apply', []);
+        $response = $this->applyVendor([]);
 
         $response->assertOk(); // controller returns 200 with an errors[] payload, not a 4xx
         $errors = collect($response->json('errors'))->pluck('code')->all();
@@ -124,7 +124,7 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
 
     public function test_vendor_registration_requires_zone_id_specifically(): void
     {
-        $response = $this->postJson('/vendor/apply', [
+        $response = $this->applyVendor([
             'f_name' => 'Test',
             'name' => ['default' => 'Test Store'],
             'address' => ['default' => '123 Main St'],
@@ -147,7 +147,7 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
 
     public function test_vendor_registration_requires_a_logo_upload(): void
     {
-        $response = $this->postJson('/vendor/apply', [
+        $response = $this->applyVendor([
             'f_name' => 'Test',
             'name' => ['default' => 'Test Store'],
             'address' => ['default' => '123 Main St'],
@@ -406,4 +406,25 @@ class UrbanGoodzPublicSurfaceValidationBoundaryTest extends TestCase
             "[$uri] must not be matched by VerifyCsrfToken's real except-list logic (getExcludedPaths() + trim + Request::is()/fullUrlIs())"
         );
     }
+
+    /**
+     * Post to vendor registration with the captcha already satisfied.
+     *
+     * These cases are about the validator, not the captcha. They used to post
+     * with no captcha at all and still reach validation, because an empty
+     * typed value compared equal to an empty session phrase - a hole that is
+     * now closed, so the gate has to be cleared explicitly.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function applyVendor(array $payload)
+    {
+        // Shape matters: the helper reads $data['value'].
+        \Illuminate\Support\Facades\Config::set('toggle_store_registration_conf', ['value' => '1']);
+        \Illuminate\Support\Facades\Config::set('recaptcha_conf', ['value' => json_encode(['status' => 0])]);
+
+        return $this->withSession(['six_captcha' => 'bnd4ry'])
+            ->postJson('/vendor/apply', $payload + ['custome_recaptcha' => 'bnd4ry']);
+    }
+
 }

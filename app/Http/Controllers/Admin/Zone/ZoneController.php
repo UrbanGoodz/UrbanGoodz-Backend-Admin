@@ -27,6 +27,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use App\Contracts\Repositories\TranslationRepositoryInterface;
 use App\Models\Module;
 use App\Models\Zone as ZoneModel;
+use Illuminate\Support\Facades\Validator;
 
 class ZoneController extends BaseController
 {
@@ -174,7 +175,16 @@ class ZoneController extends BaseController
         $zone = $this->zoneRepo->getLatest(
             relations: ['modules']
         );
-        return view(ZoneViewPath::MODULE_SETUP[VIEW], compact('zone'));
+
+        // The same view is rendered by getModuleSetupView() above, which passes
+        // these three as well. Omitting them here left the Blade reading
+        // $cash_on_delivery and the page answered 500 with
+        // "Undefined variable $cash_on_delivery".
+        $cash_on_delivery = Helpers::get_business_settings('cash_on_delivery');
+        $digital_payment = Helpers::get_business_settings('digital_payment');
+        $offline_payment = Helpers::get_business_settings('offline_payment_status');
+
+        return view(ZoneViewPath::MODULE_SETUP[VIEW], compact('zone', 'cash_on_delivery', 'digital_payment', 'offline_payment'));
     }
 
     public function updateModuleSetup(ZoneModuleUpdateRequest $request, $id): RedirectResponse
@@ -371,7 +381,19 @@ class ZoneController extends BaseController
 
     public function get_zone(Request $request)
     {
-        $zone = Helpers::getCoordinatesZone($request->lat, $request->lng);
+        // Without lat/lng these went straight into new Point(null, null) and
+        // PHP fatalled with "Argument #1 ($latitude) must be of type float,
+        // null given" - a 500 for what is simply a missing parameter.
+        $validator = Validator::make($request->all(), [
+            'lat' => 'required|numeric',
+            'lng' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $zone = Helpers::getCoordinatesZone((float) $request->lat, (float) $request->lng);
 
         return response()->json($zone);
     }

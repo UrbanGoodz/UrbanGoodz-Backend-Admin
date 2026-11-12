@@ -203,6 +203,13 @@ class LoginController extends Controller
                 return redirect()->back()->withInput($request->only('email', 'remember'))
                     ->withErrors(['ReCAPTCHA Failed']);
             }
+
+            // Burn the phrase. It used to survive in the session until the
+            // login page was rendered again, and a script posting straight to
+            // this route never renders it - so one solved captcha covered an
+            // unlimited run of password guesses. Consuming it means every
+            // attempt needs a freshly issued phrase.
+            Session::forget('six_captcha');
         }
 
         $ip = $request->ip();
@@ -532,7 +539,7 @@ class LoginController extends Controller
 
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
         if (auth('vendor')?->check()) {
             $user_link = Helpers::get_login_url('store_login_url');
@@ -555,6 +562,16 @@ class LoginController extends Controller
             }
             auth()?->guard('admin')?->logout();
         }
+
+        // guard->logout() forgets the user but leaves the session itself intact,
+        // so the same session id stayed valid across a logout - the fixation
+        // case Laravel's own logout guards against, and the reason the browser
+        // suite intermittently found /admin still serving the dashboard after
+        // hitting /logout. Invalidate the session and reissue the CSRF token so
+        // logging out actually ends the session.
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()->route('login', [$user_link]);
     }
 

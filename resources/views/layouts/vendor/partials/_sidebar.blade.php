@@ -7,7 +7,7 @@
 
                 <a class="navbar-brand" href="{{ route('vendor.dashboard') }}" aria-label="Urban Goodz Vendor">
                     <img class="navbar-brand-logo initial--36"
-                        src="{{asset('public/assets/landing/img/logo.svg')}}"
+                        src="{{asset('public/assets/admin/svg/logos/urban-goodz-light.svg')}}"
                         alt="Urban Goodz" style="height:32px;width:auto;">
                     <img class="navbar-brand-logo-mini initial--36"
                         src="{{asset('public/assets/admin/svg/logos/logo-short.svg')}}"

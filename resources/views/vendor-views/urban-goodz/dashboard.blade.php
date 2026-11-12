@@ -9,7 +9,7 @@
             <div class="row align-items-center">
                 <div class="col-sm mb-2 mb-sm-0">
                     <h1 class="page-header-title d-flex align-items-center gap-2">
-                        <img src="{{asset('public/assets/landing/img/logo.svg')}}" style="height:36px;width:auto;" alt="Urban Goodz">
+                        <img src="{{asset('public/assets/admin/svg/logos/urban-goodz.svg')}}" style="height:36px;width:auto;" alt="Urban Goodz">
                         <span>{{ translate('Urban Goodz AI Operating System') }}</span>
                     </h1>
                     <p class="text-muted mb-0">{{ translate('AI-driven insights, live store optimization, and dedicated Urban Goodz vendor tools.') }}</p>

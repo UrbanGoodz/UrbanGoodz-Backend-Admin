@@ -222,7 +222,7 @@
     })
     function modulChange(id) {
         $.get({
-            url: "{{url('/')}}/admin/module/type/?module_type=" + id,
+            url: "{{url('/')}}/admin/business-settings/module/type?module_type=" + id,
             dataType: 'json',
             success: function(data) {
                 if(data.data.description.length)

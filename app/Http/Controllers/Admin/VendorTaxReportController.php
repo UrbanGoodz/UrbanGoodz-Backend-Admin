@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Brian2694\Toastr\Facades\Toastr;
 use Maatwebsite\Excel\Facades\Excel;
 
 class VendorTaxReportController extends Controller
@@ -228,6 +229,15 @@ class VendorTaxReportController extends Controller
         $store_id = $request->id;
         $store = is_numeric($store_id) ? Store::select('id', 'name', 'phone')->findOrFail($store_id) : null;
 
+        // The line above deliberately allows a null store - these reports are
+        // opened without ?id= straight from the reports menu - but the next line
+        // then read $store->id and answered 500 instead of asking which store.
+        if ($store === null) {
+            Toastr::warning(translate('messages.Please_select_a_store_for_this_report'));
+
+            return back();
+        }
+
         // $start = microtime(true);
         $vendortaxData =   $this->getVendortaxData($store->id, $startDate, $endDate);
         $summary =   $vendortaxData['summary'];
@@ -258,6 +268,15 @@ class VendorTaxReportController extends Controller
 
         $store_id = $request->id;
         $store = is_numeric($store_id) ? Store::select('id', 'name', 'phone')->findOrFail($store_id) : null;
+
+        // The line above deliberately allows a null store - these reports are
+        // opened without ?id= straight from the reports menu - but the next line
+        // then read $store->id and answered 500 instead of asking which store.
+        if ($store === null) {
+            Toastr::warning(translate('messages.Please_select_a_store_for_this_report'));
+
+            return back();
+        }
 
         // $start = microtime(true);
         $vendortaxData =   $this->getVendortaxData($store->id, $startDate, $endDate);

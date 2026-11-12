@@ -29,6 +29,7 @@ class AdminSessionCsrfRegressionTest extends TestCase
             'secure' => request()->isSecure(),
             'scheme' => request()->getScheme(),
             'ip' => request()->ip(),
+            'host' => request()->getHost(),
             'login_url' => route('login', ['tab' => 'admin']),
         ]));
     }
@@ -60,14 +61,26 @@ class AdminSessionCsrfRegressionTest extends TestCase
             ->assertStatus(419);
     }
 
-    public function test_default_configuration_trusts_no_proxy(): void
+    /**
+     * The app sits behind Cloudflare, so App\\Http\\Middleware\\TrustProxies trusts the proxy for the
+     * client address and scheme (without that every cookie and URL is built as http and the admin
+     * login 419s). It deliberately does NOT trust X-Forwarded-Host/Port: the origin is reachable
+     * directly, and a trusted forwarded host would let anyone rewrite the host url() builds,
+     * which poisons password-reset links.
+     */
+    public function test_default_configuration_trusts_scheme_but_never_the_forwarded_host(): void
     {
         $this->probeRoute();
 
-        $this->withHeaders(['X-Forwarded-Proto' => 'https'])
-            ->get('/__proxy-probe')
+        $response = $this->withHeaders([
+            'X-Forwarded-Proto' => 'https',
+            'X-Forwarded-Host' => 'evil.example',
+        ])->get('/__proxy-probe')
             ->assertOk()
-            ->assertJsonPath('secure', false);
+            ->assertJsonPath('secure', true);
+
+        $this->assertNotSame('evil.example', $response->json('host'), 'X-Forwarded-Host must never be trusted.');
+        $this->assertStringNotContainsString('evil.example', (string) $response->json('login_url'));
     }
 
     public function test_trusted_proxy_makes_https_visible_to_the_app(): void

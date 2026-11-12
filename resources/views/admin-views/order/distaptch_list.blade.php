@@ -503,7 +503,7 @@
                 @endif
 
                 function filter_zone_orders(id) {
-                    location.href = '{{url('/')}}/admin/order/zone-filter/' + id;
+                    location.href = '{{url('/')}}/admin/business-settings/zone/zone-filter/' + id;
                 }
 
                 $(document).on('ready', function () {

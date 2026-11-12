@@ -49,9 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
 
         $middleware->use([
-            // use() replaces the framework's default global stack, so the
-            // framework TrustProxies must be listed explicitly (see below).
-            \Illuminate\Http\Middleware\TrustProxies::class,
+            \App\Http\Middleware\TrustProxies::class,
             \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
             \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
             \App\Http\Middleware\TrimStrings::class,
@@ -165,7 +163,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyThirtyMinutes()
             ->withoutOverlapping()
             ->runInBackground()
-            ->when(fn () => config('urban_goodz_load_board.sourcing.enabled', false));
+            ->when(fn () => config('urban_goodz_load_board.sourcing.enabled', true));
 
         // Stranded: the responder answer window is measured in seconds, so this runs every minute.
         $schedule->command('stranded:dispatch-tick')
@@ -180,6 +178,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground();
 
+        // Reissues cards for Order Anywhere requests that are paid, assigned and
+        // somehow have no live card, and closes cards whose window lapsed. Every
+        // condition is a stuck state, so on a healthy system this does nothing.
         $schedule->command('order-anywhere:recover-card-issuance')
             ->everyFiveMinutes()
             ->withoutOverlapping()

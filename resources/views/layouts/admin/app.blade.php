@@ -89,8 +89,16 @@ $countryCode = strtolower($country ? $country : 'auto');
 
     @if(in_array($module_type, ['rental', 'ride-share']))
         @include("{$module_type}::admin.partials._sidebar_{$module_type}")
-    @else
+    @elseif(View::exists("layouts.admin.partials._sidebar_{$module_type}"))
         @include("layouts.admin.partials._sidebar_{$module_type}")
+    @else
+        {{-- $module_type is derived from the request path by CurrentModule
+             middleware. A path it does not recognise leaves it empty, which
+             asked for "_sidebar_" and took the whole page down with a
+             View not found - so any admin route outside the known module
+             prefixes 500'd on its layout rather than on its own content.
+             Fall back to the default sidebar instead. --}}
+        @include('layouts.admin.partials._sidebar')
     @endif
 
     <!-- END ONLY DEV -->
@@ -303,8 +311,10 @@ $countryCode = strtolower($country ? $country : 'auto');
                         <div class="max-349 mx-auto">
                             <div>
                                 <div class="text-center">
+                                    {{-- Was Modules/RideShare/...: no RideShare module is installed, so that
+                                         path 302s to login on every admin page load and renders broken. --}}
                                     <img alt="" class="mb-4" id="deleteIcon"
-                                        src="{{asset('Modules/RideShare/public/assets/img/ride-share/safety-alert-shield-icon-red.png')}}">
+                                        src="{{asset('public/assets/admin/img/WarningOctagon.svg')}}">
                                     <h5 class="modal-title mb-3" id="safetyAlertNotificationTitle"></h5>
                                 </div>
                                 <div class="text-center mb-4 pb-2">
@@ -339,7 +349,9 @@ $countryCode = strtolower($country ? $country : 'auto');
                     </div>
                     <div class="modal-body text-center p-3 pt-0">
                         <div class="imageModal_img_wrapper">
-                            <img src="" class="img-fluid imageModal_img" alt="{{ translate('Preview_Image') }}">
+                            {{-- No src="": an empty src makes the browser re-request the current page
+                                 as an image. JS fills this in when the modal opens. --}}
+                            <img class="img-fluid imageModal_img" alt="{{ translate('Preview_Image') }}">
                             <div class="imageModal_btn_wrapper m-1">
                                 <a href="javascript:" class="btn icon-btn px-1 py-1 download_btn"
                                     title="{{ translate('Download') }}" download>

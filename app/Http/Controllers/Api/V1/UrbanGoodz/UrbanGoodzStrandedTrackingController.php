@@ -67,6 +67,13 @@ class UrbanGoodzStrandedTrackingController extends Controller
             ->where('role', UrbanGoodzStrandedVerification::ROLE_SAMARITAN)
             ->first();
         $user = $stranded->assigned_responder_id ? \App\Models\User::find($stranded->assigned_responder_id) : null;
+        // Request-specific vehicle: honours a "different vehicle" override on
+        // this offer rather than always showing the responder's registered
+        // one. See UrbanGoodzStrandedOffer::effectiveVehicle().
+        $vehicle = $offer?->effectiveVehicle();
+        $vehiclePhotoUrl = $vehicle && $vehicle['photo_path']
+            ? \Illuminate\Support\Facades\Storage::disk(\App\CentralLogics\Helpers::getDisk())->url($vehicle['photo_path'])
+            : null;
 
         $lat = $responder?->last_latitude;
         $lng = $responder?->last_longitude;
@@ -93,17 +100,23 @@ class UrbanGoodzStrandedTrackingController extends Controller
                 // record. Vehicle and rating exist to help identify the
                 // right car and person; nothing here is contact information.
                 'name' => $this->firstName($stranded->assigned_responder_id),
-                'photo_url' => $user?->image_full_url,
+                // The Stranded-specific profile photo, set once on the
+                // Samaritan's verified profile -- not the general app avatar,
+                // which the customer has no reason to trust matches who
+                // actually shows up. Falls back to it only for professional/
+                // vendor responder types, which have no Stranded profile photo.
+                'photo_url' => $responder?->profile_photo_url ?: $user?->image_full_url,
                 'type' => $stranded->assigned_responder_type,
                 'rating' => $offer?->responder_rating,
                 'trust_score' => $offer?->responder_trust_score,
                 'completed_jobs' => $offer?->responder_completed_jobs,
                 'verified' => $verification?->isUsable() ?? false,
-                'vehicle' => $responder && ($responder->vehicle_make || $responder->vehicle_model) ? [
-                    'make' => $responder->vehicle_make,
-                    'model' => $responder->vehicle_model,
-                    'color' => $responder->vehicle_color,
-                    'plate' => $responder->vehicle_plate,
+                'vehicle' => $vehicle && ($vehicle['make'] || $vehicle['model']) ? [
+                    'make' => $vehicle['make'],
+                    'model' => $vehicle['model'],
+                    'color' => $vehicle['color'],
+                    'plate' => $vehicle['plate'],
+                    'photo_url' => $vehiclePhotoUrl,
                 ] : null,
             ],
             'position' => $stale ? null : [

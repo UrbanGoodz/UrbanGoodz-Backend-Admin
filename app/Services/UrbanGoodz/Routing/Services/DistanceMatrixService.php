@@ -198,6 +198,10 @@ class DistanceMatrixService
         return $matrix;
     }
 
+    /**
+     * $originIndex is retained for call compatibility and is deliberately
+     * unused: every row, including the origin's, now holds real distances.
+     */
     public function buildPairwiseMatrix(array $stops, int $originIndex = 0): array
     {
         $startMs = microtime(true);
@@ -207,11 +211,12 @@ class DistanceMatrixService
 
         if ($n === 0) return $matrix;
 
+        // The origin row used to be filled with zero-distance 'self' entries for
+        // every column, which reads as "leaving the origin stop is free". Both
+        // callers do travel out of it - nearestFeasibleNeighbor indexes
+        // matrix[currentIdx] and 2-opt reads every consecutive pair - so those
+        // zeros bias the ordering. Only the diagonal is genuinely zero.
         for ($i = 0; $i < $n; $i++) {
-            if ($i === $originIndex) {
-                $matrix[$i] = array_fill(0, $n, new DistanceResult(0, 0, 'self', 'self'));
-                continue;
-            }
             $matrix[$i] = [];
             for ($j = 0; $j < $n; $j++) {
                 if ($i === $j) {

@@ -357,7 +357,7 @@
 
     $('#rider').select2({
         ajax: {
-            url: '{{url('/')}}/admin/users/rider/get-deliverymen',
+            url: '{{url('/')}}/admin/users/delivery-man/get-deliverymen',
             data: function (params) {
                 return {
                     q: params.term, // search term

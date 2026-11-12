@@ -107,8 +107,12 @@ Route::post('payments/webhooks/{provider}', 'Api\V1\PaymentWebhookController@han
 Route::post('order-anywhere/cards/stripe/webhook', 'Api\V1\StripeIssuingWebhookController@handle')
     ->middleware('throttle:120,1');
 
+Route::post('stranded/connect/webhook', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedConnectWebhookController@handle')
+    ->middleware('throttle:120,1');
+
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
+    Route::post('requests/from-option', 'Api\V1\OrderAnywhereController@createFromOption');
     Route::get('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');
     Route::post('requests/{record}/authorize-payment', 'Api\V1\OrderAnywhereController@authorizePayment');
@@ -375,6 +379,8 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     });
 
     // Support AI
+    // Named bucket: a bare throttle:60,1 shares one limiter with every other
+    // bare throttle:60,1 route, so unrelated traffic can exhaust support AI.
     Route::group(['prefix' => 'urban-goodz/support/ai', 'middleware' => ['auth:api', 'throttle:60,1,ug-support-ai']], function () {
         Route::post('classify', 'Api\V1\UrbanGoodz\SupportAIController@classifyIssue');
         Route::post('auto-resolve', 'Api\V1\UrbanGoodz\SupportAIController@attemptAutoResolution');
@@ -418,6 +424,7 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
     // Cross-App AI. Each role is protected by its own authentication guard.
     // Business and dispatcher contracts remain on routes/business.php until a
     // dedicated token guard exists; never expose them through customer Passport.
+    // Named bucket, same reason as the support AI group above.
     Route::group(['prefix' => 'urban-goodz/cross-app/ai', 'middleware' => ['throttle:120,1,ug-cross-app-ai']], function () {
         Route::group(['prefix' => 'customer', 'middleware' => ['auth:api']], function () {
             Route::post('query', 'Api\V1\UrbanGoodz\CrossAppAIController@customerQuery');
@@ -454,7 +461,9 @@ Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], funct
         // Vendor-Owned Drivers & Shared Network (My Drivers)
         Route::group(['prefix' => 'vendor/drivers', 'middleware' => ['vendor.api', 'actch:vendor_app']], function () {
             Route::get('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@index');
-            Route::post('/', 'Api\V1\UrbanGoodz\VendorDriverManagementController@store');
+            Route::get('summary', 'Api\V1\UrbanGoodz\VendorDriverManagementController@summary');
+            Route::get('assignable-orders', 'Api\V1\UrbanGoodz\VendorDriverManagementController@assignableOrders');
+            Route::post('/','Api\V1\UrbanGoodz\VendorDriverManagementController@store');
             Route::put('{id}/pay', 'Api\V1\UrbanGoodz\VendorDriverManagementController@updateCompensation');
             Route::delete('{id}', 'Api\V1\UrbanGoodz\VendorDriverManagementController@destroy');
             Route::post('{id}/assign', 'Api\V1\UrbanGoodz\VendorDriverManagementController@assignOrder');
@@ -517,9 +526,17 @@ Route::group(['prefix' => 'urban-goodz/stranded', 'middleware' => ['auth:api', '
     Route::get('responder/offers', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@offers');
     Route::post('responder/offers/{offer}/accept', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@accept');
     Route::post('responder/offers/{offer}/decline', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@decline');
+    // Only reached when accept() was called with uses_alternate_vehicle -- see
+    // UrbanGoodzStrandedOffer::effectiveVehicle().
+    Route::post('responder/offers/{offer}/vehicle', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@submitVehicleOverride');
+    Route::post('responder/assignment/cancel', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@cancelAssignment');
     // The one rescue this responder is currently assigned to, with full
     // identifying detail -- withheld entirely until they are selected.
     Route::get('responder/assignment', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@activeAssignment');
+    // Stripe Connect payout onboarding. A responder cannot be dispatched a
+    // paid offer until this reports can_receive_payouts = true.
+    Route::post('responder/payouts/onboarding-link', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@payoutOnboardingLink');
+    Route::get('responder/payouts/status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedResponderController@payoutStatus');
 
     Route::post('requests', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedController@store');
     // Resume after the app was closed or killed mid-rescue, and list past requests.

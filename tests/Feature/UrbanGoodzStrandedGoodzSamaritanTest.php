@@ -97,7 +97,41 @@ class UrbanGoodzStrandedGoodzSamaritanTest extends TestCase
             'rating' => 4.8,
             'trust_score' => 90,
             'completed_jobs' => 12,
+            // A complete Samaritan profile: photo on file and a registered
+            // vehicle. Since the identity-trust work, an offer from an
+            // incomplete profile is deliberately not selectable, so a
+            // fixture responder has to be as complete as a real one.
+            'vehicle_make' => 'Subaru',
+            'vehicle_model' => 'Outback',
+            'vehicle_color' => 'Green',
+            'vehicle_plate' => 'SAM' . random_int(100, 999),
+            'profile_photo_path' => 'stranded/test/responder-face.jpg',
+            'vehicle_photo_path' => 'stranded/test/responder-car.jpg',
         ], $overrides));
+    }
+
+    /**
+     * Mark an offer accepted the way the responder accept endpoint does --
+     * including identity_ready_at, which the endpoint sets only once the
+     * responder genuinely has a photo and a vehicle the customer can
+     * recognise them by.
+     *
+     * The assertion is the point: this helper must never be able to hand
+     * back a selectable offer for a profile that is not actually complete,
+     * which would quietly disable the gate these tests run through.
+     */
+    private function accept(UrbanGoodzStrandedOffer $offer, string $mode = UrbanGoodzStrandedOffer::MODE_VOLUNTEER): UrbanGoodzStrandedOffer
+    {
+        $offer->update(['status' => 'accepted', 'response_mode' => $mode, 'responded_at' => now()]);
+
+        $offer->refresh();
+        $this->assertTrue(
+            $offer->computeIdentityReady(),
+            'Fixture responder profile is incomplete, so the real accept endpoint would not mark it identity-ready either.'
+        );
+        $offer->update(['identity_ready_at' => now()]);
+
+        return $offer->fresh();
     }
 
     private function request(User $user, array $overrides = []): UrbanGoodzStrandedRequest
@@ -134,8 +168,7 @@ class UrbanGoodzStrandedGoodzSamaritanTest extends TestCase
 
         app(UrbanGoodzStrandedDispatcher::class)->broadcast($request);
 
-        $offer = UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail();
-        $offer->update(['status' => 'accepted', 'response_mode' => UrbanGoodzStrandedOffer::MODE_VOLUNTEER, 'responded_at' => now()]);
+        $offer = $this->accept(UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail());
 
         $this->actingAs($customer, 'api')
             ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
@@ -284,8 +317,7 @@ class UrbanGoodzStrandedGoodzSamaritanTest extends TestCase
         $this->responder($responderUser, 2.0);
 
         app(UrbanGoodzStrandedDispatcher::class)->broadcast($request);
-        $offer = UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail();
-        $offer->update(['status' => 'accepted', 'response_mode' => UrbanGoodzStrandedOffer::MODE_VOLUNTEER, 'responded_at' => now()]);
+        $offer = $this->accept(UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail());
         $this->actingAs($customer, 'api')
             ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")
             ->assertStatus(200);

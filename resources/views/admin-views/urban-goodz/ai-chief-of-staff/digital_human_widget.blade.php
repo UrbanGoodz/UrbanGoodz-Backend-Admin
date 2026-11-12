@@ -190,7 +190,47 @@
  *
  * Returns true when it took responsibility for speaking.
  */
-function speakLocally(text, statusEl) {
+/**
+ * Pick a female en-US voice.
+ *
+ * getVoices() is populated ASYNCHRONOUSLY in Chrome: on the first call of a
+ * page load it returns an EMPTY array and only fills in once the engine
+ * fires `voiceschanged`. The previous version read it synchronously, so on
+ * the first utterance `preferred` was always undefined, no voice was
+ * assigned, and Chrome fell back to the OS default - which on Windows is
+ * Microsoft David, a male voice. That is why Monique came out sounding like
+ * a man. Resolving through the event fixes the first call as well as
+ * subsequent ones.
+ */
+function pickFemaleVoice() {
+    return new Promise((resolve) => {
+        const choose = () => {
+            const voices = window.speechSynthesis.getVoices() || [];
+            if (!voices.length) return null;
+            return voices.find(v =>
+                /en(-|_)US/i.test(v.lang) && /female|samantha|zira|aria|jenny|michelle|catherine/i.test(v.name)
+            ) || voices.find(v => /en(-|_)US/i.test(v.lang)) || null;
+        };
+
+        const immediate = choose();
+        if (immediate) { resolve(immediate); return; }
+
+        // Wait for the engine to publish its list, but never hang the caller.
+        let settled = false;
+        const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
+        const onChanged = () => {
+            window.speechSynthesis.removeEventListener('voiceschanged', onChanged);
+            finish(choose());
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', onChanged);
+        setTimeout(() => {
+            window.speechSynthesis.removeEventListener('voiceschanged', onChanged);
+            finish(choose());
+        }, 1000);
+    });
+}
+
+async function speakLocally(text, statusEl) {
     if (!('speechSynthesis' in window) || !text) return false;
 
     try {
@@ -203,12 +243,7 @@ function speakLocally(text, statusEl) {
         utterance.rate = 0.96;
         utterance.lang = 'en-US';
 
-        // Prefer a female en-US voice when the platform exposes one, so she
-        // does not default to whatever the OS lists first.
-        const voices = window.speechSynthesis.getVoices() || [];
-        const preferred = voices.find(v =>
-            /en(-|_)US/i.test(v.lang) && /female|samantha|zira|aria|jenny/i.test(v.name)
-        ) || voices.find(v => /en(-|_)US/i.test(v.lang));
+        const preferred = await pickFemaleVoice();
         if (preferred) utterance.voice = preferred;
 
         if (statusEl) statusEl.innerText = 'Speaking (on-device)...';
@@ -256,7 +291,7 @@ function triggerSkylarSpeech(btn) {
         if (statusEl) statusEl.innerText = '';
         return audio.play();
     })
-    .catch(err => {
+    .catch(async err => {
         // The cloud gateway is an upgrade, not a requirement.
         //
         // When it fails - it was returning HTTP 502 in production, which left
@@ -264,8 +299,13 @@ function triggerSkylarSpeech(btn) {
         // synthesis. That is on-device, free, needs no API key and no network,
         // and mirrors what the customer app does with the Android platform TTS
         // engine (see core/voice_engine_selector.dart there).
+        //
+        // speakLocally is async (it waits on `voiceschanged` to resolve a
+        // female voice), so this must await it: a bare truthiness check on the
+        // returned Promise is always true and would swallow the error message
+        // even when speech never started.
         console.warn('Digital Human cloud voice unavailable, using on-device speech:', err);
-        if (speakLocally(text, statusEl)) return;
+        if (await speakLocally(text, statusEl)) return;
         if (statusEl) statusEl.innerText = err.message || "Couldn't play the brief right now.";
     })
     .finally(() => {

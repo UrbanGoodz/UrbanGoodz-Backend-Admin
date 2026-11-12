@@ -66,18 +66,6 @@ echo "[3/5] Migrating..."
 php artisan migrate --force >/dev/null
 echo "  $(php -r 'require "vendor/autoload.php"; $a=require "bootstrap/app.php"; $a->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo DB::select("SELECT COUNT(*) c FROM information_schema.tables WHERE table_schema=DATABASE()")[0]->c;') tables"
 
-# ---------- 3b. passport keys --------------------------------------------
-# Without these, anything touching an api-guard route dies inside
-# league/oauth2-server with "LogicException: Invalid key supplied", which reads
-# like a code fault rather than a missing setup step. Four Feature tests failed
-# this way on a fresh environment.
-if [ ! -f storage/oauth-private.key ]; then
-    echo "[3b/5] Generating Passport keys..."
-    php artisan passport:keys --force >/dev/null 2>&1 && echo "  generated" || echo "  WARNING: passport:keys failed"
-else
-    echo "[3b/5] Passport keys already present."
-fi
-
 # ---------- 4. seed -------------------------------------------------------
 # Order matters. StagingRoleFixtureSeeder replaces the admins table with its
 # own deterministic fixtures (ids 9001+), so any account the specs rely on must
@@ -129,35 +117,6 @@ foreach ([
     DB::table("urban_goodz_business_client_users")->updateOrInsert(["email"=>$email], $data);
     printf("  %-34s role=%s\n", $email, $data["role"]);
 }
-
-// --- client split self-heal ------------------------------------------
-// The dispatcher portal routes on client.account_type == dispatch_company
-// AND user role being a dispatch role, so the dispatcher fixture must
-// belong to a dispatch company, not the regular business one. Recreating
-// the two companies and re-pointing both the spec accounts and their
-// seeder source rows keeps a re-run of this script sufficient even if the
-// seeder itself was never re-run.
-DB::table("urban_goodz_business_clients")->updateOrInsert(
-  ["id"=>9001],
-  ["company_name"=>"Smoke Test Company","account_type"=>"business",
-   "email"=>"staging.business@fixture.invalid","phone"=>"+15550009401",
-   "status"=>"approved","updated_at"=>now()]
-);
-DB::table("urban_goodz_business_clients")->updateOrInsert(
-  ["id"=>9002],
-  ["company_name"=>"Dispatch Test Co","account_type"=>"dispatch_company",
-   "email"=>"staging.dispatch@fixture.invalid","phone"=>"+15550009402",
-   "status"=>"approved"]
-);
-foreach (["staging.business.owner@fixture.invalid","business_test@urbangoodz.test"] as $e) {
-    DB::table("urban_goodz_business_client_users")
-        ->where("email",$e)->update(["business_client_id"=>9001,"role"=>"owner","updated_at"=>now()]);
-}
-foreach (["staging.dispatcher@fixture.invalid","dispatcher_test@urbangoodz.test"] as $e) {
-    DB::table("urban_goodz_business_client_users")
-        ->where("email",$e)->update(["business_client_id"=>9002,"role"=>"dispatch_owner","portal_role"=>"dispatcher","updated_at"=>now()]);
-}
-echo "  clients split -> Smoke Test Company (business) / Dispatch Test Co (dispatch_company)\n";
 '
 
 echo ""

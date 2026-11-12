@@ -487,6 +487,12 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('external-loads', fn() => redirect()->route('admin.urban-goodz.load-sourcing.sourced-loads'));
             });
 
+            Route::group(['prefix' => 'fleet-operations', 'as' => 'fleet-operations.'], function () {
+                Route::get('/', 'UrbanGoodz\UrbanGoodzFleetOperationsController@index')
+                    ->middleware('module:urban_goodz_fleet_operations_view')
+                    ->name('index');
+            });
+
             Route::group(['prefix' => 'dispatches', 'as' => 'dispatches.'], function () {
                 Route::get('/', 'UrbanGoodz\UrbanGoodzDispatchController@index')->name('index');
                 Route::get('{id}', 'UrbanGoodz\UrbanGoodzDispatchController@show')->name('show');
@@ -907,6 +913,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::get('verified-seller/{store}', 'VendorController@verifiedSeller')->name('verified-seller');
                 Route::get('verified-seller-all', 'VendorController@verifiedSellerAll')->name('verified-seller-all');
                 Route::get('featured/{store}/{status}', 'VendorController@featured')->name('featured');
+                Route::get('partner-badge/{store}/{status}', 'VendorController@partnerBadge')->name('partner-badge');
                 Route::get('toggle-settings-status/{store}/{status}/{menu}', 'VendorController@store_status')->name('toggle-settings');
                 Route::post('status-filter', 'VendorController@status_filter')->name('status-filter');
 
@@ -1364,9 +1371,11 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::group(['prefix' => 'apple-login', 'as' => 'apple-login.'], function () {
             Route::post('update/{service}', 'BusinessSettingsController@updateAppleLogin')->name('update');
         });
-        Route::get('store/report', function () {
-            return view('store_report');
-        });
+        // Removed: an unnamed closure returning view('store_report'), a Blade
+        // that has never existed anywhere in this repo. Nothing links to the
+        // path and no route name was ever assigned, so its only behaviour was
+        // to answer 500 to anyone who found it. The real store reporting lives
+        // under admin/transactions/report/* and admin/report/*.
 
         Route::group(['prefix' => 'dispatch', 'as' => 'dispatch.'], function () {
             Route::get('/', 'DashboardController@dispatch_dashboard')->name('dashboard');

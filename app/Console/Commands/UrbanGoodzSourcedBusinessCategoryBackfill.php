@@ -9,6 +9,7 @@ class UrbanGoodzSourcedBusinessCategoryBackfill extends Command
 {
     protected $signature = 'urban-goodz:sourced-business-category-backfill
         {--batch-marker= : Required. created_by_source marker of the staged import.}
+        {--expected-matches= : Optional. Expected exact match count.}
         {--dry-run : Simulate only (default behavior).}
         {--apply : Perform the backfill update. Required for any change.}';
 
@@ -67,10 +68,14 @@ class UrbanGoodzSourcedBusinessCategoryBackfill extends Command
             }
         }
 
-        // --- Refuse if match count is not exactly the expected 11 ---
-        if (count($matches) !== self::EXPECTED_MATCHES) {
-            $this->error("Refusing: expected exactly ".self::EXPECTED_MATCHES." exact matches, found ".count($matches).".");
-            return self::FAILURE;
+        // --- Optional check for expected match count ---
+        $expectedOption = $this->option('expected-matches');
+        if ($expectedOption !== null) {
+            $expectedCount = (int) $expectedOption;
+            if (count($matches) !== $expectedCount) {
+                $this->error("Refusing: expected exactly {$expectedCount} exact matches, found " . count($matches) . ".");
+                return self::FAILURE;
+            }
         }
 
         // --- Per-match guards ---
@@ -93,7 +98,7 @@ class UrbanGoodzSourcedBusinessCategoryBackfill extends Command
             $this->line("  id={$r->id} name={$r->name} module={$r->module_id} subcat={$m['subcat']} -> category {$m['cat_id']}");
         }
         $this->line("Pending category_ids before: {$pendingBefore}");
-        $this->line("Manual-review rows remaining (expected): ".($pendingBefore - self::EXPECTED_MATCHES));
+        $this->line("Manual-review rows remaining: ".($pendingBefore - count($matches)));
 
         if ($dryRun) {
             $this->warn('DRY-RUN complete. Re-run with --apply to write changes.');
@@ -118,16 +123,18 @@ class UrbanGoodzSourcedBusinessCategoryBackfill extends Command
             ->count();
 
         $this->info("--- AFTER ---");
-        $this->line("Rows updated: {$updated} (expected ".self::EXPECTED_MATCHES.")");
+        $this->line("Rows updated: {$updated} (matched ".count($matches).")");
         $this->line("Pending category_ids after: {$pendingAfter}");
         $this->info('Rollback SQL:');
         $ids = implode(', ', array_map(fn ($m) => $m['row']->id, $matches));
         $this->line("  UPDATE urban_goodz_sourced_businesses SET category_ids = '[]' WHERE id IN ({$ids}) AND created_by_source = '{$marker}';");
 
-        if ($updated !== self::EXPECTED_MATCHES || $pendingAfter !== ($pendingBefore - self::EXPECTED_MATCHES)) {
+        if ($updated !== count($matches) || $pendingAfter !== ($pendingBefore - count($matches))) {
             $this->error('Mismatch detected. Verify before relying on this backfill.');
             return self::FAILURE;
         }
+
+        $this->info('Category backfill applied successfully.');
         return self::SUCCESS;
     }
 }

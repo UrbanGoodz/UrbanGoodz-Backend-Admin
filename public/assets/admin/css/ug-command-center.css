@@ -118,7 +118,12 @@ body.footer-offset {
 
 /* Skylar AI Copilot Bar */
 .ug-ai-copilot-bar {
-  background: linear-gradient(135deg, var(--ug-navy) 0%, var(--ug-navy-dark) 100%);
+  /* Was navy (var(--ug-navy)/--ug-navy-dark) -- a hue with no relationship
+     to the brand palette. Skylar's actual visual identity elsewhere
+     (the mobile app's floating-concierge stage) is a warm black-to-amber
+     gradient, not blue; matched here so the same persona reads the same
+     way on web and mobile. */
+  background: linear-gradient(135deg, #3A2B1A 0%, var(--ug-black) 100%);
   border-radius: var(--ug-radius-lg);
   padding: 20px 24px;
   color: #ffffff;
@@ -176,7 +181,9 @@ body.footer-offset {
 .ug-command-palette-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 30, 51, 0.6);
+  /* Was rgba(15, 30, 51, 0.6) -- an ad hoc near-navy, not even the --ug-navy
+     variable itself. A neutral dim over --ug-black needs no new hue. */
+  background: rgba(22, 22, 22, 0.6);
   backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;

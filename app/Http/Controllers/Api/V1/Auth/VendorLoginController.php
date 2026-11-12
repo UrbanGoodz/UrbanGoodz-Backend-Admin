@@ -215,6 +215,9 @@ class VendorLoginController extends Controller
         $store->status = 0;
         $store->store_business_model = 'none';
         $store->pickup_zone_id = $request['pickup_zone_id'] ?? json_encode([]);
+        // A badge is granted by Urban Goodz, never assumed at signup.
+        $store->partner_badge_enabled = 0;
+        $store->partner_badge_enabled_at = null;
         $store->save();
         // $store->module->increment('stores_count');
         if(config('module.'.$store->module->module_type)['always_open'])

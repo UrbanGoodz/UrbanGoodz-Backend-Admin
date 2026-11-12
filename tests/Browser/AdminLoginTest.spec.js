@@ -127,7 +127,9 @@ async function fillCustomCaptcha(page) {
  */
 async function submitLogin(page, email, password, { captcha = 'valid' } = {}) {
   await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
-  await page.locator('input[name="email"]').fill(email);
+  // Two name="email" inputs exist on this page - sign-in and forgot-password -
+  // so this must target the sign-in field or it is a strict-mode violation.
+  await page.locator('#signinSrEmail').fill(email);
   await page.locator('input[name="password"]').fill(password);
 
   if (captcha === 'valid') {
@@ -196,8 +198,11 @@ test.describe('Admin login page', () => {
     const response = await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
     expect(response.status()).toBe(200);
 
-    await expect(page.locator('input[name="email"]')).toBeVisible();
-    await expect(page.locator('input[name="password"]')).toBeVisible();
+    // The page carries two name="email" inputs - the sign-in form and the
+    // forgot-password form - so an unscoped locator is a strict-mode
+    // violation. Assert against the sign-in field specifically.
+    await expect(page.locator('#signinSrEmail')).toBeVisible();
+    await expect(page.locator('input[name="password"]').first()).toBeVisible();
     await expect(page.locator('#custome_recaptcha')).toBeVisible();
     await expect(page.locator('#signInBtn')).toBeVisible();
 
@@ -209,8 +214,8 @@ test.describe('Admin login page', () => {
   test('required fields are enforced', async ({ page }) => {
     await page.goto('/login/admin', { waitUntil: 'domcontentloaded' });
 
-    const emailInput = page.locator('input[name="email"]');
-    const passwordInput = page.locator('input[name="password"]');
+    const emailInput = page.locator('#signinSrEmail');
+    const passwordInput = page.locator('input[name="password"]').first();
 
     // Assert the fields actually declare themselves required, rather than
     // inferring it from a post-submit URL check.
@@ -328,8 +333,23 @@ test.describe('Admin login page', () => {
       const onlyAuthorized = authorizedPaths.filter((p) => !restrictedPaths.includes(p));
       const onlyRestricted = restrictedPaths.filter((p) => !authorizedPaths.includes(p));
 
+      // "Does the path contain urban-goodz" is an approximation of "is this
+      // link gated by urban_goodz_view", and two links in the Urban Goodz
+      // sidebar section break it: Mobile In-App Updates points at
+      // /admin/mobile-releases, and the Business Vendor Portal launcher points
+      // at /business/login. Both sit inside the
+      // module_permission_check('urban_goodz_view') block in
+      // _sidebar_urban_goodz.blade.php, so they are exactly the difference this
+      // test exists to see - they just do not say so in their URL.
+      //
+      // Naming them keeps the check strict: any OTHER non-urban-goodz path
+      // appearing for one account and not the other still fails, which is the
+      // signal that the roles differ by more than the one module.
+      const UG_GATED_NON_UG_PATHS = ['/admin/mobile-releases', '/business/login'];
+      const isUrbanGoodzGated = (p) => p.includes('urban-goodz') || UG_GATED_NON_UG_PATHS.includes(p);
+
       expect(
-        onlyAuthorized.every((p) => p.includes('urban-goodz')),
+        onlyAuthorized.every(isUrbanGoodzGated),
         `Authorized-only paths outside urban-goodz (roles differ by more than urban_goodz_view): ${JSON.stringify(onlyAuthorized)}`
       ).toBe(true);
       expect(
@@ -370,12 +390,15 @@ test.describe('Admin login page', () => {
     await expect(page.locator('body')).not.toContainText(PRIMARY_ONLY_DASHBOARD_MARKER);
 
     const response = await page.goto(PROTECTED_MODULE_ROUTE, { waitUntil: 'domcontentloaded' });
-    expect(response.status()).not.toBe(500);
 
-    // ModulePermissionMiddleware bounces denied requests away with
-    // Toastr::error + back() -- the protected route, its heading, and its
-    // record data must all be unreachable, regardless of where it lands.
-    expect(page.url()).not.toContain(PROTECTED_MODULE_ROUTE);
+    // ModulePermissionMiddleware answers a denied request with a real 403 -
+    // deliberately, so the refusal is visible to callers instead of being
+    // swallowed by a back() redirect. A 403 leaves the browser on the same
+    // URL, so asserting the URL changed (as this test used to) would fail
+    // against correct behaviour and pass against a silent bounce.
+    expect(response.status()).toBe(403);
+
+    // And the refusal must be real: none of the page's content may leak.
     await expect(page.locator('h1,h3', { hasText: PROTECTED_MODULE_HEADING })).toHaveCount(0);
     await expect(page.locator('table tbody tr')).toHaveCount(0);
   });

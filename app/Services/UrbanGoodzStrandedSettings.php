@@ -40,6 +40,8 @@ class UrbanGoodzStrandedSettings
     public const KEY_OFFER_TTL_SECONDS = 'stranded_offer_ttl_seconds';
     /** Minutes of community-only window before professionals are offered. */
     public const KEY_ESCALATION_MINUTES = 'stranded_escalation_minutes';
+    /** Minutes after assignment with no en-route update before Monique alerts ops. */
+    public const KEY_RESPONDER_STALL_MINUTES = 'stranded_responder_stall_minutes';
 
     private const DEFAULTS = [
         self::KEY_FEE_ENABLED => '1',
@@ -50,6 +52,7 @@ class UrbanGoodzStrandedSettings
         self::KEY_RADIUS_LADDER => '10,15,20,25',
         self::KEY_OFFER_TTL_SECONDS => '45',
         self::KEY_ESCALATION_MINUTES => '10',
+        self::KEY_RESPONDER_STALL_MINUTES => '15',
     ];
 
     /** Every editable key with its default, for the admin screen. */
@@ -150,5 +153,10 @@ class UrbanGoodzStrandedSettings
     public static function escalationMinutes(): int
     {
         return max(1, (int) self::raw(self::KEY_ESCALATION_MINUTES));
+    }
+
+    public static function responderStallMinutes(): int
+    {
+        return max(1, (int) self::raw(self::KEY_RESPONDER_STALL_MINUTES));
     }
 }

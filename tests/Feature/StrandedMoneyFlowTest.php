@@ -10,7 +10,7 @@ use App\Models\UrbanGoodzStrandedResponder;
 use App\Models\UrbanGoodzStrandedService;
 use App\Models\UrbanGoodzStrandedVerification;
 use App\Models\User;
-use App\Services\UrbanGoodz\UrbanGoodzStrandedPaymentService;
+use App\Domain\Stranded\Payments\UrbanGoodzStrandedPaymentService;
 use App\Services\UrbanGoodzStrandedDispatcher;
 use App\Services\UrbanGoodzStrandedSafety;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -67,7 +67,7 @@ class StrandedMoneyFlowTest extends TestCase
     /** Payment service whose Stripe calls are scripted. */
     private function payments(array $script): object
     {
-        $svc = new class(app(UrbanGoodzStrandedDispatcher::class)) extends UrbanGoodzStrandedPaymentService {
+        $svc = new class(app(UrbanGoodzStrandedDispatcher::class), app(\App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier::class), app(\App\Domain\Stranded\Support\MoniqueOperationsAlertService::class)) extends UrbanGoodzStrandedPaymentService {
             public array $script = [];
             public array $calls = [];
 
@@ -126,7 +126,7 @@ class StrandedMoneyFlowTest extends TestCase
     public function test_a_provider_outage_reopens_the_fee(): void
     {
         $request = $this->request($this->user('outage'));
-        $svc = new class(app(UrbanGoodzStrandedDispatcher::class)) extends UrbanGoodzStrandedPaymentService {
+        $svc = new class(app(UrbanGoodzStrandedDispatcher::class), app(\App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier::class), app(\App\Domain\Stranded\Support\MoniqueOperationsAlertService::class)) extends UrbanGoodzStrandedPaymentService {
             protected function stripe(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
             {
                 throw new \RuntimeException('Could not reach the payment provider.');
@@ -159,8 +159,22 @@ class StrandedMoneyFlowTest extends TestCase
         $offer = UrbanGoodzStrandedOffer::where('request_id', $request->id)->firstOrFail();
         $offer->update(['status' => 'accepted', 'response_mode' => 'paid', 'requested_amount_minor' => 3000, 'responded_at' => now()]);
 
-        $this->actingAs($customer, 'api')->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/offers/{$offer->id}/select")->assertOk();
-        $this->assertSame('held', $request->fresh()->escrow_status);
+        // Selecting a responder now authorises a real card hold (covered by the payment-service
+        // tests). Here the hold is already in place, and the release is observed rather than run:
+        // what this test guards is the CONTROLLER's close path, not Stripe.
+        $request->update(['selected_offer_id' => $offer->id, 'status' => 'assigned', 'escrow_status' => 'held']);
+        $releases = new class(app(UrbanGoodzStrandedDispatcher::class), app(\App\Domain\Stranded\Notifications\UrbanGoodzStrandedNotifier::class), app(\App\Domain\Stranded\Support\MoniqueOperationsAlertService::class)) extends UrbanGoodzStrandedPaymentService {
+            public int $count = 0;
+
+            public function releaseEscrow(UrbanGoodzStrandedRequest $request): array
+            {
+                $this->count++;
+                $request->update(['escrow_status' => 'released', 'escrow_released_at' => now()]);
+
+                return ['released' => true, 'reason' => null, 'amount_minor' => 0];
+            }
+        };
+        $this->app->instance(UrbanGoodzStrandedPaymentService::class, $releases);
 
         $this->actingAs($customer, 'api')->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/status", ['event' => 'completed'])->assertOk();
 
@@ -173,7 +187,7 @@ class StrandedMoneyFlowTest extends TestCase
         $this->actingAs($customer, 'api')->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/status", ['event' => 'completed'])->assertStatus(409);
         $this->actingAs($customer, 'api')->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/status", ['event' => 'confirmed'])->assertStatus(409);
 
-        $this->assertSame(1, UrbanGoodzPaymentTransaction::where('payable_id', $request->id)->where('transaction_type', 'escrow_release')->count());
+        $this->assertSame(1, $releases->count, 'escrow must be released exactly once');
         $this->assertSame(4, (int) UrbanGoodzStrandedResponder::where('user_id', $helper->id)->value('completed_jobs'), 'the job must be counted once');
         $this->assertNull(UrbanGoodzStrandedResponder::where('user_id', $helper->id)->value('active_request_id'));
     }

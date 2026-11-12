@@ -53,6 +53,11 @@ class UrbanGoodzPackageScanRecorder
             'scan_type' => $scanType,
             'scanned_by' => $attributes['scanned_by'] ?? null,
             'scanner_type' => $attributes['scanner_type'] ?? 'driver',
+            // Only an explicit claim from the client counts as provenance.
+            // identifier_type says which field was sent, not how it was
+            // captured - a hand-typed barcode is still identifier_type
+            // 'barcode' - so it must not be used to infer a camera scan.
+            'input_method' => $attributes['input_method'] ?? 'manual',
             'identifier_type' => $attributes['identifier_type'] ?? null,
             'identifier_value' => $attributes['identifier_value'] ?? null,
             'status_before' => $attributes['status_before'] ?? null,

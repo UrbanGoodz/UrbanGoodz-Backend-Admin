@@ -66,11 +66,17 @@ class NotificationController extends BaseController
         return response()->json();
     }
 
-    public function getUpdateView(string|int $id): View
+    /**
+     * admin-views.notification.edit was never built: notifications are edited
+     * in the offcanvas panel on the index page, which is populated from data
+     * attributes and never navigates here. This route therefore answered
+     * "View [admin-views.notification.edit] not found" - a 500 - and nothing
+     * in the app links to it. Send it to the page that actually does the edit
+     * rather than invent a second editor.
+     */
+    public function getUpdateView(string|int $id): RedirectResponse
     {
-        $notification = $this->notificationRepo->getFirstWhere(params: ['id' => $id]);
-        $zones = $this->zoneRepo->getList();
-        return view(NotificationViewPath::UPDATE[VIEW], compact('notification','zones'));
+        return redirect()->route('admin.notification.add-new');
     }
 
     public function update(NotificationUpdateRequest $request, $id): RedirectResponse

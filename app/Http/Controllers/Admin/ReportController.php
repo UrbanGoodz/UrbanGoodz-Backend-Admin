@@ -705,6 +705,10 @@ class ReportController extends Controller
      */
     public function earning_index()
     {
+        // The replacement lives under the transactions group, so its name is
+        // admin.transactions.report.* - "admin.report.*" was never registered
+        // and this redirect threw "Route [admin.report.admin-earning-report]
+        // not defined", turning /admin/transactions/report/earning into a 500.
         return redirect()->route('admin.transactions.report.admin-earning-report');
     }
 

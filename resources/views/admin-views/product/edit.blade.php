@@ -531,7 +531,7 @@
 
         function modulChange(id) {
             $.get({
-                url: "{{ url('/') }}/admin/module/" + id,
+                url: "{{ url('/') }}/admin/business-settings/module/show/" + id,
                 dataType: 'json',
                 success: function(data) {
                     module_data = data.data;

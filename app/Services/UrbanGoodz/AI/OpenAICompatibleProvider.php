@@ -113,9 +113,17 @@ class OpenAICompatibleProvider extends AbstractAIProvider
                     'empty_provider_response'
                 );
         } catch (\Throwable $exception) {
+            // See the note in GeminiProvider: the exception class on its own
+            // does not say what failed, so carry the message and the model.
             Log::warning('UrbanGoodz AI provider is unavailable.', [
                 'provider' => $this->name(),
+                'model' => $this->model(),
                 'exception' => $exception::class,
+                // An exception message is untrusted text that can carry a
+                // request echo. The Gemini key travels in a header, not the
+                // URL, so it should never appear here - redact anyway rather
+                // than rely on that staying true.
+                'message' => self::redactSecrets($exception->getMessage()),
             ]);
 
             return $this->failure(
@@ -173,5 +181,19 @@ class OpenAICompatibleProvider extends AbstractAIProvider
     private function retryDelay(): int
     {
         return max(0, (int) config('urban_goodz_ai.retry_delay_ms', 250));
+    }
+
+    /**
+     * Strips anything shaped like a provider credential out of text bound for
+     * the log. Cheap insurance: a log line is the wrong place to discover that
+     * a library started echoing the request.
+     */
+    private static function redactSecrets(string $text): string
+    {
+        $text = preg_replace('/AIza[0-9A-Za-z_-]{10,}/', 'AIza<redacted>', $text) ?? $text;
+        $text = preg_replace('/sk-[0-9A-Za-z_-]{10,}/', 'sk-<redacted>', $text) ?? $text;
+        $text = preg_replace('/([?&](?:key|api_key|access_token)=)[^&\s]+/i', '$1<redacted>', $text) ?? $text;
+
+        return mb_strimwidth($text, 0, 500, '...');
     }
 }

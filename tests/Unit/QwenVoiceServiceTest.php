@@ -13,17 +13,16 @@ class QwenVoiceServiceTest extends TestCase
         parent::setUp();
 
         config()->set('urban_goodz_personas.digital_human_global.qwen_base_url', 'https://tts.example.internal');
-        config()->set('urban_goodz_personas.digital_human_global.qwen_api_key', 'fixture_not_real_key');
+        config()->set('urban_goodz_personas.digital_human_global.qwen_api_key', '');
     }
 
     public function test_missing_base_url_fails_closed_instead_of_fabricating_audio(): void
     {
         config()->set('urban_goodz_personas.digital_human_global.qwen_base_url', '');
-        config()->set('urban_goodz_personas.digital_human_global.qwen_api_key', 'fixture_not_real_key');
 
         $service = new QwenVoiceService();
 
-        $this->assertFalse($service->isConfigured('concierge'));
+        $this->assertFalse($service->isConfigured());
 
         $result = $service->synthesize('concierge', 'How you doin?');
 
@@ -32,24 +31,10 @@ class QwenVoiceServiceTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_missing_api_key_fails_closed(): void
+    public function test_configured_without_an_api_key_still_synthesizes(): void
     {
-        config()->set('urban_goodz_personas.digital_human_global.qwen_base_url', 'https://tts.example.internal');
-        config()->set('urban_goodz_personas.digital_human_global.qwen_api_key', '');
-
-        $service = new QwenVoiceService();
-
-        $this->assertFalse($service->isConfigured('concierge'));
-
-        $result = $service->synthesize('concierge', 'How you doin?');
-
-        $this->assertFalse($result['success']);
-        $this->assertSame('not_configured', $result['error_code']);
-        Http::assertNothingSent();
-    }
-
-    public function test_configured_and_successful_response_returns_real_audio_bytes(): void
-    {
+        // The self-hosted Qwen3-TTS service does not require an API key —
+        // it is only reachable via its Cloudflare tunnel hostname.
         $fakeAudioBytes = "RIFF\x00\x00\x00\x00WAVEfake-wav-bytes-for-test";
 
         Http::fake([
@@ -58,7 +43,7 @@ class QwenVoiceServiceTest extends TestCase
 
         $service = new QwenVoiceService();
 
-        $this->assertTrue($service->isConfigured('concierge'));
+        $this->assertTrue($service->isConfigured());
 
         $result = $service->synthesize('concierge', 'How you doin?');
 
@@ -68,9 +53,27 @@ class QwenVoiceServiceTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->url() === 'https://tts.example.internal/v1/tts'
-                && $request->hasHeader('X-API-Key', 'fixture_not_real_key')
+                && ! $request->hasHeader('X-API-Key')
                 && $request['voice'] === 'skylar'
                 && $request['text'] === 'How you doin?';
+        });
+    }
+
+    public function test_api_key_is_sent_when_configured(): void
+    {
+        config()->set('urban_goodz_personas.digital_human_global.qwen_api_key', 'fixture_not_real_key');
+
+        $fakeAudioBytes = "RIFF\x00\x00\x00\x00WAVEfake-wav-bytes-for-test";
+
+        Http::fake([
+            'tts.example.internal/*' => Http::response($fakeAudioBytes, 200, ['Content-Type' => 'audio/wav']),
+        ]);
+
+        $service = new QwenVoiceService();
+        $service->synthesize('concierge', 'How you doin?');
+
+        Http::assertSent(function ($request) {
+            return $request->hasHeader('X-API-Key', 'fixture_not_real_key');
         });
     }
 
@@ -117,5 +120,18 @@ class QwenVoiceServiceTest extends TestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('provider_error', $result['error_code']);
+    }
+
+    public function test_mp3_content_type_is_reported_correctly(): void
+    {
+        Http::fake([
+            'tts.example.internal/*' => Http::response('fake-mp3-bytes', 200, ['Content-Type' => 'audio/mp3']),
+        ]);
+
+        $service = new QwenVoiceService();
+        $result = $service->synthesize('concierge', 'How you doin?');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('audio/mpeg', $result['mime']);
     }
 }

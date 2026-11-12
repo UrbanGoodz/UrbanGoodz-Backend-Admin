@@ -22,6 +22,9 @@ class UrbanGoodzStrandedResponder extends Model
         'capabilities', 'safety_ack_at',
         'rating', 'trust_score', 'completed_jobs', 'declined_jobs', 'missed_jobs',
         'active_request_id',
+        'stripe_connect_account_id', 'stripe_onboarding_status',
+        'stripe_charges_enabled', 'stripe_payouts_enabled', 'stripe_details_submitted_at',
+        'profile_photo_path', 'vehicle_photo_path',
     ];
 
     protected $casts = [
@@ -35,7 +38,44 @@ class UrbanGoodzStrandedResponder extends Model
         'rating' => 'float',
         'trust_score' => 'integer',
         'completed_jobs' => 'integer',
+        'stripe_charges_enabled' => 'boolean',
+        'stripe_payouts_enabled' => 'boolean',
+        'stripe_details_submitted_at' => 'datetime',
     ];
+
+    protected $appends = ['profile_photo_url', 'vehicle_photo_url'];
+
+    /** True once Stripe has confirmed this responder can actually receive a transfer. */
+    public function canReceivePayouts(): bool
+    {
+        return $this->stripe_payouts_enabled && $this->stripe_connect_account_id !== null;
+    }
+
+    /**
+     * A complete, ready-to-dispatch Samaritan profile: photo on file, and a
+     * registered vehicle. Everything else (rating, trust score) is earned
+     * over time and is not a precondition for accepting a first request.
+     */
+    public function hasCompleteIdentity(): bool
+    {
+        return $this->profile_photo_path !== null
+            && $this->vehicle_make !== null
+            && $this->vehicle_photo_path !== null;
+    }
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        return $this->profile_photo_path
+            ? \Illuminate\Support\Facades\Storage::disk(\App\CentralLogics\Helpers::getDisk())->url($this->profile_photo_path)
+            : null;
+    }
+
+    public function getVehiclePhotoUrlAttribute(): ?string
+    {
+        return $this->vehicle_photo_path
+            ? \Illuminate\Support\Facades\Storage::disk(\App\CentralLogics\Helpers::getDisk())->url($this->vehicle_photo_path)
+            : null;
+    }
 
     /** Precise coordinates are never sent to customers -- only distance is. */
     protected $hidden = ['last_latitude', 'last_longitude'];

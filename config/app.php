@@ -41,7 +41,12 @@ return [
     |
     */
 
-    'debug' => (bool)env('APP_DEBUG', true),
+    // Defaults to false. A missing APP_DEBUG must not turn debug ON: an
+    // absent key is exactly the case where nobody decided, and in that
+    // case a 500 should not hand the visitor a stack trace, file paths
+    // and surrounding source. Production's .env had no APP_DEBUG at all,
+    // so the previous `true` default was live there.
+    'debug' => (bool)env('APP_DEBUG', false),
     'development_environment' => (bool)env('DEVELOPMENT_ENVIRONMENT', false),
 
     /*

@@ -253,11 +253,65 @@ class OrderController extends Controller
                     });
                 })
                 ->latest()->active()->paginate(10);
-            return view('vendor-views.order.order-view', compact('order' ,'reasons', 'editing', 'categories', 'products', 'category', 'keyword'));
+
+            // Mirrors the checks assignToBusinessOrder() enforces, so the
+            // dropdown never offers a driver or an order it would reject.
+            $availableDrivers = collect();
+            if (!$order->delivery_man_id
+                && in_array($order->order_type, ['delivery', 'parcel'], true)
+                && in_array($order->order_status, \App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::ASSIGNABLE_ORDER_STATUSES, true)) {
+                $availableDrivers = \App\Models\DeliveryMan::where('vendor_id', Helpers::get_vendor_id())
+                    ->whereIn('network_dispatch_status', \App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::ASSIGNABLE_DRIVER_STATUSES)
+                    ->where('admin_approval_status', 'approved')
+                    ->where('active', 1)
+                    ->where('current_orders', 0)
+                    ->get(['id', 'f_name', 'l_name', 'phone']);
+            }
+
+            return view('vendor-views.order.order-view', compact('order' ,'reasons', 'editing', 'categories', 'products', 'category', 'keyword', 'availableDrivers'));
         } else {
             Toastr::info('No more orders!');
             return back();
         }
+    }
+
+    /**
+     * Assign one of this vendor's own drivers (network_dispatch_status =
+     * 'available') to this order. Reuses
+     * UrbanGoodzDriverNetworkService::assignToBusinessOrder(), the same
+     * vendor-ownership-checked assignment path the mobile vendor app uses
+     * via VendorDriverManagementController@assignOrder.
+     */
+    public function assignDriver(Request $request, $id)
+    {
+        $order = Order::where(['id' => $id, 'store_id' => Helpers::get_store_id()])->first();
+        if (!$order) {
+            Toastr::info('No more orders!');
+            return back();
+        }
+
+        $data = $request->validate([
+            'driver_id' => ['required', 'integer'],
+        ]);
+
+        $vendorId = Helpers::get_vendor_id();
+        $driver = \App\Models\DeliveryMan::where('id', $data['driver_id'])->where('vendor_id', $vendorId)->first();
+
+        if (!$driver) {
+            Toastr::error('Driver not found for your business.');
+            return back();
+        }
+
+        $res = app(\App\Services\UrbanGoodz\Agent\UrbanGoodzDriverNetworkService::class)
+            ->assignToBusinessOrder($driver->id, $order->id);
+
+        if ($res['success']) {
+            Toastr::success($res['message'] ?? 'Driver assigned to order.');
+        } else {
+            Toastr::error($res['message'] ?? 'Unable to assign driver.');
+        }
+
+        return back();
     }
 
     /**
@@ -782,7 +836,17 @@ class OrderController extends Controller
 
     public function quick_view_cart_item(Request $request)
     {
-        $cart_item = session('order_cart')[$request->key];
+        // A missing/unknown ?key= indexed into a null or short session cart and
+        // fatalled. The quick view is only meaningful while an order cart is
+        // being built, so say that instead of crashing.
+        $cart = session('order_cart');
+        if (!is_array($cart) || !isset($cart[$request->key])) {
+            return response()->json([
+                'errors' => [['code' => 'key', 'message' => translate('messages.cart_item_not_found')]],
+            ], 404);
+        }
+
+        $cart_item = $cart[$request->key];
         $order_id = $request->order_id;
         $item_key = $request->key;
         $product = $cart_item->item ? $cart_item->item : $cart_item->campaign;

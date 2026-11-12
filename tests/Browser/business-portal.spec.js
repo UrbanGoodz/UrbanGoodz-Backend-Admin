@@ -26,10 +26,20 @@ test.describe('Business Portal Login Page', () => {
   test('login page has welcome message', async ({ page }) => {
     await page.goto('/business/login');
 
-    const heading = page.locator('h2, h3, .title').first();
-    const text = await heading.textContent();
-    const cleanText = text?.toLowerCase() || '';
-    expect(cleanText.includes('welcome') || cleanText.includes('urban goodz')).toBeTruthy();
+    // The welcome copy is not in the heading. The page renders
+    //   <h1>Business Portal Login</h1>
+    //   <p>Welcome back. Sign in to manage your Urban Goodz business operations.</p>
+    // so the old selector ('h2, h3, .title') matched nothing and timed out,
+    // and narrowing to the h1 alone still missed the sentence being asserted.
+    // Read the heading together with its supporting copy.
+    const heading = page.locator('h1, h2, h3, .title').first();
+    await expect(heading).toBeVisible();
+
+    const headingText = (await heading.textContent())?.toLowerCase() ?? '';
+    const introText = (await page.locator('h1 + p, .title + p, p').first().textContent())?.toLowerCase() ?? '';
+    const combined = `${headingText} ${introText}`;
+
+    expect(combined.includes('welcome') || combined.includes('urban goodz')).toBeTruthy();
   });
 
   test('login rejects invalid credentials', async ({ page }) => {

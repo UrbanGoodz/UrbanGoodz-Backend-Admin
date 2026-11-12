@@ -206,9 +206,22 @@ class Helpers
         $data['attributes'] = $attributes;
         $choice_options = gettype($data['choice_options']) == 'array' ? $data['choice_options'] : json_decode($data['choice_options'], true);
         $data['choice_options'] = $choice_options;
+        // An item with no add-ons stores NULL here, not '[]', and json_decode(null)
+        // is null - which reaches whereIn() and fatals with "count(): Argument #1
+        // must be of type Countable|array, null given". 244 of 1360 items on this
+        // install are in that state, so adding any of them to a cart, or listing a
+        // cart that already holds one, answered HTTP 500.
         $add_ons = gettype($data['add_ons']) == 'array' ? $data['add_ons'] : json_decode($data['add_ons'], true);
+        $add_ons = is_array($add_ons) ? $add_ons : [];
         $data_addons = self::addon_data_formatting(AddOn::whereIn('id', $add_ons)->active()->get(), true, $trans, $local);
-        $selected_data = array_combine($selected_addons, $selected_addon_quantity);
+
+        // Same shape of hazard: array_combine() fatals on null, and on any length
+        // mismatch between the selected ids and their quantities.
+        $selected_addons = is_array($selected_addons) ? $selected_addons : [];
+        $selected_addon_quantity = is_array($selected_addon_quantity) ? $selected_addon_quantity : [];
+        $selected_data = count($selected_addons) === count($selected_addon_quantity)
+            ? array_combine($selected_addons, $selected_addon_quantity)
+            : [];
         foreach ($data_addons as $addon) {
             $addon_id = $addon['id'];
             if (in_array($addon_id, $selected_addons)) {

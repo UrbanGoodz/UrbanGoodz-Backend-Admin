@@ -14,9 +14,12 @@ use Tests\TestCase;
 class UrbanGoodzEcosystemEndToEndTest extends TestCase
 {
     /**
-     * 1. Test Gemini 3.6 Flash AI Reasoning Engine Configuration & Provider Resolution
+     * 1. Test the central Gemini AI reasoning engine configuration & provider
+     *    resolution. The pinned default moved to gemini-flash-lite-latest in
+     *    5ec7f4d: flash-latest is a shared free-tier alias that measured 429 on
+     *    3 of 3 calls, while flash-lite answered 3 of 3 from a separate pool.
      */
-    public function test_gemini_3_6_flash_central_ai_brain_configuration(): void
+    public function test_gemini_central_ai_brain_configuration(): void
     {
         // Explicit config so the result does not depend on a local .env: the
         // shipped design is Gemini primary with an OpenAI fallback.
