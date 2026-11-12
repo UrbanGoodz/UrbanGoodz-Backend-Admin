@@ -63,6 +63,14 @@ Legend: `OWNER` needs a decision from you · `ENV` needs a device/browser/produc
 | G1 | **The schedule in `app/Console/Kernel.php` was never read** (Laravel 12 uses `bootstrap/app.php`), so `stranded:dispatch-tick`, `order-anywhere:recover-card-issuance`, `delivery-history:prune` and `run-scheduled-sourcing` have never run in production. All are now on the live schedule, guarded by a test. `run-scheduled-sourcing` is opt-in (`LOAD_SOURCING_SCHEDULED_ENABLED=true`) because it has never run and works with external load sources. | DONE, confirm in prod that `schedule:run` is wired to cron |
 | G2 | First-run hazards of the newly live jobs were reviewed and fixed: the history pruner deletes in capped batches (it has never run, so the first run could face millions of rows); the Stranded tick closes requests stuck for more than 6 hours quietly (no messages about old emergencies) and only penalises responders for offers that lapsed in the last 15 minutes. Tunable: `STRANDED_MAX_LIVE_HOURS`, `STRANDED_MISSED_OFFER_WINDOW_MINUTES`. Still worth watching the first night in production. | DONE / watch |
 
+## H. Post-launch ideas (not before launch)
+- **3D features** (owner asked, decided to defer; adds app size, battery cost, new failure modes):
+  1. 3D map tilt / 3D buildings for driver and customer maps (cheap: a map SDK setting, no assets).
+  2. Optional 3D product viewer (GLB via model_viewer_plus) for vendors who upload a model; needs backend field + upload, and a device check for performance.
+  3. Later, only if wanted: 3D fashion-fit preview from stored measurements; 3D load planning for dispatchers; real-time 3D digital-human avatar.
+  Needs a physical-device session to judge look and speed; cannot be verified in the cloud container.
+- **Order Anywhere purchase cards**: apply for Stripe Issuing (or Lithic) so card mode can replace reimbursement mode.
+
 ## D. Closed so far (for traceability)
 Pickup geocoding, delivery-proof recording (enforcement flagged), notification preferences and consent, capture-time payout-split alert.
 Recurring routes built. Scheduler consolidated into the live schedule (four jobs had never run).
