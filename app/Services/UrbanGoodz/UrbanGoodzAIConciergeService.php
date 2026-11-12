@@ -422,16 +422,16 @@ If `discovered_commerce_options` is present in application data, you have found 
         }
 
         if (str_contains($queryLower, 'help') || str_contains($queryLower, 'support') || str_contains($queryLower, 'contact')) {
-            return "I can help you with:\n"
+            return "Say less, here's my whole résumé:\n"
                 . "- Your order and delivery status\n"
                 . "- Your payment and refund status\n"
                 . "- Product, service, event, and creator discovery\n"
                 . "- Order Anywhere and courier request workflows\n\n"
-                . "Please describe what you need, or contact support at support@urbangoodz.com for urgent matters.";
+                . "Tell me what you need, baby, or reach support at support@urbangoodz.com if it's urgent.";
         }
 
-        return "I could not complete a database-backed action from that request. No action was taken. "
-            . "Please ask about your orders or payments, or open the relevant Urban Goodz workflow.";
+        return "Okay, I tried and I could not pull that one up. No action was taken. "
+            . "Ask me about your orders or payments, or open the Urban Goodz workflow you need, and I'll get right on it.";
     }
 
     private function getCustomerOrderResponse(int $customerId): string
@@ -443,7 +443,7 @@ If `discovered_commerce_options` is present in application data, you have found 
             ->get(['id', 'order_status', 'order_amount']);
 
         if ($orders->isEmpty()) {
-            return 'I found no orders for your authenticated account. No delivery status was changed.';
+            return "I looked and I found no orders on your account, so there's nothing for me to track yet. No delivery status was changed. Want to fix that?";
         }
 
         $lines = $orders->map(
