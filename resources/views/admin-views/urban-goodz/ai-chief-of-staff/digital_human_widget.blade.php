@@ -9,7 +9,7 @@
         <div class="col-md-3 text-center mb-3 mb-md-0">
             <div class="ug-avatar-host-container" style="position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 16px; border: 2px solid rgba(140,158,255,0.5); overflow: hidden; background: rgba(255,255,255,0.05);">
                 <img id="skylar-avatar-img"
-                     src="{{ asset('assets/image/personas/skylar_face_neutral.png') }}"
+                     src="{{ asset('assets/image/personas/monique_face_neutral.png') }}"
                      alt="{{ $persona['display_name'] ?? 'Monique' }}"
                      style="width: 100%; height: 100%; object-fit: cover; transition: opacity 180ms ease;">
                 <span class="badge badge-success ug-viseme-badge" style="position: absolute; bottom: 6px; right: 6px; font-size: 10px; border: 2px solid #0F1E33;">
@@ -69,6 +69,7 @@
     </div>
 </div>
 
+<script src="{{ asset('assets/admin/js/ug-persona-animator.js') }}"></script>
 <script>
 (function () {
     const sessionId = 'skylar-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -76,14 +77,24 @@
     const input = document.getElementById('skylar-chat-input');
     const statusEl = document.getElementById('skylar-chat-status');
     const avatarImg = document.getElementById('skylar-avatar-img');
-    const assetBase = '{{ asset("assets/image/personas/skylar_face_") }}';
+    const assetBase = '{{ asset("assets/image/personas/monique_face_") }}';
 
-    function setExpression(bucket) {
-        avatarImg.style.opacity = '0';
-        setTimeout(function () {
-            avatarImg.src = assetBase + bucket + '.png';
-            avatarImg.style.opacity = '1';
-        }, 120);
+    // Alive, not a slideshow: breathes while idle, expression follows the conversation, and her mouth
+    // and posture move while she speaks (see ug-persona-animator.js).
+    const anim = new window.UgPersonaAnimator({
+        img: avatarImg,
+        host: document.querySelector('.ug-avatar-host-container'),
+        assetBase: assetBase,
+    });
+    window.ugPersonaAnimator = anim;
+
+    function setExpression(bucket) { anim.setExpression(bucket); }
+
+    // A typed answer is "said" with a brief talking animation sized to its length.
+    function talkFor(text, urgent) {
+        if (urgent) { anim.setExpression('concerned'); }
+        anim.startSpeaking();
+        setTimeout(function () { anim.stopSpeaking(); }, Math.min(1200 + String(text).length * 28, 7000));
     }
 
     function appendMessage(role, text) {
@@ -119,9 +130,8 @@
             .then(function (data) {
                 const text = (data.data && data.data.response) || 'Monique could not process that request.';
                 appendMessage('assistant', text);
-                setExpression(data.data && data.data.flagged_as_urgent ? 'concerned' : 'speaking');
+                talkFor(text, !!(data.data && data.data.flagged_as_urgent));
                 statusEl.innerText = '';
-                setTimeout(function () { setExpression('neutral'); }, 2200);
             })
             .catch(function () {
                 appendMessage('assistant', "Couldn't reach the AI service. No action was taken.");
@@ -247,8 +257,11 @@ async function speakLocally(text, statusEl) {
         if (preferred) utterance.voice = preferred;
 
         if (statusEl) statusEl.innerText = 'Speaking (on-device)...';
-        utterance.onend = () => { if (statusEl) statusEl.innerText = ''; };
-        utterance.onerror = () => { if (statusEl) statusEl.innerText = ''; };
+        const anim = window.ugPersonaAnimator;
+        utterance.onstart = () => { if (anim) anim.startSpeaking(); };
+        utterance.onboundary = () => { if (anim) anim.pulse(); };
+        utterance.onend = () => { if (statusEl) statusEl.innerText = ''; if (anim) anim.stopSpeaking(); };
+        utterance.onerror = () => { if (statusEl) statusEl.innerText = ''; if (anim) anim.stopSpeaking(); };
 
         window.speechSynthesis.speak(utterance);
         return true;
@@ -287,9 +300,14 @@ function triggerSkylarSpeech(btn) {
     .then(blob => {
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
-        audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+        const anim = window.ugPersonaAnimator;
+        const done = () => { URL.revokeObjectURL(url); if (anim) anim.stopSpeaking(); };
+        audio.addEventListener('ended', done);
+        audio.addEventListener('pause', () => { if (anim) anim.stopSpeaking(); });
+        audio.addEventListener('error', done);
         if (statusEl) statusEl.innerText = '';
-        return audio.play();
+        // Lips follow the real voice loudness of the audio she is playing.
+        return audio.play().then(() => { if (anim) anim.startSpeaking(audio); });
     })
     .catch(async err => {
         // The cloud gateway is an upgrade, not a requirement.

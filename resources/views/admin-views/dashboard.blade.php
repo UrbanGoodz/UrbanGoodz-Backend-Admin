@@ -42,7 +42,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-3">
                     <div style="width: 54px; height: 54px; border-radius: 50%; border: 2px solid #8C9EFF; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        <img src="{{ asset('assets/image/personas/skylar_avatar.png') }}" alt="Monique" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='{{ asset('public/assets/admin/img/160x160/img1.jpg') }}'">
+                        <img src="{{ asset('assets/image/personas/monique_avatar.png') }}" alt="Monique" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='{{ asset('public/assets/admin/img/160x160/img1.jpg') }}'">
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-2">

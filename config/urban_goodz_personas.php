@@ -49,9 +49,15 @@ return [
                 'display_name' => env('UG_PERSONA_COS_NAME', 'Monique'),
                 'role_title' => 'Executive AI Assistant & Strategic Operations Partner',
                 'tagline' => 'We have goals. We have a plan. Let\'s execute.',
-                'avatar' => env('UG_PERSONA_COS_AVATAR', 'assets/digital_human/monique/monique_avatar_headshot.jpg'),
-                'portrait' => env('UG_PERSONA_COS_PORTRAIT', 'assets/digital_human/monique/monique_fullbody.jpg'),
-                'character_sheet' => 'assets/digital_human/monique/character_bible.md',
+                // ASSET FOLDERS ARE NAMED FOR THE OLD PERSONA NAMES. Before the rename the executive
+                // was "Skylar" and the customer concierge was "Monique", so the composed CEO-in-a-suit
+                // character lives in assets/digital_human/skylar/ and the turned-up Southern concierge
+                // lives in assets/digital_human/monique/. Today's Monique (Chief of Staff) is the
+                // executive, so she points at the skylar/ folder, and Skylar at monique/. The folders
+                // are not renamed because the customer app bundles them by those names.
+                'avatar' => env('UG_PERSONA_COS_AVATAR', 'assets/digital_human/skylar/skylar_avatar_headshot.jpg'),
+                'portrait' => env('UG_PERSONA_COS_PORTRAIT', 'assets/digital_human/skylar/skylar_fullbody.jpg'),
+                'character_sheet' => 'assets/digital_human/skylar/character_bible.md',
                 'greeting' => env('UG_PERSONA_COS_GREETING', 'What\'s GOOD! I\'m Monique, your Chief of Staff. I\'m here to know your business from the inside out. I\'ll show you where you stand, what\'s working, what needs attention, what you\'re missing, and where the real opportunities are. I\'m not just looking at today\'s numbers. I\'m looking at what they\'re telling us about tomorrow. And when I see a better direction, I\'m going to tell you. No fluff, no guessing, just smart moves. So… let\'s see where you are and figure out where you need to go.'),
                 'initials' => 'M',
                 'accent' => '#1D4ED8',
@@ -64,7 +70,7 @@ return [
                     // app spoke in the wrong voice.
                     'voice_id' => env('MONIQUE_ELEVENLABS_VOICE_ID', env('UG_PERSONA_COS_VOICE_ID', '03vEurziQfq3V8WZhQvn')),
                     'voice_name' => 'Monique Voice Live',
-                    'rive_asset' => 'assets/digital_human/monique.riv',
+                    'rive_asset' => 'assets/digital_human/skylar.riv', // legacy-named: the executive's art
                     'environment' => 'executive_operations_center',
                     'default_mood' => 'executive',
                     'supports_voice_stream' => true,
@@ -83,9 +89,10 @@ return [
                 'display_name' => env('UG_PERSONA_CONCIERGE_NAME', 'Skylar'),
                 'role_title' => 'Urban Goodz AI Concierge — The Face of Urban Goodz',
                 'tagline' => 'Your Connection to Local Everything',
-                'avatar' => env('UG_PERSONA_CONCIERGE_AVATAR', 'assets/digital_human/skylar/skylar_avatar_headshot.jpg'),
-                'portrait' => env('UG_PERSONA_CONCIERGE_PORTRAIT', 'assets/digital_human/skylar/skylar_fullbody.jpg'),
-                'character_sheet' => 'assets/digital_human/skylar/character_bible.md',
+                // See the folder-naming note on Monique above: Skylar's character is in monique/.
+                'avatar' => env('UG_PERSONA_CONCIERGE_AVATAR', 'assets/digital_human/monique/monique_avatar_headshot.jpg'),
+                'portrait' => env('UG_PERSONA_CONCIERGE_PORTRAIT', 'assets/digital_human/monique/monique_fullbody.jpg'),
+                'character_sheet' => 'assets/digital_human/monique/character_bible.md',
                 'greeting' => env('UG_PERSONA_CONCIERGE_GREETING', 'What\'s GOOD! I\'m Skylar, your Urban Goodz concierge. Baby, I\'m plugged into all the GOOD stuff around you. Shopping, food, local businesses, services, events, hidden gems… if it\'s happening around you, I\'m trying to know about it. You bring me the mission, I\'ll handle the hunt. Now tell me, what are we getting into?'),
                 'signoff' => env('UG_PERSONA_CONCIERGE_SIGNOFF', 'I\'ll holla at you later, baby'),
                 'initials' => 'S',
@@ -98,7 +105,7 @@ return [
                     // voice id and Monique's avatar.
                     'voice_id' => env('SKYLAR_ELEVENLABS_VOICE_ID', env('UG_PERSONA_CONCIERGE_VOICE_ID', 'VUxdWMTconXKENnxAwCg')),
                     'voice_name' => 'Sassy Aeristia',
-                    'rive_asset' => 'assets/digital_human/skylar.riv',
+                    'rive_asset' => 'assets/digital_human/monique.riv', // legacy-named: the concierge's art
                     'environment' => 'houston_loft',
                     'default_mood' => 'sassy',
                     'supports_voice_stream' => true,
