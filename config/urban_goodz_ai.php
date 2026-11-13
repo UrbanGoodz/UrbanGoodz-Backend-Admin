@@ -163,7 +163,9 @@ return [
                 'enabled' => true,
                 // auto_run assigns the oldest delayed order automatically;
                 // ask lets Monique propose the assignment first.
-                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'auto_run'),
+                // ask, not auto_run: the assignment picks the first free approved courier, not the nearest, so
+                // it should wait for a click until it is location-aware (env can still switch it on).
+                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'ask'),
                 'max_auto_assign_per_cycle' => (int) env('MONIQUE_DELAYED_MAX_ASSIGN_PER_CYCLE', 1),
             ],
             'failed_queue_jobs' => [
