@@ -451,7 +451,20 @@ class MoniqueProactiveAttentionService
             ];
         }
 
-        $driver = DeliveryMan::query()
+        // Always location aware: nearest courier to the store first, measured from where each courier
+        // is now. A courier with no known position is never picked blindly.
+        $store = Store::withoutGlobalScopes()->find($order->store_id);
+        $storeLat = (float) ($store->latitude ?? 0);
+        $storeLng = (float) ($store->longitude ?? 0);
+        if (! $store || ! $storeLat || ! $storeLng) {
+            return [
+                'success' => false,
+                'verified' => false,
+                'message' => "Order #{$order->id} is delayed but its store has no location on file, so Monique cannot tell which courier is nearest. Please assign one manually.",
+            ];
+        }
+
+        $candidates = DeliveryMan::query()
             ->withoutGlobalScopes()
             ->where('is_delivery', 1)
             ->where('active', 1)
@@ -464,15 +477,35 @@ class MoniqueProactiveAttentionService
                 $inner->where('vendor_id', $adminId)
                     ->orWhere('available_for_marketplace', 1);
             }))
-            ->orderBy('current_orders')
-            ->orderBy('id')
-            ->first();
+            // Platform view: another business's private couriers are not ours to hand work to, unless
+            // they opted into the marketplace. The store's own couriers are always eligible.
+            ->when(! $isVendor, fn ($q) => $q->where(function ($inner) use ($store) {
+                $inner->whereNotIn('ownership_type', ['vendor_owned', 'business_owned'])
+                    ->orWhereNull('ownership_type')
+                    ->orWhere('available_for_marketplace', 1);
+                if ((int) ($store->vendor_id ?? 0) > 0) {
+                    $inner->orWhere('vendor_id', (int) $store->vendor_id);
+                }
+            }))
+            ->limit(500)
+            ->get()
+            ->all();
+
+        $maxMiles = (float) config('urban_goodz_ai.monique_proactive.ops.max_assign_miles', 60);
+        $ranked = app(\App\Services\DriverLocator::class)->rankByDistance($candidates, $storeLat, $storeLng, $maxMiles);
+        // A business with its own couriers gets first call on them (nearest to furthest), then the rest.
+        $ownerVendorId = (int) ($store->vendor_id ?? 0);
+        if ($ownerVendorId > 0) {
+            usort($ranked, fn ($a, $b) => [(int) $a->vendor_id === $ownerVendorId ? 0 : 1, $a->distance_miles, $a->id]
+                <=> [(int) $b->vendor_id === $ownerVendorId ? 0 : 1, $b->distance_miles, $b->id]);
+        }
+        $driver = $ranked[0] ?? null;
 
         if (!$driver) {
             return [
                 'success' => false,
                 'verified' => false,
-                'message' => "Order #{$order->id} is delayed but no eligible courier is available right now. Dispatch priority was raised; please assign one manually.",
+                'message' => "Order #{$order->id} is delayed but no eligible courier with a known location is within {$maxMiles} miles of the store. Please assign one manually.",
             ];
         }
 
@@ -487,10 +520,16 @@ class MoniqueProactiveAttentionService
             'confirmed' => true,
         ]);
 
+        $ok = (bool) ($exec['success'] ?? false);
+        $message = $exec['message'] ?? 'Courier assignment could not be completed or verified.';
+        if ($ok) {
+            $message .= ' Chosen as the nearest available courier (' . $driver->distance_miles . ' mi from the store, ' . ($driver->location_source === 'live' ? 'live location' : 'saved base address') . ').';
+        }
+
         return [
-            'success' => (bool) ($exec['success'] ?? false),
+            'success' => $ok,
             'verified' => (bool) ($exec['verified'] ?? false),
-            'message' => $exec['message'] ?? 'Courier assignment could not be completed or verified.',
+            'message' => $message,
         ];
     }
 

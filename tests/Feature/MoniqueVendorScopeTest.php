@@ -151,6 +151,9 @@ class MoniqueVendorScopeTest extends TestCase
                 'zone_id' => $this->zone()->id,
                 'vendor_id' => $vendorId,
                 'available_for_marketplace' => $marketplace,
+                // Assignment is location aware: a courier needs a known position (saved base here).
+                'private_endpoint_lat' => 29.7604 + 0.01,
+                'private_endpoint_lng' => -95.3698,
             ]
         );
     }

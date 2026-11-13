@@ -198,7 +198,7 @@ class OrderAnywhereOrderConversionService
             $pickupLat,
             $pickupLng,
             $radius,
-            ['zone_id' => $order->zone_id]
+            ['zone_id' => $order->zone_id] + $this->integrationService->poolCriteriaForOrder($order)
         );
 
         $driverId = fn ($d) => is_array($d) ? $d['id'] : $d->id;

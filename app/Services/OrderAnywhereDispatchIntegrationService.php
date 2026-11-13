@@ -25,8 +25,6 @@ class OrderAnywhereDispatchIntegrationService
             ->where('active', 1)
             ->where('application_status', 'approved')
             ->where('available_for_order_anywhere', true)
-            ->whereNotNull('private_endpoint_lat')
-            ->whereNotNull('private_endpoint_lng')
             ->where(fn($q) => $q->whereNull('current_orders')->orWhere('current_orders', '<', (int) (config('dm_maximum_orders') ?? 10)));
 
         if (!empty($criteria['vehicle_type'])) {
@@ -42,23 +40,47 @@ class OrderAnywhereDispatchIntegrationService
             });
         }
 
-        $drivers = $query->get();
+        // Whose drivers may take this job. A business that runs its own fleet keeps first call on it;
+        // another business's private fleet is never offered it. Urban Goodz drivers and anyone who
+        // opted into the marketplace are always eligible. An admin can lift all of this with
+        // any_pool=true (the explicit override), or simply assign a specific driver by hand.
+        $vendorId = isset($criteria['vendor_id']) ? (int) $criteria['vendor_id'] : null;
+        $clientId = isset($criteria['business_client_id']) ? (int) $criteria['business_client_id'] : null;
+        if (empty($criteria['any_pool'])) {
+            $query->where(function ($q) use ($vendorId, $clientId) {
+                // Private = explicitly owned by a business (vendor_owned / business_owned). Everyone
+                // else is the platform pool, and a private driver can opt into the marketplace.
+                $q->whereNotIn('ownership_type', ['vendor_owned', 'business_owned'])
+                    ->orWhereNull('ownership_type')
+                    ->orWhere('available_for_marketplace', 1);
+                if ($vendorId) {
+                    $q->orWhere('vendor_id', $vendorId);
+                }
+                if ($clientId) {
+                    $q->orWhere('business_client_id', $clientId);
+                }
+            });
+        }
 
-        $driversWithDistance = $drivers->map(function ($driver) use ($lat, $lng) {
-            $distance = $this->haversineDistance(
-                (float) $driver->private_endpoint_lat,
-                (float) $driver->private_endpoint_lng,
-                $lat,
-                $lng
-            );
-            $driver->distance_miles = round($distance, 2);
-            return $driver;
-        })->filter(fn($d) => $d->distance_miles <= $radiusMiles)
-          ->sortBy('distance_miles')
-          ->values()
-          ->toArray();
+        // Nearest first, measured from where each driver IS (their last reported position), falling
+        // back to their saved base address only when they have not reported recently.
+        $ranked = app(DriverLocator::class)->rankByDistance($query->get()->all(), $lat, $lng, $radiusMiles);
 
-        return $driversWithDistance;
+        // The owner's own fleet goes first (each group still nearest to furthest).
+        if ($vendorId || $clientId) {
+            $isOwn = fn ($d) => ($vendorId && (int) $d->vendor_id === $vendorId) || ($clientId && (int) $d->business_client_id === $clientId);
+            usort($ranked, fn ($a, $b) => [$isOwn($a) ? 0 : 1, $a->distance_miles, $a->id] <=> [$isOwn($b) ? 0 : 1, $b->distance_miles, $b->id]);
+        }
+
+        return array_map(fn ($d) => $d->toArray(), $ranked);
+    }
+
+    /** Pool-owner criteria for an order: the store's vendor, so its own couriers get first call. */
+    public function poolCriteriaForOrder(Order $order): array
+    {
+        $vendorId = (int) ($order->store?->vendor_id ?? 0);
+
+        return $vendorId > 0 ? ['vendor_id' => $vendorId] : [];
     }
 
     public function createDispatchForOrder(Order $order, int $driverId, array $options = []): AiDispatch

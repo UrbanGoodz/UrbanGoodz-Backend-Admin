@@ -87,7 +87,7 @@ class OrderAiDispatchController extends Controller
         $radiusMiles = $request->input('radius_miles', 50);
         $nearbyDrivers = $this->integrationService->findNearestDrivers(
             $pickupLat, $pickupLng, $radiusMiles,
-            ['vehicle_type' => $request->vehicle_type, 'zone_id' => $order->zone_id]
+            ['vehicle_type' => $request->vehicle_type, 'zone_id' => $order->zone_id] + $this->integrationService->poolCriteriaForOrder($order)
         );
 
         if (empty($nearbyDrivers)) {

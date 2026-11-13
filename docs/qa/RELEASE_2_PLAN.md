@@ -5,6 +5,12 @@ renaming. Production currently runs f6c5f0d9. Rules: no secrets printed, no dele
 no purchase clicks, stop and report on any surprise.
 
 ## What is in it (since f6c5f0d9)
+- Dispatch is location aware everywhere: drivers are ranked nearest-to-furthest from where they ARE (last reported
+  position within 15 min, else saved base address; no position = skipped, never guessed). A business with its own
+  couriers gets first call on its own jobs; another business's private couriers are never offered them; marketplace
+  and platform drivers are the fallback pool. Admins can always assign any driver by hand, and the admin dispatch
+  endpoint accepts any_pool=true to lift the pool rules. Optional env: DISPATCH_LIVE_LOCATION_MINUTES (15),
+  MONIQUE_MAX_ASSIGN_MILES (60), MONIQUE_MAX_WIDEN_MILES (60).
 - Order Anywhere reimbursement purchasing (driver pays, uploads receipt, admin approves): OFF by default.
   Admin page /admin/urban-goodz/order-anywhere-reimbursements, driver endpoints under /api/v1/order-anywhere/driver/{id}/reimbursement.
 - Monique: always on for platform admins; watches Order Anywhere, driver applications, payouts, reimbursements;
@@ -17,8 +23,9 @@ no purchase clicks, stop and report on any surprise.
   (creates a new table only; nothing existing is altered).
 
 ## Before the swap: .env (non-secret lines, back up .env first as .env.bak-<time>)
-- MONIQUE_DELAYED_ORDERS_ACTION=ask   (already the code default; set explicitly as belt and braces. Production has
-  a QA order 100013 sitting "pending"; an auto-assign would grab a real driver for it.)
+- MONIQUE_DELAYED_ORDERS_ACTION=ask   (REQUIRED for day one. The code default is now auto_run (nearest courier by live
+  location), but production has a QA order 100013 sitting "pending" and Monique would assign a real courier to it.
+  Remove the line once that QA order is cancelled/cleaned up.)
 - Do NOT set URBAN_GOODZ_PURCHASE_METHOD yet. Reimbursement stays off (card mode) until Stripe/driver-app checks pass.
 - Optional: MONIQUE_EMAIL_ALERTS=false until MAIL_FROM_ADDRESS is set (otherwise mails may fail quietly; harmless).
 

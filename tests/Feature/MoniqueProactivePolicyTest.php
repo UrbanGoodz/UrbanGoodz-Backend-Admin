@@ -104,6 +104,9 @@ class MoniqueProactivePolicyTest extends TestCase
                 'is_delivery' => 1,
                 'current_orders' => 0,
                 'zone_id' => $this->sharedZone()->id,
+                // Assignment is location aware, so a courier needs a known position (saved base here).
+                'private_endpoint_lat' => 29.7604 + 0.01,
+                'private_endpoint_lng' => -95.3698,
             ]
         );
     }

@@ -124,8 +124,4 @@ class MoniqueEmployeeTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_delayed_order_assignment_stays_ask_first_until_it_is_location_aware(): void
-    {
-        $this->assertSame('ask', config('urban_goodz_ai.monique_proactive.categories.delayed_orders.action'));
-    }
 }

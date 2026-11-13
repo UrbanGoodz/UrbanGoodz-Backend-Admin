@@ -143,6 +143,8 @@ return [
             'reimbursement_hours' => (int) env('MONIQUE_REIMBURSEMENT_HOURS', 4),
             // When Monique widens a stuck Order Anywhere search she doubles the radius, up to this.
             'max_widen_miles' => (float) env('MONIQUE_MAX_WIDEN_MILES', 60),
+            // Furthest she will reach for a courier on a delayed marketplace order (nearest first).
+            'max_assign_miles' => (float) env('MONIQUE_MAX_ASSIGN_MILES', 60),
         ],
 
         // Global thresholds (also env-tunable at runtime via .env).
@@ -163,9 +165,9 @@ return [
                 'enabled' => true,
                 // auto_run assigns the oldest delayed order automatically;
                 // ask lets Monique propose the assignment first.
-                // ask, not auto_run: the assignment picks the first free approved courier, not the nearest, so
-                // it should wait for a click until it is location-aware (env can still switch it on).
-                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'ask'),
+                // Assigns the NEAREST available courier (by live location), nearest first. Set
+                // MONIQUE_DELAYED_ORDERS_ACTION=ask to require a click instead.
+                'action' => env('MONIQUE_DELAYED_ORDERS_ACTION', 'auto_run'),
                 'max_auto_assign_per_cycle' => (int) env('MONIQUE_DELAYED_MAX_ASSIGN_PER_CYCLE', 1),
             ],
             'failed_queue_jobs' => [
