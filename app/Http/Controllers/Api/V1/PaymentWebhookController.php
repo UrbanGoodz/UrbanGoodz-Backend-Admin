@@ -56,7 +56,11 @@ class PaymentWebhookController extends Controller
                 'ip' => $request->ip(),
             ]);
 
-            return response('OK', 200);
+            // Not 200. A 200 tells the provider "received, all good": it never retries and its
+            // dashboard shows the endpoint healthy while every event is being thrown away (a wrong
+            // signing secret looked exactly like success). 400 makes the failure visible there and
+            // lets the provider retry once the secret is fixed. Nothing was processed either way.
+            return response('Invalid signature', 400);
         }
 
         $events = $gateway->parseWebhook($payload, $headers);

@@ -543,7 +543,7 @@ class UrbanGoodzPaymentWebhookRaceTest extends TestCase
                 'HTTP_STRIPE_SIGNATURE' => 't=1,v1=invalid',
             ],
             $payload
-        )->assertOk();
+        )->assertStatus(400); // not 200: a provider must see a bad signature as a failure and retry
 
         $this->assertSame(0, UrbanGoodzWebhookEvent::where('event_id', 'evt_invalid_signature')->count());
         $this->assertSame(0, UrbanGoodzPaymentLedger::where('reference', 'pi_UG_INVALID')->count());
