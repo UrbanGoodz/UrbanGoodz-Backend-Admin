@@ -20,4 +20,8 @@ return [
         'presence_ttl_minutes' => (int) env('STRANDED_PRESENCE_TTL_MINUTES', 120),
         'max_per_round' => (int) env('STRANDED_COMMUNITY_MAX_PER_ROUND', 15),
     ],
+
+    // Ask first, verify later: a person can ask for help with just a verified phone and the safety terms; their
+    // request is shown to helpers as "ID not verified yet". Set false to require the full licence check again.
+    'light_requester_path' => (bool) env('STRANDED_LIGHT_REQUESTER', true),
 ];

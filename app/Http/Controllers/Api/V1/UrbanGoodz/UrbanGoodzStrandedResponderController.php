@@ -116,6 +116,9 @@ class UrbanGoodzStrandedResponderController extends Controller
                     'reward_offer_minor' => $r?->reward_offer_minor,
                     'currency' => $r?->currency,
                     'is_emergency' => (bool) $r?->is_emergency,
+                    // Has the person asking cleared the full ID check? "No" is not a reason to refuse, just something
+                    // the helper is entitled to know before choosing to go.
+                    'requester_verified' => \App\Services\UrbanGoodzStrandedSafety::isVerifiedRequester($r?->user_id ? (int) $r->user_id : null),
                     'safety_status' => $r?->safety_status,
                     'vehicle' => trim(implode(' ', array_filter([
                         $r?->vehicle_year, $r?->vehicle_color, $r?->vehicle_make, $r?->vehicle_model,

@@ -127,6 +127,45 @@ class UrbanGoodzStrandedSafety
         return ['allowed' => true, 'code' => null, 'message' => null];
     }
 
+    /**
+     * May this person ASK for help? Nobody stranded on a roadside should be stopped by paperwork, so the bar is:
+     *   - fully ID-verified (licence + terms): allowed and marked verified; or
+     *   - a verified phone number and the safety terms/privacy notice accepted: allowed, but marked UNVERIFIED so the
+     *     helper is told and can decide before accepting. (Turn this off with STRANDED_LIGHT_REQUESTER=false.)
+     * Everything else is refused with the specific reason, so the app can put the right step in front of them.
+     */
+    public static function requesterGate(?int $userId): array
+    {
+        $full = self::gate($userId, UrbanGoodzStrandedVerification::ROLE_CUSTOMER);
+        if ($full['allowed']) {
+            return $full + ['verified' => true];
+        }
+
+        $needsId = in_array($full['code'], ['verification_required', 'verification_pending', 'verification_rejected', 'verification_expired'], true);
+        if (! $needsId || ! (bool) config('urban_goodz_stranded.light_requester_path', true)) {
+            return $full + ['verified' => false];
+        }
+
+        $user = \App\Models\User::find($userId);
+        if (! $user || empty($user->is_phone_verified)) {
+            return self::deny('phone_verification_required', 'Verify your phone number so a helper can reach you. It only takes a moment.') + ['verified' => false];
+        }
+        foreach (self::requiredDocumentsFor(UrbanGoodzStrandedVerification::ROLE_CUSTOMER) as $document) {
+            if (! self::hasConsented($userId, UrbanGoodzStrandedVerification::ROLE_CUSTOMER, $document)) {
+                return self::deny('consent_required', 'Please review and accept the Stranded safety terms to continue.',
+                    ['document' => $document, 'version' => self::VERSIONS[$document]]) + ['verified' => false];
+            }
+        }
+
+        return ['allowed' => true, 'code' => 'unverified_requester', 'message' => null, 'verified' => false];
+    }
+
+    /** Has this requester cleared the full ID check? Shown to helpers so they can weigh it. */
+    public static function isVerifiedRequester(?int $userId): bool
+    {
+        return $userId ? (bool) self::gate($userId, UrbanGoodzStrandedVerification::ROLE_CUSTOMER)['allowed'] : false;
+    }
+
     /** A regular user helping a neighbour: lighter than a Goodz Samaritan (no licence check), still gated. */
     public const ROLE_COMMUNITY = 'community';
 

@@ -212,7 +212,45 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
                 'longitude' => self::LNG,
             ]);
 
-        $response->assertStatus(403)->assertJsonPath('code', 'verification_required');
+        // No ID and no verified phone: the floor is a verified phone, so that is the step the app is told to show.
+        $response->assertStatus(403)->assertJsonPath('code', 'phone_verification_required');
+    }
+
+    private function phoneVerifiedWithTerms(string $tag): User
+    {
+        $u = $this->user($tag);
+        DB::table('users')->where('id', $u->id)->update(['is_phone_verified' => 1]);
+        foreach (UrbanGoodzStrandedSafety::requiredDocumentsFor(UrbanGoodzStrandedVerification::ROLE_CUSTOMER) as $doc) {
+            UrbanGoodzStrandedConsent::create(['user_id' => $u->id, 'role' => UrbanGoodzStrandedVerification::ROLE_CUSTOMER, 'document' => $doc,
+                'version' => UrbanGoodzStrandedSafety::VERSIONS[$doc], 'accepted_at' => now()]);
+        }
+
+        return $u->fresh();
+    }
+
+    public function test_ask_first_verify_later_a_verified_phone_and_terms_are_enough_to_raise_a_request(): void
+    {
+        $user = $this->phoneVerifiedWithTerms('askfirst');
+
+        $this->actingAs($user, 'api')->postJson('/api/v1/urban-goodz/stranded/requests', [
+            'service_slug' => self::SAMARITAN_SERVICE, 'latitude' => self::LAT, 'longitude' => self::LNG,
+        ])->assertStatus(201);
+        $this->assertFalse(UrbanGoodzStrandedSafety::isVerifiedRequester($user->id), 'but they are shown to helpers as not ID-verified');
+    }
+
+    public function test_the_light_path_still_needs_the_terms_and_can_be_switched_off(): void
+    {
+        $noTerms = $this->user('noterms');
+        DB::table('users')->where('id', $noTerms->id)->update(['is_phone_verified' => 1]);
+        $this->actingAs($noTerms->fresh(), 'api')->postJson('/api/v1/urban-goodz/stranded/requests', [
+            'service_slug' => self::SAMARITAN_SERVICE, 'latitude' => self::LAT, 'longitude' => self::LNG,
+        ])->assertStatus(403)->assertJsonPath('code', 'consent_required');
+
+        config(['urban_goodz_stranded.light_requester_path' => false]);
+        $ok = $this->phoneVerifiedWithTerms('strict');
+        $this->actingAs($ok, 'api')->postJson('/api/v1/urban-goodz/stranded/requests', [
+            'service_slug' => self::SAMARITAN_SERVICE, 'latitude' => self::LAT, 'longitude' => self::LNG,
+        ])->assertStatus(403)->assertJsonPath('code', 'verification_required');
     }
 
     public function test_a_pending_licence_does_not_clear_the_gate(): void
@@ -232,7 +270,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
                 'longitude' => self::LNG,
             ])
             ->assertStatus(403)
-            ->assertJsonPath('code', 'verification_pending');
+            ->assertJsonPath('code', 'phone_verification_required'); // no verified phone, so the light path does not open either
     }
 
     public function test_an_approved_but_expired_licence_does_not_clear_the_gate(): void
@@ -253,7 +291,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
                 'longitude' => self::LNG,
             ])
             ->assertStatus(403)
-            ->assertJsonPath('code', 'verification_expired');
+            ->assertJsonPath('code', 'phone_verification_required');
     }
 
     public function test_consent_is_required_even_with_an_approved_licence(): void

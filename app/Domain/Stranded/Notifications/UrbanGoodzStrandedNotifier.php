@@ -50,7 +50,8 @@ class UrbanGoodzStrandedNotifier
             : 'Nearby';
 
         $this->toResponder($offer, 'Someone nearby needs help',
-            $this->serviceLabel($r) . ' · ' . $distance . ($r->is_emergency ? ' · marked unsafe' : ''),
+            $this->serviceLabel($r) . ' · ' . $distance . ($r->is_emergency ? ' · marked unsafe' : '')
+                . (\App\Services\UrbanGoodzStrandedSafety::isVerifiedRequester($r->user_id ? (int) $r->user_id : null) ? '' : ' · ID not verified yet'),
             $r, ['event' => 'request_broadcast', 'expires_at' => $offer->expires_at?->toIso8601String()]);
     }
 

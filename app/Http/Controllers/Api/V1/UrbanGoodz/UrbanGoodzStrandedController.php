@@ -87,13 +87,9 @@ class UrbanGoodzStrandedController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        // Both sides of a rescue are verified. A stranded customer is inviting
-        // a stranger to their location, so the bar applies to them too, not
-        // only to the responder who turns up.
-        $gate = UrbanGoodzStrandedSafety::gate(
-            $request->user()?->id,
-            UrbanGoodzStrandedVerification::ROLE_CUSTOMER
-        );
+        // Anyone stranded can ask: a verified phone and the safety terms are enough. A fully ID-verified requester
+        // is marked as such; an unverified one is shown to helpers as "ID not verified yet" so they can decide.
+        $gate = UrbanGoodzStrandedSafety::requesterGate($request->user()?->id);
 
         if (!$gate['allowed']) {
             return response()->json([

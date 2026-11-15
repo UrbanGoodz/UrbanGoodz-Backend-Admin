@@ -247,7 +247,7 @@ class UrbanGoodzStrandedGoodzSamaritanTest extends TestCase
         $body = $offers->json('offers.0');
         // Whitelist, not a blacklist: any new field added to this payload
         // later must be deliberately safe, not merely "not on a guessed list".
-        $allowed = ['offer_id', 'request_uuid', 'request_number', 'service', 'distance_miles', 'eta_minutes', 'reward_offer_minor', 'currency', 'is_emergency', 'safety_status', 'vehicle', 'notes', 'expires_at'];
+        $allowed = ['offer_id', 'request_uuid', 'request_number', 'service', 'distance_miles', 'eta_minutes', 'reward_offer_minor', 'currency', 'is_emergency', 'requester_verified', 'safety_status', 'vehicle', 'notes', 'expires_at'];
         $this->assertEmpty(array_diff(array_keys($body), $allowed), 'Pre-selection offer payload leaked an unexpected field: ' . implode(',', array_diff(array_keys($body), $allowed)));
         $this->assertArrayNotHasKey('latitude', $body);
         $this->assertArrayNotHasKey('longitude', $body);

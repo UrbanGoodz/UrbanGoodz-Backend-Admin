@@ -212,4 +212,15 @@ class StrandedCommunityTierTest extends TestCase
 
         $this->assertSame(0, UrbanGoodzStrandedNearbyPresence::count());
     }
+
+    public function test_helpers_are_told_when_the_person_asking_is_not_id_verified_yet(): void
+    {
+        $owner = $this->user('unverifiedowner'); // asked for help with just a phone and the terms
+        $n = $this->neighbour('n1', 0.3);
+        $r = $this->request($owner);
+        $this->dispatch($r);
+
+        $this->actingAs($n, 'api')->getJson('/api/v1/urban-goodz/stranded/responder/offers')
+            ->assertOk()->assertJsonPath('offers.0.requester_verified', false);
+    }
 }
