@@ -177,4 +177,40 @@ class UrbanGoodzNotificationDeliveryTest extends TestCase
                 )
             );
     }
+
+    public function test_an_unregistered_token_is_cleared_instead_of_retried(): void
+    {
+        Queue::fake();
+        $notification = app(UrbanGoodzNotificationService::class)->notifyCustomer($this->customer->id, 'Dead token', 'x', ['type' => 'dead_token']);
+        $transport = Mockery::mock(FirebaseNotificationTransport::class);
+        $transport->shouldReceive('send')->once()->andReturnUsing(function () {
+            \App\CentralLogics\Helpers::$lastFcmError = 'UNREGISTERED';
+
+            return false;
+        });
+
+        (new SendFirebaseNotification($notification->id, 'customer', $this->customer->id))->handle($transport);
+
+        $this->assertNull(DB::table('users')->where('id', $this->customer->id)->value('cm_firebase_token'), 'a dead token must be forgotten');
+        \App\CentralLogics\Helpers::$lastFcmError = null;
+    }
+
+    public function test_a_token_that_changed_meanwhile_is_not_cleared(): void
+    {
+        Queue::fake();
+        $notification = app(UrbanGoodzNotificationService::class)->notifyCustomer($this->customer->id, 'Rotated', 'x', ['type' => 'rotated']);
+        $transport = Mockery::mock(FirebaseNotificationTransport::class);
+        $transport->shouldReceive('send')->once()->andReturnUsing(function () {
+            // The app registered a fresh token while the old one was being rejected.
+            DB::table('users')->where('id', $this->customer->id)->update(['cm_firebase_token' => 'fresh-token']);
+            \App\CentralLogics\Helpers::$lastFcmError = 'UNREGISTERED';
+
+            return false;
+        });
+
+        (new SendFirebaseNotification($notification->id, 'customer', $this->customer->id))->handle($transport);
+
+        $this->assertSame('fresh-token', DB::table('users')->where('id', $this->customer->id)->value('cm_firebase_token'));
+        \App\CentralLogics\Helpers::$lastFcmError = null;
+    }
 }

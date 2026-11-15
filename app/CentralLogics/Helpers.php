@@ -1697,8 +1697,16 @@ class Helpers
      * stored alongside a v1 service account it is ignored, not used as a
      * fallback. See App\Services\Notifications\FirebaseCredentialResolver.
      */
+    /**
+     * Firebase's reason for the most recent rejection (e.g. UNREGISTERED = the device token is dead), or null.
+     * Lets the caller tell "this token is permanently invalid" from "try again later".
+     */
+    public static ?string $lastFcmError = null;
+
     public static function sendNotificationToHttp(array|null $data)
     {
+        self::$lastFcmError = null;
+
         $config = self::get_business_settings(FirebaseCredentialResolver::V1_SETTING_KEY);
         $legacyServerKey = self::get_raw_business_setting(FirebaseCredentialResolver::LEGACY_SETTING_KEY);
         $decision = FirebaseCredentialResolver::decide(is_array($config) ? $config : null, $legacyServerKey);
@@ -1726,6 +1734,7 @@ class Helpers
                 // SENDER_ID_MISMATCH / INVALID_ARGUMENT = wrong project or credentials). Neither value
                 // is a secret, and without them every rejection looks identical in the log.
                 $body = (array) $response->json();
+                self::$lastFcmError = (string) (data_get($body, 'error.details.0.errorCode') ?: data_get($body, 'error.status') ?: '') ?: null;
                 Log::warning('FCM v1 provider rejected a push request.', [
                     'status' => $response->status(),
                     'error_status' => data_get($body, 'error.status'),

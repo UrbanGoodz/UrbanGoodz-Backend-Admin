@@ -68,6 +68,20 @@ class SendFirebaseNotification implements ShouldQueue
 
         if (! $transport->send($token, $payload)) {
             $this->markAsFailed($notification);
+
+            // UNREGISTERED means Firebase will never deliver to this token again (app uninstalled, token
+            // rotated). Retrying three times with backoff only repeats the rejection and fills the log, so
+            // forget the dead token and stop. The next time the app opens it registers a fresh one.
+            if (\App\CentralLogics\Helpers::$lastFcmError === 'UNREGISTERED') {
+                $this->forgetDeadToken($token);
+                Log::info('Firebase token was unregistered; cleared it.', [
+                    'notification_id' => $this->notificationId,
+                    'recipient_type' => $this->recipientType,
+                ]);
+                $this->delete();
+                return;
+            }
+
             $this->reportDeliveryFailure('Firebase provider rejected the notification.');
             return;
         }
@@ -181,6 +195,17 @@ class SendFirebaseNotification implements ShouldQueue
         if ($notification instanceof UrbanGoodzNotification) {
             $notification->update(['status' => 'sent']);
         }
+    }
+
+    /** Null the stored token, but only if it is still the one that just failed (a fresh one may have arrived). */
+    private function forgetDeadToken(string $token): void
+    {
+        match ($this->recipientType) {
+            'customer' => User::whereKey($this->recipientId)->where('cm_firebase_token', $token)->update(['cm_firebase_token' => null]),
+            'vendor' => Vendor::whereKey($this->recipientId)->where('firebase_token', $token)->update(['firebase_token' => null]),
+            'driver' => DeliveryMan::whereKey($this->recipientId)->where('firebase_token', $token)->update(['firebase_token' => null]),
+            default => null,
+        };
     }
 
     private function recipientToken(): ?string
