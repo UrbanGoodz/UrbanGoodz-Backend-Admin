@@ -120,6 +120,8 @@ Route::post('stranded/connect/webhook', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedCon
 
 Route::group(['prefix' => 'order-anywhere', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::post('requests', 'Api\V1\OrderAnywhereController@store');
+    // Paste a product link, get the item (and an estimate) filled in. Fetches an arbitrary URL, hence the tight throttle.
+    Route::post('requests/link-preview', 'Api\V1\OrderAnywhereController@linkPreview')->middleware('throttle:10,1');
     Route::post('requests/from-option', 'Api\V1\OrderAnywhereController@createFromOption');
     Route::get('requests/estimate', 'Api\V1\OrderAnywhereController@estimate');
     Route::get('requests/{record}', 'Api\V1\OrderAnywhereController@show');

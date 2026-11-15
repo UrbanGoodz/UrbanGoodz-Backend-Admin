@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\OrderAnywhereRequest;
+use App\Services\OrderAnywhereQuotePricing;
 use App\Services\UrbanGoodzPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -149,6 +150,55 @@ class OrderAnywhereController extends Controller
             'message' => 'Order Anywhere request submitted for admin review.',
             'data' => $record,
         ], 201);
+    }
+
+    /**
+     * Paste a product link, get the item filled in. Nothing is saved: this only reads the page and returns a
+     * starting point (name, picture, price, and an estimate when a markup is configured). The real price is
+     * confirmed before the customer pays, so this never commits them to anything.
+     */
+    public function linkPreview(Request $request, \App\Services\SafeUrlFetcher $fetcher, \App\Services\ProductLinkParser $parser)
+    {
+        $data = $request->validate(['url' => ['required', 'string', 'max:2000']]);
+
+        try {
+            $page = $fetcher->fetch($data['url']);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            // Never leak why (network layout, status codes): the customer only needs to know it did not work.
+            \Illuminate\Support\Facades\Log::info('Order Anywhere link preview failed', ['reason' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'We could not read that page. You can still describe the item yourself.'], 422);
+        }
+
+        $item = $parser->parse($page['html'], $page['url']);
+        $host = preg_replace('/^www\./i', '', (string) parse_url($page['url'], PHP_URL_HOST));
+
+        $estimate = null;
+        if ($item['price'] !== null) {
+            try {
+                $estimate = OrderAnywhereQuotePricing::price($item['price']);
+            } catch (\InvalidArgumentException $e) {
+                $estimate = null; // no markup configured yet: show the item, leave the total to review
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'merchant_host' => $host,
+                'merchant_name' => $item['site_name'] ?: $host,
+                'item_title' => $item['title'],
+                'image' => $item['image'],
+                'item_price' => $item['price'],
+                'currency' => $item['currency'] ?: 'USD',
+                'estimate' => $estimate,
+                'found' => $item['source'] !== 'none',
+                'note' => 'Taken from the product page, so it can differ in store. The final price is confirmed before you pay.',
+                'source_url' => $page['url'],
+            ],
+        ]);
     }
 
     /**
