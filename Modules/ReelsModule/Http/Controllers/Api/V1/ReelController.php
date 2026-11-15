@@ -32,7 +32,11 @@ class ReelController extends Controller
             storeId: $request->filled('store_id') ? (int) $request->input('store_id') : null,
             limit: $limit,
             page: $offset,
-            zoneId: $request->header('zoneId')
+            zoneId: $request->header('zoneId'),
+            // 'for_you' (ranked, default) or 'latest' (newest first). Viewer identity only tunes the order.
+            sort: $request->input('sort'),
+            userId: $request->user('api')?->id,
+            guestId: $request->input('guest_id')
         );
 
         return response()->json([

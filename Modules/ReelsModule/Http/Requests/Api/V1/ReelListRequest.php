@@ -23,6 +23,8 @@ class ReelListRequest extends FormRequest
             'limit' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
             'offset' => 'nullable|integer|min:1',
+            'sort' => 'nullable|in:for_you,latest',
+            'guest_id' => 'nullable|string|max:100',
         ];
     }
 

@@ -16,7 +16,32 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReelApiService
 {
-    public function getReels(?int $moduleId, ?int $storeId, int $limit, int $page, ?string $zoneId = null): LengthAwarePaginator
+    /**
+     * @param  string|null  $sort  'for_you' (ranked, the default) or 'latest' (newest first, the old behaviour)
+     */
+    public function getReels(?int $moduleId, ?int $storeId, int $limit, int $page, ?string $zoneId = null, ?string $sort = null, ?int $userId = null, ?string $guestId = null): LengthAwarePaginator
+    {
+        $sort = in_array($sort, ['for_you', 'latest'], true) ? $sort : (string) config('urban_goodz_feed.default_sort', 'for_you');
+        $query = $this->listQuery($moduleId, $storeId, $zoneId);
+
+        if ($sort === 'latest') {
+            return $query->latest('id')->paginate($limit, ['*'], 'page', $page);
+        }
+
+        // For You: score a pool of the newest active reels, order by score, then page through that one stable list.
+        $pool = $query->latest('id')->limit(max($limit, (int) config('urban_goodz_feed.pool_size', 300)))->get();
+        $ranked = app(ReelRankingService::class)->rank($pool, $userId, $guestId, $limit);
+        $page = max(1, $page);
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $ranked->slice(($page - 1) * $limit, $limit)->values()->all(),
+            $ranked->count(),
+            $limit,
+            $page
+        );
+    }
+
+    private function listQuery(?int $moduleId, ?int $storeId, ?string $zoneId): Builder
     {
         $zoneIds = $this->resolveZoneIds($zoneId);
         $allZoneService = (bool) data_get(config('module.current_module_data'), 'all_zone_service', false);
@@ -41,7 +66,10 @@ class ReelApiService
                 'total_views',
                 'total_likes',
                 'total_comments',
+                'total_shares',
                 'total_store_visits',
+                'published_at',
+                'created_at',
             ])
             ->when($moduleId !== null, fn (Builder $query) => $query->where('module_id', $moduleId))
             ->when($storeId, fn (Builder $query) => $query->where('store_id', $storeId))
@@ -57,9 +85,7 @@ class ReelApiService
                         });
                     });
                 });
-            })
-            ->latest('id')
-            ->paginate($limit, ['*'], 'page', $page);
+            });
     }
 
     private function resolveZoneIds(?string $zoneId): array

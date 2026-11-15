@@ -35,7 +35,9 @@ Ranked by (impact on launch and growth) over (effort), grounded in what the code
 - Instant driver payouts, stacked/batched orders, surge-free "busy zone" incentives for drivers.
 
 ## 3. Creator Commerce (TikTok-style)
-- A real For You feed: personalised ranking (watch time, saves, purchases), autoplay, infinite scroll.
+- DONE (backend): a real For You feed (smoothed engagement, freshness, follows, past likes, fair look for new reels, seen-reels sink,
+  one creator cannot fill the screen, blocked/reported hidden, stable paging; sort=latest keeps the old order; dials in
+  config/urban_goodz_feed.php). NEXT: watch-time and skip signals from the app, saves/purchases as signals, autoplay, infinite scroll.
 - Shoppable tags that go straight to checkout; live shopping; creator storefronts.
 - Video pipeline: transcoding, thumbnails, AI moderation before publish; creator tiers and fast payouts; affiliate attribution.
 
