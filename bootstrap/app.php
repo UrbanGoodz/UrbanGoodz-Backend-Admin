@@ -218,6 +218,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
 
     ->withExceptions(function (Exceptions $exceptions) {
+        // Error tracking: a no-op unless SENTRY_LARAVEL_DSN is set (see config/sentry.php).
+        if (class_exists(\Sentry\Laravel\Integration::class)) {
+            \Sentry\Laravel\Integration::handles($exceptions);
+        }
         $exceptions->shouldRenderJsonWhen(function ($request, \Throwable $e) {
             return $request->is('api/*') || $request->expectsJson() || $request->wantsJson();
         });
