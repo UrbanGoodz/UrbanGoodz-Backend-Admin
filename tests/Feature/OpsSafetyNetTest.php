@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class OpsSafetyNetTest extends TestCase
@@ -55,5 +56,41 @@ class OpsSafetyNetTest extends TestCase
         $this->assertStringContainsString('--defaults-extra-file', $script, 'credentials go through a 0600 file, not the command line');
         $this->assertStringNotContainsString('-p"$DB_PASS"', $script);
         $this->assertStringNotContainsString('echo "$DB_PASS', $script);
+    }
+
+    public function test_the_sanitizer_scrubs_every_real_value_and_proves_it(): void
+    {
+        $u = \App\Models\User::create(['f_name' => 'Real', 'l_name' => 'Person', 'email' => 'real.person@gmail.com', 'phone' => '+13125550101', 'password' => bcrypt('x')]);
+        DB::table('users')->where('id', $u->id)->update(['cm_firebase_token' => 'real-device-token']);
+        $d = \App\Models\DeliveryMan::create(['f_name' => 'Real', 'l_name' => 'Driver', 'phone' => '+13125550102', 'email' => 'real.driver@gmail.com', 'password' => bcrypt('x'), 'auth_token' => 'tok-real']);
+        foreach (Schema::getColumnListing('delivery_men') as $col) {
+            if (stripos($col, 'token') !== false) {
+                DB::table('delivery_men')->where('id', $d->id)->update([$col => 'real-'.$col]);
+            }
+        }
+
+        $result = app(\App\Services\StagingSanitizer::class)->run();
+
+        $this->assertTrue($result['ok'], implode('; ', $result['problems']));
+        $this->assertSame("user{$u->id}@staging.invalid", DB::table('users')->where('id', $u->id)->value('email'));
+        $this->assertSame("driver{$d->id}@staging.invalid", DB::table('delivery_men')->where('id', $d->id)->value('email'));
+        $this->assertNull(DB::table('users')->where('id', $u->id)->value('cm_firebase_token'));
+        foreach (Schema::getColumnListing('delivery_men') as $col) {
+            if (stripos($col, 'token') !== false) {
+                $this->assertNull(DB::table('delivery_men')->where('id', $d->id)->value($col), "{$col} must be wiped, whatever this environment calls it");
+            }
+        }
+        $this->assertSame([], app(\App\Services\StagingSanitizer::class)->verify());
+    }
+
+    public function test_the_verification_pass_fails_loudly_when_real_data_remains(): void
+    {
+        app(\App\Services\StagingSanitizer::class)->run();
+        \App\Models\User::create(['f_name' => 'Late', 'l_name' => 'Arrival', 'email' => 'late@gmail.com', 'phone' => '+13125550103', 'password' => bcrypt('x')]);
+
+        $problems = app(\App\Services\StagingSanitizer::class)->verify();
+
+        $this->assertNotEmpty($problems, 'a leftover real email must be reported, never silently accepted');
+        $this->assertStringContainsString('real email', implode(' ', $problems));
     }
 }
