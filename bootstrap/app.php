@@ -204,6 +204,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground();
 
+        // Nearby help alert positions expire on their own; this just deletes the stale rows.
+        $schedule->command('stranded:prune-presence')
+            ->hourlyAt(23)
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // Driver breadcrumbs are unbounded by nature: prune nightly, keeping each driver's latest point.
         $schedule->command('delivery-history:prune')
             ->dailyAt('03:20')

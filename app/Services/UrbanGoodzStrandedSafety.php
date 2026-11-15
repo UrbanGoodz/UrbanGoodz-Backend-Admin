@@ -127,11 +127,49 @@ class UrbanGoodzStrandedSafety
         return ['allowed' => true, 'code' => null, 'message' => null];
     }
 
+    /** A regular user helping a neighbour: lighter than a Goodz Samaritan (no licence check), still gated. */
+    public const ROLE_COMMUNITY = 'community';
+
+    /**
+     * May this ordinary user be sent to a stranger's request? They need a verified phone, an account in good
+     * standing, no unresolved safety report from a customer they helped, and the same safety terms, privacy
+     * notice and pledge a Samaritan accepts. The stranded person still sees who is coming and confirms them
+     * with the help code, so this is a floor, not the only safeguard.
+     */
+    public static function communityGate(?int $userId): array
+    {
+        if (!$userId) {
+            return self::deny('sign_in_required', 'Sign in to help your neighbours.');
+        }
+        $user = \App\Models\User::find($userId);
+        if (!$user || (isset($user->is_active) && !$user->is_active) || (isset($user->status) && $user->status !== null && (int) $user->status === 0)) {
+            return self::deny('account_unavailable', 'This account cannot take Stranded requests.');
+        }
+        if (empty($user->is_phone_verified)) {
+            return self::deny('phone_verification_required', 'Verify your phone number to help neighbours nearby.');
+        }
+
+        $helped = \App\Models\UrbanGoodzStrandedOffer::where('responder_id', $userId)->whereNotNull('selected_at')->pluck('request_id');
+        if ($helped->isNotEmpty() && \App\Models\UrbanGoodzStrandedSafetyReport::whereIn('request_id', $helped)
+            ->where('reporter_role', 'customer')->whereNull('resolved_at')->exists()) {
+            return self::deny('safety_review_open', 'A safety report about a recent job is being reviewed, so new requests are paused.');
+        }
+
+        foreach (self::requiredDocumentsFor(self::ROLE_COMMUNITY) as $document) {
+            if (!self::hasConsented($userId, self::ROLE_COMMUNITY, $document)) {
+                return self::deny('consent_required', 'Please review and accept the Stranded safety terms to help neighbours.',
+                    ['document' => $document, 'version' => self::VERSIONS[$document]]);
+            }
+        }
+
+        return ['allowed' => true, 'code' => null, 'message' => null];
+    }
+
     public static function requiredDocumentsFor(string $role): array
     {
         $documents = [self::DOC_SAFETY_TERMS, self::DOC_PRIVACY];
 
-        if ($role === UrbanGoodzStrandedVerification::ROLE_SAMARITAN) {
+        if ($role === UrbanGoodzStrandedVerification::ROLE_SAMARITAN || $role === self::ROLE_COMMUNITY) {
             $documents[] = self::DOC_SAMARITAN_PLEDGE;
         }
 

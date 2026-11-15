@@ -220,10 +220,7 @@ class UrbanGoodzStrandedController extends Controller
             return response()->json(['status' => 'success', 'active' => false, 'data' => null]);
         }
 
-        $feeOutstanding = !in_array($stranded->help_request_fee_status, ['paid', 'waived'], true);
-
         $next = match (true) {
-            $feeOutstanding => 'pay_fee',
             $stranded->selected_offer_id === null && $stranded->broadcast_at === null => 'broadcast',
             $stranded->selected_offer_id === null => 'choose_helper',
             $stranded->status === 'assigned' || $stranded->status === 'en_route' => 'track_helper',
@@ -284,15 +281,9 @@ class UrbanGoodzStrandedController extends Controller
             ], 409);
         }
 
-        if (!in_array($stranded->help_request_fee_status, ['paid', 'waived'], true)) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 'fee_outstanding',
-                'message' => 'The help request fee must be settled before we can send this out.',
-                'help_request_fee_minor' => $stranded->help_request_fee_minor,
-            ], 402);
-        }
-
+        // Asking for help is free. A help-request fee (if an admin has switched one on) is an OPTIONAL
+        // contribution the customer can still make through payFee(); it never holds the request back. Nobody
+        // standing on a hard shoulder should be stopped at a paywall.
         $count = $dispatcher->broadcast($stranded);
 
         if ($count === 0 && !$dispatcher->widen($stranded->fresh())) {

@@ -7,6 +7,7 @@ use App\Models\UrbanGoodzStrandedOffer;
 use App\Models\UrbanGoodzStrandedRequest;
 use App\Models\UrbanGoodzStrandedResponder;
 use Illuminate\Support\Collection;
+use App\Services\UrbanGoodzStrandedSafety;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -53,6 +54,13 @@ class UrbanGoodzStrandedDispatcher
 
         $candidates = $this->findCandidates($request, $radius);
 
+        // Any nearby user who opted in, AFTER Goodz Samaritans: only when no Samaritan is in range, or the
+        // Samaritans have had their window (a later round, or the community delay has passed).
+        $community = $this->shouldOfferCommunity($request, $candidates, $round)
+            ? $this->findCommunityCandidates($request, $radius, $candidates)
+            : collect();
+        $candidates = $candidates->concat($community)->values();
+
         if ($candidates->isEmpty()) {
             return 0;
         }
@@ -83,9 +91,9 @@ class UrbanGoodzStrandedDispatcher
                     'eta_minutes' => $this->estimateEta((float) $candidate->distance_miles),
                     'broadcast_round' => $round,
                     'status' => 'offered',
-                    'responder_rating' => $candidate->rating,
-                    'responder_trust_score' => $candidate->trust_score,
-                    'responder_completed_jobs' => $candidate->completed_jobs,
+                    'responder_rating' => $candidate->rating ?? null,
+                    'responder_trust_score' => $candidate->trust_score ?? null,
+                    'responder_completed_jobs' => $candidate->completed_jobs ?? null,
                     'offered_at' => now(),
                     'expires_at' => $expiresAt,
                 ]);
@@ -182,6 +190,78 @@ class UrbanGoodzStrandedDispatcher
         }
 
         return self::PROFESSIONAL_TYPES;
+    }
+
+    /** Community users are offered a request only after (or without) the Goodz Samaritans. */
+    private function shouldOfferCommunity(UrbanGoodzStrandedRequest $request, Collection $responders, int $round): bool
+    {
+        if (! (bool) config('urban_goodz_stranded.community.enabled', true)
+            || $request->escalated_at !== null
+            || ! $request->allow_samaritans
+            || ! $request->service?->samaritan_eligible) {
+            return false;
+        }
+
+        $samaritansInRange = $responders->contains(fn ($r) => ($r->responder_type ?? null) === 'samaritan');
+        // Offers already went out for this request, so the Samaritans have had their turn (this is a later
+        // pass: the radius widened or the offer window lapsed with no answer).
+        $samaritansHadTheirTurn = UrbanGoodzStrandedOffer::where('request_id', $request->getKey())->exists();
+        if (! $samaritansInRange || $samaritansHadTheirTurn) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Opted-in users whose app reported a position recently, nearest first. Never the requester, never
+     * anyone who has not cleared the community safety gate, never someone already offered this request.
+     */
+    private function findCommunityCandidates(UrbanGoodzStrandedRequest $request, int $radius, Collection $already): Collection
+    {
+        $lat = (float) $request->latitude;
+        $lng = (float) $request->longitude;
+        $latDelta = $radius / 69.0;
+        $lngDelta = $radius / max(0.1, (69.0 * cos(deg2rad($lat))));
+        $haversine = sprintf(
+            '(%d * acos(least(1.0, cos(radians(?)) * cos(radians(p.latitude)) * cos(radians(p.longitude) - radians(?)) + sin(radians(?)) * sin(radians(p.latitude)))))',
+            self::EARTH_RADIUS_MILES
+        );
+
+        $rows = DB::table('urban_goodz_stranded_nearby_presence as p')
+            ->join('urban_goodz_notification_preferences as n', function ($j) {
+                $j->on('n.recipient_id', '=', 'p.user_id')->where('n.recipient_type', '=', 'customer');
+            })
+            ->where('n.nearby_help_opt_in', 1)
+            ->where('p.expires_at', '>', now())
+            ->where('p.user_id', '!=', (int) $request->user_id)
+            ->whereNotIn('p.user_id', $already->pluck('user_id')->all())
+            ->whereBetween('p.latitude', [$lat - $latDelta, $lat + $latDelta])
+            ->whereBetween('p.longitude', [$lng - $lngDelta, $lng + $lngDelta])
+            ->select('p.user_id')
+            ->selectRaw("$haversine as distance_miles", [$lat, $lng, $lat])
+            ->havingRaw('distance_miles <= ?', [$radius])
+            ->orderBy('distance_miles')
+            ->limit(60)
+            ->get();
+
+        $max = max(1, (int) config('urban_goodz_stranded.community.max_per_round', 15));
+        $out = collect();
+        foreach ($rows as $row) {
+            if (! UrbanGoodzStrandedSafety::communityGate((int) $row->user_id)['allowed']) {
+                continue;
+            }
+            $out->push((object) [
+                'user_id' => (int) $row->user_id,
+                'responder_type' => 'community',
+                'distance_miles' => (float) $row->distance_miles,
+            ]);
+            if ($out->count() >= $max) {
+                break;
+            }
+        }
+
+        return $out;
     }
 
     /**

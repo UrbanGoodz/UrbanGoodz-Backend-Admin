@@ -93,6 +93,14 @@ Route::group(['prefix' => 'urban-goodz/creator/ai', 'middleware' => ['auth:api',
     Route::post('reel-analytics', 'Api\V1\UrbanGoodz\CreatorSpaceAIController@generateReelAnalytics');
 });
 
+// Stranded: "Nearby help alerts" (opt-in). Any user can be reachable when a neighbour is stranded close by.
+Route::group(['prefix' => 'urban-goodz/stranded/community', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
+    Route::get('status', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedCommunityController@status');
+    Route::post('presence', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedCommunityController@presence');
+    Route::delete('presence', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedCommunityController@clear');
+    Route::post('acknowledge', 'Api\V1\UrbanGoodz\UrbanGoodzStrandedCommunityController@acknowledge');
+});
+
 Route::group(['prefix' => 'urban-goodz/fashion', 'middleware' => ['auth:api', 'throttle:60,1']], function () {
     Route::get('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@stylistRequests');
     Route::post('stylist-requests', 'Api\V1\UrbanGoodzFashionMeasurementController@submitStylistRequest');

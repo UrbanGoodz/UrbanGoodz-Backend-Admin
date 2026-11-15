@@ -758,7 +758,7 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             ->assertStatus(409);
     }
 
-    public function test_broadcast_is_refused_while_the_fee_is_outstanding(): void
+    public function test_asking_for_help_is_free_an_unpaid_fee_never_holds_the_broadcast_back(): void
     {
         $customer = $this->verified('unpaid');
         $request = $this->request($customer, self::SAMARITAN_SERVICE, [
@@ -766,10 +766,12 @@ class UrbanGoodzStrandedIntegrationTest extends TestCase
             'help_request_fee_minor' => 500,
         ]);
 
-        $this->actingAs($customer, 'api')
-            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/broadcast")
-            ->assertStatus(402)
-            ->assertJsonPath('code', 'fee_outstanding');
+        $response = $this->actingAs($customer, 'api')
+            ->postJson("/api/v1/urban-goodz/stranded/requests/{$request->uuid}/broadcast");
+
+        $this->assertNotSame(402, $response->status(), 'no paywall between a stranded person and help');
+        $this->assertNotSame('fee_outstanding', $response->json('code'));
+        $this->assertSame('unpaid', $request->fresh()->help_request_fee_status, 'the optional fee is left as it was');
     }
 
     // -------------------------------------------------------- 4. authorization

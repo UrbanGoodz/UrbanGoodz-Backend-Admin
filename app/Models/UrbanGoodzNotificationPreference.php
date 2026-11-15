@@ -11,6 +11,7 @@ class UrbanGoodzNotificationPreference extends Model
     protected $casts = [
         'push_enabled' => 'boolean', 'email_enabled' => 'boolean', 'sms_consent' => 'boolean', 'promotions_opt_in' => 'boolean',
         'sms_consent_at' => 'datetime', 'promotions_opt_in_at' => 'datetime',
+        'nearby_help_opt_in' => 'boolean', 'nearby_help_opt_in_at' => 'datetime',
     ];
 
     /** Events that are marketing, not service messages. */

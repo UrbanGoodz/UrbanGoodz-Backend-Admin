@@ -162,6 +162,19 @@ class UrbanGoodzStrandedResponderController extends Controller
         $mode = $request->input('response_mode');
         $usesAlternateVehicle = $request->boolean('uses_alternate_vehicle');
 
+        // An ordinary user answering a neighbour's request must have cleared the community gate (verified phone,
+        // safety terms, no open safety report). Samaritans and professionals are gated at presence time.
+        $offerRow = UrbanGoodzStrandedOffer::whereKey($offer)->where('responder_id', $userId)->first();
+        if ($offerRow && $offerRow->responder_type === 'community') {
+            $gate = \App\Services\UrbanGoodzStrandedSafety::communityGate($userId);
+            if (! $gate['allowed']) {
+                return response()->json([
+                    'status' => 'error', 'code' => $gate['code'], 'message' => $gate['message'],
+                    'document' => $gate['document'] ?? null, 'version' => $gate['version'] ?? null,
+                ], 403);
+            }
+        }
+
         try {
             $accepted = DB::transaction(function () use ($request, $offer, $userId, $mode, $usesAlternateVehicle) {
                 $row = UrbanGoodzStrandedOffer::whereKey($offer)

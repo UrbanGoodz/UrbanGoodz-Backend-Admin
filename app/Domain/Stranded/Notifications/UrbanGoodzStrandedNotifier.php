@@ -328,7 +328,8 @@ class UrbanGoodzStrandedNotifier
         $payload = $this->payload($r, $extra + ['offer_id' => $offer->getKey()]);
 
         $this->send(function () use ($offer, $responderId, $title, $body, $payload) {
-            if ($offer->responder_type === 'samaritan') {
+            if (in_array($offer->responder_type, ['samaritan', 'community'], true)) {
+                // Neighbours (Samaritans and ordinary users who opted in) are customer accounts.
                 $this->notifications->notifyCustomer($responderId, $title, $body, $payload);
                 return;
             }

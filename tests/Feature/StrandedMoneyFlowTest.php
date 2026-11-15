@@ -203,7 +203,7 @@ class StrandedMoneyFlowTest extends TestCase
         $this->request($other); // someone else's request must never surface
 
         $this->actingAs($customer, 'api')->getJson('/api/v1/urban-goodz/stranded/requests/active')
-            ->assertOk()->assertJsonPath('active', true)->assertJsonPath('next_step', 'pay_fee')
+            ->assertOk()->assertJsonPath('active', true)->assertJsonPath('next_step', 'broadcast')
             ->assertJsonPath('data.uuid', $unpaid->uuid);
 
         $unpaid->update(['help_request_fee_status' => 'paid']);
