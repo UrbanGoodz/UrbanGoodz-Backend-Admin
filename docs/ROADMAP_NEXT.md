@@ -13,6 +13,12 @@ Ranked by (impact on launch and growth) over (effort), grounded in what the code
    more person-made mistake is one outage. Staging + a nightly off-host backup copy + error tracking (Sentry-style) is the
    cheapest insurance in this list.
 
+7. DEPENDENCY SECURITY: `composer audit` reports 88 advisories across 24 packages, including 4 rated critical
+   (phpoffice/phpspreadsheet x2, laravel/framework x1 [locked at 12.50.0; a patch release fixes it], mtdowling/jmespath.php x1)
+   and many high (league/commonmark, guzzle, symfony http-foundation/kernel, dompdf, phpseclib, aws-sdk). A patch-level
+   `composer update` of those packages, run through STAGING with the full test suite, is a launch-week task. Exposure depends
+   on use (spreadsheet import/export, markdown, PDF), so check which are reachable from user input first.
+
 ## 1. Stranded: better than a roadside club
 - Free to ask, optional reward (done). Add: one-tap SOS that shares live location with chosen contacts; check-in timers.
 - A membership ("Stranded Plus") using the existing member-fee settings: priority dispatch, pre-priced tows, covered fees.
