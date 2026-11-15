@@ -25,7 +25,9 @@
             <li class="breadcrumb-item active" aria-current="page">Stranded Live</li>
           </ol>
         </nav>
-        <h1 class="page-header-title">Stranded &mdash; Live Operations</h1>
+        <h1 class="page-header-title">Stranded &mdash; Live Operations
+          <a href="{{ route('admin.urban-goodz.stranded.coverage') }}" class="btn btn-sm btn-outline-primary ml-2">Coverage &amp; gaps</a>
+        </h1>
         <p class="text-muted mb-0">
           Every active rescue and every responder on the road.
           <span id="ug-live-updated"></span>

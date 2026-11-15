@@ -766,6 +766,26 @@ class MoniqueProactiveAttentionService
         }
 
         try {
+            if (Schema::hasTable('urban_goodz_stranded_requests')) {
+                $missed = DB::table('urban_goodz_stranded_requests')
+                    ->where('created_at', '>=', now()->subDay())
+                    ->where(fn ($q) => $q->where('status', 'no_responders')->orWhereNotNull('escalated_at'))
+                    ->whereNull('selected_offer_id')
+                    ->count();
+                if ($missed > 0) {
+                    $observations[] = [
+                        'category' => 'stranded_coverage_gap',
+                        'priority' => AiMoniqueNotification::PRIORITY_HIGH,
+                        'title' => "{$missed} Stranded request(s) went unanswered in the last day",
+                        'message' => "{$missed} people asked for help in the last 24 hours and nobody was available. Open Stranded > Coverage & gaps to see where, and recruit helpers there.",
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Monique could not observe Stranded coverage', ['error' => $e->getMessage()]);
+        }
+
+        try {
             if (Schema::hasTable('urban_goodz_order_anywhere_reimbursements')) {
                 $hours = max(1, (int) config('urban_goodz_ai.monique_proactive.ops.reimbursement_hours', 4));
                 $pending = DB::table('urban_goodz_order_anywhere_reimbursements')

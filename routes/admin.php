@@ -112,6 +112,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 // separate so it stays cheap enough to hit every few seconds.
                 Route::get('live', 'UrbanGoodz\UrbanGoodzStrandedLiveController@index')->name('live');
                 Route::get('live-feed', 'UrbanGoodz\UrbanGoodzStrandedLiveController@feed')->name('live-feed');
+                Route::get('coverage', 'UrbanGoodz\UrbanGoodzStrandedCoverageController@index')->name('coverage');
             });
 
             // Same-day payout pricing. Weekly payouts are free and carry no

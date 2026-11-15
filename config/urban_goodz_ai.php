@@ -196,6 +196,8 @@ return [
             'order_anywhere_unassigned' => ['enabled' => true, 'action' => env('MONIQUE_OA_UNASSIGNED_ACTION', 'auto_run')],
             'driver_applications_pending' => ['enabled' => true, 'action' => env('MONIQUE_DRIVER_APPS_ACTION', 'auto_run')],
             'reimbursements_pending' => ['enabled' => true, 'action' => env('MONIQUE_REIMBURSEMENTS_ACTION', 'auto_run')],
+            // Flag only: it needs people (recruiting), not a button.
+            'stranded_coverage_gap' => ['enabled' => true, 'action' => 'observe_only'],
             // Money: flag only.
             'driver_payouts_pending' => ['enabled' => true, 'action' => 'observe_only'],
             'pending_withdrawals' => [
