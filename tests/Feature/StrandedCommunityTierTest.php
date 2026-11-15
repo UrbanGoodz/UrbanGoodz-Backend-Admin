@@ -223,4 +223,20 @@ class StrandedCommunityTierTest extends TestCase
         $this->actingAs($n, 'api')->getJson('/api/v1/urban-goodz/stranded/responder/offers')
             ->assertOk()->assertJsonPath('offers.0.requester_verified', false);
     }
+
+    public function test_the_safety_status_lets_a_phone_verified_requester_through_and_says_they_are_not_id_verified(): void
+    {
+        $u = $this->user('statususer');
+        foreach (UrbanGoodzStrandedSafety::requiredDocumentsFor('customer') as $doc) {
+            UrbanGoodzStrandedConsent::create(['user_id' => $u->id, 'role' => 'customer', 'document' => $doc,
+                'version' => UrbanGoodzStrandedSafety::VERSIONS[$doc], 'accepted_at' => now()]);
+        }
+
+        $this->actingAs($u, 'api')->getJson('/api/v1/urban-goodz/stranded/safety/status?role=customer')
+            ->assertOk()->assertJsonPath('allowed', true)->assertJsonPath('id_verified', false);
+
+        // A Samaritan still needs the full check.
+        $this->actingAs($u, 'api')->getJson('/api/v1/urban-goodz/stranded/safety/status?role=samaritan')
+            ->assertOk()->assertJsonPath('allowed', false);
+    }
 }

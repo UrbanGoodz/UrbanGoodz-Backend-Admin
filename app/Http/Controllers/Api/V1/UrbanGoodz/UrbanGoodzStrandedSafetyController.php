@@ -38,12 +38,17 @@ class UrbanGoodzStrandedSafetyController extends Controller
             ->where('role', $role)
             ->first();
 
-        $gate = UrbanGoodzStrandedSafety::gate($userId, $role);
+        // Someone ASKING for help only needs the lighter gate (verified phone + terms); a Samaritan keeps the full one.
+        $gate = $role === UrbanGoodzStrandedVerification::ROLE_CUSTOMER
+            ? UrbanGoodzStrandedSafety::requesterGate($userId)
+            : UrbanGoodzStrandedSafety::gate($userId, $role);
 
         return response()->json([
             'status' => 'success',
             'role' => $role,
             'allowed' => $gate['allowed'],
+            // False when allowed on the light path: the person is not ID-verified, and helpers are told so.
+            'id_verified' => (bool) ($gate['verified'] ?? $gate['allowed']),
             'code' => $gate['code'],
             'message' => $gate['message'],
             'verification' => $verification ? [
