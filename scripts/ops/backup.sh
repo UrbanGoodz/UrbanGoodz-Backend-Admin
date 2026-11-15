@@ -11,7 +11,10 @@
 set -euo pipefail
 APP="${1:?usage: backup.sh /path/to/app}"
 OUT="${BACKUP_DIR:-$HOME/backups}"
-KEEP_DAYS="${BACKUP_KEEP_DAYS:-21}"
+# Disk is tight on shared hosting, so: database dumps are tiny (kept 30 days, never fewer than 10); the user-files archive
+# is big, so it is made weekly (Sunday) unless BACKUP_FILES_EVERY_RUN=1, and only the newest FILES_KEEP are kept.
+KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"
+FILES_KEEP="${BACKUP_FILES_KEEP:-3}"
 MIN_KEEP=10
 STAMP="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT"; chmod 700 "$OUT"
@@ -34,13 +37,19 @@ zcat "$DB_FILE" | tail -n 3 | grep -q 'Dump completed' || { log "FAIL dump incom
 log "OK db $DB_FILE tables=$TABLES size=$(du -h "$DB_FILE" | cut -f1)"
 
 FILES="$OUT/files-$STAMP.tar.gz"
-tar -czf "$FILES" -C "$APP" storage/app public/Modules oauth-private.key oauth-public.key storage/oauth-private.key storage/oauth-public.key 2>/dev/null || true
-tar -tzf "$FILES" >/dev/null
-log "OK files $FILES size=$(du -h "$FILES" | cut -f1)"
+if [ "$(date +%u)" = "7" ] || [ "${BACKUP_FILES_EVERY_RUN:-0}" = "1" ]; then
+  tar -czf "$FILES" -C "$APP" storage/app public/Modules oauth-private.key oauth-public.key storage/oauth-private.key storage/oauth-public.key 2>/dev/null || true
+  tar -tzf "$FILES" >/dev/null
+  log "OK files $FILES size=$(du -h "$FILES" | cut -f1)"
+else
+  FILES=""
+  log "NOTE files archive skipped (weekly on Sunday)"
+fi
+log "DISK backups dir=$(du -sh "$OUT" | cut -f1) home=$(du -sh "$HOME" 2>/dev/null | cut -f1)"
 
 if [ -f "$HOME/.ug-backup.env" ]; then . "$HOME/.ug-backup.env"; fi
 if [ -n "${BACKUP_RCLONE_REMOTE:-}" ] && command -v rclone >/dev/null 2>&1; then
-  if rclone copy "$DB_FILE" "$BACKUP_RCLONE_REMOTE" && rclone copy "$FILES" "$BACKUP_RCLONE_REMOTE"; then
+  if rclone copy "$DB_FILE" "$BACKUP_RCLONE_REMOTE" && { [ -z "$FILES" ] || rclone copy "$FILES" "$BACKUP_RCLONE_REMOTE"; }; then
     log "OK offsite copy to $BACKUP_RCLONE_REMOTE"; touch "$OUT/LAST_OFFSITE_OK"
   else
     log "WARN offsite copy FAILED (local backup is still good)"
@@ -50,7 +59,10 @@ else
 fi
 
 # Retention: only ever prune AUTOMATIC backups made by this script, and never go below MIN_KEEP of each kind.
-for kind in db files; do
+# The big files archive: keep only the newest FILES_KEEP.
+mapfile -t extra < <(find "$OUT" -maxdepth 1 -name 'files-*' | sort | head -n -"$FILES_KEEP")
+for f in "${extra[@]:-}"; do [ -n "$f" ] && rm -f "$f" && log "pruned $f"; done
+for kind in db; do
   mapfile -t old < <(find "$OUT" -maxdepth 1 -name "$kind-*" -mtime +"$KEEP_DAYS" | sort)
   total="$(find "$OUT" -maxdepth 1 -name "$kind-*" | wc -l)"
   for f in "${old[@]:-}"; do
