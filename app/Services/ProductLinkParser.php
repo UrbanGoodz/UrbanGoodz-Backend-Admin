@@ -53,7 +53,7 @@ class ProductLinkParser
         }
 
         // 2) OpenGraph / product meta, filling whatever is still missing
-        $out['title'] = $out['title'] ?: $this->clean($meta['og:title'] ?? ($meta['twitter:title'] ?? null));
+        $out['title'] = $out['title'] ?: $this->stripSiteSuffix($this->clean($meta['og:title'] ?? ($meta['twitter:title'] ?? null)), $meta['og:site_name'] ?? null, $pageUrl);
         $out['price'] = $out['price'] ?? $this->price($meta['product:price:amount'] ?? ($meta['og:price:amount'] ?? ($meta['price'] ?? null)));
         $out['currency'] = $out['currency'] ?: $this->currency($meta['product:price:currency'] ?? ($meta['og:price:currency'] ?? ($meta['pricecurrency'] ?? null)));
         $out['image'] = $out['image'] ?: $this->image($meta['og:image'] ?? ($meta['twitter:image'] ?? null), $pageUrl);
@@ -65,7 +65,7 @@ class ProductLinkParser
         // 3) the page title
         if (! $out['title']) {
             $t = $dom->getElementsByTagName('title')->item(0);
-            $out['title'] = $t ? $this->clean($t->textContent) : null;
+            $out['title'] = $t ? $this->stripSiteSuffix($this->clean($t->textContent), $meta['og:site_name'] ?? null, $pageUrl) : null;
             if ($out['title'] && $out['source'] === 'none') {
                 $out['source'] = 'title';
             }
@@ -126,6 +126,34 @@ class ProductLinkParser
         $c = strtoupper(trim((string) $v));
 
         return preg_match('/^[A-Z]{3}$/', $c) ? $c : null;
+    }
+
+    /** "Product | Shop Name" and "Product - shop.com" become just "Product" (only when the tail really names the site). */
+    private function stripSiteSuffix(?string $title, $siteName, $pageUrl): ?string
+    {
+        if ($title === null) {
+            return null;
+        }
+        $host = strtolower((string) preg_replace('/^www\./', '', (string) parse_url((string) $pageUrl, PHP_URL_HOST)));
+        $site = strtolower(trim((string) $siteName));
+        // a pipe is almost always a site-name separator
+        if (preg_match('/^(.{3,}?)\s+\|\s+.+$/u', $title, $m)) {
+            return trim($m[1]);
+        }
+        foreach ([' - ', ' – ', ' — ', ' :: '] as $sep) {
+            $pos = mb_strrpos($title, $sep);
+            if ($pos === false || $pos < 3) {
+                continue;
+            }
+            $tail = strtolower(trim(mb_substr($title, $pos + mb_strlen($sep))));
+            $tailWord = preg_replace('/[^a-z0-9]/', '', $tail);
+            $hostWord = preg_replace('/[^a-z0-9]/', '', $host);
+            if ($tail !== '' && ($tail === $site || ($tailWord !== '' && $hostWord !== '' && str_contains($hostWord, $tailWord)))) {
+                return trim(mb_substr($title, 0, $pos));
+            }
+        }
+
+        return $title;
     }
 
     private function clean($v): ?string

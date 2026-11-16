@@ -45,12 +45,17 @@ class QwenVoiceService
             ];
         }
 
+        // If the voice machine just failed, skip straight to the fallback for a minute instead of making every
+        // visitor wait out a timeout (Cloudflare gives up on slow requests, which looked like a 502).
+        if (\Illuminate\Support\Facades\Cache::get('qwen_tts_recently_down')) {
+            return ['success' => false, 'error_code' => 'recently_down', 'message' => 'Qwen TTS was unreachable a moment ago.'];
+        }
+
         $voiceName = self::VOICE_MAP[$personaKey] ?? $personaKey;
         $apiKey = $this->apiKey();
 
         try {
-            $http = Http::timeout(60)
-                ->retry(1, 500, throw: false)
+            $http = Http::connectTimeout(4)->timeout(30)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'Accept' => 'audio/wav, audio/mpeg, application/json',
@@ -65,6 +70,9 @@ class QwenVoiceService
             $contentType = (string) $http->header('Content-Type');
 
             if (! $http->successful() || ! str_contains($contentType, 'audio')) {
+                if ($http->status() >= 500) {
+                    \Illuminate\Support\Facades\Cache::put('qwen_tts_recently_down', true, 60);
+                }
                 Log::warning('Qwen TTS synthesis request failed.', [
                     'persona' => $personaKey,
                     'voice' => $voiceName,
@@ -87,7 +95,8 @@ class QwenVoiceService
                 'mime' => $mime,
             ];
         } catch (\Throwable $e) {
-            Log::error('Qwen TTS synthesis threw an exception.', [
+            \Illuminate\Support\Facades\Cache::put('qwen_tts_recently_down', true, 60);
+            Log::warning('Qwen TTS synthesis threw an exception.', [
                 'persona' => $personaKey,
                 'exception' => $e->getMessage(),
             ]);

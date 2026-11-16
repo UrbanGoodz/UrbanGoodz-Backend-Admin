@@ -30,14 +30,21 @@ DB_NAME="$(env_val DB_DATABASE)"; DB_USER="$(env_val DB_USERNAME)"; DB_PASS="$(e
 [ -n "$DB_USER" ] || { log "FAIL no DB_USERNAME found in $APP/.env"; exit 1; }
 
 CNF="$(mktemp)"; trap 'rm -f "$CNF"' EXIT; chmod 600 "$CNF"
-printf '[client]\nuser=%s\npassword=%s\nhost=%s\n' "$DB_USER" "$DB_PASS" "${DB_HOST:-localhost}" > "$CNF"
+# Option-file values are quoted (a "#" in a password otherwise starts a comment and truncates it);
+# backslashes and double quotes inside a value are escaped.
+q() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+printf '[client]\nuser="%s"\npassword="%s"\nhost="%s"\n' "$(q "$DB_USER")" "$(q "$DB_PASS")" "$(q "${DB_HOST:-localhost}")" > "$CNF"
 
 DB_FILE="$OUT/db-$STAMP.sql.gz"
-mysqldump --defaults-extra-file="$CNF" --single-transaction --no-tablespaces --routines "$DB_NAME" | gzip -9 > "$DB_FILE"
+# A failed dump must never leave a real-looking file behind, and must never look like success.
+if ! mysqldump --defaults-extra-file="$CNF" --single-transaction --no-tablespaces --routines "$DB_NAME" 2>"$OUT/.mysqldump.err" | gzip -9 > "$DB_FILE"; then
+  rm -f "$DB_FILE"; log "FAIL mysqldump: $(head -c 300 "$OUT/.mysqldump.err" | tr '\n' ' ')"; rm -f "$OUT/.mysqldump.err"; exit 1
+fi
+rm -f "$OUT/.mysqldump.err"
 gzip -t "$DB_FILE"
 TABLES="$(zcat "$DB_FILE" | grep -c '^CREATE TABLE' || true)"
-zcat "$DB_FILE" | tail -n 3 | grep -q 'Dump completed' || { log "FAIL dump incomplete: $DB_FILE"; exit 1; }
-[ "$TABLES" -gt 50 ] || { log "FAIL suspiciously few tables ($TABLES): $DB_FILE"; exit 1; }
+zcat "$DB_FILE" | tail -n 3 | grep -q 'Dump completed' || { log "FAIL dump incomplete: $DB_FILE"; rm -f "$DB_FILE"; exit 1; }
+[ "$TABLES" -gt 50 ] || { log "FAIL suspiciously few tables ($TABLES): $DB_FILE"; rm -f "$DB_FILE"; exit 1; }
 log "OK db $DB_FILE tables=$TABLES size=$(du -h "$DB_FILE" | cut -f1)"
 
 FILES="$OUT/files-$STAMP.tar.gz"
