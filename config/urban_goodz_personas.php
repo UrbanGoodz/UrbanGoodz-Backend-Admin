@@ -127,6 +127,10 @@ return [
         // Paid speech for callers with no account is capped across the whole platform per day,
         // because a per-client throttle does not stop many clients. 0 turns guest speech off.
         'guest_daily_char_budget' => (int) env('UG_GUEST_SPEECH_DAILY_CHARS', 100000),
+        // Each signed-in user's own daily allowance (every synthesized character is billed). 0 would block speech.
+        'user_daily_char_budget' => (int) env('UG_USER_SPEECH_DAILY_CHARS', 60000),
+        // If the configured voice provider fails, try the other one.
+        'voice_fallback' => (bool) env('UG_VOICE_FALLBACK', true),
         'viseme_sample_rate_ms' => 60,
         'elevenlabs_api_key' => env('ELEVENLABS_API_KEY'),
         'elevenlabs_model_id' => env('ELEVENLABS_MODEL_ID', 'eleven_turbo_v2_5'),

@@ -81,47 +81,55 @@ class DigitalHumanController extends Controller
             'text' => 'required|string|max:2000',
         ]);
 
-        // Guests share one daily budget of synthesized characters. The route is open on purpose,
-        // and its throttle is per client, so without this a spread of clients could run the
-        // provider bill without limit. Signed-in callers are not counted here.
+        // Everyone has a daily budget of synthesized characters, because every character is billed. Guests share ONE
+        // platform-wide budget (the route is open on purpose and its throttle is per client, so a spread of clients could
+        // otherwise run the provider bill without limit); each signed-in user has their own.
         $guest = ! auth('api')->check();
         $chars = mb_strlen($validated['text']);
-        $budgetKey = 'ug:guest-speech-chars:' . now()->toDateString();
-        if ($guest) {
-            $budget = (int) config('urban_goodz_personas.digital_human_global.guest_daily_char_budget', 100000);
-            Cache::add($budgetKey, 0, now()->endOfDay());
-            if ((int) Cache::increment($budgetKey, $chars) > $budget) {
-                Cache::decrement($budgetKey, $chars);
+        $budgetKey = $guest
+            ? 'ug:guest-speech-chars:' . now()->toDateString()
+            : 'ug:user-speech-chars:' . auth('api')->id() . ':' . now()->toDateString();
+        $budget = $guest
+            ? (int) config('urban_goodz_personas.digital_human_global.guest_daily_char_budget', 100000)
+            : (int) config('urban_goodz_personas.digital_human_global.user_daily_char_budget', 60000);
+        Cache::add($budgetKey, 0, now()->endOfDay());
+        if ((int) Cache::increment($budgetKey, $chars) > $budget) {
+            Cache::decrement($budgetKey, $chars);
 
-                return response()->json([
-                    'success' => false,
-                    'error_code' => 'guest_budget_exhausted',
-                    'message' => 'Voice is unavailable right now. Sign in to keep using it.',
-                ], 429);
-            }
+            return response()->json([
+                'success' => false,
+                'error_code' => $guest ? 'guest_budget_exhausted' : 'user_budget_exhausted',
+                'message' => $guest
+                    ? 'Voice is unavailable right now. Sign in to keep using it.'
+                    : 'You have used today\'s voice allowance. It resets tomorrow.',
+            ], 429);
         }
 
-        $provider = strtolower(trim((string) config(
-            'urban_goodz_personas.digital_human_global.voice_provider',
-            'qwen'
-        )));
+        $primary = strtolower(trim((string) config('urban_goodz_personas.digital_human_global.voice_provider', 'qwen')));
+        // Try the configured provider, then the other one: if the voice machine is down or a billing plan lapses, the
+        // character still speaks. (UG_VOICE_FALLBACK=false turns this off.)
+        $order = $primary === 'qwen' ? ['qwen', 'elevenlabs'] : ['elevenlabs', 'qwen'];
+        if (! (bool) config('urban_goodz_personas.digital_human_global.voice_fallback', true)) {
+            $order = [$order[0]];
+        }
 
-        $result = match ($provider) {
-            'qwen' => $this->qwenVoiceService->synthesize(
-                personaKey: $validated['persona'],
-                text: $validated['text']
-            ),
-            default => $this->elevenLabsVoiceService->synthesize(
-                personaKey: $validated['persona'],
-                text: $validated['text']
-            ),
-        };
+        $result = null;
+        $firstFailure = null;
+        foreach ($order as $name) {
+            $attempt = $name === 'qwen'
+                ? $this->qwenVoiceService->synthesize(personaKey: $validated['persona'], text: $validated['text'])
+                : $this->elevenLabsVoiceService->synthesize(personaKey: $validated['persona'], text: $validated['text']);
+            if ($attempt['success']) {
+                $result = $attempt;
+                break;
+            }
+            $firstFailure ??= $attempt;
+        }
+        $result ??= $firstFailure;
 
         if (! $result['success']) {
-            // Nothing was synthesized, so nothing is spent from the guest budget.
-            if ($guest) {
-                Cache::decrement($budgetKey, $chars);
-            }
+            // Nothing was synthesized, so nothing is spent from the budget.
+            Cache::decrement($budgetKey, $chars);
 
             return response()->json([
                 'success' => false,
