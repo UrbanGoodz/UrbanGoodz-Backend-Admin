@@ -21,9 +21,13 @@ mkdir -p "$OUT"; chmod 700 "$OUT"
 LOG="$OUT/backup.log"
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$LOG"; }
 
-env_val() { grep -E "^$1=" "$APP/.env" | head -1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//'; }
+# Tolerates indented keys, an "export " prefix, quotes and Windows line endings. Never fails the script
+# by itself: a missing key comes back empty and is reported loudly below.
+env_val() { { grep -E "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" "$APP/.env" || true; } | head -1 | cut -d= -f2- | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'\'']//' -e 's/["'\'']$//'; }
 DB_NAME="$(env_val DB_DATABASE)"; DB_USER="$(env_val DB_USERNAME)"; DB_PASS="$(env_val DB_PASSWORD)"; DB_HOST="$(env_val DB_HOST)"
-[ -n "$DB_NAME" ] || { log "FAIL no DB_DATABASE in .env"; exit 1; }
+[ -f "$APP/.env" ] || { log "FAIL no .env at $APP"; exit 1; }
+[ -n "$DB_NAME" ] || { log "FAIL no DB_DATABASE found in $APP/.env (keys may be formatted unexpectedly)"; exit 1; }
+[ -n "$DB_USER" ] || { log "FAIL no DB_USERNAME found in $APP/.env"; exit 1; }
 
 CNF="$(mktemp)"; trap 'rm -f "$CNF"' EXIT; chmod 600 "$CNF"
 printf '[client]\nuser=%s\npassword=%s\nhost=%s\n' "$DB_USER" "$DB_PASS" "${DB_HOST:-localhost}" > "$CNF"
