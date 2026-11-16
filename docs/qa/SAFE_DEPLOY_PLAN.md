@@ -75,3 +75,19 @@ Gate: all clean, or fix before continuing.
 - Reimbursement purchasing (branch `claude/order-anywhere-reimbursement`, one extra
   migration). Deploy it as a second, small release after this one is verified.
 - Stripe keys/webhook: webhook URL is `/api/v1/order-anywhere/cards/stripe/webhook`.
+
+
+## Lessons from the first three deployments (read before cutting over)
+1. **Use scripts/ops/cutover.sh for the swap.** It is tested (tests/Feature/CutoverScriptTest.php) and encodes these rules:
+   - NEVER run config:cache / route:cache / view:cache in the release folder BEFORE the swap. Laravel bakes absolute paths into
+     bootstrap/cache/*.php, so after the rename the app still looks in the old folder and every request 500s (this happened in
+     Release 3). The script deletes such files before the swap and builds the caches AFTER it, in the final location.
+   - The rollback must never nest: it moves the failed release to a UNIQUE name (live_failed_<time>) and refuses to move anything
+     onto a path that exists.
+   - The release must have artisan and vendor/autoload.php at its TOP level (not nested a folder down).
+   Operator steps around it: artisan down -> final DB dump -> migrate --force -> addon_settings checksum compare -> cutover.sh -> checks.
+2. **The file-count cap, not gigabytes, is the limit on this host (300,000 files).** A release is about 37,000 files (vendor alone is
+   26,000). After a release is verified: keep only the NEWEST rollback folder extracted; archive each older one to one verified
+   .tar.gz in ~/backups (compare tar entry count with the folder file count) and remove the extracted copy. Staging counts too.
+3. Run read-only database checks with the mysql client, not artisan, on the live site; keep SQL quoting simple (a quoting bug in a
+   check once looked like a failed migration).
