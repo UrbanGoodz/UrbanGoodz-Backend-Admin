@@ -163,6 +163,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground()
             ->when(fn () => config('urban_goodz_ai.monique_proactive.enabled', true));
 
+        // Monday morning email of Monique's latest business read to each admin.
+        $schedule->command('monique:weekly-brief')
+            ->weeklyOn(1, '9:11')
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // These were defined in app/Console/Kernel.php, which Laravel 12 does not read, so none of them
         // ever ran. This closure is the only live schedule; tests/Feature/ScheduledCommandsAreRegisteredTest
         // fails if one goes missing again.

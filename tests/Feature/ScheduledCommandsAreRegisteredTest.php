@@ -94,6 +94,7 @@ schedule:list said:
         $this->assertScheduled('routes:generate-recurring', '30   2 * * *');
         $this->assertScheduled('ai-concierge:prune-guests', '17   3 * * *');
         $this->assertScheduled('monique:think', '7    4 * * *');
+        $this->assertScheduled('monique:weekly-brief', '11   9 * * 1');
     }
 
     public function test_every_scheduled_command_exists(): void
