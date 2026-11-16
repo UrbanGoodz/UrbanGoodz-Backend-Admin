@@ -131,11 +131,15 @@ class DigitalHumanController extends Controller
             // Nothing was synthesized, so nothing is spent from the budget.
             Cache::decrement($budgetKey, $chars);
 
+            // 503 + Retry-After (not a bare 502): clients and Cloudflare treat it as "try again shortly", and the
+            // app falls back to the device voice instead of showing a gateway error.
+            $outage = in_array($result['error_code'], ['recently_down', 'provider_exception', 'provider_error', 'not_configured'], true);
+
             return response()->json([
                 'success' => false,
                 'error_code' => $result['error_code'],
-                'message' => $result['message'],
-            ], $result['error_code'] === 'not_configured' ? 503 : 502);
+                'message' => $outage ? 'Her voice is resting for a moment. You can still read her reply.' : $result['message'],
+            ], 503)->header('Retry-After', '60');
         }
 
         return response($result['audio'], 200)

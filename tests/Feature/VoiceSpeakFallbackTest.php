@@ -95,7 +95,7 @@ class VoiceSpeakFallbackTest extends TestCase
         config(['urban_goodz_personas.digital_human_global.voice_provider' => 'qwen']);
         $this->fakeProviders(qwenWorks: false, elevenWorks: false);
 
-        $this->speak()->assertStatus(502)->assertJsonPath('success', false);
+        $this->speak()->assertStatus(503)->assertJsonPath('success', false);
     }
 
     public function test_fallback_can_be_switched_off(): void
@@ -103,7 +103,7 @@ class VoiceSpeakFallbackTest extends TestCase
         config(['urban_goodz_personas.digital_human_global.voice_provider' => 'qwen', 'urban_goodz_personas.digital_human_global.voice_fallback' => false]);
         [, $eleven] = $this->fakeProviders(qwenWorks: false, elevenWorks: true);
 
-        $this->speak()->assertStatus(502);
+        $this->speak()->assertStatus(503);
         $this->assertSame(0, $eleven->calls);
     }
 

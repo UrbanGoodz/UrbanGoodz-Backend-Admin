@@ -26,7 +26,7 @@ die() { echo "[cutover] ABORT: $*" >&2; exit 1; }
 [ "$(cd "$LIVE" && pwd)" != "$(cd "$REL" && pwd)" ] || die "live and release are the same folder"
 
 # ---- the path-poisoned caches must not travel
-rm -f "$REL"/bootstrap/cache/config.php "$REL"/bootstrap/cache/routes-*.php "$REL"/bootstrap/cache/events.php 2>/dev/null || true
+rm -f "$REL"/bootstrap/cache/config.php "$REL"/bootstrap/cache/routes-*.php "$REL"/bootstrap/cache/events.php "$REL"/bootstrap/cache/modules.php 2>/dev/null || true
 rm -f "$REL"/storage/framework/views/*.php 2>/dev/null || true
 for f in "$REL"/bootstrap/cache/*.php; do
   [ -e "$f" ] || continue

@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Mail;
  */
 class MoniqueWeeklyBrief extends Command
 {
-    protected $signature = 'monique:weekly-brief';
+    protected $signature = 'monique:weekly-brief {--dry-run : Show who would get the brief and send nothing}';
 
     protected $description = 'Email each admin Monique\'s latest weekly business brief';
 
@@ -30,11 +30,15 @@ class MoniqueWeeklyBrief extends Command
         $sent = 0;
         foreach (Admin::query()->whereNotNull('email')->get(['id', 'email', 'f_name']) as $admin) {
             $latest = $this->latestFor($admin->id);
-            if (! $latest) {
+            if (! $latest && ! $this->option('dry-run')) {
                 $analyst->run(true);
                 $latest = $this->latestFor($admin->id);
             }
             if (! $latest) {
+                continue;
+            }
+            if ($this->option('dry-run')) {
+                $this->line("Would send to admin #{$admin->id}: " . $latest->title);
                 continue;
             }
             try {

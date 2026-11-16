@@ -38,4 +38,12 @@ class MoniqueWeeklyBriefTest extends TestCase
         config(['urban_goodz_ai.monique_proactive.weekly_brief_email' => false]);
         $this->artisan('monique:weekly-brief')->assertExitCode(0);
     }
+
+    public function test_dry_run_sends_and_writes_nothing(): void
+    {
+        $before = AiMoniqueNotification::query()->count();
+        \Illuminate\Support\Facades\Mail::shouldReceive('raw')->never();
+        $this->artisan('monique:weekly-brief', ['--dry-run' => true])->assertExitCode(0);
+        $this->assertSame($before, AiMoniqueNotification::query()->count());
+    }
 }
