@@ -162,7 +162,10 @@ class CustomerOrderOwnershipTest extends TestCase
     {
         foreach (['list?limit=10&offset=1', 'running-orders?limit=10&offset=1', 'all-running-orders'] as $path) {
             $response = $this->getJson('/api/v1/customer/order/'.$path.(str_contains($path, '?') ? '&' : '?').'guest_id='.$this->owner->id);
-            $this->assertStringNotContainsString((string) $this->ownersOrder->id.'"', json_encode($response->json('orders') ?? $response->json() ?? []).'"');
+            // Compare real order ids (a raw string search can match a timestamp such as "...:23").
+            $orders = $response->json('orders');
+            $ids = is_array($orders) ? array_map(fn ($o) => is_array($o) ? ($o['id'] ?? null) : null, $orders) : [];
+            $this->assertNotContains($this->ownersOrder->id, $ids, "{$path} exposed the owner's order id");
             $this->assertSame([], (array) ($response->json('orders') ?? []), "{$path} leaked orders to a colliding guest");
         }
     }
