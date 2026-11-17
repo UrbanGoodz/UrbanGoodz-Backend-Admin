@@ -60,8 +60,8 @@ class GuestAiLimitsTest extends TestCase
             }
         });
 
-        $this->speak(str_repeat('a', 40))->assertStatus(502);
-        $this->speak(str_repeat('a', 40))->assertStatus(502);   // would be 429 if the first failure had been charged
+        $this->speak(str_repeat('a', 40))->assertStatus(503);
+        $this->speak(str_repeat('a', 40))->assertStatus(503);   // would be 429 if the first failure had been charged
     }
 
     public function test_a_guest_chat_session_id_must_be_hard_to_guess(): void
