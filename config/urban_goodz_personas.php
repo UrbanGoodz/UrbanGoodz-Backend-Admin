@@ -68,7 +68,7 @@ return [
                     // skylar's assets while presenting as Monique - the two personas
                     // had their voices and avatars crossed, which is why the customer
                     // app spoke in the wrong voice.
-                    'voice_id' => env('MONIQUE_ELEVENLABS_VOICE_ID', env('UG_PERSONA_COS_VOICE_ID', '03vEurziQfq3V8WZhQvn')),
+                    'voice_id' => env('MONIQUE_ELEVENLABS_VOICE_ID', env('UG_PERSONA_COS_VOICE_ID', 'EXAVITQu4vr4xnSDxMaL')),
                     'voice_name' => 'Monique Voice Live',
                     'rive_asset' => 'assets/digital_human/skylar.riv', // legacy-named: the executive's art
                     'environment' => 'executive_operations_center',
@@ -103,7 +103,7 @@ return [
                     // This is the block the customer app resolves (the controller maps
                     // persona 'concierge' -> Skylar), and it was pulling Monique's
                     // voice id and Monique's avatar.
-                    'voice_id' => env('SKYLAR_ELEVENLABS_VOICE_ID', env('UG_PERSONA_CONCIERGE_VOICE_ID', 'VUxdWMTconXKENnxAwCg')),
+                    'voice_id' => env('SKYLAR_ELEVENLABS_VOICE_ID', env('UG_PERSONA_CONCIERGE_VOICE_ID', 'hpp4J3VqNfWAUOO0d1Us')),
                     'voice_name' => 'Sassy Aeristia',
                     'rive_asset' => 'assets/digital_human/monique.riv', // legacy-named: the concierge's art
                     'environment' => 'houston_loft',
@@ -136,6 +136,11 @@ return [
         'elevenlabs_model_id' => env('ELEVENLABS_MODEL_ID', 'eleven_turbo_v2_5'),
         'elevenlabs_output_format' => env('ELEVENLABS_OUTPUT_FORMAT', 'mp3_44100_128'),
         'elevenlabs_base_url' => env('ELEVENLABS_BASE_URL', 'https://api.elevenlabs.io/v1'),
+        // Free last-resort voice (Cloudflare Workers AI). Small daily allowance, so it is capped.
+        'cloudflare_account_id' => env('CLOUDFLARE_ACCOUNT_ID', ''),
+        'cloudflare_ai_token' => env('CLOUDFLARE_AI_TOKEN', ''),
+        'cloudflare_tts_model' => env('CLOUDFLARE_TTS_MODEL', '@cf/deepgram/aura-1'),
+        'cloudflare_daily_char_cap' => (int) env('CLOUDFLARE_TTS_DAILY_CHAR_CAP', 7000),
         'qwen_base_url' => env('UG_QWEN_BASE_URL', ''),
         'qwen_api_key' => env('UG_QWEN_API_KEY', ''),
         'environment_variables' => [

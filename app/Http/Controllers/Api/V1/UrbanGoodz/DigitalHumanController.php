@@ -18,7 +18,8 @@ class DigitalHumanController extends Controller
         private readonly DigitalHumanStateService $digitalHumanStateService,
         private readonly VoiceVisemeOrchestrator $voiceVisemeOrchestrator,
         private readonly ElevenLabsVoiceService $elevenLabsVoiceService,
-        private readonly QwenVoiceService $qwenVoiceService
+        private readonly QwenVoiceService $qwenVoiceService,
+        private readonly \App\Services\UrbanGoodz\AI\DigitalHuman\CloudflareVoiceService $cloudflareVoiceService
     ) {}
 
     /**
@@ -108,7 +109,7 @@ class DigitalHumanController extends Controller
         $primary = strtolower(trim((string) config('urban_goodz_personas.digital_human_global.voice_provider', 'qwen')));
         // Try the configured provider, then the other one: if the voice machine is down or a billing plan lapses, the
         // character still speaks. (UG_VOICE_FALLBACK=false turns this off.)
-        $order = $primary === 'qwen' ? ['qwen', 'elevenlabs'] : ['elevenlabs', 'qwen'];
+        $order = $primary === 'qwen' ? ['qwen', 'elevenlabs', 'cloudflare'] : ['elevenlabs', 'qwen', 'cloudflare'];
         if (! (bool) config('urban_goodz_personas.digital_human_global.voice_fallback', true)) {
             $order = [$order[0]];
         }
@@ -116,9 +117,11 @@ class DigitalHumanController extends Controller
         $result = null;
         $firstFailure = null;
         foreach ($order as $name) {
-            $attempt = $name === 'qwen'
-                ? $this->qwenVoiceService->synthesize(personaKey: $validated['persona'], text: $validated['text'])
-                : $this->elevenLabsVoiceService->synthesize(personaKey: $validated['persona'], text: $validated['text']);
+            $attempt = match ($name) {
+                'qwen' => $this->qwenVoiceService->synthesize(personaKey: $validated['persona'], text: $validated['text']),
+                'cloudflare' => $this->cloudflareVoiceService->synthesize($validated['persona'], $validated['text']),
+                default => $this->elevenLabsVoiceService->synthesize(personaKey: $validated['persona'], text: $validated['text']),
+            };
             if ($attempt['success']) {
                 $result = $attempt;
                 break;
