@@ -33,7 +33,16 @@ for f in "$REL"/bootstrap/cache/*.php; do
   case "$(basename "$f")" in packages.php|services.php) ;; *) die "unexpected cache file in release: $f";; esac
 done
 
-health() { [ -z "$URL" ] || [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL")" = "200" ]; }
+# Healthy = HTTP 200, or a redirect to a login page (this app's root redirects to /login/admin by design).
+health() {
+  [ -z "$URL" ] && return 0
+  local out code loc
+  out="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 "$URL")"
+  code="${out%% *}"; loc="${out#* }"
+  [ "$code" = "200" ] && return 0
+  case "$code" in 301|302|303|307|308) case "$loc" in *login*) return 0;; esac;; esac
+  return 1
+}
 
 rollback() {
   say "ROLLING BACK"

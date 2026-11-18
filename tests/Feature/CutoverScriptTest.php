@@ -122,13 +122,23 @@ SH);
         $this->assertFileDoesNotExist("{$live}/live", 'nothing was nested inside the live folder');
     }
 
+    /** Starts a tiny web server whose every response is produced by $phpBody; returns [process, port]. */
+    private function stubServer(string $phpBody): array
+    {
+        $dir = "{$this->root}/stub".random_int(1000, 9999);
+        mkdir($dir);
+        file_put_contents("{$dir}/index.php", "<?php {$phpBody}");
+        $port = random_int(20000, 29999);
+        $srv = proc_open(['php', '-S', "127.0.0.1:{$port}", '-t', $dir], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        usleep(700000);
+
+        return [$srv, $port];
+    }
+
     public function test_a_failed_health_check_rolls_back(): void
     {
         $live = $this->app('live', 'old'); $rel = $this->app('release', 'new'); $prev = "{$this->root}/prev";
-        // A server that answers 500.
-        $port = random_int(20000, 29999);
-        $srv = proc_open(['php', '-S', "127.0.0.1:{$port}", '-r', 'http_response_code(500);'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
-        usleep(600000);
+        [$srv, $port] = $this->stubServer('http_response_code(500);');
 
         try {
             [$code, $out] = $this->cutover($live, $rel, $prev, [], "http://127.0.0.1:{$port}/");
@@ -138,5 +148,34 @@ SH);
 
         $this->assertSame(5, $code, $out);
         $this->assertSame('old', file_get_contents("{$live}/TAG"));
+    }
+
+    public function test_a_redirect_to_the_login_page_counts_as_healthy(): void
+    {
+        $live = $this->app('live', 'old'); $rel = $this->app('release', 'new'); $prev = "{$this->root}/prev";
+        [$srv, $port] = $this->stubServer("header('Location: /login/admin', true, 302);");
+
+        try {
+            [$code, $out] = $this->cutover($live, $rel, $prev, [], "http://127.0.0.1:{$port}/");
+        } finally {
+            proc_terminate($srv);
+        }
+
+        $this->assertSame(0, $code, $out);
+        $this->assertSame('new', file_get_contents("{$live}/TAG"));
+    }
+
+    public function test_a_redirect_somewhere_else_is_not_healthy(): void
+    {
+        $live = $this->app('live', 'old'); $rel = $this->app('release', 'new'); $prev = "{$this->root}/prev";
+        [$srv, $port] = $this->stubServer("header('Location: /maintenance-broken', true, 302);");
+
+        try {
+            [$code, $out] = $this->cutover($live, $rel, $prev, [], "http://127.0.0.1:{$port}/");
+        } finally {
+            proc_terminate($srv);
+        }
+
+        $this->assertSame(5, $code, $out);
     }
 }
