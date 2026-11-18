@@ -105,7 +105,8 @@ trait PlaceNewOrder
             $zone = $zoneAndStore['zone'];
 
             // Intercept uncontracted or public-sourced listings and route to Order Anywhere flow
-            $isPublicOrUncontracted = $store->shouldRouteToOrderAnywhere();
+            // $store is null when no coordinates were sent (and for parcels); the zone/store checks below then answer cleanly.
+            $isPublicOrUncontracted = $store?->shouldRouteToOrderAnywhere() ?? false;
 
             if ($isPublicOrUncontracted) {
                 $carts = [];
@@ -373,7 +374,8 @@ trait PlaceNewOrder
             if (isset($images)) {
                 $order->order_attachment = json_encode($images);
             }
-            $order->distance = $request->distance;
+            // take_away orders carry no real distance (the app may even send the text "null"); the column is NOT NULL.
+            $order->distance = is_numeric($request->distance) ? (float) $request->distance : 0;
             $order->created_at = now();
             $order->updated_at = now();
             $order->charge_payer = $request->charge_payer;
