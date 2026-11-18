@@ -91,3 +91,16 @@ Gate: all clean, or fix before continuing.
    .tar.gz in ~/backups (compare tar entry count with the folder file count) and remove the extracted copy. Staging counts too.
 3. Run read-only database checks with the mysql client, not artisan, on the live site; keep SQL quoting simple (a quoting bug in a
    check once looked like a failed migration).
+
+## Lesson (Release 6 prep): storage nesting
+
+A plain recursive copy of `storage/app` into a release that already has a `storage/app` folder lands one level
+deeper (`storage/app/app/...`). Releases 4 and 5 each added a level, so uploaded files ended up at
+`storage/app/app/app/public` while the web server's `public/storage` symlink points at `storage/app/public`.
+Cloudflare's edge cache hid it (cached images still loaded; the origin answered 302).
+
+Rules for every release:
+1. Copy runtime files with `rsync -a SRC/ DEST/` (trailing slashes on both), never `cp -r` into an existing folder.
+2. After building, `find storage/app -maxdepth 4 -type d -name app` must show nothing nested.
+3. Check an uploaded image **at the origin** (bypass Cloudflare, e.g. `curl --resolve`), not through the CDN.
+4. The final top-up after `php artisan down` copies from live's real upload folders into `release/storage/app/public/`.
