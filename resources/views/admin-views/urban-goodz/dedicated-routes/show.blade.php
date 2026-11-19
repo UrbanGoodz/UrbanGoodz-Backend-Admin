@@ -57,7 +57,7 @@
                             <div class="col-md-4"><strong>{{ translate('Optimization') }}:</strong> {{ ucwords(str_replace('_', ' ', $route->optimization_status ?? 'not_optimized')) }}</div>
                             <div class="col-md-4"><strong>{{ translate('Method') }}:</strong> {{ $route->optimization_method ?? '—' }}</div>
                             <div class="col-md-4"><strong>{{ translate('Provider') }}:</strong> {{ $route->optimization_provider ?? '—' }}</div>
-                            @php($ugCalcMode = $route->optimization_calculation_mode)
+                            @php $ugCalcMode = $route->optimization_calculation_mode; @endphp
                             <div class="col-md-4"><strong>{{ translate('Distance Basis') }}:</strong>
                                 <span class="badge badge-{{ $ugCalcMode === 'ROAD_NETWORK' ? 'success' : ($ugCalcMode === 'MANUAL_ORDER' ? 'info' : 'warning') }}">
                                     {{ translate(\App\Services\UrbanGoodz\Routing\DTOs\DistanceResult::labelForCalculationMode($ugCalcMode)) }}

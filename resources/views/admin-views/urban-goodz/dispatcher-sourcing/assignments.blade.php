@@ -120,7 +120,7 @@
                         </thead>
                         <tbody>
                             @forelse($assignments as $rec)
-                            @php($load = $rec->externalLoad)
+                            @php $load = $rec->externalLoad; @endphp
                             <tr>
                                 <td>
                                     <strong>{{ $load->external_reference_id ?? 'N/A' }}</strong>

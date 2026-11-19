@@ -106,9 +106,9 @@
                         </thead>
                         <tbody>
                             @forelse($driverMatches as $index => $match)
-                            @php($driver = $match['driver'] ?? null)
-                            @php($score = $match['score'] ?? 0)
-                            @php($reasons = $match['reasons'] ?? [])
+                            @php $driver = $match['driver'] ?? null; @endphp
+                            @php $score = $match['score'] ?? 0; @endphp
+                            @php $reasons = $match['reasons'] ?? []; @endphp
                             <tr>
                                 <td><strong>{{ $index + 1 }}</strong></td>
                                 <td>

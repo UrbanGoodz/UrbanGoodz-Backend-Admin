@@ -194,7 +194,7 @@
                         </thead>
                         <tbody>
                             @forelse($topRecommendations as $rec)
-                            @php($load = $rec->externalLoad)
+                            @php $load = $rec->externalLoad; @endphp
                             <tr>
                                 <td><span class="badge badge-soft-info">{{ $load->source->name ?? translate('External') }}</span></td>
                                 <td>
@@ -242,7 +242,7 @@
     </div>
 
     @foreach($topRecommendations as $rec)
-    @php($load = $rec->externalLoad)
+    @php $load = $rec->externalLoad; @endphp
     <div class="modal fade" id="assignModal{{ $load->id }}" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
