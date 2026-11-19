@@ -26,6 +26,8 @@ use RuntimeException;
  */
 class BatchToRouteService
 {
+    public function __construct(private readonly ?AddressGeocoder $geocoder = null) {}
+
     /**
      * A package with no coordinate cannot be sequenced.
      *
@@ -56,6 +58,10 @@ class BatchToRouteService
         if ($packages->isEmpty()) {
             throw new RuntimeException("Batch {$batch->id} has no unrouted packages.");
         }
+
+        // Packages scanned without coordinates are geocoded now (nothing else ever did, so they stayed
+        // 'pending' forever and the batch could not be routed). A miss is recorded, never guessed.
+        $this->geocodeMissing($packages, $options);
 
         [$routable, $skipped] = $packages->partition(
             fn (UrbanGoodzBatchPackage $p) => $p->dropoff_lat !== null && $p->dropoff_lng !== null
@@ -164,6 +170,57 @@ class BatchToRouteService
      * Pickup, in order of trust: an explicit value, then the common pickup
      * recorded on the scanned packages themselves.
      */
+    /**
+     * Fill in dropoff coordinates for packages that have an address but no coordinates.
+     * The vendor's pickup point anchors the search (the geocoder refuses to guess without an anchor).
+     */
+    private function geocodeMissing($packages, array $options): void
+    {
+        $geocoder = $this->geocoder ?? new AddressGeocoder;
+        if (!$geocoder->isConfigured()) {
+            return;
+        }
+
+        $anchor = $this->resolvePickup($packages, $options);
+        if ($anchor['lat'] === null || $anchor['lng'] === null) {
+            return;
+        }
+        $anchor = ['lat' => $anchor['lat'], 'lng' => $anchor['lng']];
+        $cap = (int) ($options['geocode_limit'] ?? 300);
+        $done = 0;
+
+        foreach ($packages as $pkg) {
+            if ($pkg->dropoff_lat !== null && $pkg->dropoff_lng !== null) {
+                continue;
+            }
+            // A street address is required: city/state alone would geocode to the middle of town, which is a guess.
+            if (trim((string) $pkg->dropoff_address) === '') {
+                continue;
+            }
+            $address = trim(implode(', ', array_filter([
+                $pkg->dropoff_address, $pkg->dropoff_city, $pkg->dropoff_state, $pkg->dropoff_zip,
+            ])));
+            if ($address === '' || $done >= $cap) {
+                continue;
+            }
+            $done++;
+            $hit = $geocoder->geocode($address, $anchor);
+            if ($hit) {
+                $pkg->forceFill([
+                    'dropoff_lat' => $hit['lat'],
+                    'dropoff_lng' => $hit['lng'],
+                    'geocoding_status' => 'geocoded',
+                    'geocoding_result' => ['label' => $hit['label'] ?? null, 'confidence' => $hit['confidence'] ?? null],
+                ])->save();
+            } else {
+                $pkg->forceFill([
+                    'geocoding_status' => 'failed',
+                    'geocoding_result' => ['reason' => $geocoder->lastFailureReason()],
+                ])->save();
+            }
+        }
+    }
+
     private function resolvePickup($routable, array $options): array
     {
         if (!empty($options['pickup_lat']) && !empty($options['pickup_lng'])) {
@@ -175,7 +232,7 @@ class BatchToRouteService
         }
 
         $withPickup = $routable->first(
-            fn (UrbanGoodzBatchPackage $p) => $p->pickup_lat !== null && $p->pickup_lng !== null
+            fn ($p) => $p->pickup_lat !== null && $p->pickup_lng !== null
         );
 
         if ($withPickup) {
