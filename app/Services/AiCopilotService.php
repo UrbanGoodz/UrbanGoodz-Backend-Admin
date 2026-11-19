@@ -1509,7 +1509,12 @@ class AiCopilotService
             return;
         }
 
-        $adminIds = \App\Models\Admin::where('is_active', 1)->pluck('id');
+        // Not every environment's admins table has is_active (production does not).
+        $adminQuery = \App\Models\Admin::query();
+        if (\Illuminate\Support\Facades\Schema::hasColumn('admins', 'is_active')) {
+            $adminQuery->where('is_active', 1);
+        }
+        $adminIds = $adminQuery->pluck('id');
         foreach ($adminIds as $adminId) {
             \App\Models\UserNotification::create([
                 'admin_id' => $adminId,

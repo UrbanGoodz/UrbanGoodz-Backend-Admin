@@ -104,7 +104,25 @@ class ReelSocialController extends Controller
 
     public function reportReel(Request $request, $id)
     {
-        // CreatorReelReport::create(...)
+        $reel = $this->activeReelOrFail($id);
+        $data = $request->validate([
+            'reason' => 'required|string|max:64',
+            'details' => 'nullable|string|max:2000',
+            'guest_id' => 'nullable|string|max:128',
+        ]);
+
+        $userId = $request->user('api')?->id;
+        $guestId = $userId ? null : ($data['guest_id'] ?? null);
+        if (! $userId && ! $guestId) {
+            return response()->json(['message' => 'Sign in or send a guest_id to report a reel.'], 422);
+        }
+
+        // One open report per person per reel; repeats are accepted but not duplicated.
+        \App\Models\CreatorReelReport::firstOrCreate(
+            ['reel_id' => $reel->id, 'user_id' => $userId, 'guest_id' => $guestId, 'status' => 'open'],
+            ['reason' => $data['reason'], 'details' => $data['details'] ?? null]
+        );
+
         return response()->json(['message' => 'Reel reported']);
     }
 

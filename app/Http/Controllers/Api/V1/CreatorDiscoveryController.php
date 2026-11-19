@@ -44,7 +44,7 @@ class CreatorDiscoveryController extends Controller
         $sort = $request->get('sort', 'popular');
         if ($sort == 'popular') {
             $query->orderBy('follower_count', 'desc');
-        } elseif ($sort == 'newest') {
+        } elseif (in_array($sort, ['newest', 'latest'], true)) {
             $query->orderBy('created_at', 'desc');
         } elseif ($sort == 'name') {
             $query->orderBy('display_name', 'asc');
