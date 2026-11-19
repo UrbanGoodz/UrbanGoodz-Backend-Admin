@@ -437,6 +437,32 @@ class BatchIntakeController extends Controller
             $query->where('is_active', true);
         }
 
+        // ?order=proximity lists the scanned packages nearest-to-depot first, then as a nearest-neighbour chain, so
+        // the vendor sees geographic groups before choosing how many packages go on each route.
+        if ($request->input('order') === 'proximity') {
+            $all = $query->limit(2000)->get();
+            $origin = $all->first(fn ($p) => $p->pickup_lat !== null && $p->pickup_lng !== null);
+            $oLat = $request->filled('origin_lat') ? (float) $request->input('origin_lat') : ($origin ? (float) $origin->pickup_lat : null);
+            $oLng = $request->filled('origin_lng') ? (float) $request->input('origin_lng') : ($origin ? (float) $origin->pickup_lng : null);
+            if ($oLat === null || $oLng === null) {
+                return response()->json(['message' => 'Send origin_lat and origin_lng (or give the packages a pickup point) to order by proximity.'], 422);
+            }
+            $rows = array_map(function ($r) {
+                return array_merge($r['package']->toArray(), [
+                    'proximity_rank' => $r['rank'],
+                    'miles_from_depot' => $r['miles_from_depot'],
+                    'miles_from_previous' => $r['miles_from_previous'],
+                ]);
+            }, app(\App\Services\UrbanGoodz\Routing\Services\PackageProximityOrder::class)->order($all, $oLat, $oLng));
+
+            $perPage = 50;
+            $page = max(1, (int) $request->input('page', 1));
+
+            return response()->json(new \Illuminate\Pagination\LengthAwarePaginator(
+                array_slice($rows, ($page - 1) * $perPage, $perPage), count($rows), $perPage, $page
+            ));
+        }
+
         $packages = $query->orderByDesc('created_at')->paginate(50);
 
         return response()->json($packages);
