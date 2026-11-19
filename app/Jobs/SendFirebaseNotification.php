@@ -203,7 +203,7 @@ class SendFirebaseNotification implements ShouldQueue
         match ($this->recipientType) {
             'customer' => User::whereKey($this->recipientId)->where('cm_firebase_token', $token)->update(['cm_firebase_token' => null]),
             'vendor' => Vendor::whereKey($this->recipientId)->where('firebase_token', $token)->update(['firebase_token' => null]),
-            'driver' => DeliveryMan::whereKey($this->recipientId)->where('firebase_token', $token)->update(['firebase_token' => null]),
+            'driver' => DeliveryMan::whereKey($this->recipientId)->where($this->driverColumn(), $token)->update([$this->driverColumn() => null]),
             default => null,
         };
     }
@@ -213,8 +213,16 @@ class SendFirebaseNotification implements ShouldQueue
         return match ($this->recipientType) {
             'customer' => User::whereKey($this->recipientId)->value('cm_firebase_token'),
             'vendor' => Vendor::whereKey($this->recipientId)->value('firebase_token'),
-            'driver' => DeliveryMan::whereKey($this->recipientId)->value('firebase_token'),
+            'driver' => DeliveryMan::whereKey($this->recipientId)->value($this->driverColumn()),
             default => null,
         };
+    }
+
+    /** Production's delivery_men keeps the token in fcm_token; a schema built from migrations has firebase_token. */
+    private function driverColumn(): string
+    {
+        static $column = null;
+
+        return $column ??= \Illuminate\Support\Facades\Schema::hasColumn('delivery_men', 'fcm_token') ? 'fcm_token' : 'firebase_token';
     }
 }

@@ -242,11 +242,30 @@ class UrbanGoodzNotificationService
 
     private function resolveFirebaseToken(string $recipientType, int $recipientId): ?string
     {
-        return match ($recipientType) {
-            'customer' => DB::table('users')->where('id', $recipientId)->value('cm_firebase_token'),
-            'vendor' => DB::table('vendors')->where('id', $recipientId)->value('firebase_token'),
-            'driver' => DB::table('delivery_men')->where('id', $recipientId)->value('firebase_token'),
-            default => null,
-        };
+        // Production's delivery_men table stores the token in fcm_token; a schema built from migrations alone has
+        // firebase_token. Use whichever exists. A token lookup must
+        // never break the action that triggered the notification, so any failure just means "no token".
+        try {
+            return match ($recipientType) {
+                'customer' => DB::table('users')->where('id', $recipientId)->value('cm_firebase_token'),
+                'vendor' => DB::table('vendors')->where('id', $recipientId)->value('firebase_token'),
+                'driver' => DB::table('delivery_men')->where('id', $recipientId)->value($this->driverTokenColumn()),
+                default => null,
+            };
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Could not look up a push token', ['type' => $recipientType, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    private function driverTokenColumn(): string
+    {
+        static $column = null;
+        if ($column === null) {
+            $column = \Illuminate\Support\Facades\Schema::hasColumn('delivery_men', 'fcm_token') ? 'fcm_token' : 'firebase_token';
+        }
+
+        return $column;
     }
 }

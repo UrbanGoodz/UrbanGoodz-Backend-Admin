@@ -213,4 +213,14 @@ class UrbanGoodzNotificationDeliveryTest extends TestCase
         $this->assertSame('fresh-token', DB::table('users')->where('id', $this->customer->id)->value('cm_firebase_token'));
         \App\CentralLogics\Helpers::$lastFcmError = null;
     }
+
+    public function test_a_driver_push_token_lookup_never_throws_whichever_token_column_exists(): void
+    {
+        $svc = app(\App\Services\UrbanGoodzNotificationService::class);
+        $m = new \ReflectionMethod($svc, 'resolveFirebaseToken');
+        $m->setAccessible(true);
+
+        // Unknown driver: null, never a "column not found" exception (production has fcm_token, migrations firebase_token).
+        $this->assertNull($m->invoke($svc, 'driver', 999999999));
+    }
 }
