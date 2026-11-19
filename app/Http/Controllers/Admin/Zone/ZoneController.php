@@ -93,6 +93,10 @@ class ZoneController extends BaseController
             params: ['id' => $id]
         );
 
+        // A zone with no stored polygon or centre used to crash here with "array offset on null".
+        if (! $zone || empty($zone['coordinates'][0]) || empty($zone['center'])) {
+            return response()->json(['coordinates' => [], 'center' => null, 'message' => 'This zone has no map area yet.'], 404);
+        }
         $area = json_decode($zone['coordinates'][0]->toJson(), true);
         $language = getWebConfig('language');
         $defaultLang = str_replace('_', '-', app()->getLocale());
