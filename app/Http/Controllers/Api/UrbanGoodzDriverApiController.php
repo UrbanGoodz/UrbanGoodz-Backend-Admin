@@ -497,6 +497,9 @@ class UrbanGoodzDriverApiController extends Controller
             'longitude' => ['nullable', 'numeric'],
             'photo' => ['nullable', 'string'],
             'signature' => ['nullable', 'string'],
+            // Real capture: the app uploads the camera photo and the drawn signature as image files.
+            'photo_file' => ['nullable', 'file', 'image', 'max:8192'],
+            'signature_file' => ['nullable', 'file', 'image', 'max:2048'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -528,6 +531,13 @@ class UrbanGoodzDriverApiController extends Controller
         // Placeholder proof is not proof. A package that requires a photo or signature cannot be completed without a real one.
         $proofPhoto = \App\Support\DeliveryProof::clean($request->photo);
         $proofSignature = \App\Support\DeliveryProof::clean($request->signature);
+        // Uploaded files win over text values: they are the real thing. Stored on the public disk, path kept.
+        if ($request->hasFile('photo_file')) {
+            $proofPhoto = 'storage/' . $request->file('photo_file')->store('delivery-proof/photos', 'public');
+        }
+        if ($request->hasFile('signature_file')) {
+            $proofSignature = 'storage/' . $request->file('signature_file')->store('delivery-proof/signatures', 'public');
+        }
         if ($package->requires_photo && $proofPhoto === null && empty($package->proof_photo)) {
             return response()->json(['error' => 'A delivery photo is required for this package.', 'requires' => 'photo'], 422);
         }
