@@ -513,7 +513,10 @@ class AiOperationsController extends Controller
         $moniqueTasks = \App\Models\AiMoniqueNotification::forAccount('admin', $adminId)
             ->pending()
             ->latest('id')
-            ->get();
+            ->get()
+            // One card per kind of task: a daily read or a repeated observation would otherwise pile up as duplicates.
+            ->unique('category')
+            ->values();
 
         return view(
             'admin-views.urban-goodz.ai-chief-of-staff.index',

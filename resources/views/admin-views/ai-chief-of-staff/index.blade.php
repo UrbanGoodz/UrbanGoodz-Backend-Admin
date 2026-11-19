@@ -16,7 +16,7 @@
             </div>
             <div class="col-sm-auto">
                 <span class="badge badge-soft-success p-2" style="font-size: 0.9rem;">
-                    <i class="tio-checkmark-circle mr-1"></i> System Operational (99.8% Uptime)
+                    <i class="tio-checkmark-circle mr-1"></i> Live figures from your own data
                 </span>
             </div>
         </div>
@@ -27,29 +27,29 @@
         <div class="col-sm-6 col-lg-3 mb-3">
             <div class="card card-body text-center shadow-sm border-0" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white;">
                 <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">Active Fleet Orders</span>
-                <span class="display-4 font-weight-bold my-2">{{ $telemetry['active_orders'] }}</span>
-                <span class="font-size-sm text-success"><i class="tio-trending-up"></i> Live Dispatching</span>
+                <span class="display-4 font-weight-bold my-2">{{ $telemetry['active_orders'] ?? '—' }}</span>
+                <span class="font-size-sm text-success"><i class="tio-trending-up"></i> Orders in progress right now</span>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
             <div class="card card-body text-center shadow-sm border-0" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white;">
-                <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">Dispatch Latency</span>
-                <span class="display-4 font-weight-bold my-2">{{ $telemetry['dispatch_latency_sec'] }}s</span>
-                <span class="font-size-sm text-success"><i class="tio-bolt"></i> Ultra Fast</span>
+                <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">Minutes To A Driver</span>
+                <span class="display-4 font-weight-bold my-2">{{ $telemetry['dispatch_minutes'] ?? '—' }}</span>
+                <span class="font-size-sm text-success"><i class="tio-bolt"></i> Order Anywhere, last 7 days</span>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
             <div class="card card-body text-center shadow-sm border-0" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white;">
-                <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">Fashion Fit Sizing</span>
-                <span class="display-4 font-weight-bold my-2">{{ $telemetry['fashion_fit_analyses_today'] }}</span>
-                <span class="font-size-sm text-success"><i class="tio-checkmark-circle-outlined"></i> 100% Instant Resolution</span>
+                <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">Fashion Fit Requests Today</span>
+                <span class="display-4 font-weight-bold my-2">{{ $telemetry['fashion_fit_requests_today'] ?? '—' }}</span>
+                <span class="font-size-sm text-success"><i class="tio-checkmark-circle-outlined"></i> Sizing requests received</span>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
             <div class="card card-body text-center shadow-sm border-0" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white;">
-                <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">AI Copilot Queries</span>
-                <span class="display-4 font-weight-bold my-2">{{ $telemetry['ai_queries_processed'] }}</span>
-                <span class="font-size-sm text-info"><i class="tio-cpu"></i> Autonomous Response</span>
+                <span class="text-uppercase font-size-sm font-weight-bold" style="color: #ED9914;">Monique Alerts Waiting</span>
+                <span class="display-4 font-weight-bold my-2">{{ $telemetry['monique_alerts_waiting'] ?? '—' }}</span>
+                <span class="font-size-sm text-info"><i class="tio-cpu"></i> Items needing your attention</span>
             </div>
         </div>
     </div>
