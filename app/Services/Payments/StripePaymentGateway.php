@@ -333,7 +333,7 @@ class StripePaymentGateway implements PaymentGatewayInterface
             // usual cause is a mode mismatch: URBAN_GOODZ_PAYMENT_MODE unset
             // defaults to sandbox, so a live endpoint's events get verified
             // against STRIPE_WEBHOOK_SECRET and every delivery fails.
-            Log::error('Stripe webhook signature verification failed', [
+            Log::warning('Stripe webhook signature verification failed', [
                 'error' => $e->getMessage(),
                 'payment_mode' => config('urban_goodz_payments.mode', 'sandbox'),
                 'verified_against' => $this->isLive ? 'STRIPE_LIVE_WEBHOOK_SECRET' : 'STRIPE_WEBHOOK_SECRET',
