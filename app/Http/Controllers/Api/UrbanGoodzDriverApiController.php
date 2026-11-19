@@ -525,6 +525,16 @@ class UrbanGoodzDriverApiController extends Controller
             return response()->json(['error' => 'Age verification required before delivery completion'], 409);
         }
 
+        // Placeholder proof is not proof. A package that requires a photo or signature cannot be completed without a real one.
+        $proofPhoto = \App\Support\DeliveryProof::clean($request->photo);
+        $proofSignature = \App\Support\DeliveryProof::clean($request->signature);
+        if ($package->requires_photo && $proofPhoto === null && empty($package->proof_photo)) {
+            return response()->json(['error' => 'A delivery photo is required for this package.', 'requires' => 'photo'], 422);
+        }
+        if ($package->requires_signature && $proofSignature === null && empty($package->recipient_signature)) {
+            return response()->json(['error' => 'A recipient signature is required for this package.', 'requires' => 'signature'], 422);
+        }
+
         $currentStop = $package->optimizationStop;
         if ($currentStop) {
             $unfinishedPriorStop = \App\Models\UrbanGoodzRouteOptimizationStop::query()
@@ -552,8 +562,8 @@ class UrbanGoodzDriverApiController extends Controller
             $package->status = 'delivered';
             $package->dropoff_scanned_at = now();
             $package->dropoff_scanned_by = $driver->id;
-            $package->proof_photo = $request->photo ?? $package->proof_photo;
-            $package->recipient_signature = $request->signature ?? $package->recipient_signature;
+            $package->proof_photo = $proofPhoto ?? $package->proof_photo;
+            $package->recipient_signature = $proofSignature ?? $package->recipient_signature;
             $package->save();
 
             UrbanGoodzPackageScan::create([
@@ -563,8 +573,8 @@ class UrbanGoodzDriverApiController extends Controller
                 'scanner_type' => 'driver',
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
-                'photo' => $request->photo,
-                'signature' => $request->signature,
+                'photo' => $proofPhoto,
+                'signature' => $proofSignature,
                 'notes' => $request->notes,
             ]);
 
@@ -577,7 +587,7 @@ class UrbanGoodzDriverApiController extends Controller
                     'to_user_id' => null,
                     'to_user_type' => 'recipient',
                     'seal_intact' => true,
-                    'signature' => $request->signature,
+                    'signature' => $proofSignature,
                     'notes' => 'Driver dropoff scan',
                 ]);
             }
