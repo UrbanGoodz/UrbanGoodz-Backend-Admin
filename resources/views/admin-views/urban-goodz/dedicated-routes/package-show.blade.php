@@ -45,6 +45,51 @@
                     </div>
                 </div>
 
+                @php
+                    // Show the captured proof. Only our own stored uploads or inline images are rendered as pictures.
+                    $proofSrc = function ($v) {
+                        $v = trim((string) $v);
+                        if ($v === '') { return null; }
+                        if (str_starts_with($v, 'storage/')) { return asset($v); }
+                        if (str_starts_with($v, 'data:image/')) { return $v; }
+                        return null;
+                    };
+                    $photoSrc = $proofSrc($package->proof_photo);
+                    $signatureSrc = $proofSrc($package->recipient_signature);
+                @endphp
+                @if($package->proof_photo || $package->recipient_signature)
+                <div class="card mb-3">
+                    <div class="card-header"><h5>{{ translate('Proof of Delivery') }}</h5></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <strong>{{ translate('Delivery Photo') }}:</strong><br>
+                                @if($photoSrc)
+                                    <a href="{{ $photoSrc }}" target="_blank" rel="noopener"><img src="{{ $photoSrc }}" alt="Delivery photo" style="max-width:100%;max-height:320px;border:1px solid #ddd;border-radius:6px;"></a>
+                                @elseif($package->proof_photo)
+                                    <span class="text-muted">{{ $package->proof_photo }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </div>
+                            <div class="col-md-6">
+                                <strong>{{ translate('Recipient Signature') }}:</strong><br>
+                                @if($signatureSrc)
+                                    <a href="{{ $signatureSrc }}" target="_blank" rel="noopener"><img src="{{ $signatureSrc }}" alt="Recipient signature" style="max-width:100%;max-height:200px;background:#fff;border:1px solid #ddd;border-radius:6px;"></a>
+                                @elseif($package->recipient_signature)
+                                    <span class="text-muted">{{ $package->recipient_signature }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </div>
+                        </div>
+                        @if($package->dropoff_scanned_at)
+                            <small class="text-muted d-block mt-2">{{ translate('Delivered') }}: {{ \Illuminate\Support\Carbon::parse($package->dropoff_scanned_at)->format('M j, Y g:i A') }}</small>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
                 <div class="card mb-3">
                     <div class="card-header"><h5>{{ translate('Delivery Information') }}</h5></div>
                     <div class="card-body">
