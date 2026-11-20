@@ -65,7 +65,8 @@ class StripePaymentController extends Controller
         header('Content-Type: application/json');
         $currency_code = $data->currency_code;
 
-        if (count(json_decode($data['additional_data'],true))>0) {
+        $extraData = json_decode($data['additional_data'], true) ?: [];
+        if (isset($extraData['business_name']) || isset($extraData['business_logo'])) {
             $business = json_decode($data['additional_data']);
             $business_name = $business->business_name ?? "my_business";
             $business_logo = $business->business_logo ??  url('/');
@@ -96,6 +97,12 @@ class StripePaymentController extends Controller
             'cancel_url' => url('/') . '/payment/stripe/canceled?payment_id=' . $data->id,
         ]);
 
+        // Remember which Checkout Session belongs to this payment: if the customer pays and then closes the tab, the
+        // success page is never reached and only the scheduled reconciler (payments:reconcile-stripe-checkout) can finish it.
+        $extraData['stripe_session_id'] = $checkout_session->id;
+        $data->additional_data = json_encode($extraData);
+        $data->save();
+
         return response()->json(['id' => $checkout_session->id]);
     }
 
@@ -105,18 +112,9 @@ class StripePaymentController extends Controller
         $session = Session::retrieve($request->get('session_id'));
 
         if ($session->payment_status == 'paid' && $session->status == 'complete') {
-
-            $this->payment::where(['id' => $request['payment_id']])->update([
-                'payment_method' => 'stripe',
-                'is_paid' => 1,
-                'transaction_id' => $session->payment_intent,
-            ]);
+            $this->completePaidSession((string) $request['payment_id'], $session);
 
             $data = $this->payment::where(['id' => $request['payment_id']])->first();
-
-            if (isset($data) && function_exists($data->success_hook)) {
-                call_user_func($data->success_hook, $data);
-            }
 
             return $this->payment_response($data,'success');
         }
@@ -134,5 +132,39 @@ class StripePaymentController extends Controller
             call_user_func($payment_data->failure_hook, $payment_data);
         }
         return $this->payment_response($payment_data, 'cancel');
+    }
+
+    /**
+     * Mark a payment paid and run its success hook exactly once. Both the customer's return to the success page and
+     * the scheduled reconciler call this, so whichever arrives second does nothing (the is_paid = 0 guard).
+     *
+     * @return bool true when THIS call completed the payment
+     */
+    public function completePaidSession(string $paymentId, $session): bool
+    {
+        $claimed = $this->payment::where(['id' => $paymentId, 'is_paid' => 0])->update([
+            'payment_method' => 'stripe',
+            'is_paid' => 1,
+            'transaction_id' => $session->payment_intent,
+        ]);
+
+        if ($claimed === 0) {
+            return false;
+        }
+
+        $data = $this->payment::where(['id' => $paymentId])->first();
+        if (isset($data) && function_exists($data->success_hook)) {
+            call_user_func($data->success_hook, $data);
+        }
+
+        return true;
+    }
+
+    /** Used by the reconciler: look a Checkout Session up with this gateway's own keys. */
+    public function retrieveSession(string $sessionId)
+    {
+        Stripe::setApiKey($this->config_values->api_key);
+
+        return Session::retrieve($sessionId);
     }
 }

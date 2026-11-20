@@ -163,6 +163,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground()
             ->when(fn () => config('urban_goodz_ai.monique_proactive.enabled', true));
 
+        // Finish store payments that Stripe took but whose customer never returned to the success page.
+        $schedule->command('payments:reconcile-stripe-checkout')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // Monday morning email of Monique's latest business read to each admin.
         $schedule->command('monique:weekly-brief')
             ->weeklyOn(1, '9:11')
