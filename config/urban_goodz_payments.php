@@ -111,6 +111,11 @@ return [
     'live_controlled' => [
         'enabled' => env('ORDER_ANYWHERE_LIVE_PAYMENTS_ENABLED', false),
         'max_amount' => (float) env('ORDER_ANYWHERE_MAX_LIVE_TEST_AMOUNT', 50.00),
+        // Public launch switch. While false (the default), live mode stays capped and limited to the allowlists
+        // below. Set URBAN_GOODZ_LIVE_UNRESTRICTED=true to open live payments to every customer: the allowlists are
+        // no longer checked and the cap becomes URBAN_GOODZ_LIVE_MAX_AMOUNT (a sanity ceiling, not a test cap).
+        'unrestricted' => (bool) env('URBAN_GOODZ_LIVE_UNRESTRICTED', false),
+        'unrestricted_max_amount' => (float) env('URBAN_GOODZ_LIVE_MAX_AMOUNT', 500.00),
         'allowed_customers' => array_filter(explode(',', env('ORDER_ANYWHERE_ALLOWED_TEST_CUSTOMERS', ''))),
         'allowed_admins' => array_filter(explode(',', env('ORDER_ANYWHERE_ALLOWED_ADMIN_USERS', ''))),
     ],

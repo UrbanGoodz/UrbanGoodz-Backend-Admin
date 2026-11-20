@@ -404,11 +404,24 @@ class OrderAnywhereRequest extends Model implements PayableRequest
 
     public static function liveMaxAmount(): float
     {
+        if (static::liveUnrestricted()) {
+            return (float) config('urban_goodz_payments.live_controlled.unrestricted_max_amount', 500.00);
+        }
+
         return (float) config('urban_goodz_payments.live_controlled.max_amount', 50.00);
+    }
+
+    /** True once the owner has opened live payments to everyone (public launch). */
+    public static function liveUnrestricted(): bool
+    {
+        return static::isLiveMode() && (bool) config('urban_goodz_payments.live_controlled.unrestricted', false);
     }
 
     public static function isLiveAdminAllowed(): bool
     {
+        if (static::liveUnrestricted()) {
+            return true;
+        }
         $allowed = config('urban_goodz_payments.live_controlled.allowed_admins', []);
         if (empty($allowed)) {
             return false;
@@ -419,6 +432,9 @@ class OrderAnywhereRequest extends Model implements PayableRequest
 
     public static function isLiveCustomerAllowed(?int $customerId): bool
     {
+        if (static::liveUnrestricted()) {
+            return true;
+        }
         $allowed = config('urban_goodz_payments.live_controlled.allowed_customers', []);
         if (empty($allowed)) {
             return false;
