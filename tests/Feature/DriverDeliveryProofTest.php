@@ -115,4 +115,31 @@ class DriverDeliveryProofTest extends TestCase
         $this->assertEmpty($row->proof_photo);
         $this->assertEmpty($row->recipient_signature);
     }
+
+    public function test_the_route_map_lists_numbered_stops_with_navigate_links_for_the_assigned_driver_only(): void
+    {
+        $pkgA = $this->row('urban_goodz_route_packages', [
+            'dedicated_route_id' => $this->routeId, 'tracking_id' => 'MA1', 'status' => 'picked_up',
+            'dropoff_lat' => 29.7589, 'dropoff_lng' => -95.3677, 'dropoff_address' => '901 Bagby St',
+        ]);
+        $pkgB = $this->row('urban_goodz_route_packages', [
+            'dedicated_route_id' => $this->routeId, 'tracking_id' => 'MA2', 'status' => 'delivered',
+            'dropoff_lat' => 29.76, 'dropoff_lng' => -95.37, 'dropoff_address' => '2 Main St',
+        ]);
+        $this->row('urban_goodz_route_optimization_stops', ['dedicated_route_id' => $this->routeId, 'package_id' => $pkgA, 'stop_order' => 1]);
+        $this->row('urban_goodz_route_optimization_stops', ['dedicated_route_id' => $this->routeId, 'package_id' => $pkgB, 'stop_order' => 2]);
+
+        $res = $this->getJson(self::API."/routes/{$this->routeId}/map?token=".$this->driver->auth_token)->assertOk();
+
+        $res->assertJsonPath('total_stops', 2)->assertJsonPath('pending_stops', 1);
+        $this->assertStringContainsString('destination=29.7589,-95.3677', $res->json('stops.0.navigate_url'));
+        $this->assertSame([1], $res->json('next_trip.stop_orders'), 'only the pending stop is in the next trip');
+
+        $other = DeliveryMan::create([
+            'f_name' => 'Other', 'l_name' => 'Drv', 'phone' => '+1555'.random_int(1000000, 9999999),
+            'email' => 'other-'.uniqid().'@urbangoodz.test', 'password' => bcrypt('password'),
+            'auth_token' => 'tok-'.bin2hex(random_bytes(12)), 'status' => 1, 'application_status' => 'approved', 'active' => 1,
+        ]);
+        $this->getJson(self::API."/routes/{$this->routeId}/map?token=".$other->auth_token)->assertStatus(404);
+    }
 }

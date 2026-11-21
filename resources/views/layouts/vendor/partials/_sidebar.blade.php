@@ -605,6 +605,14 @@
                             </a>
                         </li>
                     @endif
+                    @if (\App\CentralLogics\Helpers::employee_module_permission_check('deliveryman_list'))
+                        <li class="navbar-vertical-aside-has-menu {{ Request::is('vendor-panel/fleet-map*') ? 'active' : '' }}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('vendor.fleet-map.index') }}" title="My Drivers Map">
+                                <i class="tio-map nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">My Drivers Map</span>
+                            </a>
+                        </li>
+                    @endif
                     <!-- End DeliveryMan -->
 
 

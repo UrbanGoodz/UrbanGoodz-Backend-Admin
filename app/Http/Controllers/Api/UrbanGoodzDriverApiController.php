@@ -81,6 +81,48 @@ class UrbanGoodzDriverApiController extends Controller
         return response()->json(['routes' => $routes]);
     }
 
+    /**
+     * Map data for one route: numbered stops with coordinates and status, the driver's last known position, a
+     * navigate link per stop, and multi-stop Google Maps trips for the next pending stops.
+     */
+    public function routeMap(Request $request, $routeId)
+    {
+        $driver = $this->authDriver($request);
+        $route = $this->assignedRouteOrFail($routeId, $driver);
+
+        $done = ['delivered', 'failed', 'unable_to_deliver', 'returned_to_pickup', 'returned_to_hub', 'returned_to_business', 'completed'];
+        $groups = $route->optimizationStops()->with('package')->orderBy('stop_order')->get()
+            ->groupBy(fn ($stop) => (int) ($stop->group_stop_order ?: $stop->stop_order));
+
+        $stops = [];
+        foreach ($groups as $order => $group) {
+            $pkgs = $group->pluck('package')->filter();
+            $first = $pkgs->first();
+            $stops[] = [
+                'stop_order' => (int) $order,
+                'lat' => $first?->dropoff_lat !== null ? (float) $first->dropoff_lat : null,
+                'lng' => $first?->dropoff_lng !== null ? (float) $first->dropoff_lng : null,
+                'address' => $first?->dropoff_address,
+                'name' => $first?->dropoff_name,
+                'package_count' => $pkgs->count(),
+                'pending' => $pkgs->contains(fn ($p) => ! in_array($p->status, $done, true)),
+            ];
+        }
+
+        $map = app(\App\Services\UrbanGoodz\Routing\Services\RouteMapLinks::class)->build($stops);
+        $position = app(\App\Services\DriverLocator::class)->positions([$driver->id])[$driver->id] ?? null;
+
+        return response()->json([
+            'route_id' => (int) $route->id,
+            'total_stops' => count($stops),
+            'pending_stops' => count(array_filter($stops, fn ($s) => $s['pending'])),
+            'driver_position' => $position,
+            'stops' => $map['stops'],
+            'next_trip' => $map['next_trip'],
+            'trips' => $map['trips'],
+        ]);
+    }
+
     public function routeDetail(Request $request, $routeId)
     {
         $driver = $this->authDriver($request);

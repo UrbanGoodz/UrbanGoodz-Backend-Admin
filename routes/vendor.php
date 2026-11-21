@@ -122,6 +122,9 @@ Route::group(['namespace' => 'Vendor', 'as' => 'vendor.'], function () {
             Route::delete('delete/{id}', 'CustomRoleController@distroy')->name('delete');
         });
 
+        Route::get('fleet-map', 'FleetMapController@index')->name('fleet-map.index');
+        Route::get('fleet-map/data', 'FleetMapController@data')->name('fleet-map.data');
+
         Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.'], function () {
 
             Route::group(['middleware' => ['module:deliveryman' ,'subscription:deliveryman']], function () {

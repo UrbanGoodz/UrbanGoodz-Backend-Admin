@@ -36,6 +36,12 @@
                             <span class="badge badge-warning badge-pill ml-1" style="font-size: 0.6rem; background-color: #ED9914; color: #fff;">AI</span>
                         </a>
                     </li>
+                    <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/urban-goodz/fleet-map*') ? 'active' : '' }}">
+                        <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.urban-goodz.fleet-map.index') }}" title="Live Fleet Map">
+                            <i class="tio-map nav-icon" style="color: #ED9914;"></i>
+                            <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">Live Fleet Map</span>
+                        </a>
+                    </li>
                     <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/mobile-releases*') ? 'active' : '' }}">
                         <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{ route('admin.mobile-releases.index') }}" title="Mobile In-App Updates">
                             <i class="tio-download-to nav-icon" style="color: #ED9914;"></i>

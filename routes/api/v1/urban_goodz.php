@@ -225,6 +225,7 @@ Route::group(['prefix' => 'urban-goodz/notifications/ai', 'middleware' => ['auth
 Route::group(['prefix' => 'urban-goodz/driver', 'middleware' => 'dm.api'], function () {
     Route::get('routes', 'Api\UrbanGoodzDriverApiController@assignedRoutes');
     Route::get('routes/{routeId}', 'Api\UrbanGoodzDriverApiController@routeDetail');
+    Route::get('routes/{routeId}/map', 'Api\UrbanGoodzDriverApiController@routeMap');
     Route::post('routes/{routeId}/sequence', 'Api\UrbanGoodzDriverApiController@resequenceRoute');
 
     // Driver sets where they want to finish, then the run is sorted for them.

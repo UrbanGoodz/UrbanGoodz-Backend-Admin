@@ -102,6 +102,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::group(['prefix' => 'urban-goodz', 'as' => 'urban-goodz.', 'middleware' => ['module:urban_goodz_view']], function () {
             Route::get('ai-chief-of-staff', 'AiChiefOfStaffController@index')->name('ai-chief-of-staff.index');
             Route::post('ai-chief-of-staff/query', 'AiChiefOfStaffController@query')->name('ai-chief-of-staff.query');
+            Route::get('fleet-map', 'FleetMapController@index')->name('fleet-map.index');
+            Route::get('fleet-map/data', 'FleetMapController@data')->name('fleet-map.data');
 
             // Urban Goodz Stranded pricing and dispatch controls. Every money
             // value the product uses is edited here rather than deployed.
