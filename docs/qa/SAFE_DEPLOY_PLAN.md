@@ -104,3 +104,18 @@ Rules for every release:
 2. After building, `find storage/app -maxdepth 4 -type d -name app` must show nothing nested.
 3. Check an uploaded image **at the origin** (bypass Cloudflare, e.g. `curl --resolve`), not through the CDN.
 4. The final top-up after `php artisan down` copies from live's real upload folders into `release/storage/app/public/`.
+
+## Lessons (Releases 7-10)
+
+1. **Build the release with a plain `git clone` (or a fetch into a fresh folder), never `git worktree add`.** A worktree
+   keeps a pointer back to the main repo's path; the cutover's directory rename breaks it (`git rev-parse HEAD` fails on
+   live) and the live app then depends on the rollback folder's git data.
+2. **Create `storage/framework/{cache,sessions,views,testing}` (empty) before `composer install`**; a fresh clone has none
+   and the composer hook fails with "Please provide a valid cache path".
+3. **`public/storage` is a symlink that is not in git.** After the swap run `php artisan storage:link` if it is missing,
+   and check an uploaded image at the origin (not through Cloudflare).
+4. **Count rows with `SELECT COUNT(*)`**, never by counting lines of CLI table output (it wraps). Expected: migrations
+   480, addon_settings 47.
+5. **The newest rollback folder stays extracted** (it is the roll-back target). Archive and remove all older ones after
+   every swap; each release adds ~36,000 files against the 300,000 cap.
+6. Route counts change when routes are added: compare against live's count plus the named new routes, not a fixed figure.
